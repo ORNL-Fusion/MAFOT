@@ -1,0 +1,22 @@
+# Parameterfile for ITER programs
+# Shot: 900004	Time: 0450ms
+free_Parameter(NZ)=	520
+itt=	30
+Rmin=	4.0
+Rmax=	6.5
+Zmin=	-4.6
+Zmax=	-2.0
+NR=	500
+phistart(Grad)=	0
+MapDirection=	0
+target(1=inner,2=outer)=	1
+createPoints(0=set,1=random,2=target)=	0
+useIcoil(0=no,1=yes)= 1
+useFilament(0=no,1=yes)= 0
+useTprofile(0=no,1=yes)= 0
+ParticleDirection(1=pass,-1=co-pass,0=field-lines)=	0
+PartileCharge(-1=electrons,>=1=ions)=	1
+Ekin[keV]=	100
+lambda=	0.1
+pi=	3.141592653589793
+2*pi=	6.283185307179586

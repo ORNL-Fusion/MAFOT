@@ -1,0 +1,6 @@
+ar ruv libtrip3d.a circleb.o ellipints.o biotloop.o polygonb.o \
+          d3pferr.o d3ccoils.o d3icoils.o \
+          itericoilsgeom.o
+
+cp ./libtrip3d.a ~/lib/32
+

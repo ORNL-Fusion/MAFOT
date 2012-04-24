@@ -1,0 +1,8 @@
+
+g++ $1.cxx -o bin/$1 \
+-L ~/lib/32 -lla_string -ltrip3d \
+-L ~/lib/32/blitz/lib -lblitz \
+-L /opt/intel/Compiler/11.1/038/lib/ia32 -lifcore -ldl -limf -lirc -lsvml \
+-I ~/src/include \
+-I ~/lib/32/blitz/include \
+-O3 -static -Dgenatomix -Dlinux

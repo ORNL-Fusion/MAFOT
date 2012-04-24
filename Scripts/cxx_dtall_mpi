@@ -1,0 +1,10 @@
+names=( dtfoot_mpi dtlaminar_mpi dtstrike_mpi)
+
+for ((i=0; i<${#names[*]}; i++))
+do
+echo -n "$((i+1)): ${names[$i]}  "
+cxx_ifort_mpi ${names[$i]}
+if [ $? = 0 ] 
+  then echo Success 
+fi
+done

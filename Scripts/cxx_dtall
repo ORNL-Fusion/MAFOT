@@ -1,0 +1,10 @@
+names=( dtplot dtfix dtfoot dtman dtlaminar dtstructure dtstrike)
+
+for ((i=0; i<${#names[*]}; i++))
+do
+echo -n "$((i+1)): ${names[$i]}  "
+cxx_ifort ${names[$i]}
+if [ $? = 0 ] 
+  then echo Success 
+fi
+done

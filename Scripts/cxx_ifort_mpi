@@ -1,0 +1,11 @@
+
+g++4 $1.cxx -o bin/$1 \
+-L ~/lib/32 -lla_string -ltrip3d \
+-L ~/lib/32/blitz/lib -lblitz \
+-L /opt/intel/Compiler/11.1/038/lib/ia32 -lifcore -lirc -limf -lsvml \
+-L ~/lib/32/openmpi/lib -lmpi -lmpi_cxx \
+-I ~/src/include \
+-I ~/lib/32/blitz/include \
+-I ~/lib/32/openmpi/include \
+-I ~/lib/32/openmpi/include/openmpi \
+-O3 -fopenmp -Dgenatomix -Dlinux
