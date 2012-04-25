@@ -1,7 +1,7 @@
 // Program calculates connection length and penetration depth for ITER
 // include drifts and time dependent perturbations
 // Fortran Subroutines are used for perturbations
-// A.Wingen						06.08.10
+// A.Wingen						20.06.11
 
 // Input: 1: Parameterfile	2: praefix(optional)
 // Output:	2d footprint data for colored contour plot
@@ -17,26 +17,21 @@
 //--------
 //#define BZ_DEBUG
 #define program_name "iterfoot_mpi"
+#define ITER
 #define USE_MPI
 
 // Include
 //--------
-#include <andi.hxx>
-#include <efit_class_iter.hxx>
 #include <openmpi/ompi/mpi/cxx/mpicxx.h>
-#include <iter-drift.hxx>
+#include <mafot.hxx>
+#include <iter.hxx>
 #include <omp.h>
 
 // Prototypes  
 
 // Switches
-const int useparfile = 1;	// 0: additional parameters are set in the code		1: All parameters are read from file
 
 // Golbal Parameters 
-EFIT EQD;
-double GAMMA;
-double eps0;
-double Ix;
 
 // Main Program
 //--------------
@@ -44,19 +39,16 @@ int main(int argc, char *argv[])
 {
 // MPI initialize
 MPI::Init(argc, argv);
-mpi_rank = MPI::COMM_WORLD.Get_rank();
-mpi_size = MPI::COMM_WORLD.Get_size();
+int mpi_rank = MPI::COMM_WORLD.Get_rank();
+int mpi_size = MPI::COMM_WORLD.Get_size();
 if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes or start dtlaminar for a non-parallel run." << endl; EXIT;}
 
 // Variables
 int i,j;
 int chk;
-int MapDirection;	// set within the Code, depending on which_target_plate; 1: positive phi-direction	-1: negative phi-direction
-double phi,phistart,psimin;
-double t,ntor,length;
-double omegac;
-Array<double,1> xa(Range(1,2));
+double t,ntor,length,psimin;
 Range all = Range::all();
+EFIT EQD;
 
 int tag,sender;
 double tmin_slave,tmax_slave,dt;
@@ -65,7 +57,6 @@ MPI::Status status;
 
 // Use system time as seed(=idum) for random numbers
 double now = zeit();
-long idum = long(now);
 
 // Input file names
 LA_STRING basename;
@@ -81,14 +72,13 @@ basename = checkparfilename(basename);
 LA_STRING parfilename = "_" + basename + ".dat";
 
 // Read Parameterfile
-vector<double> startvec;
 if(mpi_rank < 1) cout << "Read Parameterfile " << parfilename << endl;
 ofs2 << "Read Parameterfile " << parfilename << endl;
-readiodata(parfilename, startvec);
+IO PAR(EQD,parfilename,10,mpi_rank);
 
 // Set target type for output-filename
 LA_STRING type;
-switch(which_target_plate)
+switch(PAR.which_target_plate)
 {
 case 1:
 	type = "_in";
@@ -117,78 +107,26 @@ if(mpi_rank < 1) cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time <<
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 
 // Set starting parameters
-int itt = 15;
-double tmin = -30;	// in cm
-double tmax = 30;	// in cm
-double phimin = 0;
-double phimax = pi2;
-int Nt = 50;
-int Nphi = 20;
-
-double Ekin = 10;		// kinetic Energy in [keV]
-double lambda = 0.1;	// ratio of kinetic energy in R direction to total kinetic energy, simply estimated; ????? Inluence on results ????? 
-
 int Nt_slave = 1;
+int N = PAR.Nt*PAR.Nphi;
+int N_slave = PAR.Nphi*Nt_slave;
+int NoOfPackages = int(PAR.Nt/Nt_slave);
 
-if(useparfile==1)
-{
-	if(mpi_rank < 1) cout << "All parameters are read from file" << endl;
-	ofs2 << "All parameters are read from file" << endl;
-	itt = int(startvec[1]);
-	tmin = startvec[2];
-	tmax = startvec[3];
-	phimin = startvec[4];
-	phimax = startvec[5];
-	Nt = int(startvec[6]);
-	Nphi = int(startvec[0]);
-	MapDirection = int(startvec[8]);
-	Ekin = startvec[16];
-	lambda = startvec[17];
-}
-int N = Nt*Nphi;
-//if(which_target_plate==2) MapDirection = 1;
-//else  MapDirection = -1;
+// Needed for storage of data while calculating
+Array<int,1> write_memory(Range(1,NoOfPackages)); //store which data is written to file (0: not calculated yet, 1: calculated, 2: written to file)
+int write_max = 0;
+int write_last = 0; //tag of last written data
+write_memory = 0;
 
-// Use simple Boundary Box instead of Wall
+if(PAR.Nt<=1) {dt=0;}
+else dt=(PAR.tmax-PAR.tmin)/(PAR.Nt-1);
+if(dt == 0) PAR.tmax = PAR.tmin;
+
+// Use Boundary Box
 //simpleBndy = 1;
 
-//if(Nt%Nt_slave != 0) Nt_slave = 1;	// if NZ is not a multiple of NZ_slave then only one NR row is send at each time -> more communication 
-int N_slave = Nphi*Nt_slave;
-int NoOfPackages = int(Nt/Nt_slave);
-
-if(Nt<=1) {dt=0;}
-else dt=(tmax-tmin)/(Nt-1);
-if(dt == 0) tmax = tmin;
-
 // Prepare particles
-if(sigma==0)
-{
-	if(mpi_rank < 1) cout << "Field lines are calculated" << endl;
-	ofs2 << "Field lines are calculated" << endl;
-	GAMMA = 1;	omegac = 1;	 eps0 = 1;	Ix = 1;
-}
-else
-{
-	if(Zq>=1) // Ions
-	{
-		GAMMA = 1 + Ekin/(E0p*Massnumber);	// relativistic gamma factor 1/sqrt(1-v^2/c^2)
-		omegac = e*EQD.Bt0/(mp*Massnumber);	// normalized gyro frequency (SI-System)
-		if(mpi_rank < 1) cout << "Ions are calculated" << endl;
-		ofs2 << "Ions are calculated" << endl;
-	}
-	else // Electrons
-	{
-		Zq = -1;	// default!
-		GAMMA = 1 + Ekin/(E0e*Massnumber);	// relativistic gamma factor 1/sqrt(1-v^2/c^2)
-		omegac = e*EQD.Bt0/(me*Massnumber);	// normalized gyro frequency (SI-System)
-		if(mpi_rank < 1) cout << "Electrons are calculated" << endl;
-		ofs2 << "Electrons are calculated" << endl;
-	}
-	eps0 = c*c/omegac/omegac/EQD.R0/EQD.R0;	// normalized rest energy
-	Ix = -0.5/double(Zq)*eps0*((lambda*(GAMMA-1)+1)*(lambda*(GAMMA-1)+1)-1);
-	if(mpi_rank < 1) cout << "kin. Energy: Ekin= " << Ekin << "keV" << "\t" << "rel. gamma-factor: gamma= " << GAMMA << endl;
-	ofs2 << "kin. Energy: Ekin= " << Ekin << "keV" << "\t" << "rel. gamma-factor: gamma= " << GAMMA << endl;
-}
+PARTICLE FLT(EQD,PAR,mpi_rank);
 
 MPI::COMM_WORLD.Barrier();	// Syncronize all Nodes
 
@@ -201,29 +139,27 @@ if(mpi_rank < 1)
 	ofs3.precision(16);
 
 	ofs3 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
-	ofs3 << "ITER-coil (0 = off, 1 = on): " << useIcoil << endl << endl;
+	ofs3 << "ITER-coil (0 = off, 1 = on): " << PAR.useIcoil << endl << endl;
 	ofs3 << "No. of Packages = " << NoOfPackages << " Points per Package = " << N_slave << endl << endl;
 
 	// additional parameters for IO
-	const int psize=10;
-	parstruct * parvec = new parstruct[psize];
-	parvec[0].name = "Max. Iterations";	parvec[0].wert = itt;
-	parvec[1].name = "t-grid";			parvec[1].wert = Nt;
-	parvec[2].name = "phi-grid";		parvec[2].wert = Nphi;
-	parvec[3].name = "tmin";			parvec[3].wert = tmin;
-	parvec[4].name = "tmax";			parvec[4].wert = tmax;
-	parvec[5].name = "phimin";			parvec[5].wert = phimin;
-	parvec[6].name = "phimax";			parvec[6].wert = phimax;
-	parvec[7].name = "MapDirection";	parvec[7].wert = MapDirection;
-	parvec[8].name = "Ekin";			parvec[8].wert = Ekin;
-	parvec[9].name = "energy ratio lambda";	parvec[9].wert = lambda;
+	PAR.pv[0].name = "Max. Iterations";	PAR.pv[0].wert = PAR.itt;
+	PAR.pv[1].name = "t-grid";			PAR.pv[1].wert = PAR.Nt;
+	PAR.pv[2].name = "phi-grid";		PAR.pv[2].wert = PAR.Nphi;
+	PAR.pv[3].name = "tmin";			PAR.pv[3].wert = PAR.tmin;
+	PAR.pv[4].name = "tmax";			PAR.pv[4].wert = PAR.tmax;
+	PAR.pv[5].name = "phimin";			PAR.pv[5].wert = PAR.phimin;
+	PAR.pv[6].name = "phimax";			PAR.pv[6].wert = PAR.phimax;
+	PAR.pv[7].name = "MapDirection";	PAR.pv[7].wert = PAR.MapDirection;
+	PAR.pv[8].name = "Ekin";			PAR.pv[8].wert = PAR.Ekin;
+	PAR.pv[9].name = "energy ratio lambda";	PAR.pv[9].wert = PAR.lambda;
 
 	// Output
 	ofstream out(filenameout);
 	out.precision(16);
 	vector<LA_STRING> var(5);
 	var[0] = "phi[rad]";  var[1] = "length t";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";
-	writeiodata(out,var,parvec,psize,parfilename);
+	PAR.writeiodata(out,bndy,var);
 
 	// Result array:					Package ID,  Column Number,  Values
 	Array<double,3> results_all(Range(1,NoOfPackages),Range(1,5),Range(1,N_slave)); 
@@ -232,13 +168,13 @@ if(mpi_rank < 1)
 	tag = 1;	// first Package
 
 	// t array
-	Array<double,1> t_values(Range(1,Nt));
-	for(i=1;i<=Nt;i++) t_values(i) = tmin + (i-1)*dt;
+	Array<double,1> t_values(Range(1,PAR.Nt));
+	for(i=1;i<=PAR.Nt;i++) t_values(i) = PAR.tmin + (i-1)*dt;
 
 	int sent_packages = 0;
 	int recieve_packages = 0;
 
-	#pragma omp parallel shared(results_all,t_values,sent_packages,recieve_packages) private(i,tag) num_threads(2)
+	#pragma omp parallel shared(results_all,t_values,sent_packages,recieve_packages,write_memory) private(i,tag) num_threads(2)
 	{
 		#pragma omp sections nowait
 		{
@@ -247,7 +183,7 @@ if(mpi_rank < 1)
 			#pragma omp barrier	// Syncronize with Slave Thread
 			MPI::COMM_WORLD.Barrier();	// Master waits for Slaves
 
-			cout << "Target (1=inner, 2=outer): " << which_target_plate << endl;
+			cout << "Target (1=inner, 2=outer): " << PAR.which_target_plate << endl;
 			cout << "Start Tracer for " << N << " points ... " << endl;
 			//ofs2 << "Target (0=vertical, 1=45°, 2=horizontal, 3=shelf): " << which_target_plate << endl;
 			ofs3 << "Start Tracer for " << N << " points ... " << endl;
@@ -274,7 +210,6 @@ if(mpi_rank < 1)
 				else	// more Nodes than Packages -> Send termination signal: tag = 0
 				{
 					MPI::COMM_WORLD.Send(send_t_limits.dataFirst(),0,MPI::DOUBLE,i,0);
-					workingNodes -= 1;
 					ofs3 << "Send termination signal to Node: " << i << endl;
 				}
 			} // end for(i=1;i<mpi_size;i++)
@@ -291,6 +226,7 @@ if(mpi_rank < 1)
 				#pragma omp critical
 				{
 					recieve_packages += 1;
+					write_memory(tag) = 1;
 					ofs3 << "------------------------------------ Progress: " << recieve_packages << " of " << NoOfPackages << " completed" <<  endl;
 				}
 
@@ -319,17 +255,28 @@ if(mpi_rank < 1)
 					ofs3 << "Send termination signal to Node: " << sender << endl;
 				}
 
+				// Set write_max
+				while((write_memory(write_max+1) == 1) && (write_max < NoOfPackages)) write_max++;
+
+				// Write Output to file
+				for(i=write_last+1; i<=write_max; i++)
+				{
+					for(j=1;j<=N_slave;j++)	out << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << endl;
+					write_memory(i) = 2;
+				}
+				write_last = write_max;
+
 			} // end while(recieve_packages <= NoOfPackages)
 		} // end omp section: Master thread
 
 		#pragma omp section	//------- Slave Thread on Master Node: does same calculations as Salve Nodes ----------------------------------------------------------------------------------
 		{
 			// Prepare Perturbation
-			prep_perturbation();
+			prep_perturbation(EQD,PAR,mpi_rank);
 
 			#pragma omp barrier	// Syncronize with Master Thread
 
-			ofs2 << "Target (1=inner, 2=outer): " << which_target_plate << endl;
+			ofs2 << "Target (1=inner, 2=outer): " << PAR.which_target_plate << endl;
 
 			// Start working...
 			while(1)	
@@ -351,14 +298,14 @@ if(mpi_rank < 1)
 				ofs2 << "Start Tracer for " << N_slave << " points ... " << endl;
 				for(i=1;i<=N_slave;i++)
 				{
-					t = start_on_target(i,Nt_slave,Nphi,tmin_slave,tmax_slave,phimin,phimax,xa(2),xa(1),phistart);
-					phi = phistart*rTOd;	//phi in deg;
+					// Set and store initial condition
+					t = start_on_target(i,Nt_slave,PAR.Nphi,tmin_slave,tmax_slave,PAR.phimin,PAR.phimax,EQD,PAR,FLT);
+					results_all(tag,1,i) = FLT.phi/rTOd;	// phi in rad
+					results_all(tag,2,i) = t;
 
-					chk = connect(xa,phi,itt,MapDirection,ntor,length,psimin);
+					chk = FLT.connect(ntor,length,psimin,PAR.itt,PAR.MapDirection);
 
 					//Store results
-					results_all(tag,1,i) = phistart;
-					results_all(tag,2,i) = t;
 					results_all(tag,3,i) = ntor;
 					results_all(tag,4,i) = length/1000.0;
 					results_all(tag,5,i) = psimin;
@@ -369,6 +316,7 @@ if(mpi_rank < 1)
 				#pragma omp critical
 				{
 					recieve_packages += 1;
+					write_memory(tag) = 1;
 					ofs3 << "------------------------------------ Progress: " << recieve_packages << " of " << NoOfPackages << " completed" <<  endl;
 				}
 
@@ -377,8 +325,8 @@ if(mpi_rank < 1)
 		} // end omp sections
 	} // end omp parallel
 
-	// Write Output to file
-	for(i=1;i<=NoOfPackages;i++)
+	// Write remaining Output to file
+	for(i=write_last+1;i<=NoOfPackages;i++)
 	{
 		for(j=1;j<=N_slave;j++)	out << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << endl;
 	}
@@ -391,11 +339,11 @@ if(mpi_rank < 1)
 if(mpi_rank > 0)
 {
 	// Prepare Perturbation
-	prep_perturbation();
+	prep_perturbation(EQD,PAR,mpi_rank);
 
 	MPI::COMM_WORLD.Barrier();	// Syncronize with Master
 
-	ofs2 << "Target (1=inner, 2=outer): " << which_target_plate << endl;
+	ofs2 << "Target (1=inner, 2=outer): " << PAR.which_target_plate << endl;
 
 	// Result array for Slave
 	Array<double,2> results(Range(1,5),Range(1,N_slave));
@@ -417,14 +365,14 @@ if(mpi_rank > 0)
 		ofs2 << "Start Tracer for " << N_slave << " points ... " << endl;
 		for(i=1;i<=N_slave;i++)
 		{
-			t = start_on_target(i,Nt_slave,Nphi,tmin_slave,tmax_slave,phimin,phimax,xa(2),xa(1),phistart);
-			phi = phistart*rTOd;	//phi in deg;
+			// Set and store initial condition
+			t = start_on_target(i,Nt_slave,PAR.Nphi,tmin_slave,tmax_slave,PAR.phimin,PAR.phimax,EQD,PAR,FLT);
+			results(1,i) = FLT.phi/rTOd;	// phi in rad
+			results(2,i) = t;
 
-			chk = connect(xa,phi,itt,MapDirection,ntor,length,psimin);
+			chk = FLT.connect(ntor,length,psimin,PAR.itt,PAR.MapDirection);
 
 			//Store results
-			results(1,i) = phistart;
-			results(2,i) = t;
 			results(3,i) = ntor;
 			results(4,i) = length/1000.0;
 			results(5,i) = psimin;

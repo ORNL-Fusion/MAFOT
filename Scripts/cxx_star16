@@ -1,7 +1,0 @@
-
-g++4 -m32 $1.cxx -o /home/wingen/bin/$1 \
--L /home/wingen/lib/32 -lla_string \
--L /home/wingen/lib/32/blitz/lib -lblitz -ldl \
--I /u/wingen/src/include \
--I /home/wingen/lib/32/blitz/include \
--O3 -Dlinux -Dgenatomix

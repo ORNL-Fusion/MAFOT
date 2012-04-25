@@ -23,8 +23,6 @@
 // Switches
 
 // Golbal Parameters 
-const double pi = LA_PI;
-const double pi2 = 2*pi;
 
 // Main Program
 //--------------

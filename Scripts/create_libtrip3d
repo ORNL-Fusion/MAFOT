@@ -1,6 +1,13 @@
-ar ruv libtrip3d.a circleb.o ellipints.o biotloop.o polygonb.o \
-          d3pferr.o d3ccoils.o d3icoils.o \
-          itericoilsgeom.o
+names=( circleb ellipints biotloop polygonb d3pferr d3ccoils d3icoils itericoilsgeom nstxecgeom )
 
-cp ./libtrip3d.a ~/lib/32
+for ((i=0; i<${#names[*]}; i++))
+do
+echo -n "$((i+1)): ${names[$i]}  "
+ifort -c ${names[$i]}.f -O3
+if [ $? = 0 ]
+  then echo Success
+fi
+ar ruvs libtrip3d.a ${names[$i]}.o
+mv ${names[$i]}.o ./obj/
+done
 

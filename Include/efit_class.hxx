@@ -1,12 +1,14 @@
 // EFIT Class handles all EFIT data read from g-files
 // provides interpolation member functions for all data sets in g-file
-// used by all DIII-D drift programs
+// used by all ITER drift programs
 // uses arrays and multiple-arrays from blitz-Library
-// A.Wingen						4.12.08
+// A.Wingen						5.08.10
 
 
 // Define
 //--------
+#ifndef EFIT_CLASS_INCLUDED
+#define EFIT_CLASS_INCLUDED
 
 // Include
 //--------
@@ -31,17 +33,47 @@ void bcuint(Array<double,1>& Ra, Array<double,1>& Za, Array<double,4>& Ca, doubl
 
 // Golbal Parameters 
 #if defined(university)		// University Cluster
-const LA_STRING gFilePath = "/home/wingen/c++/d3d/d3gfiles/";	
+	#if defined(ITER)
+	const LA_STRING gFilePath = "/home/wingen/c++/iter/gfiles/";
+	#elif defined(NSTX)
+	const LA_STRING gFilePath = "/home/wingen/c++/nstx/gfiles/";
+	#else
+	const LA_STRING gFilePath = "/home/wingen/c++/d3d/d3gfiles/";
+	#endif
 #elif defined(genatomix)	// GA Cluster
-const LA_STRING gFilePath = "/u/wingen/d3gfiles/";	
+	#if defined(ITER)
+	const LA_STRING gFilePath = "/u/wingen/d3gfiles/iter/";
+	#elif defined(NSTX)
+	const LA_STRING gFilePath = "/u/wingen/d3gfiles/nstx/";
+	#else
+	const LA_STRING gFilePath = "/u/wingen/d3gfiles/";
+	#endif
+#elif defined(mac)	// Mac Book
+	#if defined(ITER)
+	const LA_STRING gFilePath = "/Users/wingen/c++/iter/gfiles/";
+	#elif defined(NSTX)
+	const LA_STRING gFilePath = "/Users/wingen/c++/nstx/gfiles/";
+	#else
+	const LA_STRING gFilePath = "/Users/wingen/c++/d3d/gfiles/";
+	#endif
 #else						// local
-const LA_STRING gFilePath = "C:\\C++\\D3D\\d3gfiles\\";	// double backslash causes \ to appear in string
+	#if defined(ITER)
+	const LA_STRING gFilePath = "C:\\C++\\ITER\\gfiles\\";	// double backslash causes \ to appear in string
+	#elif defined(NSTX)
+	const LA_STRING gFilePath = "C:\\C++\\NSTX\\gfiles\\";
+	#else
+	const LA_STRING gFilePath = "C:\\C++\\D3D\\d3gfiles\\";
+	#endif
 #endif
 
 //--------- Begin Class EFIT ----------------------------------------------------------------------------------------------
 class EFIT
 {
-public:
+private:
+// Member Variables
+	int helicity_adjust;	// default = 1; set to -1 if helicity is wrong -> modifies dpsidR und dpsidZ
+
+public: 
 // Member Variables
 	LA_STRING Shot;		// Shot number
 	LA_STRING Time;		// Time slice in ms
@@ -75,7 +107,7 @@ public:
 	int Nwall;	// number of points for the Wall, Array has twice the size!	
 
 	Array<double,1> lcfs;	// Position of the LCFS in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
-	Array<double,1> wall;	// 	!!!! NOT READ SO FAR !!!!!  Position of the Wall in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
+	Array<double,1> wall;	// Position of the Wall in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
 
 	// Calculated in ReadData
 	double dR;		// grid distance in R direction
@@ -99,7 +131,7 @@ public:
 
 	Array<double,4> Ca;		// Coefficients for bcuint
 
-	int handedness;	// +1 = right handed equlibrium		-1 = left handed
+	int helicity;	// +1 = right handed equlibrium		-1 = left handed
 
 // Konstruktoren
 	EFIT();		// Default Constructor
@@ -168,7 +200,8 @@ d2psidRdZ.resize(NR,NZ);	d2psidRdZ.reindexSelf(index2);
 
 Ca.resize(NR-1,NZ-1,4,4);	Ca.reindexSelf(index4);
 
-handedness = 1;
+helicity = 1;
+helicity_adjust = 1;
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -229,7 +262,8 @@ d2psidRdZ = EQD.d2psidRdZ.copy();
 
 Ca = EQD.Ca.copy();
 
-handedness = EQD.handedness;
+helicity = EQD.helicity;
+helicity_adjust = EQD.helicity_adjust;
 
 return(*this);
 }
@@ -256,16 +290,20 @@ Shot = ShotNr;
 Time = ShotTime;
 
 // Open File
-LA_STRING filename = "g" + ShotNr + ".0" + ShotTime;
+for(i=1;i<=5-int(ShotTime.len());i++) ShotTime.insert('0');		//insert zeros until ShotTime has a length of 5
+LA_STRING filename = "g" + ShotNr + "." + ShotTime;
 ifstream in;
 in.open(Path + filename);
 if(in.fail()==1) {cout << "Unable to open file " << Path + filename << endl; exit(0);}
 
 // Read tags and dimension
-for(i=1;i<=4;i++) in >> stdummy;
+in >> stdummy;
+while (stdummy[0] != '#') in >> stdummy;
+in >> stdummy;
 in >> dummy;	
 in >> NR;	// Number of Points in R-direction
 in >> NZ;	// Number of Points in Z-direction
+//in >> stdummy;	// useless string: endHead 
 
 // Rezize Arrays (if size = 129 nothing is done!); All Arrays start with index 1 
 Fpol.resize(NR);
@@ -291,9 +329,9 @@ for (i=1;i<=9;i++) in >> dummy;		// Unused parameters
 
 // Read Arrays
 for(i=1;i<=NR;i++) in >> Fpol(i);	// Fpol = Fpol(psi_norm) = Btor * R; Fpol(1) = Fpol(psi=0), Fpol(NR) = Fpol(psi=1), same for the others
-for(i=1;i<=NR;i++) in >> Pres(i);	// Pres = ?
+for(i=1;i<=NR;i++) in >> Pres(i);	// Pres = pressure profile
 for(i=1;i<=NR;i++) in >> FFprime(i);	// FFprime = ?
-for(i=1;i<=NR;i++) in >> Pprime(i);	// Pprime = ?
+for(i=1;i<=NR;i++) in >> Pprime(i);	// Pprime = dPres/dpsi
 for(j=1;j<=NZ;j++) 
 	for (i=1;i<=NR;i++) in >> psiRZ(i,j);	// psi(R,Z) = NOT-normalized poloidal Flux		i=1:Nr rows, j=1:Nz columns  
 for(i=1;i<=NR;i++) in >> qpsi(i);	// q(psi) = Safety Factor
@@ -302,9 +340,9 @@ for(i=1;i<=NR;i++) in >> qpsi(i);	// q(psi) = Safety Factor
 in >> Nlcfs;	// twice the number of points for the Last Closed Flux Surface (LCFS)
 in >> Nwall;	// twice the number of points for the Wall
 lcfs.resize(2*Nlcfs);
-//wall.resize(2*Nwall);
+wall.resize(2*Nwall);
 for(i=1;i<=2*Nlcfs;i++) in >> lcfs(i);	// Position of the LCFS in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
-//for(i=1;i<=2*Nwall;i++) in >> wall(i);	// Position of the Wall in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
+for(i=1;i<=2*Nwall;i++) in >> wall(i);	// Position of the Wall in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
 
 in.close();
 
@@ -395,13 +433,22 @@ dn = (qpsi(NR)-qpsi(NR-1))/dpsi;
 
 spline(psi,qpsi,NR,d1,dn,d2qpsi);
 
-// Get Handedness of Equilibrium
-// B is right handed if line trajectory derivative dZ/dphi < 0 at 
-// outer midplane. Otherwise B is left handed.
+// Get helicity of Equilibrium
+// B_tor is parallel to Ip if line trajectory derivative dZ/dphi < 0 at <-> "right-handed"
+// outer midplane. Otherwise B_tor is anti-parallel to Ip <-> "left-handed".
 int chk;
-double psi_hand,dpsidr_hand;
-chk = get_psi(0.9*R(NR),0,psi_hand,dpsidr_hand,dummy);
-handedness = sign(dpsidr_hand/get_Fpol(psi_hand));	// = sign(-dZ/dphi)
+double psi_hel,dpsidr_hel;
+double R_hel = max(lcfs) - 10*dR;					// just inside the separatrix ...
+chk = get_psi(R_hel,0,psi_hel,dpsidr_hel,dummy);	// ... at midplande
+helicity = sign(dpsidr_hel/get_Fpol(psi_hel));		// = sign(-dZ/dphi)
+helicity_adjust = 1;
+
+// Adjust helicity according to Ip and B_tor
+if((Ip*Bt0 > 0 && helicity == -1) || (Ip*Bt0 < 0 && helicity == 1))
+{
+	helicity *= -1;
+	helicity_adjust = -1;
+}
 
 // Identify the sign of toroidal and poloidal fields for use elsewhere.
 //    btSign  	 of g-file Bt, rel to phi in cylindrical (R,phi,Z) 
@@ -427,6 +474,14 @@ else bcuint(R,Z,Ca,dR,dZ,x1,x2,y,dy1,dy2);
 
 // normalize psi
 if(norm==true) y = (y-psiAxis) / (psiSep-psiAxis);
+
+// change helicity, if necessary
+if(helicity_adjust == -1)
+{
+	dy1 *= -1;
+	dy2 *= -1;
+}
+
 return 0;
 }
 
@@ -658,23 +713,23 @@ y12(N1,N2) = (y(N1,N2)-y(N1-1,N2)-y(N1,N2-1)+y(N1-1,N2-1))/d1d2;
 void bcucof(Array<double,1>& y, Array<double,1>& y1, Array<double,1>& y2, Array<double,1>& y12, double d1, double d2, 
 			Array<double,2>& c)
 {
-static int wt[16][16]=
-{ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,
--3,0,0,3,0,0,0,0,-2,0,0,-1,0,0,0,0,
-2,0,0,-2,0,0,0,0,1,0,0,1,0,0,0,0,
-0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,
-0,0,0,0,-3,0,0,3,0,0,0,0,-2,0,0,-1,
-0,0,0,0,2,0,0,-2,0,0,0,0,1,0,0,1,
--3,3,0,0,-2,-1,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,-3,3,0,0,-2,-1,0,0,
-9,-9,9,-9,6,3,-3,-6,6,-6,-3,3,4,2,1,2,
--6,6,-6,6,-4,-2,2,4,-3,3,3,-3,-2,-1,-1,-2,
-2,-2,0,0,1,1,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,2,-2,0,0,1,1,0,0,
--6,6,-6,6,-3,-3,3,3,-4,4,2,-2,-2,-2,-1,-1,
-4,-4,4,-4,2,2,-2,-2,2,-2,-2,2,1,1,1,1};
+static int wt[16][16]= {
+{ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+{0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0},
+{-3,0,0,3,0,0,0,0,-2,0,0,-1,0,0,0,0},
+{2,0,0,-2,0,0,0,0,1,0,0,1,0,0,0,0},
+{0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0},
+{0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0},
+{0,0,0,0,-3,0,0,3,0,0,0,0,-2,0,0,-1},
+{0,0,0,0,2,0,0,-2,0,0,0,0,1,0,0,1},
+{-3,3,0,0,-2,-1,0,0,0,0,0,0,0,0,0,0},
+{0,0,0,0,0,0,0,0,-3,3,0,0,-2,-1,0,0},
+{9,-9,9,-9,6,3,-3,-6,6,-6,-3,3,4,2,1,2},
+{-6,6,-6,6,-4,-2,2,4,-3,3,3,-3,-2,-1,-1,-2},
+{2,-2,0,0,1,1,0,0,0,0,0,0,0,0,0,0},
+{0,0,0,0,0,0,0,0,2,-2,0,0,1,1,0,0},
+{-6,6,-6,6,-3,-3,3,3,-4,4,2,-2,-2,-2,-1,-1},
+{4,-4,4,-4,2,2,-2,-2,2,-2,-2,2,1,1,1,1} };
 int l,k,j,i;
 double xx,d1d2,cl[16],x[16];
 d1d2=d1*d2;
@@ -739,5 +794,6 @@ y1 /= dR;
 y2 /= dZ;
 }
 
+#endif //  EFIT_CLASS_INCLUDED
 //----------------------- End of File -------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------

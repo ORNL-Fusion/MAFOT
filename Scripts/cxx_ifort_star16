@@ -1,8 +1,0 @@
-
-g++4 -m32 $1.cxx -o /home/wingen/bin/$1 \
--L /home/wingen/lib/32 -lla_string -ltrip3d \
--L /home/wingen/lib/32/blitz/lib -lblitz \
--L /home/wingen/lib/32/fortran/038/lib/ia32 -lifcore -ldl -limf -lirc -lsvml \
--I /u/wingen/src/include \
--I /home/wingen/lib/32/blitz/include \
--O3 -Dgenatomix -Dlinux

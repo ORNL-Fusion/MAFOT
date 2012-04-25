@@ -1,9 +1,23 @@
 // Helpfull functions used in all programs
 // a(ll thats) n(eedful) d(irectly) i(mplemented)
 // a(lles) n(ützliche) d(irekt) i(mplementiert)
-// Last modified 9.2.09
+// Last modified 7.6.11
 
-// Includes
+
+// Define
+//--------
+#ifdef USE_MPI
+#define EXIT MPI::COMM_WORLD.Abort(0)
+#else
+#define EXIT exit(0)
+#endif
+
+#ifndef program_name		// checks if program_name is defined
+#define program_name "default"	// if not, set program_name to default
+#endif						// end
+
+// Include
+//--------
 #include <la_string.hxx>
 
 #ifdef linux
@@ -22,8 +36,16 @@
 #include <blitz/array.h>
 using namespace blitz;
 
-#define LA_PI 3.1415926535897932384626433832795029L
-#define LA_PI2 (2*LA_PI)
+// Global const parameters
+//------------------------
+const double LA_PI = 3.1415926535897932384626433832795029;
+const double LA_PI2 = 2*LA_PI;
+const double pi = LA_PI;
+const double pi2 = 2*pi;
+const double rTOd = 180.0/pi;	// rad to deg
+
+//-----------------------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------------------
 
 // ------------ STRING --------------------------------------------------------------------------------------------------
 // Casted alles auf string

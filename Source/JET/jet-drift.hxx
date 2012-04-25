@@ -1,19 +1,24 @@
-// Header-File for the NSTX Drift Programs 
-// Includes psi-dependent temperature profile
+// Header-File for the DIII-D Drift Programs modified for JET
 // uses arrays and multiple-arrays from blitz-Library
-// A.Wingen						16.3.110
+// A.Wingen						20.2.08
+// M.Rack						18.02.2011
 
 // uses interpolated filament fields 
+
+// Include
+//--------
+#include <mystructs.hxx>
 
 // -------------------- typedef -------------------------------------------------------------
 typedef struct {string name; double wert;} parstruct;
 
 // --------------- Prototypes ----------------------------------------------------------------
+void setMessageCoils(ostream &out);
+void setMessageTarget(ostream &out);
+LA_STRING setTargetType(void);
+
 void readiodata(char* name, vector<double>& vec);
 void writeiodata(ofstream& out, vector<LA_STRING>& var, parstruct * pv, int psize, char* name=0);
-
-bool outofBndy(double x, double y, int simpleBndy);
-bool outofRealBndy(double x, double y);
 
 int mapit(double& theta, double& r, double& phistart, double& psi, int itt, int MapDirection=1, 
 		  int get_parameter=0, double* parameter=0);
@@ -27,12 +32,11 @@ int mapstep(Array<double,1>& y, double& theta, double& r, double& phi, double& p
 
 int connect(Array<double,1>& xa, double phistart, int itt, int MapDirection, double& ntor, double& length, double& psimin);
 
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, double& psi);
+void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi);
 void dgls(double x, Array<double,1> y, Array<double,1>& dydx);
 
 int rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x,
 		  int get_parameter=0, double* parameter=0);
-void getEnergy(double psi, double& Enorm, double& dEnorm);
 
 void prep_perturbation(void);
 
@@ -44,7 +48,9 @@ double filament_fields_ex(double x, double y, double z, Array<double,2>& data, i
 void set(int i, int N, double xmin, double xmax, double ymin, double ymax, double& x, double& y, int N_x=1);
 void create(long& idum, double xmin, double xmax, double ymin, double ymax, double& x, double& y);
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
-					   double& r, double& theta, double& phi);
+					 double& r, double& theta, double& phi);
+
+int setMapDirection(void);
 
 void rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout);
 
@@ -61,41 +67,23 @@ void bcuderiv_square(Array<double,2>& y, int j, int k, double d1, double d2,
 void bcuint_square(Array<double,1>& Ra, Array<double,1>& Za, double dR, double dZ, Array<double,2>& field,
 			double R, double Z, double& y, double& y1, double& y2);
 
-// ------------- Global Variables ---------------------------------------------------------
+void Bfield_EFCC(double &Bx, double &By, double &Bz, double x, double y, double z);
+void Bfield_EF(double &Bx, double &By, double &Bz, double x, double y, double z);
+
+bool outofBndy(double x, double y, int simpleBndy);
+bool outofRealBndy(double x, double y);
+
+// --------------------Global Variables------------------------------------------------------
+//have to be known during integration for perturbations, set in: prep_perturbation()
+const int nEFCC = 4;	// number of Coils
+Array<double,1> curntEFCC(nEFCC);	// Array for EFCC current
+Array<double,1> curntEF(nEFCC);		// Array for Error Field current
+Array<vektor,1> EFCC1(14);
+Array<vektor,1> EFCC3(16);
+Array<vektor,1> EFCC5(14);
+Array<vektor,1> EFCC7(14);
 Array<double,3> filament_data(Range(1,1),Range(0,1),Range(1,5));	// default size
 Array<double,4> field;	// default constructed
-
-// ------------ Set Parameters for fortran ------------------------------------------------
-const int mxbands = 1;
-const int mxloops = 6;
-const int mxsegs = 26;
-const int nturns = 2;
-
-// Output of iterigeom_, set in: prep_perturbation()
-int kuse[mxbands][mxloops];
-int nbands;
-int nloops[mxbands];
-int nsegs[mxbands][mxloops];
-double xs[mxbands][mxloops][mxsegs][3];
-double dvs[mxbands][mxloops][mxsegs][4];
-double curntw[mxbands][mxloops];
-
-// ------------------- Fortran Common Blocks ------------------------------------------------
-extern "C" 
-{
-	extern struct{double pi,twopi,cir,rtd,dtr;} consts_;
-	extern struct{double ECadj[mxbands][3];
-				  double ECcur[mxbands][mxloops];} currents_;
-}
-
-// ----------------- Fortran Routines -------------------------------------------------------
-extern "C" 
-{
-	void nstxecgeom_(int *kuse, const int *nbands, int nloops[], int *nsegs, double *xs, double *dvs, double *curntw);
-	void polygonb_(const int *loopsdim, const int *segsdim, const int *nloops, int nsegs[], int kuse[],
-					double *xs, double *dvs, double curnt[], 
-					double *x, double *y, double *z, double *bx, double *by, double *bz);
-}
 
 // ------------------- extern Parameters ----------------------------------------------------
 extern EFIT EQD;
@@ -104,17 +92,17 @@ extern double eps0;
 extern double Ix;
 
 // -------------------- Switches ------------------------------------------------------------
-int useIcoil = 0;		// 0: no	1: yes
-int useFilament = 0;	// 0: no	>= 1: Number of Filaments to be included 
-int use_T_profile = 1;	// 0: no	1: yes
+int simpleBndy = 0;		// 0: real boundary 	1: rectangle boundary
 
-int which_target_plate;	// 1: inner target	2: outer target
+int useEF = 0;			// 0: no	1: yes
+int useEFCC = 0;		// 0: no	1: yes
+int useFilament = 0;		// 0: no	>= 1: Number of Filaments to be included 
+
+int which_target_plate;	// 0: inner target	1: outer target
 int create_flag;	// 0: fixed grid	1: random numbers	2: Start on target
 
 int sigma;	// 1: co-passing particles		-1: count-passing particles		0: field lines only
 int Zq;		// Charge number: 1: ions are calculated	-1: electrons are calculated
-
-int simpleBndy = 0;		// 0: real wall boundary 	1: simple boundary box
 
 // -------------- global Parameters --------------------------------------------------------
 const double c=299792458;			// speed of light in m/s
@@ -133,9 +121,7 @@ const int Massnumber=1;				// Mass number
 const int nvar = 2;	// Number of Variables
 const int ilt = 360;	// Steps till Output
 const double dpinit = 1.0;	// step size of phi in [deg]
-
-// Boundary Box
-double bndy[4] = {0.185, 1.57, -1.63, 1.63};	// Boundary Box: Rmin, Rmax, Zmin, Zmax	
+double bndy[4] = {1.8060, 3.8910, -1.7460, 2.0180};	// simple Boundary (x_min, x_max, y_min, y_max)
 
 // -------------- MPI Parameters -----------------------------------------------------------
 int mpi_rank = 0;
@@ -157,6 +143,25 @@ ofstream ofs2;
 // ---------------------- IO -------------------------------------------------------
 // ---------------------------------------------------------------------------------
 
+// ----------------- some machine specific output (messages) ---------------------------------
+void setMessageCoils(ostream &out){ out << "EF: " << useEF << "\t" << "EFCC: " << useEFCC << endl << endl; }
+void setMessageTarget(ostream &out){ out << "Target (0=inner, 1=outer): " << which_target_plate << endl; }
+LA_STRING setTargetType(void)
+{
+  switch(which_target_plate)
+  {
+    case 0:
+      return "_inn";
+      break;
+    case 1:
+      return "_out";
+      break;
+    default:
+      return "";
+      break;
+  }
+}
+
 // ----------------- readiodata ------------------------------------------------------------
 void readiodata(char* name, vector<double>& vec)
 {
@@ -169,7 +174,7 @@ if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open file " << name << end
 in >> input;	// Skip first line
 in >> input;	// second line gives shot number and time
 EQD.Shot = input.mid(9,6);	// 6 characters starting at index 9 of input string
-EQD.Time = input.mid(22,4); // 4 characters starting at index 22 of input string
+EQD.Time = input.mid(22,5); 	// 5 characters starting at index 22 of input string
 
 // Get Path to g-File from Parameterfile (optional), Linux only!!!
 in >> input;	
@@ -186,16 +191,33 @@ in.close();
 readparfile(name,vec);
 
 // Set switches
-which_target_plate = int(vec[9]);
-create_flag = int(vec[10]);
+which_target_plate = int(vec[11]);
+create_flag = int(vec[12]);
 
-useIcoil = int(vec[11]);
-useFilament = int(vec[12]);
-use_T_profile = int(vec[13]);
+if(vec[13]>1) 
+{
+	if(mpi_rank < 1) cout << "Coil flags are undefined in file " << name << endl;
+	ofs2 << "Coil flags are undefined in file " << name << endl;
+}
+else
+{
+	useEF = int(vec[13]);
+	useEFCC = int(vec[14]);
+	//useIcoil = int(vec[15]);	//Not used in JET
+}
 
-sigma = int(vec[14]);
-Zq = int(vec[15]);
+if(vec.size()>=22)
+{
+	sigma = int(vec[16]);
+	Zq = int(vec[17]);
+}
+else {if(mpi_rank < 1) cout << "Fail to read particle parameters" << endl; EXIT;}
 
+if(vec.size()>=23)
+{
+	useFilament = int(vec[20]);
+}
+else {if(mpi_rank < 1) cout << "No current filaments included" << endl;}
 }
 
 // ------------------- writeiodata ----------------------------------------------------------
@@ -209,22 +231,26 @@ out << "# Shot: " << EQD.Shot << endl;
 out << "# Time: " << EQD.Time << endl;
 out << "#-------------------------------------------------" << endl;
 out << "### Switches:" << endl;
-out << "# EC-coil active (0=no, 1=yes): " << useIcoil << endl;
+out << "# EF active (0=no, 1=yes): " << useEF << endl;
+out << "# EFCC active (0=no, 1=yes): " << useEFCC << endl;
 out << "# No. of current filaments (0=none): " << useFilament << endl;
-out << "# Target (1=inner up, 2=outer up, 3=inner down, 4=outer down): " << which_target_plate << endl;
+out << "# Target (0=inner, 1=outer): " << which_target_plate << endl;
 out << "# Create Points (0=grid, 1=random, 2=target): " << create_flag << endl;
 out << "# Direction of particles (1=co-pass, -1=count-pass, 0=field lines): " << sigma << endl;
 out << "# Charge number of particles (=-1:electrons, >=1:ions): " << Zq << endl;
-out << "# Use temerature profile (0=no, 1=yes): " << use_T_profile << endl;
-out << "# Boundary (0=Wall, 1=Box): " << simpleBndy << endl;
 out << "#-------------------------------------------------" << endl;
 out << "### Global Parameters:" << endl;
 out << "# Steps till Output (ilt): " << ilt << endl;
 out << "# Step size (dpinit): " << dpinit << endl;
-out << "# Boundary Rmin: " << bndy[0] << endl;
-out << "# Boundary Rmax: " << bndy[1] << endl;
-out << "# Boundary Zmin: " << bndy[2] << endl;
-out << "# Boundary Zmax: " << bndy[3] << endl;
+if (simpleBndy)
+{
+  out << "# Boundary Rmin: " << bndy[0] << endl;
+  out << "# Boundary Rmax: " << bndy[1] << endl;
+  out << "# Boundary Zmin: " << bndy[2] << endl;
+  out << "# Boundary Zmax: " << bndy[3] << endl;
+} else {
+  out << "# real Boundary is used" << endl;
+}
 out << "# Magnetic Axis: R0: " << EQD.RmAxis << endl;
 out << "# Magnetic Axis: Z0: " << EQD.ZmAxis << endl;
 out << "#-------------------------------------------------" << endl;
@@ -244,78 +270,6 @@ out << "#" << endl;
 // -----------------------------------------------------------------------------------------------
 // ----------------- ende IO ---------------------------------------------------------------------
 
-//----------- outofBndy ----------------------------------
-// Check if (x,y) is out of the torus. Returns 0 if (x,y) 
-// is in boundary an 1 if (x,y) is out of boundary. 
-// simpleBndy = 0; use real wall as boundaries
-// simpleBndy = 1: use simple boundary box
-bool outofBndy(double x, double y, int simpleBndy)
-{
-switch(simpleBndy)
-{
-case 0:
-	return outofRealBndy(x,y);
-	break;
-case 1:
-	if(x<bndy[0] || x>bndy[1] || y<bndy[2] || y>bndy[3]) return true;	//  bndy[4]={0.185, 1.57, -1.63, 1.63}
-	break;
-default:
-    cout << "simpleBndy switch has a wrong value!" << endl;
-}
-return false;
-}
-
-//------------ outofRealBndy -------------------------------
-// Check if (x,y) is out of the torus. It uses the jordan curve theorem with 
-// additional detection if (x,y) is part of an edge. Edge is defined as inside
-// the torus.
-bool outofRealBndy(double x, double y)
-{
-int wn = 0;
-
-double x1,y1;
-double x2 = EQD.wall(1);	//R1
-double y2 = EQD.wall(2);	//Z1
-
-double a; 
-
-bool startUeber = (y2 >= y) ? 1 : 0;
-for(int i=3; i<(2*EQD.Nwall); i=i+2)
-{
-	// Continue if two wall point are identical
-	if(x2 == EQD.wall(i) && y2 == EQD.wall(i+1)) continue;
-
-	x1 = x2;
-	y1 = y2;
-	x2 = EQD.wall(i);
-	y2 = EQD.wall(i+1);
-
-	if((y1==y2) && (y==y1))
-	{
-      if(((x1<=x)&&(x<=x2)) || ((x2<=x)&&(x<=x1))) return 0;
-    } 
-    else if((x1==x2) && (x==x1))
-    {
-      if(((y1<=y)&&(y<=y2)) || ((y2<=y)&&(y<=y1))) return 0;
-    } else {
-      a = (x-x1)*(y2-y1)-(y-y1)*(x2-x1);
-      if((a <= 1e-15) && (a >= -1e-15)) return 0;	//necessary for use in dtfoot
-    }
-    bool endUeber = (y2 >= y) ? 1 : 0;
-    if(startUeber != endUeber) 
-    {
-      if((y2 - y)*(x2 - x1) <= (y2 - y1)*(x2 - x))
-      {
-        if(endUeber) { wn++; }
-      } else {
-        if(!endUeber) { wn--; }
-      }
-    }
-    startUeber = endUeber;
-}
-return wn == 0;
-} 
-
 //---------------- mapit ----------------------------------------------------------------------------------------------------
 int mapit(double& theta, double& r, double& phistart, double& psi, int itt, int MapDirection, 
 		  int get_parameter, double parameter[])
@@ -333,9 +287,9 @@ phi = phistart;
 for(i=1;i<=itt;i++)
 {
 	chk = mapstep(y,theta,r,phi,psi,MapDirection,get_parameter,parameter);
-	if(chk<0) {break;}	// particle has left system
+	if(chk<0) {ofs2 << "mapit: wall hit" << endl; break;}	// particle has left system
 
-	if(fabs(phi-MapDirection*i*dpinit*ilt-phistart) > 1e-10) ofs2 << "mapit: wrong toroidal angle: " << fabs(phi-MapDirection*i*dpinit*ilt-phistart) << endl;
+	if(fabs(phi-MapDirection*i*dpinit*ilt-phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(phi-MapDirection*i*dpinit*ilt-phistart) << endl;
 	phi=MapDirection*i*dpinit*ilt+phistart;
 
 	if(get_parameter!=0) L += parameter[0];
@@ -366,10 +320,10 @@ goodsum = 0;
 for(i=1;i<=itt;i++)
 {
 	chk = mapstep(y,theta,r,phi,psi,MapDirection,eps,good);
-	if(chk<0) {break;}	// particle has left system
+	if(chk<0) {ofs2 << "mapit: wall hit" << endl; break;}	// particle has left system
 	goodsum += good;
 
-	if(fabs(phi-MapDirection*i*dpinit*ilt-phistart) > 1e-10) ofs2 << "mapit: wrong toroidal angle: " << fabs(phi-MapDirection*i*dpinit*ilt-phistart) << endl;
+	if(fabs(phi-MapDirection*i*dpinit*ilt-phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(phi-MapDirection*i*dpinit*ilt-phistart) << endl;
 	phi=MapDirection*i*dpinit*ilt+phistart;
 }
 goodsum /= double(i-1);
@@ -500,10 +454,10 @@ return 0;
 }
 
 //---------------- getBfield ----------------------------------------------------------------------------------------------
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, double& psi)
+void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi)
 {
 int chk;
-double dpsidr,dpsidz;
+double psi,dpsidr,dpsidz;
 double F;
 double X,Y,bx,by,bz;
 double B_X,B_Y;
@@ -517,7 +471,7 @@ Y = R*sinp;
 
 // get normalized poloidal Flux psi (should be chi in formulas!)
 chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
-if(chk==-1) {ofs2 << "getBfield: Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return;}	// integration of this point terminates 
+if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return;}	// integration of this point terminates 
 
 // Equilibrium field
 F = EQD.get_Fpol(psi);
@@ -528,32 +482,43 @@ B_Z = -dpsidr/R;
 
 B_X = 0;	B_Y = 0;
 
-// I-coil perturbation field
-if(useIcoil==1) 
-{
-	for(int i=0;i<nbands;i++)
-	{
-		bx = 0;	by = 0;	bz = 0;
+// EF perturbation field
+bx = 0;	by = 0;	bz = 0;
+if(useEF==1) Bfield_EF(bx, by, bz, X, Y, Z);
+B_X += bx;
+B_Y += by;
+B_Z += bz;
 
-		polygonb_(&mxloops, &mxsegs, &nloops[i], &nsegs[i][0], &kuse[i][0],
-					&xs[i][0][0][0], &dvs[i][0][0][0], &curntw[i][0],
-					&X, &Y, &Z, &bx, &by, &bz);
-		B_X += bx;
-		B_Y += by;
-		B_Z += bz;
-	}
-}
+// EFCC-coil perturbation field
+bx = 0;	by = 0;	bz = 0;
+if(useEFCC==1) Bfield_EFCC(bx, by, bz, X, Y, Z);
+B_X += bx;
+B_Y += by;
+B_Z += bz;
 
 // Field of any current filament
-if(useFilament>0)
-{
-	bx = 0;	by = 0;	bz = 0;
-	get_filament_field(R,phi,Z,field,bx,by,bz);
+bx = 0;	by = 0;	bz = 0;
+if(useFilament>0) get_filament_field(R,phi,Z,field,bx,by,bz);
+B_X += bx;
+B_Y += by;
+B_Z += bz;
 
-	B_X += bx;
-	B_Y += by;
-	B_Z += bz;
-}
+//double dummy,I;
+//Range all = Range::all();
+//Array<double,2> slice;
+//for(int i=1;i<=useFilament;i++)	// no filament fields, if useFilament == 0
+//{
+//	bx = 0;	by = 0;	bz = 0;
+//	//I = get_current(i,0,dummy);	// time is fixed at t = 0; dummy is used for dIdt
+//	I = filament_data(i,0,2);	// current is stored in here, see prep_perturbation
+//	// filament_data(i,0,1) gives number of rows of data; index 0 is not used in filament_fields_ex
+//	slice.reference(filament_data(i,all,all));
+//	dummy = filament_fields_ex(X,Y,Z,slice,int(filament_data(i,0,1)),I,0,	// dIdt is set to 0 and fixed <- constant current
+//							   bx,by,bz,dummy,cosp,sinp);			// dummy is used instead of A_phi and dAdt
+//	B_X += bx;
+//	B_Y += by;
+//	B_Z += bz;
+//}
 
 // Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
 B_R += B_X*cosp + B_Y*sinp;
@@ -567,33 +532,17 @@ void dgls(double x, Array<double,1> y, Array<double,1>& dydx)
 {
 double B_R,B_Z,B_phi;
 double S;
-double psi,Enorm,dEnorm,gamma,S2;
-
-getBfield(y(0),y(1),x,B_R,B_Z,B_phi,psi);
+getBfield(y(0),y(1),x,B_R,B_Z,B_phi);
 
 dydx(0) = y(0)*B_R/B_phi;
 dydx(1) = y(0)*B_Z/B_phi;
 
 if(sigma !=0)
 {
-	if(use_T_profile == 1)
-	{
-		getEnergy(psi,Enorm,dEnorm);		// Ekin/mc^2 = Enorm*(GAMMA-1)
-		gamma = Enorm*(GAMMA-1) + 1;
-	}
-	else gamma = GAMMA;
-
-	S = eps0*(gamma*gamma-1)-2*EQD.R0*Ix/y(0);
+	S = eps0*(GAMMA*GAMMA-1)-2*EQD.R0*Ix/y(0);
 	if(S<0) {ofs2 << "dgls: Sqrt argument negative => Abort" << endl; EXIT;}	// Error -> Abort program
 	S = sqrt(S);
 	dydx(1) += -sigma/double(Zq)*(y(0)*S + EQD.R0*Ix/S);	// sign corrected: sigma = +1 is indeed co-passing
-
-	if(use_T_profile == 1)
-	{
-		S2 = sigma/double(Zq)*y(0)*y(0)*y(0)*eps0*gamma/S*(GAMMA-1)*dEnorm;
-		dydx(0) += S2*B_R;
-		dydx(1) += S2*B_Z;
-	}
 }
 }
 
@@ -621,7 +570,7 @@ for (k=1;k<=nstep;k++)
 	x = x1 + k*dx; // Better than x+=dx
 
 	// Integration terminates outside of boundary box
-	if(outofBndy(yout(0),yout(1),simpleBndy) == true) return -1;
+	if(outofBndy(yout(0),yout(1),simpleBndy)) return -1;
 
 	if(get_parameter!=0) 
 	{
@@ -636,55 +585,96 @@ if(get_parameter!=0) parameter[0] = L;
 return 0;
 }
 
-//---------- getEnergy ----------------------------------------------
-void getEnergy(double psi, double& Enorm, double& dEnorm)
-{
-double xs = 0.975;	// Symmetry point in Pedestal
-double dw = 0.04;	// half of Pedestal width
-
-Enorm = 0.5*tanh(2*(xs-psi)/dw) + 0.5;
-dEnorm = -1/dw*(1-(2*Enorm-1)*(2*Enorm-1));
-}
-
 //---------- prep_perturbation --------------------------------------
 void prep_perturbation(void)
 {
-int i,j;
+int i;
 LA_STRING line;	// entire line is read by ifstream
 
-if(mpi_rank < 1) cout << "NSTX-coil (0 = off, 1 = on): " << useIcoil << endl << endl;
-ofs2 << "NSTX-coil (0 = off, 1 = on): " << useIcoil << endl;
 
-// Set common blocks parameters
-consts_.pi = pi;
-consts_.twopi = pi2;
-consts_.cir = 360.0;
-consts_.rtd = 360.0/pi2;
-consts_.dtr = 1.0/consts_.rtd;
+if(mpi_rank < 1) setMessageCoils(cout);
+setMessageCoils(ofs2);
 
-// Read itersup.in file
+// Read jetsup.in file
 ifstream in;
-in.open("nstxsup.in");
-if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open nstxsup.in file " << endl; EXIT;}
+in.open("jetsup.in");
+if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open jetsup.in file " << endl; EXIT;}
 
-for(i=1;i<=5;i++) {in >> line;} // Skip 5 lines
-for(i=0;i<mxbands;i++) {for(j=0;j<mxloops;j++) in >> currents_.ECcur[i][j];}		// Read coil currents
+for(i=1;i<=4;i++) in >> line;	// Skip 4 lines
+for(i=0;i<nEFCC;i++) in >> curntEF(i);		// Read EF currents 
 
 in >> line;	// Skip line
-for(i=0;i<mxbands;i++) {for(j=0;j<3;j++) in >> currents_.ECadj[i][j];}		// Read coil adjustments
+for(i=0;i<nEFCC;i++) in >> curntEFCC(i);	// Read EFCC-coil currents
 
 in.close();	// close file
 in.clear();	// reset ifstream for next use
 
-// Write Currents to log files (Check if corretly read in)
-ofs2 << "Currents:" << endl;
-for(i=0;i<mxbands;i++) {for(j=0;j<mxloops;j++) ofs2 << currents_.ECcur[i][j] << "\t"; ofs2 << endl;}
-ofs2 << "Adjustments:" << endl;
-for(i=0;i<mxbands;i++) {for(j=0;j<3;j++) ofs2 << currents_.ECadj[i][j] << "\t"; ofs2 << endl;}
-ofs2 << endl;
-
-// Set ECoil geometry
-if(useIcoil==1) nstxecgeom_(&kuse[0][0],&nbands,&nloops[0],&nsegs[0][0],&xs[0][0][0][0],&dvs[0][0][0][0],&curntw[0][0]);
+// Set EFCC geometry
+if((useEF==1)|(useEFCC==1))
+{
+  //set EFCC1 geometry
+  EFCC1( 0).set(-3.324, 6.170, 2.131);
+  EFCC1( 1).set(-2.987, 5.560, 2.454);
+  EFCC1( 2).set(-2.987, 5.560, 3.090);
+  EFCC1( 3).set( 2.987, 5.560, 3.090);
+  EFCC1( 4).set( 2.987, 5.560, 2.498);
+  EFCC1( 5).set( 3.324, 6.170, 1.805);
+  EFCC1( 6).set( 3.324, 6.170,-2.990);
+  EFCC1( 7).set( 3.455, 5.313,-2.990);
+  EFCC1( 8).set( 3.338, 4.424,-2.990);
+  EFCC1( 9).set( 1.125, 5.341,-2.990);
+  EFCC1(10).set(-1.125, 5.341,-2.990);
+  EFCC1(11).set(-3.338, 4.424,-2.990);
+  EFCC1(12).set(-3.455, 5.313,-2.990);
+  EFCC1(13).set(-3.324, 6.170,-2.990);
+  //set EFCC3 geometry
+  EFCC3( 0).set(-6.170,-3.324, 2.131);
+  EFCC3( 1).set(-5.561,-2.987, 2.453);
+  EFCC3( 2).set(-5.561,-2.987, 2.835);
+  EFCC3( 3).set(-5.660,-2.735, 3.087);
+  EFCC3( 4).set(-5.660, 2.735, 3.087);
+  EFCC3( 5).set(-5.561, 2.987, 2.835);
+  EFCC3( 6).set(-5.561, 2.987, 2.453);
+  EFCC3( 7).set(-6.170, 3.324, 2.131);
+  EFCC3( 8).set(-6.170, 3.324,-2.992);
+  EFCC3( 9).set(-5.120, 3.493,-2.992);
+  EFCC3(10).set(-4.400, 3.398,-2.992);
+  EFCC3(11).set(-5.342, 1.125,-2.992);
+  EFCC3(12).set(-5.342,-1.125,-2.992);
+  EFCC3(13).set(-4.400,-3.398,-2.992);
+  EFCC3(14).set(-5.120,-3.493,-2.992);
+  EFCC3(15).set(-6.170,-3.324,-2.992);
+  //set EFCC5 geometry
+  EFCC5( 0).set(-3.324,-6.170, 2.131);
+  EFCC5( 1).set(-2.987,-5.560, 2.454);
+  EFCC5( 2).set(-2.987,-5.560, 3.090);
+  EFCC5( 3).set( 2.987,-5.560, 3.090);
+  EFCC5( 4).set( 2.987,-5.560, 2.498);
+  EFCC5( 5).set( 3.324,-6.170, 1.805);
+  EFCC5( 6).set( 3.324,-6.170,-2.990);
+  EFCC5( 7).set( 3.455,-5.313,-2.990);
+  EFCC5( 8).set( 3.338,-4.424,-2.990);
+  EFCC5( 9).set( 1.125,-5.341,-2.990);
+  EFCC5(10).set(-1.125,-5.341,-2.990);
+  EFCC5(11).set(-3.338,-4.424,-2.990);
+  EFCC5(12).set(-3.455,-5.313,-2.990);
+  EFCC5(13).set(-3.324,-6.170,-2.990);
+  //set EFCC7 geometry
+  EFCC7( 0).set( 6.170,-3.324, 2.131);
+  EFCC7( 1).set( 5.560,-2.987, 2.454);
+  EFCC7( 2).set( 5.560,-2.987, 3.090);
+  EFCC7( 3).set( 5.660, 2.987, 3.090);
+  EFCC7( 4).set( 5.660, 2.987, 2.498);
+  EFCC7( 5).set( 6.170, 3.324, 1.805);
+  EFCC7( 6).set( 6.170, 3.324,-2.990);
+  EFCC7( 7).set( 5.313, 3.455,-2.990);
+  EFCC7( 8).set( 4.424, 3.338,-2.990);
+  EFCC7( 9).set( 5.341, 1.125,-2.990);
+  EFCC7(10).set( 5.341,-1.125,-2.990);
+  EFCC7(11).set( 4.424,-3.338,-2.990);
+  EFCC7(12).set( 5.313,-3.455,-2.990);
+  EFCC7(13).set( 6.170,-3.324,-2.990);
+}
 
 // Prepare filaments
 if(useFilament>0)
@@ -1038,81 +1028,126 @@ y=ymin+z*dy;
 
 //---------------- start_on_target --------------------------------------------------------------------
 // creates initial conditions on the target plate
-// t parametrizes the target with constant Phi and t in m
-// inner target: t = Z
-// outer target: t = R
-// points of targets are set to fixed values here
+// t parametrizes the target with constant Phi and t=[0 81.1966] for the inner target, t=[0 525.9103] for the outer target
+// edges (koordinates and length) of target are explicitly defined here
 // Position (R0,Z0) of magnetic axis is required
 // in the contrary to 'set', phi (representing the x coordinate) is varied first here, t second
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
-					   double& r, double& theta, double& phi)
+					 double& r, double& theta, double& phi)
 {
-int i_p = 0;
-int i_phi = 0;
-int N = Np*Nphi;
-double dp,dphi,t;
-Array<double,1> p1(Range(1,2)),p2(Range(1,2)),p(Range(1,2)),d(Range(1,2));
+int i_p=0;
+int i_phi=0;
+int N=Np*Nphi;
+int Nedge,Nedge_tmp;	// number of edges (that describe the target)
+int k=1;		// the k-th edge is selected
+int target;
+int IDtarget_start,IDtarget_end,IDdirection=1;	// IDs range (and direction) of target in EQD.wall
+int IDtarget_max = EQD.wall.numElements()/2;
+double dp,dphi,t,ts,suml;
+Array<double,1> p(Range(1,2));
+
+// Magnetic Axis
+const double R0=EQD.RmAxis;
+const double Z0=EQD.ZmAxis;
 
 // Grid stepsizes and t
-if(N<=1) {dp = 0; dphi = 0;}
+if(N<=1) {dp=0; dphi=0;}
 else
 {
-	dp = (tmax-tmin)/(N-1);
-	dphi = (phimax-phimin)/(N-1);
+	dp=(tmax-tmin)/(N-1);
+	dphi=(phimax-phimin)/(N-1);
 }
-if(dp==0) i_phi = i-1;
-if(dphi==0) i_p = i-1;
+if(dp==0) i_phi=i-1;
+if(dphi==0) i_p=i-1;
 if(dp!=0 && dphi!=0) 
 {
-	dp = (tmax-tmin)/double(Np-1);
-	dphi = (phimax-phimin)/double(Nphi-1);
-	i_phi = (i-1)%Nphi;
-	i_p = int(double(i-1)/double(Nphi));
+	dp=(tmax-tmin)/double(Np-1);
+	dphi=(phimax-phimin)/double(Nphi-1);
+	i_phi=(i-1)%Nphi;
+	i_p=int(double(i-1)/double(Nphi));
 }
-t = tmin + i_p*dp;	// t in m
+t=tmin+i_p*dp;
+target=which_target_plate; 
+ts = t;			// use ts because t needed for return value
 
-// Postion of Target-Plate
-double R1,Z1;	// (inner,lower) or (outer, left) target Corner
-double R2,Z2;	// (inner,upper) or (outer, right) target Corner
-
-switch(which_target_plate)
+if(t<0)
 {
-case 1:	// upper inner target plate, length 40.66 cm
-	R1 = 0.2794;	Z1 = 1.1714;
-	R2 = 0.2794;	Z2 = 1.578;
-	if(t < Z1 || t > Z2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; exit(0);};
-	p(1) = R1 - EQD.RmAxis;	p(2) = t - EQD.ZmAxis;
-	break;
-case 2:	// upper outer target plate, length 27.33 cm
-	R1 = 0.2979;	Z1 = 1.6034;
-	R2 = 0.5712;	Z2 = 1.6034;
-	if(t < R1 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; exit(0);};
-	p(1) = t - EQD.RmAxis;	p(2) = Z1 - EQD.ZmAxis;
-	break;
-case 3:	// lower inner target plate, length 40.66 cm
-	R1 = 0.2794;	Z2 = -1.1714;
-	R2 = 0.2794;	Z1 = -1.578;
-	if(t < Z1 || t > Z2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; exit(0);};
-	p(1) = R1 - EQD.RmAxis;	p(2) = t - EQD.ZmAxis;
-	break;
-case 4:	// lower outer target plate, length 27.33 cm
-	R1 = 0.2979;	Z1 = -1.6034;
-	R2 = 0.5712;	Z2 = -1.6034;
-	if(t < R1 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; exit(0);};
-	p(1) = t - EQD.RmAxis;	p(2) = Z1 - EQD.ZmAxis;
-	break;
-default:
-	ofs2 << "start_on_target: No target specified" << endl;
-	EXIT;
-	break;
+  ofs2 << "t have to be positive" << endl;
+  EXIT;
+}
+
+// Coordinates of Target-Plate, IDs has to be modified for different machines
+IDtarget_start = 97;
+if (target==0) IDtarget_end = 80;	//  87.6966 cm inner target, R,Z in m
+else IDtarget_end = 159;		// 525.9103 cm outer target, R,Z in m
+Nedge = IDtarget_end-IDtarget_start;
+if (Nedge < 0)
+{
+  Nedge *= -1;
+  IDdirection = -1;
+}
+
+Array<double,1> R(Range(1,Nedge+1)),Z(Range(1,Nedge+1)),l(Range(1,Nedge));
+
+if ((target>=0) && (target<=1))
+{
+  if (IDtarget_end > IDtarget_max)
+  {
+    Nedge_tmp = IDtarget_max - IDtarget_start;
+    R(Range(1,Nedge_tmp+1)) = EQD.wall(Range(IDtarget_start*2-1,IDtarget_max*2-1,2))-R0;
+    R(Range(Nedge_tmp+2,Nedge+1)) = EQD.wall(Range(3,(IDtarget_end-IDtarget_max+1)*2-1,2))-R0;
+    Z(Range(1,Nedge_tmp+1)) = EQD.wall(Range(IDtarget_start*2,IDtarget_max*2,2))-Z0;
+    Z(Range(Nedge_tmp+2,Nedge+1)) = EQD.wall(Range(4,(IDtarget_end-IDtarget_max+1)*2,2))-Z0;
+  } else {
+    R = EQD.wall(Range(IDtarget_start*2-1,IDtarget_end*2-1,IDdirection*2))-R0;
+    Z = EQD.wall(Range(IDtarget_start*2,IDtarget_end*2,IDdirection*2))-Z0;
+  }
+} else {
+  ofs2 << "No target specified" << endl;
+  EXIT;
+}  
+    
+// calculate legth of edges; l,suml in cm 
+for(int k=1; k<=Nedge; k++)
+  l(k) = sqrt((R(k+1)-R(k))*(R(k+1)-R(k)) + (Z(k+1)-Z(k))*(Z(k+1)-Z(k)))*100;
+suml = sum(l);
+
+while (ts > 0)
+{
+  if (k > Nedge)
+  {
+    ofs2 << "t is greater then the length of the selected target (" << suml << " [cm])" << endl;
+    EXIT;
+  }
+  ts -= l(k);
+  k++;
 }
 
 // Coordinates
-theta = atan(p(2)/p(1)) + pi;
-r = sqrt(p(1)*p(1) + p(2)*p(2));
-phi = phimin + dphi*i_phi;
-
+if (ts==0)
+{
+  p(1) = R(k);
+  p(2) = Z(k);
+} else {
+  ts /= l(k-1);
+  p(1) = (R(k)-R(k-1))*ts + R(k);
+  p(2) = (Z(k)-Z(k-1))*ts + Z(k);
+}
+// Get poloidal coordinates
+theta=atan(p(2)/p(1));
+if(p(1)<0) theta += pi;
+if(p(1)>=0 && p(2)<0) theta += pi2;
+r=sqrt(p(1)*p(1)+p(2)*p(2));
+phi=phimin+dphi*i_phi;
 return t;
+}
+
+//--------------- setMapDirection ---------------------------------------------------------------------------------------------
+//used in dtfoot, sets the MapDirection depending on which target plate the fieldline is startet.
+int setMapDirection(void)
+{
+  if(which_target_plate==1) return 1;
+  else  return -1;
 }
 
 //--------------- rungekutta4 ---------------------------------------------------------------------------------------------
@@ -1191,7 +1226,7 @@ y = ystart;
 for (i=1;i<=MAXSTP;i++) 
 { 
 	// Integration terminates outside of boundary box
-	if(outofBndy(y(0),y(1),simpleBndy) == true) return -1;
+	if(outofBndy(y(0),y(1),simpleBndy)) return -1;
 
 	dgls(x,y,dydx);
 
@@ -1227,12 +1262,12 @@ for (i=1;i<=MAXSTP;i++)
 	}
 	if (fabs(hnext) <= hmin) 
 	{
-		ofs2 << "odeint: Step size too small" << endl;
+		ofs2 << "Step size too small in odeint" << endl;
 		h = hmin;
 	}
 	else h = hnext;
 }
-ofs2 << "odeint: Too many steps" << endl;
+ofs2 << "Too many steps in routine odeint" << endl;
 return -1;
 }
 
@@ -1273,7 +1308,7 @@ for (;;)
 	//Truncation error too large, reduce stepsize.
 	h = (h >= 0.0 ? max(htemp,0.1*h) : min(htemp,0.1*h));	//No more than a factor of 10.
 	xnew = x + h;
-	if (xnew == x) {ofs2 << "rkqs: stepsize underflow" << endl; return;}
+	if (xnew == x) {ofs2 << "stepsize underflow in rkqs" << endl; return;}
 }
 
 if (errmax > ERRCON) hnext = SAFETY*h*pow(errmax,PGROW);
@@ -1390,13 +1425,13 @@ Range all = Range::all();
 // Determine grid square where (R,Z) is in
 j = int((R-Ra(1))/dR) + 1;
 k = int((Z-Za(1))/dZ) + 1;
-if(j>Ra.rows() || j<1 || k>Za.rows() || k<1)	{ofs2 << "bcuint_square: Point outside of grid" << endl; EXIT;}
+if(j>Ra.rows() || j<1 || k>Za.rows() || k<1)	{ofs2 << "Point outside of grid" << endl; EXIT;}
 
 // Get derivatives
 Array<double,1> y_sq(Range(1,4)),y1_sq(Range(1,4)),y2_sq(Range(1,4)),y12_sq(Range(1,4));
 bcuderiv_square(field,j,k,dR,dZ,y1_sq,y2_sq,y12_sq);
 
-// Get the c’s.
+// Get the cï¿½s.
 y_sq(1) = field(j,k); y_sq(2) = field(j+1,k); y_sq(3) = field(j+1,k+1); y_sq(4) = field(j,k+1);
 bcucof(y_sq,y1_sq,y2_sq,y12_sq,dR,dZ,c);
 
@@ -1470,5 +1505,197 @@ y2 /= dZ;
 //for (i=0;i<n;i++) yout(i)=y(i)+c1*h*dydx(i)+c3*h*k3(i)+c4*h*k4(i)+c6*h*k6(i);
 //}
 
+//--------------- Bfield_linf ---------------------------------------------------------------------------------------------
+/* fast Biot-Savart integrator for linear conductor
+taken from Paper Hanson & Hirshman, Phys. Plasmas 9, 4410 (2002)
+parameters:
+B: magnetic field
+r: position at which the magnetic field should be calculated
+rss: start position of the linear conductor
+rse: end position of the linear conductor
+I: current */
+void Bfield_linf(vektor &B, vektor r, vektor rss, vektor rse, double I)
+{
+  double mu0d4pi,L,nrmrss,nrmrse,nsum,fak,nenner;
+  vektor e,rmrss,rmrse;
+  
+  mu0d4pi = 1e-7;
+  L = (rse-rss).norm();
+  e = (rse-rss)/L;
+  rmrss = r-rss;
+  rmrse = r-rse;
+  nrmrss = rmrss.norm();
+  nrmrse = rmrse.norm();
+  nsum = nrmrss+nrmrse;
+  nenner = nsum*nsum-L*L;
+  if (nenner == 0)
+  {
+    B.x = 0;
+    B.y = 0;
+    B.z = 0;
+  } else {
+    fak = 2.*mu0d4pi*I*L*nsum/nrmrss/nrmrse/nenner;
+    B = e.cross(rmrss)*fak;
+  }
+}
+
+//--------------- Bfield_rahmen ---------------------------------------------------------------------------------------------
+/* calculates the magnetic field of a polygon with N edges
+therefor it sum over N linear conductor by using Bfield_linf
+parameters:
+B: magnetic field
+r: position at which the magnetic field should be calculated
+re: array of all corners of the polygon
+N: number of edges
+I: current */
+void Bfield_rahmen(vektor &B, vektor r, blitz::Array<vektor,1> re, int N, double I)
+{
+  vektor Btmp;
+  
+  B.x = 0;
+  B.y = 0;
+  B.z = 0;
+  for (int i=0; i<(N-1); i++)
+  {
+    Bfield_linf(Btmp,r,re(i),re(i+1),I);
+    B += Btmp;
+  }
+  Bfield_linf(Btmp,r,re(N-1),re(0),I);
+  B += Btmp;
+}
+
+//--------------- Bfield_EFCC ---------------------------------------------------------------------------------------------
+/* magnetic field of the EFCC of JET. Geometry of EFCC given by Dr. Liang.
+parameters:
+B: magnetic field
+r: position at which the magnetic field should be calculated
+Current and coil geometry is stored in global variables*/
+//IMPORTANT for n=1: I = [+ + + +]; n=2: I = [- + + -];
+void Bfield_EFCC(double &Bx, double &By, double &Bz, double x, double y, double z)
+{
+  vektor B,Btmp,r;
+  
+  B.set(0,0,0);
+  r.set(x,y,z);
+  
+  // EFCC1:
+  Bfield_rahmen(Btmp,r,EFCC1,14,curntEFCC(0));
+  B += Btmp;
+  
+  // EFCC3:
+  Bfield_rahmen(Btmp,r,EFCC3,16,curntEFCC(1));
+  B += Btmp;
+  
+  // EFCC5:
+  Bfield_rahmen(Btmp,r,EFCC5,14,curntEFCC(2));
+  B += Btmp;
+  
+  // EFCC7:
+  Bfield_rahmen(Btmp,r,EFCC7,14,curntEFCC(3));
+  B += Btmp;
+  
+  Bx = B.x;
+  By = B.y;
+  Bz = B.z;
+}
+
+//--------------- Bfield_EF ---------------------------------------------------------------------------------------------
+/* magnetic field of the Error Fields of JET, simulated by EFCC.. Geometry of EFCC given by Dr. Liang.
+parameters:
+B: magnetic field
+r: position at which the magnetic field should be calculated
+Current and coil geometry is stored in global variables*/
+//IMPORTANT for n=1: I = [+ + + +]; n=2: I = [- + + -]; Coils are implementated in strange directions ;-)
+void Bfield_EF(double &Bx, double &By, double &Bz, double x, double y, double z)
+{
+  vektor B,Btmp,r;
+  
+  B.set(0,0,0);
+  r.set(x,y,z);
+  
+  // EFCC1:
+  Bfield_rahmen(Btmp,r,EFCC1,14,curntEF(0));
+  B += Btmp;
+  
+  // EFCC3:
+  Bfield_rahmen(Btmp,r,EFCC3,16,curntEF(1));
+  B += Btmp;
+  
+  // EFCC5:
+  Bfield_rahmen(Btmp,r,EFCC5,14,curntEF(2));
+  B += Btmp;
+  
+  // EFCC7:
+  Bfield_rahmen(Btmp,r,EFCC7,14,curntEF(3));
+  B += Btmp;
+  
+  Bx = B.x;
+  By = B.y;
+  Bz = B.z;
+}
+
+//----------- outofBndy ----------------------------------
+// Check if (x,y) is out of the torus. Returns 0 if (x,y) 
+// is in boundary an 1 if (x,y) is out of boundary. 
+// simpleBndy = 0; use real boundaries
+// simpleBndy = 1: use rectangle boundaries
+bool outofBndy(double x, double y, int simpleBndy)
+{
+  switch(simpleBndy)
+  {
+    case 0:
+      return outofRealBndy(x,y);
+      break;
+    case 1:
+      return (x<bndy[0] || x>bndy[1] || y<bndy[2] || y>bndy[3]);	// bndy[4] = {x_min, x_max, y_min, y_max}
+      break;
+    default:
+      cout << "simpleBndy switch has a wrong value!" << endl;
+  }
+}
+
+//------------ outofRealBndy -------------------------------
+// Check if (x,y) is out of the torus. It uses the jordan curve theorem.
+bool outofRealBndy(double x, double y)
+{
+  int wn = 0;
+
+  double x1,y1;
+  double x2 = EQD.wall(1);	//R1
+  double y2 = EQD.wall(2);	//Z1
+
+  bool startUeber = (y2 >= y) ? 1 : 0;
+  for(int i=3; i<(2*EQD.Nwall); i=i+2)
+  {
+    x1 = x2;
+    y1 = y2;
+    x2 = EQD.wall(i);
+    y2 = EQD.wall(i+1);
+    
+    /*if((y1==y2) && (y==y1))
+    {
+      if(((x1<=x)&&(x<=x2)) || ((x2<=x)&&(x<=x1))) return 0;
+    } 
+    else if((x1==x2) && (x==x1))
+    {
+      if(((y1<=y)&&(y<=y2)) || ((y2<=y)&&(y<=y1))) return 0;
+    } else {
+      a = (x-x1)*(y2-y1)-(y-y1)*(x2-x1);
+      if((a <= 1e-15) && (a >= -1e-15)) return 0;	//necessary for use in dtfoot
+    }*/
+    bool endUeber = (y2 >= y) ? 1 : 0;
+    if(startUeber != endUeber) 
+    {
+      if((y2 - y)*(x2 - x1) <= (y2 - y1)*(x2 - x))
+      {
+        if(endUeber) { wn++; }
+      } else {
+        if(!endUeber) { wn--; }
+      }
+    }
+    startUeber = endUeber;
+  }
+  return wn == 0;
+}
 //----------------------- End of File -------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------

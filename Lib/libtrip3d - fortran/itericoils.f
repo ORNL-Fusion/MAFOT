@@ -9,12 +9,12 @@ c         entry ITERIGEOMCASE
 c
 c
 c=======================================================================
-c
-c      subroutine ITERICOILS
-c
+
+      subroutine ITERICOILS
+
 c-----------------------------------------------------------------------
 c                                            By: D. Orlov    2010 jul 28
-c                                 Last Modified: D. Orlov    2010 jul 28
+c                                 Last Modified: D. Orlov    2011 sep 22
 c-----------------------------------------------------------------------
 c ITERICOILS defines the geometry of and calculates the magnetic field
 c from one or more specified models of the ITER nonaxisymmetric or
@@ -39,92 +39,92 @@ c
 c Units: SI (mks)
 c Fully double precision.
 c-----------------------------------------------------------------------
-c 
-c     IMPLICIT NONE
-c 
-c     INCLUDE 'itericoils.i'	! gives mxIbands, mxIloops, mxIsegs
-c				! niturns (integer)
-c	  
-c      INTEGER    mxbands, mxloops, mxsegs	!local parameters
-c      PARAMETER (mxbands = mxIbands)		! to dimension arrays
-c      PARAMETER (mxloops = mxIloops)		! to dimension arrays
-c      PARAMETER (mxsegs  = mxIsegs) 		! to dimension arrays
+ 
+      IMPLICIT NONE
+ 
+      INCLUDE 'itericoils.i'	! gives mxIbands, mxIloops, mxIsegs
+				! niturns (integer)
+ 
+      INTEGER    mxbands, mxloops, mxsegs	!local parameters
+      PARAMETER (mxbands = mxIbands)		! to dimension arrays
+      PARAMETER (mxloops = mxIloops)		! to dimension arrays
+      PARAMETER (mxsegs  = mxIsegs) 		! to dimension arrays
 c-----------------------------------------------------------------------
-c 
-c      INCLUDE 'constsi.i'
+ 
+      INCLUDE 'constsi.i'
 c      common /consts/  pi, twopi, cir, rtd, dtr
-c
-c      INCLUDE 'flags2i.i'
+
+      INCLUDE 'flags2i.i'
 c      common /flags2/ iPROBE, iSURFMN, iTRIP3D,
 c     &                iD3Dcoils, iNSTXcoils, iJETcoils, iITERcoils, 
 c     &                iFDFcoils, iASDEXcoils, iMASTcoils
-c  
-c 
+  
+ 
 !  Common variables:
-c      real*8  pi, twopi, cir, rtd, dtr
-c      integer iPROBE, iSURFMN, iTRIP3D
-c      integer iD3Dcoils, iNSTXcoils, iJETcoils, iITERcoils, iFDFcoils
-c      integer iASDEXcoils, iMASTcoils
-c 
+      real*8  pi, twopi, cir, rtd, dtr
+      integer iPROBE, iSURFMN, iTRIP3D
+      integer iD3Dcoils, iNSTXcoils, iJETcoils, iITERcoils, iFDFcoils
+      integer iASDEXcoils, iMASTcoils
+ 
 !  Arguments at ENTRY BITERECCOILS:
-c      real*8  x, y, z, bx, by, bz
-c      intent(in)  ::  x,  y,  z
-c      intent(out) :: bx, by, bz
-c
+      real*8  x, y, z, bx, by, bz, ax, ay, az
+      intent(in)  ::  x,  y,  z
+      intent(out) :: bx, by, bz, ax, ay, az
+
 !  Local and Namelist Variables:
-c      logical idone, iIcoil
-c     integer kuse(mxloops,mxbands)
-c      integer nbands, nloops(mxbands), nsegs(mxloops,mxbands) 
-c      real*8  xs(3,mxsegs,mxloops,mxbands),dvs(4,mxsegs,mxloops,mxbands)
-c      real*8  curnt(mxloops,mxbands)
-c      real*8  bbx, bby, bbz
-c      integer i,j,k,l
-c
-c      SAVE
-c
+      logical idone, iIcoil
+      integer kuse(mxloops,mxbands)
+      integer nbands, nloops(mxbands), nsegs(mxloops,mxbands) 
+      real*8  xs(3,mxsegs,mxloops,mxbands),dvs(4,mxsegs,mxloops,mxbands)
+      real*8  curnt(mxloops,mxbands)
+      real*8  bbx, bby, bbz, abx, aby, abz
+      integer i,j,k,l
+
+      SAVE
+
 c-----------------------------------------------------------------------
 c Set some default values
 c-----------------------------------------------------------------------
 c Variables initialized by data statement acquire the SAVE attribute.
-c
-c      idone = .false.
-c
+
+      idone = .false.
+
 c-----------------------------------------------------------------------
 c Set up geometries of EC-coil filaments that will be used; do only once
 c-----------------------------------------------------------------------
-c 
-c     if(.not. idone) then
-c 
-c       CALL  ITERIGEOM (kuse,nbands,nloops,nsegs,xs,dvs,curnt)
-c 
-c       idone = .true.		! to avoid repeating geometry setup
-c 
-c      end if
-c 
+ 
+      if(.not. idone) then
+ 
+       CALL  ITERIGEOM (kuse,nbands,nloops,nsegs,xs,dvs,curnt)
+ 
+       idone = .true.		! to avoid repeating geometry setup
+ 
+      end if
+ 
 c-----------------------------------------------------------------------
 c Set flags
 c-----------------------------------------------------------------------
 c global flag iITERcoils is initialized at 0 in ITER_MODEL
-c
-c      iIcoil = .false.
-c      DO L=1, nbands
-c       DO k=1, nloops(L)
-c        if(kuse(k,L) .ne. 0) then
-c         iIcoil = .true.	! at least 1 I-coil loop has current
-c        iITERcoils = 1		! at least 1 ITER coil model is used
-c         GO TO 5		! no need to test further
-c        end if
-c 
-c       END DO
-c      END DO
-c    5 CONTINUE
-c
-c      RETURN		! End of ITER I Coils Model setup
-c
-c
-c
-c
-c
+
+      iIcoil = .false.
+      DO L=1, nbands
+       DO k=1, nloops(L)
+        if(kuse(k,L) .ne. 0) then
+         iIcoil = .true.	! at least 1 I-coil loop has current
+         iITERcoils = 1		! at least 1 ITER coil model is used
+         GO TO 5		! no need to test further
+        end if
+ 
+       END DO
+      END DO
+    5 CONTINUE
+
+      RETURN		! End of ITER I Coils Model setup
+
+
+
+
+
 c=======================================================================
 c Calculate magnetic field for all requested ITER I-coils.
 c
@@ -136,51 +136,59 @@ c
 c POLYGONB calculates the magnetic field from a generic group of polygon
 c  loops using subroutine BIOTLOOP.
 c-----------------------------------------------------------------------
-c
-c
-c
-c      ENTRY BITERICOILS (x, y, z, bx, by, bz)
-c
+
+
+
+      ENTRY BITERICOILS (x, y, z, bx, by, bz, ax, ay, az)
+
 C      WRITE(*,*) 'ENTERED BITERICOILS'
-c
-c      bx = 0.0d0		! initialize magnetic field components
-c      by = 0.0d0		! that will be calculated and returned
-c      bz = 0.0d0
-c
-c      IF (.not. iIcoil) THEN	! return 0 if no I-coil is active
-c
-c       RETURN
-c
-c      ELSE			! calculate B-field from I-coil model
-c				! Need to loop through nbands bands
-c				! because POLYGONB only accepts a
-c				! single group of loops.
-c       DO L=1,nbands
+
+      bx = 0.0d0		! initialize magnetic field components
+      by = 0.0d0		! that will be calculated and returned
+      bz = 0.0d0
+ 
+      ax = 0.0d0
+      ay = 0.0d0
+      az = 0.0d0
+
+      IF (.not. iIcoil) THEN	! return 0 if no I-coil is active
+
+       RETURN
+
+      ELSE			! calculate B-field from I-coil model
+				! Need to loop through nbands bands
+				! because POLYGONB only accepts a
+				! single group of loops.
+       DO L=1,nbands
 c      using 'NEW' METHOD with order of indices reversed to i,j,k,L
-c
-c        CALL POLYGONB(mxloops, mxsegs, nloops(L), nsegs(:,L), kuse(:,L),
-c     &                xs(:,:,:,L), dvs(:,:,:,L), curnt(:,L), 
-c     &                x, y, z, bbx, bby, bbz)
-c
-c        bx = bx + bbx		! sum each band's contribution
-c        by = by + bby
-c        bz = bz + bbz
-c       END DO
-c
-c      END IF			! end of IF (.not. iIcoil)
-c
-c      RETURN		! END OF ENTRY BITERICOILS
-c
-c
+
+        CALL POLYGONB(mxloops, mxsegs, nloops(L), nsegs(:,L), kuse(:,L),
+     &                xs(:,:,:,L), dvs(:,:,:,L), curnt(:,L), 
+     &                x, y, z, bbx, bby, bbz,abx,aby,abz)
+
+        bx = bx + bbx		! sum each band's contribution
+        by = by + bby
+        bz = bz + bbz
+
+        ax = ax + abx		! sum each band's contribution
+        ay = ay + aby
+        az = az + abz
+       END DO
+
+      END IF			! end of IF (.not. iIcoil)
+
+      RETURN		! END OF ENTRY BITERICOILS
+
+
 c-----------------------------------------------------------------------
 c Format statements
 c-----------------------------------------------------------------------
-c 1003 format(1x,30i3)
-c 1010 format(1x,8f10.0)
-c 1014 format(1x,8f9.4)
-c 
-c 
-c      END 	SUBROUTINE 		ITERICOILS
+ 1003 format(1x,30i3)
+ 1010 format(1x,8f10.0)
+ 1014 format(1x,8f9.4)
+ 
+ 
+      END 	SUBROUTINE 		ITERICOILS
 c=======================================================================
  
  
@@ -196,7 +204,7 @@ c=======================================================================
 
 c=======================================================================
 c                                   Started by: MJ Schaffer, 2006 dec 15
-c                                   Last Modified: D. Orlov, 2010 jul 28
+c                                   Last Modified: D. Orlov, 2011 sep 22
 c-----------------------------------------------------------------------
 c ITERIGEOM reads geometry-defining information, then writes arrays of
 c ITER I-coil geometry parameters in the form required by MJS's 
@@ -265,7 +273,7 @@ c-----------------------------------------------------------------------
  
       INCLUDE 'itericoils.i'	! gives mxIbands, mxIloops, mxIsegs
 				! niturns (integer)
-	  
+ 
       INTEGER    mxbands, mxloops, mxsegs	!local parameters
       PARAMETER (mxbands = mxIbands)		! to dimension arrays
       PARAMETER (mxloops = mxIloops)		! to dimension arrays
@@ -278,10 +286,9 @@ c-----------------------------------------------------------------------
 c-----------------------------------------------------------------------
 
 
-c      INCLUDE 'constsi.i'
-c	   Change by Wingen: replace INCLUDE by common block
-      common /consts/  pi, twopi, cir, rtd, dtr
-      common /currents/ Iadj, Icur 
+      INCLUDE 'constsi.i'
+c      common /consts/  pi, twopi, cir, rtd, dtr
+ 
  
 !  Common variables:
       real*8  pi, twopi, cir, rtd, dtr
@@ -321,13 +328,14 @@ c-----------------------------------------------------------------------
       dp0 = 0.0d0			! double precision 0
       dp1 = 1.0d0			!    "       "     1
 
+
  ! Initialize geometry and namelist variables
       useITERIcoil = .FALSE.
  
       Iloops = 0		! using fortran90 array assignment
       Igeom  = dp0
-c      Icur   = dp0
-c      Iadj   = dp0
+      Icur   = dp0
+      Iadj   = dp0
  
  ! Initialize output arguments
       kuse   = 0
@@ -347,17 +355,17 @@ c      Iadj   = dp0
  
  ! Igeom(1:7,L)= R1,Z1,R2,Z2, phicentr1, phispan, dphi of band L (m,deg)
 
-      Igeom(1:7,1)=(/7.735, 3.380, 8.262, 2.626, 0., 28.5, 40./)
+      Igeom(1:7,1)=(/8.262, 2.626, 7.735, 3.380, 0., 28.5, 40./)
 C     9 top loops
 
-      Igeom(1:7,2)=(/8.618, 1.790, 8.661, -0.550, -3.3, 20.2, 40./)
+      Igeom(1:7,2)=(/8.661, -0.550, 8.618, 1.790, -3.3, 20.2, 40./)
 C     9 middle loops
 
-      Igeom(1:7,3)=(/8.230, -1.546, 7.771, -2.381, 0., 30.0, 40./)
+      Igeom(1:7,3)=(/7.771, -2.381, 8.230, -1.546, 0., 30.0, 40./)
 C     9 bottom loops      
  
  ! Iadj(1:3:L) = addangl, arcmax (deg), scalec (dimless)
-c      Iadj(2,1) = arcmax
+      Iadj(2,1) = arcmax
  
 c-----------------------------------------------------------------------
 c Open namelist input file 'iter.in' and read input data relevant to
@@ -365,13 +373,11 @@ c ITER Error Correction coils
 c-----------------------------------------------------------------------
 c Namelist file iter.in was read by subroutine ITERCOILSREAD.
 c We get the needed EC error information from entry point ITERECREAD.
-
-c changed by Wingen: Iadj and Icur are read elsewhere and included here 
-c					 through common block
  
-c      CALL ITERIREAD (useITERIcoil, Iadj, Icur)
+      CALL ITERIREAD (useITERIcoil, Iadj, Icur)
  
-c      if(.not. useITERIcoil)   RETURN	! don't need ITER I-coils
+ 
+      if(.not. useITERIcoil)   RETURN	! don't need ITER I-coils
  
 c-----------------------------------------------------------------------
 c More initial stuff
@@ -384,8 +390,8 @@ c-----------------------------------------------------------------------
        end if
       END DO
  
-c      write(81,*) ''		! write more details to file 81 = case2
-c      write(81,*) nbands,' ITER I-coil bands'
+      write(81,*) ''		! write more details to file 81 = case2
+      write(81,*) nbands,' ITER I-coil bands'
  
       if(nbands .eq. 0)    RETURN   	! no I-coils are defined
  
@@ -413,21 +419,21 @@ c set array of flags, kuse, to identify loops with non-zero current
       END DO
 
   ! write input information to file 81 = case2
-c       write(81,'(a,16i4)') ' nloops: ',(nloops(L),L=1,nbands)
+       write(81,'(a,16i4)') ' nloops: ',(nloops(L),L=1,nbands)
 c      write(81,'(a,16i4)') ' npoints:',(npoints(L),L=1,nbands)
 C      WRITE(81,*) ''
-c      write(81,*) 'Igeom:'
-c      do L=1,nbands
-c       write(81,'(8f10.3 )') (Igeom(k,L),k=1,7)
-c      end do
-c      write(81,*) 'Iadj:'
-c      do L=1,nbands
-c       write(81,'(8f10.3 )') (Iadj(k,L),k=1,3)
-c      end do
-c      WRITE(81,*) 'I Currents (Amp):'
-c      do L=1,nbands
-c       WRITE(81,'(10f8.0)') (curnt(k,L),k=1,nloops(L))
-c      end do
+      write(81,*) 'Igeom:'
+      do L=1,nbands
+       write(81,'(8f10.3 )') (Igeom(k,L),k=1,7)
+      end do
+      write(81,*) 'Iadj:'
+      do L=1,nbands
+       write(81,'(8f10.3 )') (Iadj(k,L),k=1,3)
+      end do
+      WRITE(81,*) 'I Currents (Amp):'
+      do L=1,nbands
+       WRITE(81,'(10f8.0)') (curnt(k,L),k=1,nloops(L))
+      end do
 
 C      WRITE(*,*) 'kuse:'
 C      do L=1,nbands
@@ -474,12 +480,12 @@ c  Cartesian component, segment, loop or coil, band or row.
        END IF
  
  
-c       write(81,*)''
-c       write(81,*)'band',L
-c       write(81,*) '       ',
-c     & 'R1,       Z1,       R2,       Z2, phianchor, phispan,    dphi:'
-c       write(81,'(7f10.3)') 
-c     &         R1, Z1, R2, Z2, phianchor, phispan, dphi
+       write(81,*)''
+       write(81,*)'band',L
+       write(81,*) '       ',
+     & 'R1,       Z1,       R2,       Z2, phianchor, phispan,    dphi:'
+       write(81,'(7f10.3)') 
+     &         R1, Z1, R2, Z2, phianchor, phispan, dphi
  
 c     set sufficient number of toroidal segments for coils in band(L) 
        segarc   = phispan
@@ -491,15 +497,14 @@ c     set sufficient number of toroidal segments for coils in band(L)
 	 IF (segarc .le. arcmax)  EXIT		! satisfied segarc
  
 	 IF(ntorsegs .gt. 100) THEN		! stop runaway loop
-      write(*,'(f10.3,i5,f10.3)') segarc, ntorsegs, arcmax
 	  write(*,*)'ITERIGEOM: Coil segment arc size setup ran away.'
 	  write(*,*)'ITERIGEOM: Stopping.'
 	  STOP
 	 END IF
        END DO				! end of 'WHILE'
  
-c       write(81,*) 'segarc, ntorsegs for this band'
-c       write(81,'(f10.3,i5)') segarc, ntorsegs
+       write(81,*) 'segarc, ntorsegs for this band'
+       write(81,'(f10.3,i5)') segarc, ntorsegs
  
  
     !-------------------------------------------------------------------
@@ -512,9 +517,9 @@ c       write(81,'(f10.3,i5)') segarc, ntorsegs
         phistart = phicent - phispan/2.0d0	! coil start angle
         phiend   = phicent + phispan/2.0d0	! coil end angle
  
-c        WRITE(81,*) ' L, k =', L, k
-c        WRITE(81,*) '   phicent,  phistart,    phiend:'
-c        WRITE(81,'(7f10.3)') phicent, phistart, phiend
+        WRITE(81,*) ' L, k =', L, k
+        WRITE(81,*) '   phicent,  phistart,    phiend:'
+        WRITE(81,'(7f10.3)') phicent, phistart, phiend
  
 C To write points to fort.15, usually named OUT.DEBUG:
 C        WRITE(15,*) 'band =', L,'loop =', k
@@ -635,16 +640,16 @@ c=======================================================================
 !       Write data file for plotgeom
 !-----------------------------------------------------------------------
 
-c      write(93,'(I3,A)'),nbands,'   bands. I coils'
-c      DO  L=1,nbands
-c	write(93,'(I3,A)'),nloops(L),'   loops'
-c	DO  k = 1, nloops(L)
-c	  write(93,'(I3,A)'),nsegs(k,L),'   segs'
-c	  DO  j = 1, nsegs(k,L)
-c	    write(93,'(3F10.4)'),xs(1,j,k,L),xs(2,j,k,L),xs(3,j,k,L)
-c	  enddo
-c	enddo
-c     enddo
+      write(93,'(I3,A)'),nbands,'   bands. I coils'
+      DO  L=1,nbands
+	write(93,'(I3,A)'),nloops(L),'   loops'
+	DO  k = 1, nloops(L)
+	  write(93,'(I3,A)'),nsegs(k,L),'   segs'
+	  DO  j = 1, nsegs(k,L)
+	    write(93,'(3F10.4)'),xs(1,j,k,L),xs(2,j,k,L),xs(3,j,k,L)
+	  enddo
+	enddo
+      enddo
 
 c-----------------------------------------------------------------------
 c Dummy argument variables returned to the program calling subroutine 
@@ -675,9 +680,9 @@ c=======================================================================
 c Write some information about this model to file 80 = CASE 
 c-----------------------------------------------------------------------
 
-c      ENTRY ITERIGEOMCASE
+      ENTRY ITERIGEOMCASE
  
-c      if(.not. livecoil) RETURN		! no current-carrying I-coil
+      if(.not. livecoil) RETURN		! no current-carrying I-coil
  
 C      WRITE(*,*) 'ENTRY ITERIGEOMCASE'
 C      WRITE(*,*) 'nbands'
@@ -685,32 +690,32 @@ C      WRITE(*,*) 'nloops', nloops
 C      WRITE(*,*) 'nbands', nbands
  
 c Write I-coil information to 'CASE' file:
-c      write(80,*) ''
-c      write(80,'('' I-coil information for'',i3,'' bands:'')') nbandsd
-c      write(80,'(a7,16i4)') ' nloops:',(nloopsd(l),l=1,nbandsd)
+      write(80,*) ''
+      write(80,'('' I-coil information for'',i3,'' bands:'')') nbandsd
+      write(80,'(a7,16i4)') ' nloops:',(nloopsd(l),l=1,nbandsd)
 c      write(80,*)' I-coil parameters:',
 c     &           ' R1, Z1, R2, Z2, phicent1, phispan, dphi, addangl'
 c      do L=1, nbandsd
 c       write(80,1006) (Igeom(k,L),k=1,7), ECadj(1,L)
 c      end do
  
-c      write(80,*)' I-coil parameters',
-c     &           ' R1, Z1, R2, Z2, coil1phi, torwdth, cntr-cntr:'
-c      do L=1, nbandsd
-c       write(80,1006) (Igeom(k,L),k=1,4), Igeom(5,L)+Iadj(1,L),
-c     &                (Igeom(k,L),k=6,7)
-c      end do
-c 
-c      write(80,*) ' I-coil Currents (A):'
-c      do L=1, nbandsd
-c       write(80,1005) (curntd(k,L),k=1,nloopsd(L))
-c      end do
-c 
-c      RETURN
+      write(80,*)' I-coil parameters',
+     &           ' R1, Z1, R2, Z2, coil1phi, torwdth, cntr-cntr:'
+      do L=1, nbandsd
+       write(80,1006) (Igeom(k,L),k=1,4), Igeom(5,L)+Iadj(1,L),
+     &                (Igeom(k,L),k=6,7)
+      end do
  
-c 1003 format(1x,30i3)
-c 1005 format(9f9.0)
-c 1006 format(9f9.3)
+      write(80,*) ' I-coil Currents (A):'
+      do L=1, nbandsd
+       write(80,1005) (curntd(k,L),k=1,nloopsd(L))
+      end do
+ 
+      RETURN
+ 
+ 1003 format(1x,30i3)
+ 1005 format(9f9.0)
+ 1006 format(9f9.3)
  
  
       END 	SUBROUTINE	ITERIGEOM

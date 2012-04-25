@@ -1,6 +1,6 @@
 
 
-c Contents of file itereccoils.f:
+c Contents of file itereccoilsgeom.f:
 c
 c	subroutine ITERIGEOM
 c
@@ -11,7 +11,7 @@ c=======================================================================
 
 c=======================================================================
 c                                   Started by: MJ Schaffer, 2006 dec 15
-c                                   Last Modified: D. Orlov, 2010 jul 28
+c                                   Last Modified: D. Orlov, 2011 sep 22
 c-----------------------------------------------------------------------
 c ITERIGEOM reads geometry-defining information, then writes arrays of
 c ITER I-coil geometry parameters in the form required by MJS's 
@@ -75,12 +75,24 @@ c
 c Units: SI (mks)
 c Fully double precision.
 c-----------------------------------------------------------------------
+!=======================================================================
+!
+! USER SHOULD CHOOSE 1ST CONDUCTOR FOR DESIRED B VS CURRENT SIGN!
+! Current in R1,Z1 conductor flows in the  + phi coordinate direction and
+! returns in R2,Z2 conductor       in the  - phi direction.
+! To make a positive value of current give a positive value of Br 
+! (i.e., Br out away from the plasma in the minor radius sense), type
+! the coil's lower-theta (CCW poloidal angle) conductor's R,Z coordinates
+! into the R1,Z1 elements of Pgeom,
+! and the coil's higher-theta conductor's R,Z coordinates
+! into the R2,Z2 elements of Pgeom. 
+!=======================================================================
  
       IMPLICIT NONE
  
       INCLUDE 'itericoils.i'	! gives mxIbands, mxIloops, mxIsegs
 				! niturns (integer)
-	  
+ 
       INTEGER    mxbands, mxloops, mxsegs	!local parameters
       PARAMETER (mxbands = mxIbands)		! to dimension arrays
       PARAMETER (mxloops = mxIloops)		! to dimension arrays
@@ -136,6 +148,7 @@ c-----------------------------------------------------------------------
       dp0 = 0.0d0			! double precision 0
       dp1 = 1.0d0			!    "       "     1
 
+
  ! Initialize geometry and namelist variables
       useITERIcoil = .FALSE.
  
@@ -162,13 +175,13 @@ c      Iadj   = dp0
  
  ! Igeom(1:7,L)= R1,Z1,R2,Z2, phicentr1, phispan, dphi of band L (m,deg)
 
-      Igeom(1:7,1)=(/7.735, 3.380, 8.262, 2.626, 0., 28.5, 40./)
+      Igeom(1:7,1)=(/8.262, 2.626, 7.735, 3.380, 0., 28.5, 40./)
 C     9 top loops
 
-      Igeom(1:7,2)=(/8.618, 1.790, 8.661, -0.550, -3.3, 20.2, 40./)
+      Igeom(1:7,2)=(/8.661, -0.550, 8.618, 1.790, -3.3, 20.2, 40./)
 C     9 middle loops
 
-      Igeom(1:7,3)=(/8.230, -1.546, 7.771, -2.381, 0., 30.0, 40./)
+      Igeom(1:7,3)=(/7.771, -2.381, 8.230, -1.546, 0., 30.0, 40./)
 C     9 bottom loops      
  
  ! Iadj(1:3:L) = addangl, arcmax (deg), scalec (dimless)
@@ -223,7 +236,7 @@ c set array of flags, kuse, to identify loops with non-zero current
 	end if
        END DO
       END DO
-
+ 
 c=======================================================================
 c            Fill Position Vector Array	
 c-----------------------------------------------------------------------
@@ -279,7 +292,7 @@ c     set sufficient number of toroidal segments for coils in band(L)
         phicent = phianchor + (k - 1)*dphi	! center of loop k	
         phistart = phicent - phispan/2.0d0	! coil start angle
         phiend   = phicent + phispan/2.0d0	! coil end angle
- 
+   
 c Go around loop k
  
         j = 0		! j is segment index counter for this loop

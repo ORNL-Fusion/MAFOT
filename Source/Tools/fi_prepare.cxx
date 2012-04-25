@@ -16,7 +16,7 @@
 //--------
 #include <andi.hxx>
 #include <efit_class.hxx>
-//#include <d3d-drift-fi.hxx>
+
 
 // Prototypes 
 void readiodata(char* name, vector<double>& vec);
@@ -28,10 +28,6 @@ double filament_fields_ex(double x, double y, double z, Array<double,2>& data, i
 int useFilament = 0;	// 0: no	>= 1: Number of Filaments to be included 
 
 // Golbal Parameters
-const double pi = LA_PI;
-const double pi2 = 2*pi;
-const double rTOd = 180.0/pi;	// rad to deg
-
 EFIT EQD;
 Array<double,3> filament_data(Range(1,1),Range(0,1),Range(1,5));	// default size
 Array<double,4> field;	// default constructed
@@ -188,7 +184,7 @@ if(useFilament>0)
 
 // Calculate total field of filaments on grid
 //--------------------------------------------
-double R,phi,X,Y,Z;
+double R = 0,phi,X,Y,Z = 0;
 double bx,by,bz;
 double B_X,B_Y,B_Z;
 double sinp,cosp;

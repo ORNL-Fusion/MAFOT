@@ -18,11 +18,6 @@ void writeiodata(ofstream& out, vector<LA_STRING>& var, parstruct * pv, int psiz
 // Switches
 
 // Golbal Parameters
-const double pi = LA_PI;
-const double pi2 = 2*pi;
-const double rTOd = 180.0/pi;	// rad to deg
-
-//EFIT EQD;
 
 // Main Program
 //--------------
@@ -51,7 +46,7 @@ vector<double> startvec;
 cout << "Read Parameterfile " << parfilename << endl;
 readparfile(parfilename, startvec);
 
-double phistart = startvec[7];
+double phistart = startvec[7]/rTOd;
 
 // Read struct file
 Array<double,2> data;
