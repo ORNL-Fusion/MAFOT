@@ -57,6 +57,8 @@ public:
 	double Ekin;								// Kinetic Energy
 	double lambda;								// fraction of Energy in radial direction
 	double verschieb;							// parameter for mainfolds
+	int response;									// 1: use M3D-C1 plasma response solution; 0: no plasma response included -> vacuum field as used in M3D-C1
+	int response_field;							// -1: use vaccum field from g-file (= M3D-C1 off); 0: equilibrium only; 1: perturbation only; 2: total field
 
 	parstruct* pv;								// parstruct array
 
@@ -155,6 +157,10 @@ Zq = PAR.Zq;
 useFilament = PAR.useFilament;
 useTprofile = PAR.useTprofile;
 
+// M3D-C1 parameter
+response = PAR.response;
+response_field = PAR.response_field;
+
 // Parstruct array
 if(pv) delete[] pv;
 pv = new parstruct[psize];
@@ -230,6 +236,12 @@ out << "sigma = " << PAR.sigma << endl;
 out << "Zq = " << PAR.Zq << endl;
 out << "useFilament = " << PAR.useFilament << endl;
 out << "useTprofile = " << PAR.useTprofile << endl;
+
+#ifdef m3dc1
+out << "--- M3D-C1 ---" << endl;
+out << "response = " << PAR.response << endl;
+out << "response_field = " << PAR.response_field << endl;
+#endif
 
 if(PAR.psize>0) 
 {

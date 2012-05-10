@@ -1,19 +1,19 @@
 # Parameterfile for DIII-D Programs
 # Shot: 126006	Time: 3000ms
 # Path: /u/wingen/d3gfiles/
-free_Parameter(Np)=	500
-itt=	50
-tmin=	0.0
-tmax=	1.0
-phimin=	0
-phimax=	6.283185307179586
-Nt=	1000
+free_Parameter=	0
+itt=	300
+rmin=	0.42
+rmax=	0.57
+thmin=	0
+thmax=	0
+N=	40
 phistart(deg)=	0
-MapDirection=	-1
+MapDirection=	1
 PlasmaResponse(0=no,1=yes)=     1
 Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=      -1
 target(0=cp,1=inner,2=outer,3=shelf)=	1
-createPoints(0=set,1=random,2=target)=	2
+createPoints(0=set,1=random,2=target)=	0
 useFcoil(0=no,1=yes)= 1
 useCcoil(0=no,1=yes)= 1
 useIcoil(0=no,1=yes)= 1

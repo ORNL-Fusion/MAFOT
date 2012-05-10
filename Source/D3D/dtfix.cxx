@@ -17,7 +17,11 @@
 // Include
 //--------
 #include <mafot.hxx>
+#ifdef m3dc1
+#include <d3d_m3dc1.hxx>
+#else
 #include <d3d.hxx>
+#endif
 
 // Prototypes  
 int newton2D(PARTICLE& FLT, double phistart, int periode);
@@ -124,6 +128,9 @@ for(i=0;i<PAR.Nr;i++)	//r
 				out << FLT.R << "\t" << FLT.Z << "\t" << periode << "\t" << FLT.psi << "\t" << FLT.get_theta() << "\t" << FLT.get_r() << endl;
 				cout << "Program terminated normally" << endl;
 				ofs2 << "Program terminated normally" << endl;
+				#ifdef m3dc1
+				if(PAR.response_field >= 0) m3dc1_unload_file_();
+				#endif
 				return 0; 
 			}
 			else continue;
@@ -135,6 +142,11 @@ for(i=0;i<PAR.Nr;i++)	//r
 ofs2 << endl;
 ofs2 << "Program terminated normally" << endl;
 cout << "Program terminated normally" << endl;
+
+#ifdef m3dc1
+if(PAR.response_field >= 0) m3dc1_unload_file_();
+#endif
+
 return 0; 
 } //end of main
 

@@ -1,16 +1,18 @@
 % Parameter
 %--------------
 useFiles = 1;           % 1: read from files    0: use workspace
-FileToOpen1 = 'foot_out_84-0-38.dat';
-FileToOpen2 = 'foot_in_84-0-38.dat';   % Comment, if not wanted
+FileToOpen1 = 'foot_in_ref.dat';
+%FileToOpen2 = 'foot_in_84-0-38.dat';   % Comment, if not wanted
 
 useLogScale = 1;        %0: linear y-Axis   1: log(y+1) y-Axis
 
 M = 200;                % Number of bars
-SOL_Range_Lc = 0.22;    % Minimum connection length
+SOL_Range_Lc = 0.075;   % Minimum connection length
 SOL_Range_psi = 0.997;  % Maximum penetration depth
-Lc_cutoff = 16.5;       % Cutoff Lc x-Axis at value [km], if value > max(Lx): no cutoff
+Lc_cutoff = 2.6;        % Cutoff Lc x-Axis at value [km], if value > max(Lx): no cutoff
 
+Lc_ft = 0.13;           % max Flux Tube con. Length = 2pol. Turns; D3D = 0.13; ITER = 0.44
+Lc_long = 0.4;          % another con. Length; D3D = 0.4; ITER = 1;
 %------------------------------------------------------------------
 %------------------------------------------------------------------
 % Code draws histogramms for Connection length and Penetration depth
@@ -120,8 +122,8 @@ if(WhatToPlot ~= 2)
     
     % Statistical data
     Lc_average = round(sum(Lc(Lc>zmin))/length(Lc(Lc>zmin))*100)/100;
-    flf1b = round(10*sum(L(1:max(find(Lx<=0.44)))))/10;
-    flf2b = round(10*sum(L(1:max(find(Lx<=1)))))/10;
+    flf1b = round(10*sum(L(1:max(find(Lx<=Lc_ft)))))/10; 
+    flf2b = round(10*sum(L(1:max(find(Lx<=Lc_long)))))/10;
     
     % Cutoff
     L = L(Lx<=Lc_cutoff);
@@ -212,8 +214,8 @@ if(WhatToPlot ~= 2)
 
     % Inlet
     str = {['<L_{c}> [km] = ' num2str(Lc_average) ' km']; ...
-        ['flf_{440m} = ' num2str(flf1b) '%']; ...
-        ['flf_{1km} = ' num2str(flf2b) '%']};
+        ['flf_{' num2str(Lc_ft*1000) 'm} = ' num2str(flf1b) '%']; ...
+        ['flf_{' num2str(Lc_long*1000) 'm} = ' num2str(flf2b) '%']};
 
     text(max(Lx)-4*dz,0.92*max(L),str,...
         'BackgroundColor','w','FontName',schrift,...

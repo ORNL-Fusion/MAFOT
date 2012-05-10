@@ -23,7 +23,11 @@
 //--------
 #include <openmpi/ompi/mpi/cxx/mpicxx.h>
 #include <mafot.hxx>
+#ifdef m3dc1
+#include <d3d_m3dc1.hxx>
+#else
 #include <d3d.hxx>
+#endif
 #include <omp.h>
 
 // Prototypes  
@@ -128,9 +132,9 @@ if(PAR.Nt<=1) {dt=0;}
 else dt=(PAR.tmax-PAR.tmin)/(PAR.Nt-1);
 if(dt == 0) PAR.tmax = PAR.tmin;
 
-// Use Boundary Box and extend lower boundary to prevent horizontal plate to be outside of boundary
-simpleBndy = 1;
-bndy[2] = -1.4;	 // originally  bndy[2] = -1.367 and plate at -1.3664-Z0
+// Use real wall as boundary
+simpleBndy = 0;
+//bndy[2] = -1.4;	 // originally  bndy[2] = -1.367 and plate at -1.3664-Z0
 
 // Prepare particles
 PARTICLE FLT(EQD,PAR,mpi_rank);
@@ -401,6 +405,10 @@ if(mpi_rank < 1)
 	ofs3 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 }
 ofs2 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
+
+#ifdef m3dc1
+if(PAR.response_field >= 0) m3dc1_unload_file_();
+#endif
 
 // MPI finalize
 MPI::Finalize();

@@ -6,13 +6,13 @@ autoscale = 2;    %0: use b    1: scale color automatically   2: use b and set S
 b = 0.075:0.005:0.4;   % (con. length only) [0.075:0.005:0.4]  [0.028:0.005:0.4]  [0.028:0.0001:0.108]
 
 % Main Filename
-Laminar = 1;          % 0: Footprint  1: Laminar Plot
-WhatShallIPlot = 1;   % 0: ntor  1: con. length[km]  2: psimin
+Laminar = 0;          % 0: Footprint  1: Laminar Plot
+WhatShallIPlot = 2;   % 0: ntor  1: con. length[km]  2: psimin
 printme = 0;          % 0: no export to jpg file     1: export to jpg
-FileToOpen = 'lam_test.dat';
+FileToOpen = 'foot_in_pr.dat';
 
 % (printme==1 only) Comment line if not wanted: Add an additional string to output filename
-%praefix = 'a';
+%praefix = '_man';
 
 % (Laminar == 0 only) Specify Target and Axis handling 
 Target = 1;   % 0: CP  1: Inner + CP  2: Outer  3: Shelf
@@ -27,8 +27,8 @@ phimax = (360-95)/180*pi; %-43
 
 % Plot additional points 0: none, >=1: Number of Files to plot
 plot_manifold = 0;
-filenames = {'current_tube5.dat' ...   out   tiles_at_60deg_all.dat   man_unstr1_C_2kA_0_RZ.dat
-    'current_tube2.dat' ...         in
+filenames = {'man_unstr1_pr_1.dat' ...   out   tiles_at_60deg_all.dat   man_unstr1_C_2kA_0_RZ.dat
+    'man_stl1_pr_1.dat' ...         in
     'current_tube3.dat' ...        out
     'current_tube4.dat' ...        out
     'current_tube6.dat' ...        out
@@ -36,8 +36,8 @@ filenames = {'current_tube5.dat' ...   out   tiles_at_60deg_all.dat   man_unstr1
     'current_tube8.dat'}; ...       in
 
 % Set style for additional data (see Help: LineSpec)
-styles = {'w.', 'ko', 'mx', 'm.', 'wx', 'w.', 'k+'};
-groesse = [15, 6, 10, 15, 10, 15, 6];    % markersizes for additional data 
+styles = {'k-', 'k--', 'mx', 'm.', 'wx', 'w.', 'k+'};
+groesse = [2, 2, 10, 15, 10, 15, 6];    % markersizes for additional data 
 
 % (Laminar==1 & printme==1 only) Adjust horizontal colorbar position in [cm], if necessary
 correct_pos = 0.0;    % Default: = 0
@@ -124,13 +124,13 @@ if(Laminar==0 && Physical>=1)
     if(Target==1 && Physical == 1) 
         tg = t(t>=0);
         tl = t(t<0);
-        tg = -1.22884 - tg*0.13756;
-        tl = -1.22884 - tl*0.193967;
+        tg = -1.223 - tg*0.14;
+        tl = -1.223 - tl*0.1959;
         t = [tl;tg];
-    elseif(Target==1 && Physical == 2), t = t*19.3967;
-    elseif(Target==0), t = -1.22884 - t*0.193967;
-    elseif(Target==2), t = 1.15285 + t*0.21915;
-    elseif(Target==3), t = 1.372 + t*0.21915;
+    elseif(Target==1 && Physical == 2), t = t*19.59;
+    elseif(Target==0), t = -1.223 - t*0.1959;
+    elseif(Target==2), t = 1.153 + t*0.219;
+    elseif(Target==3), t = 1.372 + t*0.219;
     end
 end
 
@@ -218,7 +218,7 @@ for i=plot_manifold:-1:1
     phiout=C2{1};
     tout=C2{2};
     if(Laminar==0 && Machine==1), phiout = (2*pi-phiout)/pi*180; end
-    plot(phiout,tout,char(styles(i)),'LineWidth',2.5,'markerSize',groesse(i));
+    plot(phiout,tout,char(styles(i)),'LineWidth',1,'markerSize',groesse(i));
 end
 if(Laminar==1)
     wallfile=fopen('/Users/wingen/c++/d3d/wall.dat');
@@ -267,7 +267,7 @@ end
 if(autoscale==2) 
     MyColorMap=get(gcf,'Colormap');
     if(WhatShallIPlot==2) 
-        %MyColorMap(size(MyColorMap,1),:) = 1;
+        MyColorMap(size(MyColorMap,1),:) = 1;
         %MyColorMap(size(MyColorMap,1)-1,:) = 1;
     else MyColorMap(1,:) = 1;
     end

@@ -16,7 +16,11 @@
 // Include
 //--------
 #include <mafot.hxx>
+#ifdef m3dc1
+#include <d3d_m3dc1.hxx>
+#else
 #include <d3d.hxx>
+#endif
 
 // Prototypes
 void find_start_values(Array<double,1>& xs, Array<double,1>& d, int periode, double& verschieb, 
@@ -75,7 +79,7 @@ const double minabs = 0.001;	//0.001
 const double maxabs = 0.005;	//0.005
 const int kstart = 1;
 const int kend = 30;
-simpleBndy = 1;						// 0: use real wall as boundaries, 1: use simple boundary box
+simpleBndy = 0;						// 0: use real wall as boundaries, 1: use simple boundary box
 
 // read fixed points
 Array<double,2> data;
@@ -214,6 +218,11 @@ for(i=1;i<=data.rows();i++)
 } // end for i
 ofs2 << "Program terminates normally" << endl;
 cout << "Program terminates normally" << endl;
+
+#ifdef m3dc1
+if(PAR.response_field >= 0) m3dc1_unload_file_();
+#endif
+
 return 0;
 } //end of main
 

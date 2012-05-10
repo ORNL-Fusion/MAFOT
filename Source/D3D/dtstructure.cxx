@@ -16,7 +16,11 @@
 // Include
 //--------
 #include <mafot.hxx>
+#ifdef m3dc1
+#include <d3d_m3dc1.hxx>
+#else
 #include <d3d.hxx>
+#endif
 
 // Prototypes 
 
@@ -231,6 +235,10 @@ for(j=1;j<=data.rows();j++) out << data(j,1) << "\t" << data(j,2) << "\t" << dat
 double now2 = zeit();
 cout << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 ofs2 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
+
+#ifdef m3dc1
+if(PAR.response_field >= 0) m3dc1_unload_file_();
+#endif
 
 return 0;
 } //end of main

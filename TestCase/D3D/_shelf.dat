@@ -10,8 +10,8 @@ phimax=	6.283185307179586
 Nt=	975
 phistart(deg)=	0
 MapDirection=	1
-R0=	1.75552632
-Z0=	-0.00185018665
+PlasmaResponse(0=no,1=yes)=     1
+Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=      -1
 target(0=cp,1=inner,2=outer,3=shelf)=	3
 createPoints(0=set,1=random,2=target)=	2
 useFcoil(0=no,1=yes)= 1

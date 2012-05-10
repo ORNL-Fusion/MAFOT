@@ -1,8 +1,14 @@
 // Header-File for the DIII-D Programs 
 // Only Machine specific subroutines
+// uses Nate Ferraro's M3D-C1 plasma response code output, fixed filename: C1.h5
+// Plasma response can be for Equilibrium, or I-coils, or both
+// C-coils and F-coils are not yet included in Plasma response
+// ++++++ IMPORTANT +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// Libraries for the M3D-C1 routines only exist in Nate's u-drive account at GA
+// use -Dm3dc1 when compiling -> this define activates this part of the code
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // uses arrays and multiple-arrays from blitz-Library
-// A.Wingen						6.6.11
-
+// A.Wingen						3.5.12
 
 // --------------- Prototypes ---------------------------------------------------------------------------------------------
 //void IO::readiodata(char* name, int mpi_rank);								// declared in IO class, defined here
@@ -61,6 +67,16 @@ extern "C"
 	void polygonb_(const int *loopsdim, const int *segsdim, const int *nloops, int nsegs[], int kuse[],
 					double *xs, double *dvs, double curnt[], 
 					double *x, double *y, double *z, double *bx, double *by, double *bz);
+}
+
+extern "C"
+{
+	void m3dc1_load_file_(int *itime, int *ierr);	// itime = 1: plasma response solution; itime = 0: vacuum field; ierr = 0: Read ok, else error
+	void m3dc1_get_field0_(double *R, double *phi, double *Z, double *br, double *bphi, double *bz);	// equilibrium field only
+	void m3dc1_get_field1_(double *R, double *phi, double *Z, double *br, double *bphi, double *bz);	// I-coil perturbation field only
+	void m3dc1_get_field_(double *R, double *phi, double *Z, double *br, double *bphi, double *bz);		// total field, turn off coils here
+	void m3dc1_unload_file_(void);
+	void m3dc1_set_scale_factor_(double *scale);
 }
 // -------------- global Parameters ---------------------------------------------------------------------------------------
 int simpleBndy = 0;		// 0: use real wall as boundaries, 1: use simple boundary box
@@ -158,6 +174,12 @@ sigma = int(vec[16]);
 Zq = int(vec[17]);
 useFilament = int(vec[20]);
 
+// M3D-C1 parameter
+response = int(vec[9]);
+response_field = int(vec[10]);
+
+if(vec[9]>1) {cout << "Plasma Response Parameters are missing in file -> Abort!" << endl; EXIT;}
+
 if(vec[21]>1) useTprofile = 0;
 else useTprofile = int(vec[21]);
 }
@@ -171,6 +193,10 @@ out << "#-------------------------------------------------" << endl;
 out << "### Parameterfile: " << filename << endl;
 out << "# Shot: " << EQDr.Shot << endl;
 out << "# Time: " << EQDr.Time << endl;
+out << "#-------------------------------------------------" << endl;
+out << "### M3D-C1:" << endl;
+out << "# Plasma response (0=no, 1=yes): " << response << endl;
+out << "# Field (-1=M3D-C1 off, 0=Eq, 1=I-coil, 2=both): " << response_field << endl;
 out << "#-------------------------------------------------" << endl;
 out << "### Switches:" << endl;
 out << "# F-coil active (0=no, 1=yes): " << useFcoil << endl;
@@ -247,16 +273,32 @@ cosp = cos(phi);
 X = R*cosp;
 Y = R*sinp;
 
-// get normalized poloidal Flux psi (should be chi in formulas!)
-chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
-if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return;}	// integration of this point terminates 
+switch(PAR.response_field)
+{
+case -1:	// Vacuum equilibrium field from g file
+	// get normalized poloidal Flux psi (should be chi in formulas!)
+	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
+	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return;}	// integration of this point terminates
 
-// Equilibrium field
-F = EQD.get_Fpol(psi);
-B_R = dpsidz/R;
-B_phi = F/R;
-//B_phi = EQD.Bt0*EQD.R0/R;
-B_Z = -dpsidr/R;
+	// Equilibrium field
+	F = EQD.get_Fpol(psi);
+	B_R = dpsidz/R;
+	B_phi = F/R;	//B_phi = EQD.Bt0*EQD.R0/R;
+	B_Z = -dpsidr/R;
+	break;
+
+case 0: 	// M3D-C1: equilibrium field only
+	m3dc1_get_field0_(&R, &phi, &Z, &B_R, &B_phi, &B_Z);
+	break;
+
+case 1: 	// M3D-C1: I-coil perturbation field only, coils are turned off in prep_perturbation
+	m3dc1_get_field1_(&R, &phi, &Z, &B_R, &B_phi, &B_Z);
+	break;
+
+case 2: 	// M3D-C1: total field, coils are turned off in prep_perturbation
+	m3dc1_get_field_(&R, &phi, &Z, &B_R, &B_phi, &B_Z);
+	break;
+}
 
 B_X = 0;	B_Y = 0;
 // F-coil perturbation field
@@ -301,8 +343,35 @@ B_phi += -B_X*sinp + B_Y*cosp;
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank)
 {
 int i;
+int chk;
 LA_STRING line;	// entire line is read by ifstream
 
+// Read C1.h5 file
+if(PAR.response_field >= 0)		// use M3D-C1 plasma response output
+{
+	if(mpi_rank < 1) cout << "Loading M3D-C1 output file C1.h5" << endl;
+	ofs2 << "Loading M3D-C1 output file C1.h5" << endl;
+	
+	m3dc1_load_file_(&PAR.response, &chk);
+	if(chk != 0) {if(mpi_rank < 1) cout << "Error loding C1.h5 file" << endl; EXIT;}
+
+	if(mpi_rank < 1) cout << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
+	ofs2 << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
+}
+else
+{
+	if(mpi_rank < 1) cout << "Using g-file!" << endl;
+	ofs2 << "Using g-file!" << endl;
+}
+if(PAR.response_field > 0)		// Perturbation already included in M3D-C1 output
+{
+	if(mpi_rank < 1) cout << "Coils turned off: I-coil perturbation (only) already included in M3D-C1 output" << endl;
+	ofs2 << "Coils turned off: I-coil perturbation (only) already included in M3D-C1 output" << endl;
+
+	PAR.useFcoil = 0;
+	PAR.useCcoil = 0;
+	PAR.useIcoil = 0;
+}
 
 if(mpi_rank < 1) cout << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
 ofs2 << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
@@ -344,6 +413,15 @@ for(i=0;i<nIloops;i++) in >> d3icoil_.curntIc[i];		// Read I-coil currents
 
 in.close();	// close file
 in.clear();	// reset ifstream for next use
+
+// Scale I-coil perturbation in M3D-C1 according to diiidsup.in (current = scale * 1kA)
+double scale = 0;
+if(PAR.response_field > 0)
+{
+	for(i=0;i<nIloops;i++) scale += fabs(d3icoil_.curntIc[i]);
+	scale /= 1000.0*nIloops;
+	m3dc1_set_scale_factor_(&scale);
+}
 
 // Set F-coil geometry
 if(PAR.useFcoil==1)
