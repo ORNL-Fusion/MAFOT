@@ -1,7 +1,7 @@
 % Parameter
 %--------------
 useFiles = 1;           % 1: read from files    0: use workspace
-FileToOpen1 = 'foot_in_ref.dat';
+FileToOpen1 = 'foot_in_ref_41-7pct_a.dat';
 %FileToOpen2 = 'foot_in_84-0-38.dat';   % Comment, if not wanted
 
 useLogScale = 1;        %0: linear y-Axis   1: log(y+1) y-Axis
@@ -13,6 +13,7 @@ Lc_cutoff = 2.6;        % Cutoff Lc x-Axis at value [km], if value > max(Lx): no
 
 Lc_ft = 0.13;           % max Flux Tube con. Length = 2pol. Turns; D3D = 0.13; ITER = 0.44
 Lc_long = 0.4;          % another con. Length; D3D = 0.4; ITER = 1;
+correct_psi = 1;
 %------------------------------------------------------------------
 %------------------------------------------------------------------
 % Code draws histogramms for Connection length and Penetration depth
@@ -54,6 +55,9 @@ if(useFiles==1)
         Lc = Lc1;
     end
     WhatToPlot = 0; % Plot both
+
+    % Correct psi: use Lc to set psi = 0 in SOL
+    if(correct_psi == 1), Psi(Lc <= SOL_Range_Lc) = 1; end
     
 % Take Data from Workspace
 %--------------
@@ -223,5 +227,5 @@ if(WhatToPlot ~= 2)
         'HorizontalAlignment','right');
 end
 
-
+figure(gcf) % Bring current figure window to the front
 

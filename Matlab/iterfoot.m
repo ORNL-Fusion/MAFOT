@@ -308,7 +308,7 @@ else
         set(0, 'Units', 'centimeters');
         scrsz = get(0,'ScreenSize');
         set(0, 'Units', 'pixels');
-        set(gcf, 'Position', [(scrsz(3)-18)/2 (scrsz(4)-15)/2 18 hoehe]);
+        %set(gcf, 'Position', [(scrsz(3)-18)/2 (scrsz(4)-15)/2 18 hoehe]);
 
         % set size of exported figure
         set(gcf, 'PaperPositionMode', 'manual');
@@ -326,12 +326,12 @@ else
         set(0, 'Units', 'centimeters');
         scrsz = get(0,'ScreenSize');
         set(0, 'Units', 'pixels');
-        set(gcf, 'Position', [(scrsz(3)-18)/2 (scrsz(4)-12)/2 18 12]);
+        %set(gcf, 'Position', [(scrsz(3)-18)/2 (scrsz(4)-12)/2 18 12]);
 
         % set size of exported figure
         set(gcf, 'PaperPositionMode', 'manual');
         set(gcf, 'PaperUnits', 'centimeters');
-        set(gcf, 'PaperPosition', [0.0 0.0 18 12]);
+        set(gcf, 'PaperPosition', [0.0 0.0 18.5 12]);
 
         if(Machine==1 && VaryPhiRange==0), set(gca, 'XTick', 0:50:350); end
         if(Machine==0 && VaryPhiRange==0)
@@ -370,10 +370,10 @@ else
     cbpos = get(cbar,'Position');
 
     if(Laminar==1)
-        set(cbar,'location','manual','Position', [11.5+gcapos(1)+correct_pos, cbpos(2)+correct_pos2, 0.5, cbpos(4)-2*correct_pos2]);
+        set(cbar,'location','manual','Position', [11.85+gcapos(1)+correct_pos, gcapos(2)+0.02+correct_pos2, 0.5, gcapos(4)-2*correct_pos2]);
         set(gca, 'Position', [gcapos(1), gcapos(2), gcapos(3), gcapos(4)]);
     else
-        set(cbar,'location','manual','Position', [cbpos(1)+0.1, gcapos(2), 0.5, gcapos(4)]);
+        set(cbar,'location','manual','Position', [cbpos(1)+2.3, gcapos(2)+0.02, 0.5, gcapos(4)]);
         if(Machine==1), gcaoff3 = 0.6;
         else gcaoff3 = 0.6;
         end
@@ -385,3 +385,4 @@ else
     disp(['Figure written to File: ' filenameout '.jpg'])
 end
 
+figure(gcf) % Bring current figure window to the front

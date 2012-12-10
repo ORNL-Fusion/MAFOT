@@ -1,20 +1,20 @@
-%clear;
+clear;
 %---------------- Set parameter here -------------------------------
 % Color scaling in b
 TypeOfPlot = 1;   % 0: contourf  1: pcolor (fast)
-autoscale = 2;    %0: use b    1: scale color automatically   2: use b and set SOL value in Colormap to white
-b = 0.075:0.005:0.4;   % (con. length only) [0.075:0.005:0.4]  [0.028:0.005:0.4]  [0.028:0.0001:0.108]
+autoscale = 2;    %0: use b    1: scale color automatically   2: use b and set 0 value in Colormap to white
+b = -0.4:0.005:0.4;   %
 
 % Main Filename
 Laminar = 1;          % 0: Footprint  1: Laminar Plot
-WhatShallIPlot = 3;   % 0: ntor  1: con. length[km]  2: psimin  3: SXR emission   4: Te   5: ne   6: emission from psiav  7: emission with von Goelar
+WhatShallIPlot = 3;   % 0: ntor  1: con. length[km]  2: psimin  3: SXR emission
 printme = 0;          % 0: no export to jpg file     1: export to jpg
-FileToOpen = 'lam_full_3545.dat';
+FileToOpen1 = 'lam_pr_psimax.dat';
+FileToOpen2 = 'lam_pr_4050_psimax.dat';
 
 % (printme==1 only) Comment line if not wanted: Add an additional string to output filename
-praefix = '_conv21';
-% (WhatShallIPlot == 3 only) Range of convolution filter
-span = 15;
+praefix = '_emis_conv11_diff';
+span = 11;
 
 % (Laminar == 0 only) Specify Target and Axis handling 
 Target = 1;   % 0: CP  1: Inner + CP  2: Outer  3: Shelf
@@ -29,7 +29,7 @@ phimax = 330; % 91
 
 % Plot additional points 0: none, >=1: Number of Files to plot
 plot_manifold = 0;
-filenames = {'plot_pr_4150_1kA.dat' ...   out   tiles_at_60deg_all.dat   man_unstr1_C_2kA_0_RZ.dat
+filenames = {'plot_m3dc1_nopr.dat' ...   out   tiles_at_60deg_all.dat   man_unstr1_C_2kA_0_RZ.dat
     'man_stl1_pr_1.dat' ...         in
     'current_tube3.dat' ...        out
     'current_tube4.dat' ...        out
@@ -80,16 +80,12 @@ correct_m3dc1 = 1;% Laminar == 0 && VaryPhiRange == 1 only, set phi-axis = [0:36
 yVariedFirst = 0;     % Default: =0     use =1 only if file format varies y values first
 
 % Specify b for other than con. length
-if(WhatShallIPlot == 5), b = 1.01:0.02:3.5;
-elseif(WhatShallIPlot == 7), b = 0.05:0.01:1;
-elseif(WhatShallIPlot == 6), b = 0.35:0.01:1;
-elseif(WhatShallIPlot == 4), b = 0.25:0.02:1.5;
-elseif(WhatShallIPlot == 3), b = 0.35:0.01:1;
-elseif(WhatShallIPlot == 2), b = 0.9:0.001:1;  % [0.9:0.001:1]
-elseif(WhatShallIPlot == 0) 
-    b = 4:0.5:40;
-    if(autoscale == 2), autoscale = 0; end
-end
+% if(WhatShallIPlot == 3), b = 0.06:0.01:1;
+% elseif(WhatShallIPlot == 2), b = 0.9:0.001:1;  % [0.9:0.001:1]
+% elseif(WhatShallIPlot == 0) 
+%     b = 4:0.5:40;
+%     if(autoscale == 2), autoscale = 0; end
+% end
 
 % plot limit line between CP and inner target: 0=no 1=yes
 if(Laminar==0 && Target==1), plot_target_limit = 1;
@@ -116,19 +112,15 @@ if(printme==1)
 end
 
 % --- Read data from input file -----------------------------------
-file=fopen(FileToOpen);
+file=fopen(FileToOpen1);
 % die Matrizen hier sind transponiert zu den unteren, ist aber egal
-if(WhatShallIPlot >= 5), C=textscan(file,'%f%f%f%f%f%f%f','commentStyle','#');
-else C=textscan(file,'%f%f%f%f%f%*[^\n]','commentStyle','#');
-end
+%C=textscan(file,'%f%f%f%f%f%*[^\n]','commentStyle','#');
+C=textscan(file,'%f%f%f%f%f%f','commentStyle','#');
 fclose(file);
 phi=C{1};
 t=C{2};
-if(WhatShallIPlot > 2), val=C{5};
-else val=C{WhatShallIPlot + 3}; 
-end
-if(WhatShallIPlot == 5), val=C{6}; end
-if(WhatShallIPlot == 6), val=C{7}; WhatShallIPlot = 3; end
+if(WhatShallIPlot > 2), val=C{6};
+else val=C{WhatShallIPlot + 3}; end
 sizeofvec=length(t);
 
 % transform t to physical values: length in m
@@ -172,25 +164,12 @@ X = reshape(phi,Np,Nt);
 Y = reshape(t,Np,Nt);
 Z = reshape(val,Np,Nt);
 
-if(WhatShallIPlot == 7), val=C{6}; Z2 = reshape(val,Np,Nt); end
-
-%Y = Y + 1.3274 - 1.3261;
-
 % --- Correct psimin plot -----------------------------------------
 if(WhatShallIPlot >= 2 && correct_psi == 1)
     val = C{4};   % Lc
     L = reshape(val,Np,Nt);
     Lcmin = 0.075;
-    if(WhatShallIPlot == 5) 
-        Z(Z >= 1) = 1.0;
-        Z(L < Lcmin) = 1.03;
-    else Z(L < Lcmin) = 1.2;%1.067;
-    end
-    if(WhatShallIPlot == 7)
-        Z2(Z2 >= 1) = 1.0;
-        Z2(L < Lcmin) = 1.03;
-    end
-
+    Z(L < Lcmin) = 1.067;
 end
 
 % --- change Phi range --------------------------------------------
@@ -235,29 +214,70 @@ if(Laminar == 0 && VaryPhiRange == 1)
     if(correct_m3dc1 == 1), X = X - min(min(X)); end
 end
 
+% --- Read data from second input file ----------------------------
+file=fopen(FileToOpen2);
+% die Matrizen hier sind transponiert zu den unteren, ist aber egal
+%C=textscan(file,'%f%f%f%f%f%*[^\n]','commentStyle','#');
+C=textscan(file,'%f%f%f%f%f%f','commentStyle','#');
+fclose(file);
+phi=C{1};
+t=C{2};
+if(WhatShallIPlot > 2), val=C{6};
+else val=C{WhatShallIPlot + 3}; end
+
+% Set 2D color data
+Z2 = reshape(val,Np,Nt);
+
+% --- Correct psimin plot -----------------------------------------
+if(WhatShallIPlot >= 2 && correct_psi == 1)
+    val = C{4};   % Lc
+    L = reshape(val,Np,Nt);
+    Lcmin = 0.075;
+    Z2(L < Lcmin) = 1.067;
+end
+
+% --- change Phi range --------------------------------------------
+phifull = 2*pi;
+if(Laminar == 0 && Machine == 1)
+    Z2 = Z2(end:-1:1,:);
+    phifull = 360;
+end
+    
+if(Laminar == 0 && VaryPhiRange == 1)
+    imin = fix(phimin/phifull*Np) + 1;   % fix rounds towards zero
+    imax = fix(phimax/phifull*Np);
+    if(phimin < 0)
+        imin = 1;
+        imax = imax + 1;
+    end
+    if(phimax > phifull)
+        imax = Np;
+    end
+    Z2a = Z2(imin:imax,:);
+    if(phimin < 0)
+        phimin = phimin + phifull;
+        imin = fix(phimin/phifull*Np) + 1;
+        Z2 = [Z2(imin:Np-1,:); Z2a];
+    elseif(phimax > phifull)
+        phimax = phimax - phifull;
+        imax = fix(phimax/phifull*Np);
+        Z2 = [Z2a; Z2(1:imax,:)];
+    else
+        Z2 = Z2a;
+    end
+end
+
 % --- get SXR emission --------------------------------------------
-if(WhatShallIPlot == 3) % SXR emission, with psimin or psiav
+if(WhatShallIPlot == 3)
+    Z = emis_profile(Z); 
+    Z = Z/max(emis_profile(0:0.01:1.2));    % normalized profile
     if(span > 0), Z = conv2(Z,ones(span)/span^2,'same'); end  % convolution filter
-    Z = emis_profile(Z, 100);
-    Z = Z/max(emis_profile(0.7:0.01:1.1, 100));    % normalized profile
-elseif(WhatShallIPlot == 4) % Te profile
-    if(span > 0), Z = conv2(Z,ones(span)/span^2,'same'); end  % convolution filter
-    Z = te_profile(Z, 1);
-    %Z = Z/max(te_profile(0.7:0.01:1.1), 1);    % normalized profile
-elseif(WhatShallIPlot == 5) % ne profile
-    if(span > 0), Z = conv2(Z,ones(span)/span^2,'same'); end  % convolution filter
-    Z = ne_profile(Z);
-    %Z = Z/max(ne_profile(0.7:0.01:1.1));    % normalized profile
-elseif(WhatShallIPlot == 7) % SXR emission with van Goelar
-    if(span > 0), Z = conv2(Z,ones(span)/span^2,'same'); end  % convolution filter
+    %Z(Z < 0.2) = 0;
+    
+    Z2 = emis_profile(Z2); 
+    Z2 = Z2/max(emis_profile(0:0.01:1.2));    % normalized profile
     if(span > 0), Z2 = conv2(Z2,ones(span)/span^2,'same'); end  % convolution filter
-    Te = te_profile(Z, 1);
-    ne = ne_profile(Z2);
-    em = ne.*ne./sqrt(Te).*expint(0.6./Te);
-    Z2 = inverse_emis(em);
-    Z = emis_profile(Z2, 1);
-    Z = Z/max(emis_profile(0.7:0.01:1.1, 1));    % normalized profile
-    WhatShallIPlot = 3;
+    %Z2(Z2 < 0.2) = 0;
 end
 
 %------------------------------------------------------------------
@@ -267,11 +287,11 @@ figure;
 clf;
 axes('FontName',schrift,'FontSize',schrift_size);
 if(TypeOfPlot==1)
-    pcolor(X,Y,Z);
+    pcolor(X,Y,Z-Z2);
     %shading flat;
     shading interp;
     if(autoscale==0 || autoscale==2), caxis([min(b) max(b)]); end
-else contourf(X,Y,Z,b);
+else contourf(X,Y,Z-Z2,b);
 end
 set(gca,'layer','top');
 set(gca,'linewidth',1.5,'FontName',schrift);
@@ -309,9 +329,9 @@ hold off;
 % --- Axes limits and labels --------------------------------------
 axis tight;
 xlim([min(X(:,1)) max(X(:,1))]);
-xlim([1.01 2.1]);
+xlim([1 1.9]);
 if(Laminar==0 && Target==3 && CameraView==1), ylim([1.371 1.649]);
-else ylim([min(Y(1,:)) max(Y(1,:))]); ylim([-1.365 -0.4]);%ylim([-1.27 -1.21]); 
+else ylim([min(Y(1,:)) max(Y(1,:))]); ylim([min(Y(1,:)) -0.6]);
 end
 if (Laminar==1)
     xlabel({'R [m]'},'FontName',schrift,'FontSize',schrift_size);
@@ -342,10 +362,11 @@ else colormap(jet(length(b)-1));
 end
 if(autoscale==2) 
     MyColorMap = get(gcf,'Colormap');
-    if(WhatShallIPlot == 2) 
-        MyColorMap(size(MyColorMap,1),:) = 1;
-        %MyColorMap(size(MyColorMap,1)-1,:) = 1;
-    else MyColorMap(1,:) = 1;
+    if(mod(size(MyColorMap,1),2) == 1) 
+        MyColorMap(ceil(size(MyColorMap,1)/2),:) = 1;
+    else
+        MyColorMap(size(MyColorMap,1)/2,:) = 1;
+        MyColorMap(size(MyColorMap,1)/2 + 1,:) = 1;
     end
     set(gcf,'Colormap',MyColorMap)
 end
@@ -357,28 +378,21 @@ yTickCB = get(cbar, 'YTick');
 %yTickLabelCB = yTickLabelCB(2:end,:);
 %yTickCB = yTickCB(2:end);
 % cbpos = get(cbar,'Position');
-if(WhatShallIPlot == 5)
-    set(get(cbar,'YLabel'),'String','ne [10^{19} m^{-3}]','FontName',schrift,'FontSize',schrift_size,'Rotation',-90,'VerticalAlignment','bottom')
-    set(cbar,'YTick', [min(b)+0.2*(b(2)-b(1)) yTickCB] );
-    set(cbar, 'YTickLabel', {'SOL';yTickLabelCB;});
-elseif(WhatShallIPlot == 4)
-    set(get(cbar,'YLabel'),'String','Te [keV]','FontName',schrift,'FontSize',schrift_size,'Rotation',-90,'VerticalAlignment','bottom')
-    set(cbar,'YTick', [min(b)+0.2*(b(2)-b(1)) yTickCB] );
-    set(cbar, 'YTickLabel', {'SOL';yTickLabelCB;});
-elseif(WhatShallIPlot == 3)
-    set(get(cbar,'YLabel'),'String','SXR Emission [a.u.]','FontName',schrift,'FontSize',schrift_size,'Rotation',-90,'VerticalAlignment','bottom')
-    set(cbar,'YTick', [min(b)+0.2*(b(2)-b(1)) yTickCB] );
-    set(cbar, 'YTickLabel', {'SOL';yTickLabelCB;});
+
+if(WhatShallIPlot == 3)
+    set(get(cbar,'YLabel'),'String','Difference SXR Emission [a.u.]','FontName',schrift,'FontSize',schrift_size,'Rotation',-90,'VerticalAlignment','bottom')
+%     set(cbar,'YTick', [min(b)+0.2*(b(2)-b(1)) yTickCB] );
+%     set(cbar, 'YTickLabel', {'SOL';yTickLabelCB;});
 elseif(WhatShallIPlot == 2)
     %text(cbpos(1)+0.5,0.6,'\psi_{Min}','FontName',schrift,'FontSize',schrift_size,'Rotation',-90, 'Units', 'normalized');
     set(get(cbar,'YLabel'),'String','\fontname{Symbol}y _{\fontname{Times}Min}','FontName',schrift,'FontSize',schrift_size,'Rotation',-90,'VerticalAlignment','bottom')
     %set(cbar,'YTick', [0.901 yTickCB] );
-    set(cbar, 'YTickLabel', {yTickLabelCB(1:end-1,:);'SOL'});
+    %set(cbar, 'YTickLabel', {yTickLabelCB(1:end-1,:);'SOL'});
 elseif(WhatShallIPlot == 1)
     %text(cbpos(1)+0.5,0.6,'L_{c} [km]','FontName',schrift,'FontSize',schrift_size,'Rotation',-90, 'Units', 'normalized');
     set(get(cbar,'YLabel'),'String','L_{c} [km]','FontName',schrift,'FontSize',schrift_size,'Rotation',-90,'VerticalAlignment','bottom')
-    set(cbar,'YTick', [min(b)+0.2*(b(2)-b(1)) yTickCB] );
-    set(cbar, 'YTickLabel', {'SOL';yTickLabelCB;});
+    %set(cbar,'YTick', [min(b)+0.2*(b(2)-b(1)) yTickCB] );
+    %set(cbar, 'YTickLabel', {'SOL';yTickLabelCB;});
 else
     set(get(cbar,'YLabel'),'String','n_{tor}','FontName',schrift,'FontSize',schrift_size,'Rotation',-90,'VerticalAlignment','bottom')
     %text(cbpos(1)+0.5,0.6,'n_{tor}','FontName',schrift,'FontSize',schrift_size,'Rotation',-90, 'Units', 'centimeters');

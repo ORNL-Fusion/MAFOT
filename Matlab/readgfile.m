@@ -5,9 +5,9 @@
 %function [Rg, Zg, PsiN] = readgfile(shotnum, tM)
 
 %clear
-shotnum=133908;
-tM=2000;
-gfile=['c:\c++\d3d\d3gfiles\g' int2str(shotnum) '.0' int2str(tM)];
+shotnum=129194;
+tM=3000;
+gfile=['~/c++/d3d/gfiles/g' int2str(shotnum) '.0' int2str(tM)];
 
 global Br
 global Bz
@@ -65,48 +65,51 @@ nz2=floor(nz/2);
 PsiN = (PsiRZ-PsiAxis)/(PsiSep-PsiAxis);
 PsiNMax=max(max(PsiN));
 
-figure;
-clf;
-%surf(Rg,Zg,-PsiN)
-shading interp
-lighting phong 
-camlight
-view(2)
-
-hold on
-contour(Rg,Zg,-PsiN,-(0:0.1:1),'k','Linewidth',1)
-contour(Rg,Zg,-PsiN,-(0.999999:0.000001:1),'r','Linewidth',2)
-contour(Rg,Zg,PsiN,1.02:0.02:1.04,'k','Linewidth',1)
-
-% I coils
-rI=[2.184,2.394,2.394,2.184];
-zI=[1.012,0.504,-0.504,-1.012];
-%plot(rI(:),zI(:),'ok','MarkerFaceColor','r','MarkerSize',10);
-rImid=(rI(1)+rI(2))/2;
-zImid=(zI(1)+zI(2))/2;
-
-% C coils
-rC=[3.23, 3.23];
-zC=[0.8,-0.8];
-%plot(rC(:),zC(:),'ok','MarkerFaceColor','b','MarkerSize',10)
-
-rwall=wall(1:2:2*Nwall);
-zwall=wall(2:2:2*Nwall);
-%plot(lcfs(1:2:2*Nlcfs),lcfs(2:2:2*Nlcfs),'k','Linewidth',2)
-plot(rwall,zwall,'k','Linewidth',2)
-plot(Raxis,Zaxis,'k+')
-axis equal tight
-
-title(horzcat(num2str(shot),'.0',num2str(time)))
-set(get(gca,'title'),'fontsize',14,'fontweight', 'bold')
-
-
-%Br = -cdiff2(Zg,PsiRZ);
-%Bz = cdiff2(Rg',PsiRZ');
-%Bz = Bz';
-%Bt = Bt0*Rt0./Rg;
-%figure(2)
-%s=4
-%quiver(Rg(1:s:129,1:s:129),Zg(1:s:129,1:s:129),...
-%    Br(1:s:129,1:s:129),Bz(1:s:129,1:s:129),6)
-%axis equal tight
+% figure;
+% clf;
+% %surf(Rg,Zg,-PsiN)
+% shading interp
+% lighting phong 
+% camlight
+% view(2)
+% 
+% hold on
+% %contour(Rg,Zg,-PsiN,-(0:0.1:1),'k','Linewidth',1)
+% %contour(Rg,Zg,-PsiN,-(0.999999:0.000001:1),'r','Linewidth',2)
+% %contour(Rg,Zg,PsiN,1.02:0.02:1.04,'k','Linewidth',1)
+% C = contour(Rg,Zg,PsiN,0.95,'k','Linewidth',1);
+% 
+% % I coils
+% rI=[2.184,2.394,2.394,2.184];
+% zI=[1.012,0.504,-0.504,-1.012];
+% %plot(rI(:),zI(:),'ok','MarkerFaceColor','r','MarkerSize',10);
+% rImid=(rI(1)+rI(2))/2;
+% zImid=(zI(1)+zI(2))/2;
+% 
+% % C coils
+% rC=[3.23, 3.23];
+% zC=[0.8,-0.8];
+% %plot(rC(:),zC(:),'ok','MarkerFaceColor','b','MarkerSize',10)
+% 
+% rwall=wall(1:2:2*Nwall)';
+% zwall=wall(2:2:2*Nwall)';
+% rlcfs = lcfs(1:2:2*Nlcfs)';
+% zlcfs = lcfs(2:2:2*Nlcfs)';
+% plot(rlcfs,zlcfs,'k','Linewidth',2)
+% plot(rwall,zwall,'k','Linewidth',2)
+% plot(Raxis,Zaxis,'k+')
+% axis equal tight
+% 
+% title(horzcat(num2str(shot),'.0',num2str(time)))
+% set(get(gca,'title'),'fontsize',14,'fontweight', 'bold')
+% 
+% 
+% %Br = -cdiff2(Zg,PsiRZ);
+% %Bz = cdiff2(Rg',PsiRZ');
+% %Bz = Bz';
+% %Bt = Bt0*Rt0./Rg;
+% %figure(2)
+% %s=4
+% %quiver(Rg(1:s:129,1:s:129),Zg(1:s:129,1:s:129),...
+% %    Br(1:s:129,1:s:129),Bz(1:s:129,1:s:129),6)
+% %axis equal tight
