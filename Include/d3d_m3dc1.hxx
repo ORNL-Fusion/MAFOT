@@ -16,7 +16,7 @@
 
 bool outofBndy(double x, double y, EFIT& EQD);
 void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
-void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0);
+void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
 					 EFIT& EQD, IO& PAR, PARTICLE& FLT);
 
@@ -273,9 +273,10 @@ cosp = cos(phi);
 X = R*cosp;
 Y = R*sinp;
 
+// Equilibrium field
 switch(PAR.response_field)
 {
-case -1:	// Vacuum equilibrium field from g file
+case -1: case 1:	// Vacuum equilibrium field from g file
 	// get normalized poloidal Flux psi (should be chi in formulas!)
 	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
 	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return;}	// integration of this point terminates
@@ -291,13 +292,18 @@ case 0: 	// M3D-C1: equilibrium field only
 	m3dc1_get_field0_(&R, &phi, &Z, &B_R, &B_phi, &B_Z);
 	break;
 
-case 1: 	// M3D-C1: I-coil perturbation field only, coils are turned off in prep_perturbation
-	m3dc1_get_field1_(&R, &phi, &Z, &B_R, &B_phi, &B_Z);
-	break;
-
 case 2: 	// M3D-C1: total field, coils are turned off in prep_perturbation
 	m3dc1_get_field_(&R, &phi, &Z, &B_R, &B_phi, &B_Z);
 	break;
+}
+
+// M3D-C1: I-coil perturbation field only, coils are turned off in prep_perturbation
+if(PAR.response_field == 1)
+{
+	m3dc1_get_field1_(&R, &phi, &Z, &bx, &by, &bz);	// just reuse existing variables, routine returns bx = Br, by = Bphi, bz = Bz
+	B_R += bx;
+	B_phi += by;
+	B_Z += bz;
 }
 
 B_X = 0;	B_Y = 0;
@@ -340,11 +346,12 @@ B_phi += -B_X*sinp + B_Y*cosp;
 }
 
 //---------- prep_perturbation --------------------------------------------------------------------------------------------
-void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank)
+void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING supPath)
 {
 int i;
 int chk;
 LA_STRING line;	// entire line is read by ifstream
+ifstream in;
 
 // Read C1.h5 file
 if(PAR.response_field >= 0)		// use M3D-C1 plasma response output
@@ -397,22 +404,24 @@ d3icoil_.addanglIL = 0.0;
 d3icoil_.scaleIU = 1.0;
 d3icoil_.scaleIL = 1.0;
 
-// Read diiidsub.in file
-ifstream in;
-in.open("diiidsup.in");
-if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open diiidsup.in file " << endl; EXIT;}
+// Read diiidsub.in file, if coils or M3D-C1 are on
+if(PAR.useFcoil == 1 || PAR.useCcoil == 1 || PAR.useIcoil == 1 || PAR.response_field > 0)
+{
+	in.open(supPath + "diiidsup.in");
+	if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open diiidsup.in file " << endl; EXIT;}
 
-for(i=1;i<=4;i++) in >> line;	// Skip 4 lines
-for(i=0;i<nFc;i++) in >> d3pfer_.fcur[i];		// Read F-coil currents
+	for(i=1;i<=4;i++) in >> line;	// Skip 4 lines
+	for(i=0;i<nFc;i++) in >> d3pfer_.fcur[i];		// Read F-coil currents
 
-in >> line;	// Skip line
-for(i=0;i<nCloops;i++) in >> d3ccoil_.curntC[i];		// Read C-coil currents
+	in >> line;	// Skip line
+	for(i=0;i<nCloops;i++) in >> d3ccoil_.curntC[i];		// Read C-coil currents
 
-in >> line;	// Skip line
-for(i=0;i<nIloops;i++) in >> d3icoil_.curntIc[i];		// Read I-coil currents
+	in >> line;	// Skip line
+	for(i=0;i<nIloops;i++) in >> d3icoil_.curntIc[i];		// Read I-coil currents
 
-in.close();	// close file
-in.clear();	// reset ifstream for next use
+	in.close();	// close file
+	in.clear();	// reset ifstream for next use
+}
 
 // Scale I-coil perturbation in M3D-C1 according to diiidsup.in (current = scale * 1kA)
 double scale = 0;

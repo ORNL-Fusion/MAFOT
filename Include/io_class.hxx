@@ -54,11 +54,11 @@ public:
 	int Zq;										// Charge number: 1: ions are calculated	-1: electrons are calculated
 	int sigma;									// 1: co-passing particles		-1: count-passing particles		0: field lines only
 	int useTprofile;							// Temperature profile: 0: constant Energy, 1: according to Position
-	double Ekin;								// Kinetic Energy
+	double Ekin;								// Kinetic Energy in keV
 	double lambda;								// fraction of Energy in radial direction
 	double verschieb;							// parameter for mainfolds
-	int response;									// 1: use M3D-C1 plasma response solution; 0: no plasma response included -> vacuum field as used in M3D-C1
-	int response_field;							// -1: use vaccum field from g-file (= M3D-C1 off); 0: equilibrium only; 1: perturbation only; 2: total field
+	int response;								// 1: use M3D-C1 plasma response solution; 0: no plasma response included -> vacuum field as used in M3D-C1
+	int response_field;							// -1: use vacuum field from g-file (= M3D-C1 off); 0: equilibrium only; 1: perturbation only; 2: total field
 
 	parstruct* pv;								// parstruct array
 

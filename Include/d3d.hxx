@@ -10,7 +10,7 @@
 
 bool outofBndy(double x, double y, EFIT& EQD);
 void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
-void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0);
+void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
 					 EFIT& EQD, IO& PAR, PARTICLE& FLT);
 
@@ -298,11 +298,11 @@ B_phi += -B_X*sinp + B_Y*cosp;
 }
 
 //---------- prep_perturbation --------------------------------------------------------------------------------------------
-void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank)
+void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING supPath)
 {
 int i;
 LA_STRING line;	// entire line is read by ifstream
-
+ifstream in;
 
 if(mpi_rank < 1) cout << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
 ofs2 << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
@@ -328,22 +328,24 @@ d3icoil_.addanglIL = 0.0;
 d3icoil_.scaleIU = 1.0;
 d3icoil_.scaleIL = 1.0;
 
-// Read diiidsub.in file
-ifstream in;
-in.open("diiidsup.in");
-if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open diiidsup.in file " << endl; EXIT;}
+// Read diiidsub.in file, if coils are on
+if(PAR.useFcoil == 1 || PAR.useCcoil == 1 || PAR.useIcoil == 1)
+{
+	in.open(supPath + "diiidsup.in");
+	if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open diiidsup.in file " << endl; EXIT;}
 
-for(i=1;i<=4;i++) in >> line;	// Skip 4 lines
-for(i=0;i<nFc;i++) in >> d3pfer_.fcur[i];		// Read F-coil currents
+	for(i=1;i<=4;i++) in >> line;	// Skip 4 lines
+	for(i=0;i<nFc;i++) in >> d3pfer_.fcur[i];		// Read F-coil currents
 
-in >> line;	// Skip line
-for(i=0;i<nCloops;i++) in >> d3ccoil_.curntC[i];		// Read C-coil currents
+	in >> line;	// Skip line
+	for(i=0;i<nCloops;i++) in >> d3ccoil_.curntC[i];		// Read C-coil currents
 
-in >> line;	// Skip line
-for(i=0;i<nIloops;i++) in >> d3icoil_.curntIc[i];		// Read I-coil currents
+	in >> line;	// Skip line
+	for(i=0;i<nIloops;i++) in >> d3icoil_.curntIc[i];		// Read I-coil currents
 
-in.close();	// close file
-in.clear();	// reset ifstream for next use
+	in.close();	// close file
+	in.clear();	// reset ifstream for next use
+}
 
 // Set F-coil geometry
 if(PAR.useFcoil==1)

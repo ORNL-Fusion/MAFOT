@@ -29,6 +29,8 @@ bool outofBndy(double x, double y, EFIT& EQD);
 // Prototypes  
 void get_Energy(double psi, double& Enorm, double& dEnorm);
 double get_Lmfp(double Ekin);
+void getRZ(double x, double y, double& R, double &Z, EFIT& EQD);
+double bisec(double psi, double theta, double a, double b, EFIT& EQD, int flag);
 
 // Integrator Parameters
 const int nvar = 2;				// Number of Variables
@@ -50,6 +52,7 @@ private:
 	double eps0;
 	double Ix;
 	double mc2;
+	int steps;		// total number of integration steps along trajectory
 
 // Member-Functions
 	void dgls(double x, Array<double,1> y, Array<double,1>& dydx);
@@ -65,6 +68,8 @@ public:
 
 	double Lc;		// connection length [m]
 	double psimin;	// minimum of normalized flux reached by trajectory
+	double psimax;	// maximum of normalized flux reached by trajectory
+	double psiav;	// average normalized flux along trajectory
 
 	double Ekin;	// kinitic particle energy [keV]
 	int sigma;		// 1: co-passing particles		-1: count-passing particles		0: field lines only
@@ -85,10 +90,11 @@ public:
 	void set_Energy();
 	int mapit(const int itt,int MapDirection=1);
 	int mapstep(int MapDirection=1, int nstep=ilt);
-	int connect(double& ntor, double& length, double& psimintotal, const int itt, int MapDirection=0);
+	int connect(double& ntor, double& length, double& psimintotal, double& psimaxtotal, double& psiavtotal, const int itt, int MapDirection=0);	// with psimax
+	int connect(double& ntor, double& length, double& psimintotal, const int itt, int MapDirection=0);						// without psimax (old version, kept for compatibility reasons)
 
-	void set(int i, int N, double Rmin, double Rmax, double Zmin, double Zmax, int N_Z=1, int use_polar=0);
-	void create(long& idum, double Rmin, double Rmax, double Zmin, double Zmax, int use_polar=0);
+	void set(int i, int N, double Rmin, double Rmax, double Zmin, double Zmax, int N_Z=1, int flag=0);
+	void create(long& idum, double Rmin, double Rmax, double Zmin, double Zmax, int flag=0);
 	void convertRZ(double theta, double r);
 
 }; //end of class
@@ -120,6 +126,9 @@ psi = 0;			// normalized flux
 
 Lc = 0;				// connection length [m]
 psimin = 10;		// minimum of normalized flux reached by trajectory
+psimax = 0;			// maximum of normalized flux reached by trajectory
+psiav = 0;
+steps = 0;
 
 Ekin = PAR.Ekin;	// kinitic particle energy
 sigma = PAR.sigma;	// 1: co-passing particles		-1: count-passing particles		0: field lines only
@@ -169,6 +178,7 @@ GAMMA = FLT.GAMMA;
 eps0 = FLT.eps0;
 Ix = FLT.Ix;
 mc2 = FLT.mc2;
+steps = FLT.steps;
 
 // Public Member Variables
 R = FLT.R;	
@@ -178,6 +188,8 @@ psi = FLT.psi;
 
 Lc = FLT.Lc;	
 psimin = FLT.psimin;
+psimax = FLT.psimax;
+psiav = FLT.psiav;
 
 Ekin = FLT.Ekin;
 sigma = FLT.sigma;
@@ -201,6 +213,8 @@ out << "psi = " << FLT.psi << endl;
 out << "--- Trajectory ---" << endl;
 out << "Lc = " << FLT.Lc << endl;	
 out << "psimin = " << FLT.psimin << endl;
+out << "psimax = " << FLT.psimax << endl;
+out << "psiav = " << FLT.psiav/FLT.steps << endl;
 
 out << "--- Properties ---" << endl;
 out << "Ekin = " << FLT.Ekin << endl;
@@ -291,6 +305,71 @@ return 0;
 // Integration goes in respecive direction, depending on MapDirection
 // MapDirection=0 means both directions are calculated and results are added
 // phistart has to be in deg!
+int PARTICLE::connect(double& ntor, double& length, double& psimintotal, double& psimaxtotal, double& psiavtotal, const int itt, int MapDirection)
+{
+int chk;
+const double Rstart = R;
+const double Zstart = Z;
+const double phistart = phi;
+const double psistart = psi;
+
+const double Estart = Ekin;
+const double GAMMAstart = GAMMA;
+const double Ixstart = Ix;
+const double Lmfpstart = Lmfp_total;
+
+// positive phi direction
+if(MapDirection >= 0)
+{
+	chk = mapit(itt,1);
+	ntor = fabs(phi-phistart)/360.0;
+	length = Lc;
+	psimintotal = psimin;
+	psimaxtotal = psimax;
+	psiavtotal = psiav;
+}
+else
+{
+	ntor = 0;
+	length = 0;
+	psimintotal = 10;
+	psimaxtotal = 0;
+	psiavtotal = 0;
+}
+
+// negative phi direction
+R = Rstart;
+Z = Zstart;
+phi = phistart;
+psi = psistart;
+Lc = 0;  
+psimin = 10;
+psimax = 0;
+psiav = 0;
+
+Ekin = Estart;
+GAMMA = GAMMAstart;
+Ix = Ixstart;
+Lmfp_total = Lmfpstart;
+
+if(MapDirection <= 0)
+{
+	chk = mapit(itt,-1);
+	ntor += fabs(phi-phistart)/360.0;
+	length += Lc;
+	if(psimin < psimintotal) psimintotal = psimin;
+	if(psimax > psimaxtotal) psimaxtotal = psimax;
+	psiavtotal += psiav;
+}
+psiavtotal /= steps;
+
+return 0;
+}
+
+//------------------ connect ----------------------------------------------------------------------------------------------
+// Integration goes in respecive direction, depending on MapDirection
+// MapDirection=0 means both directions are calculated and results are added
+// phistart has to be in deg!
 int PARTICLE::connect(double& ntor, double& length, double& psimintotal, const int itt, int MapDirection)
 {
 int chk;
@@ -324,7 +403,7 @@ R = Rstart;
 Z = Zstart;
 phi = phistart;
 psi = psistart;
-Lc = 0;  
+Lc = 0;
 psimin = 10;
 
 Ekin = Estart;
@@ -349,7 +428,7 @@ return 0;
 // if N_Z is spezified, N=N_Z*N_R has to be used -> Grid size is then N_Z X N_R
 // otherwise Grid size is about sqrt(N) X sqrt(N)
 // R is varied first, Z second
-void PARTICLE::set(int i, int N, double Rmin, double Rmax, double Zmin, double Zmax, int N_Z, int use_polar)
+void PARTICLE::set(int i, int N, double Rmin, double Rmax, double Zmin, double Zmax, int N_Z, int flag)
 {
 double dZ,dR,dummy;
 double x,y;
@@ -377,21 +456,29 @@ if(dZ!=0 && dR!=0)
 x = Rmin + i_R*dR;
 y = Zmin + i_Z*dZ;
 
-if(use_polar == 1)
+switch(flag)
 {
+case 2:		// get R, Z from psi and theta
+	getRZ(x, y, R, Z, EQDr);
+	break;
+case 1:		// get R, Z from r and theta
 	R = x*cos(y) + EQDr.RmAxis;
 	Z = x*sin(y) + EQDr.ZmAxis;
-}
-else
-{
+	break;
+default:
 	R = x;
 	Z = y;
+	break;
 }
+
 phi = PARr.phistart;
 EQDr.get_psi(R,Z,psi,dummy,dummy);
 
 Lc = 0;
 psimin = 10;
+psimax = 0;
+psiav = 0;
+steps = 0;
 
 if(sigma != 0 && PARr.useTprofile == 1) {set_Energy(); Lmfp_total = get_Lmfp(Ekin);}
 }
@@ -400,7 +487,7 @@ if(sigma != 0 && PARr.useTprofile == 1) {set_Energy(); Lmfp_total = get_Lmfp(Eki
 // creates an initial condition (R,Z) using random numbers
 // values taken from the intervals [Rmin,Rmax] and [Zmin,Zmax] respectively
 // R and Z are output variables
-void PARTICLE::create(long& idum, double Rmin, double Rmax, double Zmin, double Zmax, int use_polar)
+void PARTICLE::create(long& idum, double Rmin, double Rmax, double Zmin, double Zmax, int flag)
 {
 const double dR=Rmax-Rmin;
 const double dZ=Zmax-Zmin;
@@ -413,15 +500,19 @@ x=Rmin+v*dR;
 v=ran0(idum);
 y=Zmin+v*dZ;
 
-if(use_polar == 1)
+switch(flag)
 {
+case 2:		// get R, Z from psi and theta
+	getRZ(x, y, R, Z, EQDr);
+	break;
+case 1:		// get R, Z from r and theta
 	R = x*cos(y) + EQDr.RmAxis;
 	Z = x*sin(y) + EQDr.ZmAxis;
-}
-else
-{
+	break;
+default:
 	R = x;
 	Z = y;
+	break;
 }
 
 phi = PARr.phistart;
@@ -429,6 +520,9 @@ EQDr.get_psi(R,Z,psi,dummy,dummy);
 
 Lc = 0;
 psimin = 10;
+psimax = 0;
+psiav = 0;
+steps = 0;
 
 if(sigma != 0 && PARr.useTprofile == 1) {set_Energy(); Lmfp_total = get_Lmfp(Ekin);}
 }
@@ -493,7 +587,10 @@ for (k=1;k<=nstep;k++)
 	// Get additional Parameter
 	Lc += sqrt((yout(0)-y(0))*(yout(0)-y(0)) + (yout(1)-y(1))*(yout(1)-y(1)) + 0.25*(yout(0)+y(0))*(yout(0)+y(0))*dx*dx);
 	EQDr.get_psi(yout(0),yout(1),psi,dummy,dummy);
-	if(psi<psimin) psimin = psi;
+	if(psi < psimin) psimin = psi;
+	if(psi > psimax) psimax = psi;
+	psiav += psi;
+	steps += 1;
 
 	y = yout;
 
@@ -563,6 +660,94 @@ double get_Lmfp(double Ekin)
 const double L_Debye = sqrt(Ekin*1000)*7.43e-7;			// Debye length [m], density 1e14 cm^-3, Ekin in [keV], needed in [eV]
 const double Lambda_Coulomb = 4*pi*1e20*pow(L_Debye,3);	// density set to constant 1e20 m^-3 = 1e14 cm^-3
 return 64*pi*L_Debye*Lambda_Coulomb/log(Lambda_Coulomb);
+}
+
+//--------- getRZ ----------------------------------------------------
+void getRZ(double x, double y, double& R, double &Z, EFIT& EQD)
+{
+if(y < pi/4 || y > 7*pi/4)
+{
+	// Z = Z(R,theta)
+	R = bisec(x, y, EQD.RmAxis, 2.4, EQD, 0);
+	Z = (R - EQD.RmAxis)*tan(y) + EQD.ZmAxis;
+}
+if(y > 3*pi/4 && y < 5*pi/4)
+{
+	// Z = Z(R,theta)
+	R = bisec(x, y, 1, EQD.RmAxis, EQD, 0);
+	Z = (R - EQD.RmAxis)*tan(y) + EQD.ZmAxis;
+}
+if(y >= pi/4 && y <= 3*pi/4)
+{
+	// R = R(Z,theta)
+	Z = bisec(x, y, EQD.ZmAxis, 1.4, EQD, 1);
+	R = (Z - EQD.ZmAxis)/tan(y) + EQD.RmAxis;
+}
+if(y >= 5*pi/4 && y <= 7*pi/4)
+{
+	// R = R(Z,theta)
+	Z = bisec(x, y, -1.4, EQD.ZmAxis, EQD, 1);
+	R = (Z - EQD.ZmAxis)/tan(y) + EQD.RmAxis;
+}
+}
+
+//--------- bisec ----------------------------------------------------
+double bisec(double psi, double theta, double a, double b, EFIT& EQD, int flag)
+{
+double xo,xu,x;
+double R,Z;
+double f,dummy;
+const double eps = 1e-12;
+
+x = a;
+if (flag == 0)	// Z = Z(R,theta)
+{
+	Z = (x - EQD.RmAxis)*tan(theta) + EQD.ZmAxis;
+	if(outofBndy(x, Z, EQD)) f = 1.2;
+	else EQD.get_psi(x, Z, f, dummy, dummy);
+	f -= psi;
+}
+else			// R = R(Z,theta)
+{
+	R = (x - EQD.ZmAxis)/tan(theta) + EQD.RmAxis;
+	if(outofBndy(R, x, EQD)) f = 1.2;
+	else EQD.get_psi(R, x, f, dummy, dummy);
+	f -= psi;
+}
+
+if(f > 0)
+{
+	xo = a;
+	xu = b;
+}
+else
+{
+	xo = b;
+	xu = a;
+}
+
+while(fabs(xo-xu) > eps)
+{
+	x = (xo + xu)/2;
+	if (flag == 0)	// Z = Z(R,theta)
+	{
+		Z = (x - EQD.RmAxis)*tan(theta) + EQD.ZmAxis;
+		if(outofBndy(x, Z, EQD)) f = 1.2;
+		else EQD.get_psi(x, Z, f, dummy, dummy);
+		f -= psi;
+	}
+	else			// R = R(Z,theta)
+	{
+		R = (x - EQD.ZmAxis)/tan(theta) + EQD.RmAxis;
+		if(outofBndy(R, x, EQD)) f = 1.2;
+		else EQD.get_psi(R, x, f, dummy, dummy);
+		f -= psi;
+	}
+	if(f > 0) xo = x;
+	else xu = x;
+}
+
+return x;
 }
 
 #endif //  PARTICLE_CLASS_INCLUDED

@@ -32,15 +32,15 @@ void bcuint(Array<double,1>& Ra, Array<double,1>& Za, Array<double,4>& Ca, doubl
 			double R, double Z, double& y, double& y1, double& y2);
 
 // Golbal Parameters 
-#if defined(university)		// University Cluster
+#if defined(windows)		// Windows system
 	#if defined(ITER)
-	const LA_STRING gFilePath = "/home/wingen/c++/iter/gfiles/";
+	const LA_STRING gFilePath = "C:\\C++\\ITER\\gfiles\\";	// double backslash causes \ to appear in string
 	#elif defined(NSTX)
-	const LA_STRING gFilePath = "/home/wingen/c++/nstx/gfiles/";
+	const LA_STRING gFilePath = "C:\\C++\\NSTX\\gfiles\\";
 	#else
-	const LA_STRING gFilePath = "/home/wingen/c++/d3d/d3gfiles/";
+	const LA_STRING gFilePath = "C:\\C++\\D3D\\d3gfiles\\";
 	#endif
-#elif defined(genatomix)	// GA Cluster
+#elif defined(genatomix)	// GA u-drive
 	#if defined(ITER)
 	const LA_STRING gFilePath = "/u/wingen/d3gfiles/iter/";
 	#elif defined(NSTX)
@@ -48,7 +48,7 @@ void bcuint(Array<double,1>& Ra, Array<double,1>& Za, Array<double,4>& Ca, doubl
 	#else
 	const LA_STRING gFilePath = "/u/wingen/d3gfiles/";
 	#endif
-#elif defined(mac)	// Mac Book
+#elif defined(mac)			// Mac Book
 	#if defined(ITER)
 	const LA_STRING gFilePath = "/Users/wingen/c++/iter/gfiles/";
 	#elif defined(NSTX)
@@ -56,13 +56,13 @@ void bcuint(Array<double,1>& Ra, Array<double,1>& Za, Array<double,4>& Ca, doubl
 	#else
 	const LA_STRING gFilePath = "/Users/wingen/c++/d3d/gfiles/";
 	#endif
-#else						// local
+#else						// default linux system
 	#if defined(ITER)
-	const LA_STRING gFilePath = "C:\\C++\\ITER\\gfiles\\";	// double backslash causes \ to appear in string
+	const LA_STRING gFilePath = "/home/wingen/c++/iter/gfiles/";
 	#elif defined(NSTX)
-	const LA_STRING gFilePath = "C:\\C++\\NSTX\\gfiles\\";
+	const LA_STRING gFilePath = "/home/wingen/c++/nstx/gfiles/";
 	#else
-	const LA_STRING gFilePath = "C:\\C++\\D3D\\d3gfiles\\";
+	const LA_STRING gFilePath = "/home/wingen/c++/d3d/gfiles/";
 	#endif
 #endif
 
