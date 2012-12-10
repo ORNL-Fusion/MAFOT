@@ -33,9 +33,10 @@
 // Prototypes  
 
 // Switches
-const int spare_interior = 0;	// 0: all points are calculated		1: inside psi=0.95 results are set to fixed values (code runs faster)
+const int spare_interior = 1;	// 0: all points are calculated		1: inside psi = psi_interior_limit results are set to fixed values (code runs faster)
 
 // Golbal Parameters 
+const double psi_interior_limit = 0.85;		// psi limit for spare_interior == 1
 
 // Main Program
 //--------------
@@ -51,7 +52,7 @@ if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use mo
 EFIT EQD;
 int i,j;
 int chk,skip_connect;
-double ntor,length,psimin;
+double ntor,length,psimin,psimax,psiav;
 Range all = Range::all();
 
 int tag,sender;
@@ -145,13 +146,13 @@ if(mpi_rank < 1)
 	// Output
 	ofstream out(filenameout);
 	out.precision(16);
-	vector<LA_STRING> var(5);
-	var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";
+	vector<LA_STRING> var(7);
+	var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";  var[5] = "psimax";  var[6] = "psiav";
 	PAR.writeiodata(out,bndy,var);
 
 	// Result array:					Package ID,  Column Number,  Values
-	Array<double,3> results_all(Range(1,NoOfPackages),Range(1,5),Range(1,N_slave)); 
-	Array<double,2> recieve(Range(1,5),Range(1,N_slave));
+	Array<double,3> results_all(Range(1,NoOfPackages),Range(1,7),Range(1,N_slave));
+	Array<double,2> recieve(Range(1,7),Range(1,N_slave));
 	Array<double,2> slice;
 	tag = 1;	// first Package
 
@@ -206,7 +207,7 @@ if(mpi_rank < 1)
 			while(workingNodes > 0)	// workingNodes > 0: Slave still working -> MPI:Revc needed		workingNodes == 0: all Slaves recieved termination signal
 			{
 				// Recieve Result
-				MPI::COMM_WORLD.Recv(recieve.dataFirst(),5*N_slave,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
+				MPI::COMM_WORLD.Recv(recieve.dataFirst(),7*N_slave,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
 				sender = status.Get_source();
 				tag = status.Get_tag();
 				ofs3 << "Recieve from Node: " << sender << " Package: " << tag << endl;
@@ -249,7 +250,7 @@ if(mpi_rank < 1)
 				// Write Output to file
 				for(i=write_last+1; i<=write_max; i++)
 				{
-					for(j=1;j<=N_slave;j++)	out << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << endl;
+					for(j=1;j<=N_slave;j++)	out << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << "\t" << results_all(i,7,j) << endl;
 					write_memory(i) = 2;
 				}
 				write_last = write_max;
@@ -298,25 +299,31 @@ if(mpi_rank < 1)
 						ntor = 0;
 						length = 0;
 						psimin = 10;
+						psimax = 0;
+						psiav = 0;
 						skip_connect = 1;
 					}
 
 					// Spare the calculation of the interior
-					if(spare_interior == 1 && FLT.psi <= 0.95 && FLT.Z > -1.25) 
+					if(spare_interior == 1 && FLT.psi <= psi_interior_limit && FLT.Z > -1.25)
 					{
 						ntor = 2*PAR.itt;
 						length = 4000.0;
-						psimin = 0.95;
+						psimin = FLT.psi;
+						psimax = FLT.psi;
+						psiav = FLT.psi;
 						skip_connect = 1;
 					}
 
 					// Follow fieldline to walls
-					if(skip_connect == 0) chk = FLT.connect(ntor,length,psimin,PAR.itt,PAR.MapDirection);
+					if(skip_connect == 0) chk = FLT.connect(ntor,length,psimin,psimax,psiav,PAR.itt,PAR.MapDirection);
 
 					// Store results
 					results_all(tag,3,i) = ntor;
 					results_all(tag,4,i) = length/1000.0;
 					results_all(tag,5,i) = psimin;
+					results_all(tag,6,i) = psimax;
+					results_all(tag,7,i) = psiav;
 
 					if(i%100==0) ofs2 << "Trax: " << i << endl;
 				} // end for
@@ -336,7 +343,7 @@ if(mpi_rank < 1)
 	// Write remaining Output to file
 	for(i=write_last+1;i<=NoOfPackages;i++)
 	{
-		for(j=1;j<=N_slave;j++)	out << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << endl;
+		for(j=1;j<=N_slave;j++)	out << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << "\t" << results_all(i,7,j) << endl;
 	}
 } // end Master
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -354,7 +361,7 @@ if(mpi_rank > 0)
 	ofs2 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
 
 	// Result array for Slave
-	Array<double,2> results(Range(1,5),Range(1,N_slave));
+	Array<double,2> results(Range(1,7),Range(1,N_slave));
 
 	// Start working...
 	while(1)	
@@ -385,31 +392,37 @@ if(mpi_rank > 0)
 				ntor = 0;
 				length = 0;
 				psimin = 10;
+				psimax = 0;
+				psiav = 0;
 				skip_connect = 1;
 			}
 
 			// Spare the calculation of the interior
-			if(spare_interior == 1 && FLT.psi <= 0.95 && FLT.Z > -1.25) 
+			if(spare_interior == 1 && FLT.psi <= psi_interior_limit && FLT.Z > -1.25)
 			{
 				ntor = 2*PAR.itt;
 				length = 4000.0;
-				psimin = 0.95;
+				psimin = FLT.psi;
+				psimax = FLT.psi;
+				psiav = FLT.psi;
 				skip_connect = 1;
 			}
 
 			// Follow fieldline to walls
-			if(skip_connect == 0) chk = FLT.connect(ntor,length,psimin,PAR.itt,PAR.MapDirection);
+			if(skip_connect == 0) chk = FLT.connect(ntor,length,psimin,psimax,psiav,PAR.itt,PAR.MapDirection);
 
 			// Store results
 			results(3,i) = ntor;
 			results(4,i) = length/1000.0;
 			results(5,i) = psimin;
+			results(6,i) = psimax;
+			results(7,i) = psiav;
 
 			if(i%100==0) ofs2 << "Trax: " << i << endl;
 		} // end for
 
 		// Send results to Master
-		MPI::COMM_WORLD.Send(results.dataFirst(),5*N_slave,MPI::DOUBLE,0,tag);			
+		MPI::COMM_WORLD.Send(results.dataFirst(),7*N_slave,MPI::DOUBLE,0,tag);
 
 	}// end while
 } // end Slaves

@@ -30,6 +30,7 @@ inline double abstand(Array<double,1>& x1, Array<double,1>& x2);
 
 // Switches
 const int trytoskip = 1;			// 0: stop after first wall contact		1: try to continue, may cause errors!!!
+const int skipmax = 3;				// number of skip attempts, if trytoskip == 1 (usually 3)
 const int preventSmallSteps = 0;	// 0: code stops if step size dt < 1e-14	1: code continues with dt = 1e-10 as long as step size controll would reduce dt below 1e-10
 
 // Golbal Parameters
@@ -138,7 +139,7 @@ for(i=1;i<=data.rows();i++)
 	PAR.pv[9].name = "energy ratio lambda";	PAR.pv[9].wert = PAR.lambda;
 
 	// Output
-	filenameout = "man" + type + dir + LA_STRING(periode) + praefix + "_" + LA_STRING(i) + ".dat";
+	filenameout = "man" + type + dir + LA_STRING(periode) + "_" + LA_STRING(i) + praefix + ".dat";
 	outputtest(filenameout);
 	out.open(filenameout);
 	PAR.writeiodata(out,bndy,var);
@@ -177,7 +178,7 @@ for(i=1;i<=data.rows();i++)
 			if(chk<0) 	// outside wall, try to skip outside part, no step size management
 			{
 				skipattempt = 1; 
-				if(outside>3) {end = 1; ofs2 << "final wall hit" << endl; break;} // stop after 3 skip attempts
+				if(outside >= skipmax) {end = 1; ofs2 << "final wall hit" << endl; break;} // stop after skipmax skip attempts
 				if(trytoskip==1) continue;
 				else {end = 1; ofs2 << "wall hit" << endl; break;}
 			}

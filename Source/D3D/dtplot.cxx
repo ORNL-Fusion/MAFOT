@@ -108,13 +108,19 @@ for(n=1;n<=PAR.N;n++)
 	// Set initial values in FLT
 	switch(PAR.create_flag) 
 	{
-		case 2:
+		case 4:		// random from psi, theta
+			FLT.create(idum,PAR.rmin,PAR.rmax,PAR.thmin,PAR.thmax,2);
+			break;
+		case 3:		// grid from psi, theta
+			FLT.set(n,PAR.N,PAR.rmin,PAR.rmax,PAR.thmin,PAR.thmax,PAR.NZ,2);
+			break;
+		case 2:		// grid on target from t, phi
 			start_on_target(n,PAR.Nt,1,PAR.tmin,PAR.tmax,PAR.phistart,PAR.phistart,EQD,PAR,FLT);
 			break;
-		case 1:
+		case 1:		// random from r, theta
 			FLT.create(idum,PAR.rmin,PAR.rmax,PAR.thmin,PAR.thmax,1);
 			break;
-		default:
+		default:	// grid from r, theta
 			FLT.set(n,PAR.N,PAR.rmin,PAR.rmax,PAR.thmin,PAR.thmax,1,1);
 			break;
 	}
