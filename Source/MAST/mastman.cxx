@@ -1,8 +1,8 @@
-// Program calculates unstable manifold of a hyp. fixed point for D3D-Drift with time dependent perturbation
+// Program calculates unstable manifold of a hyp. fixed point for MAST-Drift with time dependent perturbation
 // For stable manifold use reverse Integration (see MapDirection)
 // For left or right hand-sided set sign of 'verschieb' in Parameterfile to - or + respectively
 // Fortran Subroutines are used for the perturbations
-// A.Wingen						16.06.11
+// A.Wingen						15.02.13
 
 // Input: 1: Parameterfile	2: File with fixed points	3: praefix(optional)
 //			fixed points have to be in toroidal coordinates, not cylindrical!!!
@@ -11,15 +11,15 @@
 
 // Define
 //--------
-#define program_name "dtman"
+#define program_name "mastman"
 
 // Include
 //--------
 #include <mafot.hxx>
 #ifdef m3dc1
-#include <d3d_m3dc1.hxx>
+#include <mast_m3dc1.hxx>
 #else
-#include <d3d.hxx>
+#include <mast.hxx>
 #endif
 
 // Prototypes
@@ -29,7 +29,7 @@ inline double abstand(PARTICLE& FLT1, PARTICLE& FLT2);
 inline double abstand(Array<double,1>& x1, Array<double,1>& x2);
 
 // Switches
-const int trytoskip = 0;			// 0: stop after first wall contact		1: try to continue, may cause errors!!!
+const int trytoskip = 1;			// 0: stop after first wall contact		1: try to continue, may cause errors!!!
 const int skipmax = 3;				// number of skip attempts, if trytoskip == 1 (usually 3)
 const int preventSmallSteps = 0;	// 0: code stops if step size dt < 1e-14	1: code continues with dt = 1e-10 as long as step size controll would reduce dt below 1e-10
 
@@ -76,8 +76,8 @@ ofs2 << "Read Parameterfile " << parfilename << endl;
 IO PAR(EQD,parfilename,10);
 
 // Set starting parameters
-const double minabs = 0.001;	//0.001
-const double maxabs = 0.005;	//0.005
+const double minabs = 0.0005;	//0.001
+const double maxabs = 0.0025;	//0.005
 const int kstart = 1;
 const int kend = 30;
 simpleBndy = 0;						// 0: use real wall as boundaries, 1: use simple boundary box
@@ -128,9 +128,9 @@ for(i=1;i<=data.rows();i++)
 
 	// additional parameters for IO
 	PAR.pv[0].name = "Period";				PAR.pv[0].wert = periode;
-	PAR.pv[1].name = "fixed point R";		PAR.pv[1].wert = xfix;
-	PAR.pv[2].name = "fixed point Z";		PAR.pv[2].wert = yfix;
-	PAR.pv[3].name = "Shift in R";			PAR.pv[3].wert = PAR.verschieb;
+	PAR.pv[1].name = "fixed point theta";	PAR.pv[1].wert = xfix;
+	PAR.pv[2].name = "fixed point r";		PAR.pv[2].wert = yfix;
+	PAR.pv[3].name = "Shift in theta";		PAR.pv[3].wert = PAR.verschieb;
 	PAR.pv[4].name = "Minimal distance";	PAR.pv[4].wert = minabs;
 	PAR.pv[5].name = "Maximal distance";	PAR.pv[5].wert = maxabs;
 	PAR.pv[6].name = "phistart";			PAR.pv[6].wert = PAR.phistart;
@@ -244,8 +244,7 @@ Array<double,1> xsitta(Range(1,2));
 fixa = xsa;
 xsitta = xsa;
 
-da(2) = fabs(verschieb)/sqrt(2); da(1)= verschieb/sqrt(2);	// shift in R and Z, Z always positive
-//da(2) = 0; da(1) = verschieb;	// shift in R
+da(2) = 0; da(1)= verschieb;	// shift in R
 
 // adjust shift that way, that xsa and xsitta are between 0.0005 and 0.001
 int end = 0;
@@ -260,9 +259,6 @@ while(end<50)
 	xsitta(1) = FLT.R;
 	xsitta(2) = FLT.Z;
 
-
-	//ofs2 << xsa(1) << "\t" << xsa(2) << "\t" << xsitta(1) << "\t" << xsitta(2) << "\t" << da(1) << "\t" << da(2) << endl;
-
 	laenge = abstand(xsa,xsitta);
 	end += 1;
 	if(laenge > 0.001) {da *= 0.5; continue;}
@@ -270,7 +266,9 @@ while(end<50)
 	break;
 }
 if(end==50) ofs2 << "Shift adjustment not successfull! " << laenge << endl;
-verschieb = sqrt(da(1)*da(1) + da(2)*da(2))*sign(da(1));
+verschieb = da(1);
+
+//ofs2 << xsa(1) << "\t" << xsa(2) << "\t" << xsitta(1) << "\t" << xsitta(2) << "\t" << da(1) << "\t" << da(2) << endl;
 
 // adjust direction of d
 end = 0;  scalar = 0;
@@ -307,7 +305,6 @@ ofs2 << "Effort of direction adjustment: " << end << endl;
 da = xsitta - xsa;
 //if(fabs(da(1)) > 4) {da(1) -= sign(da(1))*pi2;}	// possible 2pi jump between xsitt and fix.
 ofs2 << "Length of d: " << sqrt(da(1)*da(1)+da(2)*da(2)) << endl;
-
 }
 
 //---------- abstand ----------------------

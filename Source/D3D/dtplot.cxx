@@ -108,6 +108,9 @@ for(n=1;n<=PAR.N;n++)
 	// Set initial values in FLT
 	switch(PAR.create_flag) 
 	{
+		case 5:		// grid from R, Z
+			FLT.set(n,PAR.N,PAR.Rmin,PAR.Rmax,PAR.Zmin,PAR.Zmax,PAR.NZ,0);
+			break;
 		case 4:		// random from psi, theta
 			FLT.create(idum,PAR.rmin,PAR.rmax,PAR.thmin,PAR.thmax,2);
 			break;

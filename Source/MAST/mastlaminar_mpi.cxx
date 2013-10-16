@@ -1,7 +1,7 @@
-// Program calculates connection length and penetration depth for D3D inside the plasma volume
-// for D3D-Drift with Time dependent perturbations
+// Program calculates connection length and penetration depth for MAST inside the plasma volume
+// for MAST-Drift with Time dependent perturbations
 // Fortran Subroutines are used for perturbations
-// A.Wingen						10.6.11
+// A.Wingen						12.2.13
 
 // Input: 1: Parameterfile	2: praefix(optional)
 // Output:	2d connection length data for colored contour plot
@@ -16,7 +16,7 @@
 // Define
 //--------
 //#define BZ_DEBUG
-#define program_name "dtlaminar_mpi"
+#define program_name "mastlaminar_mpi"
 #define USE_MPI
 
 // Include
@@ -24,9 +24,9 @@
 #include <openmpi/ompi/mpi/cxx/mpicxx.h>
 #include <mafot.hxx>
 #ifdef m3dc1
-#include <d3d_m3dc1.hxx>
+#include <mast_m3dc1.hxx>
 #else
-#include <d3d.hxx>
+#include <mast.hxx>
 #endif
 #include <omp.h>
 
@@ -127,7 +127,7 @@ if(mpi_rank < 1)
 	ofs3.precision(16);
 
 	ofs3 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
-	ofs3 << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
+	ofs3 << "ECC-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
 	ofs3 << "No. of Packages = " << NoOfPackages << " Points per Package = " << N_slave << endl << endl;
 
 	// additional parameters for IO
