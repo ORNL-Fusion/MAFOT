@@ -1,0 +1,10 @@
+#$ -N lam_test
+#$ -cwd
+#$ -o /home/wingen/work/batch.out
+#$ -e /home/wingen/work/batch.err
+#$ -S /bin/bash
+#$ -V
+#$ -q all.q
+#$ -pe mpi 24
+module load openmpi-1.6/gcc
+mpirun -n ${NSLOTS} dtfoot_mpi _inner.dat test 
