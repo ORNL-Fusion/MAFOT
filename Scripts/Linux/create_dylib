@@ -1,0 +1,11 @@
+
+g++ -c -fPIC follow_field_lines.cxx -o follow_field_lines.o \
+-I ~/src/include \
+-I ~/lib/64/blitz/include \
+-I /usr/include \
+-O3 -Dgenatomix -Dlinux
+
+g++ -shared -Wl,-soname,libfollow_field_lines.so.1 -o libfollow_field_lines.so.1.0.1 follow_field_lines.o \
+-L ~/lib/64 -lla_string -ltrip3d \
+-L ~/lib/64/blitz/lib -lblitz \
+-L /usr/lib -lgfortran 

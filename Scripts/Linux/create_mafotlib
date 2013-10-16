@@ -1,0 +1,14 @@
+
+g++ -c -fPIC mafot.cxx -o mafot.o \
+-I ~/src/include \
+-I ~/lib/64/blitz/include \
+-I /usr/include \
+-O3 -Dgenatomix -Dlinux -Dm3dc1
+
+g++ -shared -Wl,-soname,libmafot.so.1 -o libmafot.so.1.0.1 mafot.o \
+-L ~/lib/64 -lla_string -ltrip3d \
+-L ~/lib/64/blitz/lib -lblitz \
+-L /usr/lib -lgfortran \
+-L /usr/local/m3dc1/lib -lm3dc1_fortran -lm3dc1 \
+-L /usr/local/hdf5/lib -lhdf5 -lz \
+-Wl,-rpath,/usr/local/hdf5/lib -lstdc++

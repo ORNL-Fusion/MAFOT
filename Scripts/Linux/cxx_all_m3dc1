@@ -1,0 +1,22 @@
+names=( dtplot dtfix dtman dtlaminar dtfoot dtstructure )
+
+for ((i=0; i<${#names[*]}; i++))
+do
+echo -n "$((i+1)): ${names[$i]}  "
+cxx_gfort_m3dc1 ${names[$i]}
+if [ $? = 0 ] 
+  then echo Success 
+fi
+done
+
+names_mpi=( dtlaminar_mpi dtfoot_mpi )
+
+for ((i=0; i<${#names_mpi[*]}; i++))
+do
+echo -n "$((i+1)): ${names_mpi[$i]}  "
+cxx_gfort_mpi_m3dc1 ${names_mpi[$i]}
+if [ $? = 0 ]
+  then echo Success
+fi
+done
+
