@@ -3,16 +3,16 @@
 % Color scaling in b
 TypeOfPlot = 1;   % 0: contourf  1: pcolor (fast)
 autoscale = 2;    %0: use b    1: scale color automatically   2: use b and set SOL value in Colormap to white
-b = linspace(0.05,0.075,256);   % (con. length only) [0.075:0.005:0.4]  [0.028:0.005:0.4]  [0.028:0.0001:0.108]
+b = 0.03:0.005:0.4;   % (con. length only) [0.075:0.005:0.4]  [0.028:0.005:0.4]  [0.028:0.0001:0.108]
 
 % Main Filename
-Laminar = 0;          % 0: Footprint  1: Laminar Plot
+Laminar = 1;          % 0: Footprint  1: Laminar Plot
 WhatShallIPlot = 1;   % 0: ntor  1: con. length[km]  2: psimin  3: SXR emission   4: Te   5: ne   6: emission from psiav  7: emission with von Goelar
-printme = 1;          % 0: no export to jpg file     1: export to jpg
-FileToOpen = 'foot_in_n3_fail_odd.dat';
+printme = 0;          % 0: no export to jpg file     1: export to jpg
+FileToOpen = 'lam_pr.dat';
 
 % (printme==1 only) Comment line if not wanted: Add an additional string to output filename
-%praefix = '_a';
+%praefix = '_conv21';
 % (WhatShallIPlot == 3 only) Range of convolution filter
 %span = 21;
 
@@ -295,11 +295,11 @@ for i=plot_manifold:-1:1
     plot(phiout,tout,char(styles(i)),'LineWidth',1,'markerSize',groesse(i));
 end
 if(Laminar==1)
-    wallfile=fopen('/Users/wingen/c++/d3d/wall.dat');
+    wallfile=fopen('/Users/wingen/c++/mast/wall.dat');
     C3=textscan(wallfile,'%f%f%f%f','commentStyle','#');
     fclose(wallfile);
-    phiout=C3{3};
-    tout=C3{4};
+    phiout=C3{1};
+    tout=C3{2};
     plot(phiout,tout,'k--','LineWidth',2);
 end
 if(plot_target_limit==1 && Physical ~= 1), plot([min(X(:,1)) max(X(:,1))],[0 0],'k--','LineWidth',1.5); end
@@ -311,7 +311,7 @@ axis tight;
 xlim([min(X(:,1)) max(X(:,1))]);
 %xlim([1.01 2.1]);
 if(Laminar==0 && Target==3 && CameraView==1), ylim([1.371 1.649]);
-else ylim([min(Y(1,:)) max(Y(1,:))]); ylim([min(Y(1,:)) -1.1]);%ylim([-1.28 -1.21]);%ylim([-1.365 -0.4]); 
+else ylim([min(Y(1,:)) max(Y(1,:))]); %ylim([-1.365 -0.4]);%ylim([-1.27 -1.21]); 
 end
 if (Laminar==1)
     xlabel({'R [m]'},'FontName',schrift,'FontSize',schrift_size);
@@ -345,7 +345,7 @@ if(autoscale==2)
     if(WhatShallIPlot == 2) 
         MyColorMap(size(MyColorMap,1),:) = 1;
         %MyColorMap(size(MyColorMap,1)-1,:) = 1;
-    else MyColorMap(1,:) = 1; MyColorMap(size(MyColorMap,1),:) = 1;
+    else MyColorMap(1,:) = 1;
     end
     set(gcf,'Colormap',MyColorMap)
 end

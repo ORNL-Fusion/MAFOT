@@ -29,7 +29,7 @@ flf1 = data(:,9);
 
 % Area
 figure
-plot(x,Area/max(Area),'k-')%,x,Area1/max(Area1),'k--')
+plot(x,Area,'k-')%,x,Area1/max(Area1),'k--')/max(Area)
 xlabel('upper coil Phase [deg]');
 ylabel('Footprint Area (a.u.)');
 set(gca,'XTick', 0:10:10*ceil(max(x/10)));

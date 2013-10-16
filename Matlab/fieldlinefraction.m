@@ -1,18 +1,18 @@
 % Parameter
 %--------------
 useFiles = 1;           % 1: read from files    0: use workspace
-FileToOpen1 = 'foot_in_ref_41-7pct_a.dat';
-%FileToOpen2 = 'foot_in_84-0-38.dat';   % Comment, if not wanted
+FileToOpen1 = 'foot_inup.dat';
+%FileToOpen2 = 'foot_outdwn.dat';   % Comment, if not wanted
 
 useLogScale = 1;        %0: linear y-Axis   1: log(y+1) y-Axis
 
 M = 200;                % Number of bars
-SOL_Range_Lc = 0.075;   % Minimum connection length
-SOL_Range_psi = 0.997;  % Maximum penetration depth
+SOL_Range_Lc = 0.046;   % Minimum connection length; D3D = 0.075; ITER = 0.22; NSTX = 0.046
+SOL_Range_psi = 0.999;  % Maximum penetration depth; D3D = 0.997; ITER = 0.997; NSTX = 0.999
 Lc_cutoff = 2.6;        % Cutoff Lc x-Axis at value [km], if value > max(Lx): no cutoff
 
-Lc_ft = 0.13;           % max Flux Tube con. Length = 2pol. Turns; D3D = 0.13; ITER = 0.44
-Lc_long = 0.4;          % another con. Length; D3D = 0.4; ITER = 1;
+Lc_ft = 0.085;           % max Flux Tube con. Length = 2pol. Turns; D3D = 0.13; ITER = 0.44; NSTX = 0.085
+Lc_long = 0.2;          % another con. Length; D3D = 0.4; ITER = 1; NSTX = 0.2
 correct_psi = 1;
 %------------------------------------------------------------------
 %------------------------------------------------------------------
@@ -54,7 +54,7 @@ if(useFiles==1)
         Psi = Psi1;
         Lc = Lc1;
     end
-    WhatToPlot = 0; % Plot both
+    WhatToPlot = 0; % 0: Plot both, 1: Lc, 2: psimin
 
     % Correct psi: use Lc to set psi = 0 in SOL
     if(correct_psi == 1), Psi(Lc <= SOL_Range_Lc) = 1; end
@@ -162,8 +162,8 @@ if(WhatToPlot ~= 1)
     if(useLogScale == 1)
         ylim([0 1.1*max(P)]);
         set(gca,'YScale','log',...
-            'YTick',[1,2,3,4,5,6,8,11,16,21,31,41,51,71],...
-            'YTickLabel',{'0';'1';'2';'3';'4';'5';'7';'10';'15';'20';'30';'40';'50';'70'},...
+            'YTick',[1,1.2,1.4,1.6,1.8,2,3,4,5,6,8,11,16,21,31,41,51,71],...
+            'YTickLabel',{'0';'0.2';'0.4';'0.6';'0.8';'1';'2';'3';'4';'5';'7';'10';'15';'20';'30';'40';'50';'70'},...
             'YMinorTick','off');
         set(gca,'XGrid','on','YGrid','on','YMinorGrid','off');
     else 

@@ -4,15 +4,15 @@ clear;
 TypeOfPlot = 1;   % 0: contourf  1: pcolor (fast)
 autoscale = 2;    %0: use b    1: scale color automatically   2: use b and set SOL value in Colormap to white
 spare_interior = 1; % (Laminar = 1 only) 0: interior is shown in red   1: interior is shown in white
-b  = [0.04:0.002:0.14];   % Laminar (con. length only)
-b1 = [0.046:0.001:0.14];   % Inner target (con. length only)
-b2 = [0.046:0.001:0.1];   % Outer target (con. length only)
+b  = [0.046:0.002:0.14];   % Laminar (con. length only)
+b1 = [0.046:0.002:0.14];   % Inner target (con. length only)
+b2 = [0.046:0.002:0.14];   % Outer target (con. length only)
 
 % Main Filename
-Laminar = 1;          % 0: Footprint  1: Laminar Plot
+Laminar = 0;          % 0: Footprint  1: Laminar Plot
 WhatShallIPlot = 1;   % 0: ntor  1: con. length[km]  2: psimin
 printme = 0;          % 0: no export to jpg file     1: export to jpg
-FileToOpen = 'lam_test2.dat';
+FileToOpen = 'foot_inup.dat';
 
 % (printme==1 only) Comment line if not wanted: Add an additional string to output filename
 %praefix = '_long';
@@ -217,7 +217,7 @@ for i=plot_manifold:-1:1
     plot(phiout,tout,char(styles(i)),'LineWidth',2.5,'markerSize',groesse(i));
 end
 if(Laminar==1)
-    wallfile=fopen('C:\c++\NSTX\wall.dat');
+    wallfile=fopen('/Users/wingen/c++/nstx/wall.dat');
     C3=textscan(wallfile,'%f%f','commentStyle','#');
     fclose(wallfile);
     phiout=C3{1};
@@ -266,13 +266,13 @@ yTickCB = get(cbar, 'YTick');
 if(WhatShallIPlot==2)
     %text(cbpos(1)+0.5,0.6,'\psi_{Min}','FontName',schrift,'FontSize',schrift_size,'Rotation',-90, 'Units', 'normalized');
     set(get(cbar,'YLabel'),'String','\psi_{Min}','FontName',schrift,'FontSize',schrift_size,'Rotation',-90,'VerticalAlignment','bottom')
-    set(cbar,'YTick', [0.901 yTickCB 0.999] );
-    set(cbar, 'YTickLabel', {'0.9';yTickLabelCB;'SOL'});
+    %set(cbar,'YTick', [0.901 yTickCB 0.999] );
+    %set(cbar, 'YTickLabel', {'0.9';yTickLabelCB;'SOL'});
 elseif(WhatShallIPlot==1)
     %text(cbpos(1)+0.5,0.6,'L_{c} [km]','FontName',schrift,'FontSize',schrift_size,'Rotation',-90, 'Units', 'normalized');
     set(get(cbar,'YLabel'),'String','L_{c} [km]','FontName',schrift,'FontSize',schrift_size,'Rotation',-90,'VerticalAlignment','bottom')
-    set(cbar,'YTick', [min(b)+0.6*(b(2)-b(1)) yTickCB max(b)-0.001] );
-    set(cbar, 'YTickLabel', {'SOL';yTickLabelCB;num2str(max(b))});
+    %set(cbar,'YTick', [min(b)+0.6*(b(2)-b(1)) yTickCB max(b)-0.001] );
+    %set(cbar, 'YTickLabel', {'SOL';yTickLabelCB;num2str(max(b))});
 else
     set(get(cbar,'YLabel'),'String','n_{tor}','FontName',schrift,'FontSize',schrift_size,'Rotation',-90,'VerticalAlignment','bottom')
     %text(cbpos(1)+0.5,0.6,'n_{tor}','FontName',schrift,'FontSize',schrift_size,'Rotation',-90, 'Units', 'centimeters');
@@ -378,3 +378,4 @@ else
     disp(['Figure written to File: ' filenameout '.jpg'])
 end
 
+figure(gcf) % Bring current figure window to the front

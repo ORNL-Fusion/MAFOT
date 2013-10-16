@@ -5,9 +5,9 @@
 %function [Rg, Zg, PsiN] = readgfile(shotnum, tM)
 
 %clear
-shotnum=129194;
-tM=3000;
-gfile=['~/c++/d3d/gfiles/g' int2str(shotnum) '.0' int2str(tM)];
+shotnum=146626;
+tM=2250;
+gfile=['~/c++/d3d/gfiles/kinetic/g' int2str(shotnum) '.0' int2str(tM)];
 
 global Br
 global Bz
