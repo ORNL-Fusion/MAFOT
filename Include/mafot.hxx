@@ -4,16 +4,17 @@
 // used by all D3D, ITER and NSTX drift programs
 // A.Wingen						7.6.11
 
-
-// Define
-//--------
-
 // Include
 //--------
 #include <andi.hxx>				// includes many usefull tools and defines 
 #include <efit_class.hxx>			// includes all EFIT data and interpolation routines
 #include <io_class.hxx>				// includes Control file data
 #include <particle_class.hxx>		// includes all particle/fieldline parameters and Runge-Kutta Integrator
+
+// Define
+//--------
+#ifndef MAFOT_INCLUDED
+#define MAFOT_INCLUDED
 
 // --------------- Prototypes ---------------------------------------------------------------------------------------------
 bool outofRealBndy(double x, double y, EFIT& EQD);
@@ -181,5 +182,6 @@ y1 /= dR;
 y2 /= dZ;
 }
 
+#endif MAFOT_INCLUDED
 //----------------------- End of File -------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------

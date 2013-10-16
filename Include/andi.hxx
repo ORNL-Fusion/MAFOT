@@ -36,6 +36,10 @@
 #include <blitz/array.h>
 using namespace blitz;
 
+// Include the rest only if not done yet
+#ifndef ANDI_INCLUDED
+#define ANDI_INCLUDED
+
 // Global const parameters
 //------------------------
 const double LA_PI = 3.1415926535897932384626433832795029;
@@ -594,6 +598,6 @@ return ans;
 }
 
 
-
+#endif // ANDI_INCLUDED
 
 

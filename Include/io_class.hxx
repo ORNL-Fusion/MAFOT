@@ -236,16 +236,18 @@ out << "sigma = " << PAR.sigma << endl;
 out << "Zq = " << PAR.Zq << endl;
 out << "useFilament = " << PAR.useFilament << endl;
 out << "useTprofile = " << PAR.useTprofile << endl;
+out << endl;
 
 #ifdef m3dc1
 out << "--- M3D-C1 ---" << endl;
 out << "response = " << PAR.response << endl;
 out << "response_field = " << PAR.response_field << endl;
+out << endl;
 #endif
 
 if(PAR.psize>0) 
 {
-	out << endl << "--- Parstruct array ---" << endl;
+	out << "--- Parstruct array ---" << endl;
 	for(int i=0;i<PAR.psize;i++) out << PAR.pv[i].name << " = " << PAR.pv[i].wert << endl;
 }
 return out;

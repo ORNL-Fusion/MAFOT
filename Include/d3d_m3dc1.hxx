@@ -10,6 +10,11 @@
 // uses arrays and multiple-arrays from blitz-Library
 // A.Wingen						3.5.12
 
+// Define
+//--------
+#ifndef D3D_M3DC1_INCLUDED
+#define D3D_M3DC1_INCLUDED
+
 // --------------- Prototypes ---------------------------------------------------------------------------------------------
 //void IO::readiodata(char* name, int mpi_rank);								// declared in IO class, defined here
 //void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var);	// declared in IO class, defined here
@@ -423,13 +428,23 @@ if(PAR.useFcoil == 1 || PAR.useCcoil == 1 || PAR.useIcoil == 1 || PAR.response_f
 	in.clear();	// reset ifstream for next use
 }
 
+// Write I-coil currents to log files (Check if corretly read in)
+ofs2 << "I-coil currents:" << endl;
+for(i=0;i<nIloops/2;i++) ofs2 << d3icoil_.curntIc[i] << "\t";
+ofs2 << endl;
+for(i=nIloops/2;i<nIloops;i++) ofs2 << d3icoil_.curntIc[i] << "\t";
+ofs2 << endl;
+
 // Scale I-coil perturbation in M3D-C1 according to diiidsup.in (current = scale * 1kA)
 double scale = 0;
 if(PAR.response_field > 0)
 {
 	for(i=0;i<nIloops;i++) scale += fabs(d3icoil_.curntIc[i]);
 	scale /= 1000.0*nIloops;
+	scale *= -sign(d3icoil_.curntIc[0]);		// proper phasing: first current < 0 -> 60¡ phase, else 0¡ phase
 	m3dc1_set_scale_factor_(&scale);
+	if(mpi_rank < 1) cout << "M3D-C1 perturbation scaling factor: " << scale << endl;
+	ofs2 << "M3D-C1 perturbation scaling factor: " << scale << endl;
 }
 
 // Set F-coil geometry
@@ -590,5 +605,6 @@ if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = g
 return t;
 }
 
+#endif // D3D_M3DC1_INCLUDED
 //----------------------- End of File -------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------

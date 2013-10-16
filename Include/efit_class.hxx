@@ -438,7 +438,7 @@ spline(psi,qpsi,NR,d1,dn,d2qpsi);
 // outer midplane. Otherwise B_tor is anti-parallel to Ip <-> "left-handed".
 int chk;
 double psi_hel,dpsidr_hel;
-double R_hel = max(lcfs) - 10*dR;					// just inside the separatrix ...
+double R_hel = max(lcfs(Range(1,toEnd,2))) - 10*dR;	// max of R coordinates from lcfs, just inside the separatrix ...
 chk = get_psi(R_hel,0,psi_hel,dpsidr_hel,dummy);	// ... at midplande
 helicity = sign(dpsidr_hel/get_Fpol(psi_hel));		// = sign(-dZ/dphi)
 helicity_adjust = 1;

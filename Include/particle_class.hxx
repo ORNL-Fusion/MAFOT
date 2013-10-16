@@ -458,21 +458,23 @@ y = Zmin + i_Z*dZ;
 
 switch(flag)
 {
-case 2:		// get R, Z from psi and theta
+case 2:		// get R, Z from x = psi and y = theta
 	getRZ(x, y, R, Z, EQDr);
+	psi = x;
 	break;
 case 1:		// get R, Z from r and theta
 	R = x*cos(y) + EQDr.RmAxis;
 	Z = x*sin(y) + EQDr.ZmAxis;
+	EQDr.get_psi(R,Z,psi,dummy,dummy);
 	break;
 default:
 	R = x;
 	Z = y;
+	EQDr.get_psi(R,Z,psi,dummy,dummy);
 	break;
 }
 
 phi = PARr.phistart;
-EQDr.get_psi(R,Z,psi,dummy,dummy);
 
 Lc = 0;
 psimin = 10;
@@ -504,19 +506,21 @@ switch(flag)
 {
 case 2:		// get R, Z from psi and theta
 	getRZ(x, y, R, Z, EQDr);
+	psi = x;
 	break;
 case 1:		// get R, Z from r and theta
 	R = x*cos(y) + EQDr.RmAxis;
 	Z = x*sin(y) + EQDr.ZmAxis;
+	EQDr.get_psi(R,Z,psi,dummy,dummy);
 	break;
 default:
 	R = x;
 	Z = y;
+	EQDr.get_psi(R,Z,psi,dummy,dummy);
 	break;
 }
 
 phi = PARr.phistart;
-EQDr.get_psi(R,Z,psi,dummy,dummy);
 
 Lc = 0;
 psimin = 10;
@@ -663,30 +667,39 @@ return 64*pi*L_Debye*Lambda_Coulomb/log(Lambda_Coulomb);
 }
 
 //--------- getRZ ----------------------------------------------------
+// calculate (R,Z) from (theta,psi), x = psi, y = theta
+// exclude the private flux region <--> two points (R,Z) with the same psi exist
+// optimized for lower single null discharges
+// wall(Range(1,toEnd,2)) are all R coordinates of wall, same with lcfs
+// wall(Range(2,toEnd,2)) are all Z coordiantes of wall, same with lcfs
 void getRZ(double x, double y, double& R, double &Z, EFIT& EQD)
 {
 if(y < pi/4 || y > 7*pi/4)
 {
 	// Z = Z(R,theta)
-	R = bisec(x, y, EQD.RmAxis, 2.4, EQD, 0);
+	if(x <= 1) R = bisec(x, y, EQD.RmAxis, max(EQD.lcfs(Range(1,toEnd,2)))+EQD.dR, EQD, 0);
+	else R = bisec(x, y, EQD.RmAxis, max(EQD.wall(Range(1,toEnd,2))), EQD, 0);
 	Z = (R - EQD.RmAxis)*tan(y) + EQD.ZmAxis;
 }
 if(y > 3*pi/4 && y < 5*pi/4)
 {
 	// Z = Z(R,theta)
-	R = bisec(x, y, 1, EQD.RmAxis, EQD, 0);
+	if(x <= 1) R = bisec(x, y, min(EQD.lcfs(Range(1,toEnd,2)))-EQD.dR, EQD.RmAxis, EQD, 0);
+	else R = bisec(x, y, min(EQD.wall(Range(1,toEnd,2))), EQD.RmAxis, EQD, 0);
 	Z = (R - EQD.RmAxis)*tan(y) + EQD.ZmAxis;
 }
 if(y >= pi/4 && y <= 3*pi/4)
 {
 	// R = R(Z,theta)
-	Z = bisec(x, y, EQD.ZmAxis, 1.4, EQD, 1);
+	if(x <= 1) Z = bisec(x, y, EQD.ZmAxis, max(EQD.lcfs(Range(2,toEnd,2)))+EQD.dZ, EQD, 1);
+	else Z = bisec(x, y, EQD.ZmAxis, max(EQD.wall(Range(2,toEnd,2))), EQD, 1);
 	R = (Z - EQD.ZmAxis)/tan(y) + EQD.RmAxis;
 }
 if(y >= 5*pi/4 && y <= 7*pi/4)
 {
 	// R = R(Z,theta)
-	Z = bisec(x, y, -1.4, EQD.ZmAxis, EQD, 1);
+	if(x <= 1) Z = bisec(x, y, min(EQD.lcfs(Range(2,toEnd,2))), EQD.ZmAxis, EQD, 1);
+	else Z = bisec(x, y, min(EQD.wall(Range(2,toEnd,2))), EQD.ZmAxis, EQD, 1);
 	R = (Z - EQD.ZmAxis)/tan(y) + EQD.RmAxis;
 }
 }
@@ -697,7 +710,7 @@ double bisec(double psi, double theta, double a, double b, EFIT& EQD, int flag)
 double xo,xu,x;
 double R,Z;
 double f,dummy;
-const double eps = 1e-12;
+const double eps = 1e-14;
 
 x = a;
 if (flag == 0)	// Z = Z(R,theta)
