@@ -14,32 +14,9 @@ class Common_gui:
 	def __init__(self, frame):
 		self.frame = frame
 	
-		# --- read parameterfile, if it is there ---
-		self.ControlFileFound = True
-		if os.path.isfile('_plot.dat'):
-			shot, time, gpath, _ = self.readControlFile('_plot.dat')
-		elif os.path.isfile('_fix.dat'):
-			shot, time, gpath, _ = self.readControlFile('_fix.dat')
-		elif os.path.isfile('_inner.dat'):
-			shot, time, gpath, _ = self.readControlFile('_inner.dat')
-		elif os.path.isfile('_outer.dat'):
-			shot, time, gpath, _ = self.readControlFile('_outer.dat')
-		elif os.path.isfile('_shelf.dat'):
-			shot, time, gpath, _ = self.readControlFile('_shelf.dat')
-		elif os.path.isfile('_lam.dat'):
-			shot, time, gpath, _ = self.readControlFile('_lam.dat')
-		elif os.path.isfile('_lam_psi.dat'):
-			shot, time, gpath, _ = self.readControlFile('_lam_psi.dat')
-		else:
-			shot = ''
-			time = ''
-			gpath = HOME + '/c++/d3d/gfiles'
-			self.ControlFileFound = False
-			
-		if not (gpath[-1] == '/'): gpath += '/'
-		
 		okayCommand = frame.register(self.isOkay)
 		notOkayCommand = frame.register(self.isNotOkay)
+		makecwd = frame.register(self.makeCWD)
 		
 		# --- Machine ---
 		self.MachFlag = tk.StringVar(); self.MachFlag.set('d3d'); row = 0
@@ -54,34 +31,38 @@ class Common_gui:
 		tk.Label(frame, text = "Machine").grid(column = 1, row = row, sticky = tk.E )
 
 		# --- Shot number ---
-		self.Shot = tk.StringVar(); self.Shot.set(str(shot)); row += 1
+		self.Shot = tk.StringVar(); row += 1
 		tk.Entry(frame, width = 7, textvariable = self.Shot).grid(column = 2, row = row, sticky = tk.W + tk.E)
 		tk.Label(frame, text = "Shot").grid(column = 1, row = row, sticky = tk.E)
 
 		# --- Time ---
-		self.Time = tk.StringVar(); self.Time.set(str(time)); #row += 1
+		self.Time = tk.StringVar()
 		tk.Entry(frame, width = 7, textvariable = self.Time).grid(column = 4, row = row, sticky = tk.W + tk.E)
 		tk.Label(frame, text = "Time").grid(column = 3, row = row, sticky = tk.E)
 
 		# --- gPath ---
-		self.gPath = tk.StringVar(); self.gPath.set(gpath); row += 1
+		self.gPath = tk.StringVar(); row += 1
 		tk.Entry(frame, width = 7, textvariable = self.gPath).grid(column = 2, row = row, columnspan = 4, sticky = tk.W + tk.E)
 		tk.Label(frame, text = "Path to g-file").grid(column = 1, row = row, sticky = tk.E)
 		
 		# --- Tag ---
-		self.tag = tk.StringVar(); self.tag.set(''); row += 1; self.row_write = row
-		self.tag_entry = tk.Entry(frame, width = 7, textvariable = self.tag, validate='all',
+		self.tag = tk.StringVar(); row += 1; self.row_write = row
+		self.tag_entry = tk.Entry(frame, width = 7, textvariable = self.tag, validate = 'all',
         	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
 		self.tag_entry.grid(column = 2, row = row, columnspan = 4, sticky = tk.W + tk.E)
 		self.tag_label = tk.Label(frame, text = "File Tag")
 		self.tag_label.grid(column = 1, row = row, sticky = tk.E)
 		
 		# --- cwd ---
-		self.path = tk.StringVar(); self.path.set('./'); row += 1
-		self.path_entry = tk.Entry(frame, width = 7, textvariable = self.path)
-		self.path_entry.grid(column = 2, row = row, columnspan = 4, sticky = tk.W + tk.E)
+		self.path = tk.StringVar();  row += 1
+		self.path_entry = tk.Entry(frame, width = 7, textvariable = self.path, validate = 'focusout',
+        	validatecommand = makecwd)
+		self.path_entry.grid(column = 2, row = row, columnspan = 3, sticky = tk.W + tk.E)
 		self.path_label = tk.Label(frame, text = "Working Dir")
 		self.path_label.grid(column = 1, row = row, sticky = tk.E)
+		
+		self.reload_default = tk.IntVar(); self.reload_default.set(1)
+		tk.Checkbutton(frame, text = 'reload\nsettings', variable = self.reload_default).grid(column = 5, row = row, sticky = tk.W)
 		
 		# --- invisible separator ---
 		row += 1
@@ -94,8 +75,47 @@ class Common_gui:
 		self.tag_entry.focus()
 		
 		# --- default setup is for D3D ---
+		self.set_defaults()
 		self.d3d_tabs(frame)
+		self.tag.set('')
+		self.path.set('./') # this has to be set last at startup, since it triggers the callback
 	
+	
+	# --- set default values ---
+	def set_defaults(self):
+		# set path if it already exists:
+		try:
+			path = self.path.get()
+		except:
+			path = './'
+			
+		# read parameterfile, if it is there
+		self.ControlFileFound = True
+		if os.path.isfile(path + '_plot.dat'):
+			shot, time, gpath, _ = self.readControlFile(path + '_plot.dat')
+		elif os.path.isfile(path + '_fix.dat'):
+			shot, time, gpath, _ = self.readControlFile(path + '_fix.dat')
+		elif os.path.isfile(path + '_inner.dat'):
+			shot, time, gpath, _ = self.readControlFile(path + '_inner.dat')
+		elif os.path.isfile(path + '_outer.dat'):
+			shot, time, gpath, _ = self.readControlFile(path + '_outer.dat')
+		elif os.path.isfile(path + '_shelf.dat'):
+			shot, time, gpath, _ = self.readControlFile(path + '_shelf.dat')
+		elif os.path.isfile(path + '_lam.dat'):
+			shot, time, gpath, _ = self.readControlFile(path + '_lam.dat')
+		elif os.path.isfile(path + '_lam_psi.dat'):
+			shot, time, gpath, _ = self.readControlFile(path + '_lam_psi.dat')
+		else:
+			shot = ''
+			time = ''
+			gpath = HOME + '/c++/d3d/gfiles'
+			self.ControlFileFound = False
+			
+		if not (gpath[-1] == '/'): gpath += '/'
+		self.Shot.set(str(shot)); 
+		self.Time.set(str(time))
+		self.gPath.set(gpath)
+
 	
 	# --- validity check of Tag ---
 	# returns True if tag is alphanumeric or has _ + - as special chars
@@ -107,8 +127,23 @@ class Common_gui:
 	# prints error Message, if isOkay == False
 	def isNotOkay(self):
 		print 'Warning: Invalid Input Character in File Tag. Only alphanumeric and + - _ are allowed'
-				
 		
+	
+	# --- callback, executed whenever Working Dir looses focus --- 
+	def makeCWD(self):
+		if not (self.path.get()[-1] == '/'): self.path.set(self.path.get() + '/')
+		if(self.reload_default.get() == 1):
+			self.set_defaults()
+			self.plot_gui.set_defaults()
+			self.fix_gui.set_defaults()
+			self.man_gui.set_defaults()
+			self.foot_gui.set_defaults()
+			self.lam_gui.set_defaults()
+		
+		self.path_entry.configure(validate = 'focusout')
+		return True
+		
+
 	# --- Tabs for DIII-D ---
 	def d3d_tabs(self, frame):
 		if not self.ControlFileFound:
@@ -123,35 +158,35 @@ class Common_gui:
 		self.tabframe1.grid(column = 1, row = 7, sticky = tk.N + tk.W + tk.E + tk.S)
 		self.tabframe1.rowconfigure(16, weight=1)
 		self.nb.add(self.tabframe1, text = 'dtplot')
-		dtplot_gui(self.tabframe1, self)
+		self.plot_gui = dtplot_gui(self.tabframe1, self)
 
 		# --- Tab 1: set fix tab ---
 		self.tabframe2 = tk.Frame(frame)
 		self.tabframe2.grid(column = 1, row = 7, sticky = tk.N + tk.W + tk.E + tk.S)
 		self.tabframe2.rowconfigure(16, weight=1)
 		self.nb.add(self.tabframe2, text = 'dtfix')
-		dtfix_gui(self.tabframe2, self)
+		self.fix_gui = dtfix_gui(self.tabframe2, self)
 	
 		# --- Tab 2: set man tab ---
 		self.tabframe3 = tk.Frame(frame)
 		self.tabframe3.grid(column = 1, row = 7, sticky = tk.N + tk.W + tk.E + tk.S)
 		self.tabframe3.rowconfigure(16, weight=1)
 		self.nb.add(self.tabframe3, text = 'dtman')
-		dtman_gui(self.tabframe3, self)
+		self.man_gui = dtman_gui(self.tabframe3, self)
 	
 		# --- Tab 3: set foot tab ---
 		self.tabframe4 = tk.Frame(frame)
 		self.tabframe4.grid(column = 1, row = 7, sticky = tk.N + tk.W + tk.E + tk.S)
 		self.tabframe4.rowconfigure(16, weight=1)
 		self.nb.add(self.tabframe4, text = 'dtfoot')
-		dtfoot_gui(self.tabframe4, self)
+		self.foot_gui = dtfoot_gui(self.tabframe4, self)
 
 		# --- Tab 4: set laminar tab ---
 		self.tabframe5 = tk.Frame(frame)
 		self.tabframe5.grid(column = 1, row = 7, sticky = tk.N + tk.W + tk.E + tk.S)
 		self.tabframe5.rowconfigure(16, weight=1)
 		self.nb.add(self.tabframe5, text = 'dtlaminar')	
-		dtlam_gui(self.tabframe5, self)
+		self.lam_gui = dtlam_gui(self.tabframe5, self)
 		
 		# --- Tab 5: set info tab ---
 		self.tabframe6 = tk.Frame(frame)
@@ -369,25 +404,16 @@ class Common_gui:
 class dtplot_gui:
 	def __init__(self, frame, M):
 		
-		# --- read parameterfile, if it is there ---
-		if os.path.isfile('_plot.dat'):
-			_,_,_, data = M.readControlFile('_plot.dat')
-		else: # defaults
-			data = [0, 300, 0.42, 0.57, 0, 0, 40, 0, 1, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
-					100, 0.1, 0, 3.141592653589793, 6.283185307179586]
-	
+		self.M = M
 		self.Shot = M.Shot
 		self.Time = M.Time
 		self.gPath = M.gPath
 		self.tag = M.tag
 		self.path = M.path
-
+		
 		# --- grid  type ---
 		# define... 
 		self.createFlag = tk.StringVar(); row = 0
-		if(data[12] == 0) | (data[12] == 1): self.createFlag.set('polar')
-		elif(data[12] == 3) | (data[12] == 4): self.createFlag.set('psi')
-		else: self.createFlag.set('RZ')
 
 		# ...and set grid-type RadioButton
 		tk.Radiobutton(frame, text = 'RZ', variable = self.createFlag, value = 'RZ', 
@@ -405,25 +431,18 @@ class dtplot_gui:
 		
 		# Min
 		self.xmin = tk.StringVar(); 
-		if(self.createFlag.get() == 'RZ'): self.xmin.set(str(data[2]))
-		else: self.xmin.set(str(data[4]))
 		tk.Entry(frame, width = 16, textvariable = self.xmin).grid(column = 2, row = row, columnspan = 2)
 		xmin_label = tk.Label(frame, text = "  Min")
 		xmin_label.grid(column = 2, row = row, sticky = tk.W )
 
 		# Max
 		self.xmax = tk.StringVar();
-		if(self.createFlag.get() == 'RZ'): self.xmax.set(str(data[3]))
-		else: self.xmax.set(str(data[5]))
 		tk.Entry(frame, width = 16, textvariable = self.xmax).grid(column = 4, row = row, columnspan = 2)
 		xmax_label = tk.Label(frame, text = "Max")
 		xmax_label.grid(column = 4, row = row, sticky = tk.W )
 
 		# Nx -> Nth or NR
 		self.Nx = tk.StringVar(); row += 1
-		if(self.createFlag.get() == 'polar'): self.Nx.set(str(int(data[0])))
-		elif(self.createFlag.get() == 'psi'): self.Nx.set(str(int(data[0])))
-		else: self.Nx.set(str(int(data[6])))
 		tk.Entry(frame, width = 16, textvariable = self.Nx).grid(column = 2, row = row, columnspan = 2)
 		tk.Label(frame, text = "     #").grid(column = 2, row = row, sticky = tk.W )
 		
@@ -439,43 +458,34 @@ class dtplot_gui:
 		
 		# Min
 		self.ymin = tk.StringVar();
-		if(self.createFlag.get() == 'RZ'): self.ymin.set(str(data[4]))
-		else: self.ymin.set(str(data[2]))
 		tk.Entry(frame, width = 16, textvariable = self.ymin).grid(column = 2, row = row, columnspan = 2)
 		ymin_label = tk.Label(frame, text = "  Min")
 		ymin_label.grid(column = 2, row = row, sticky = tk.W )
 
 		# Max
 		self.ymax = tk.StringVar();
-		if(self.createFlag.get() == 'RZ'): self.ymax.set(str(data[5]))
-		else: self.ymax.set(str(data[3]))
 		tk.Entry(frame, width = 16, textvariable = self.ymax).grid(column = 4, row = row, columnspan = 2)
 		ymax_label = tk.Label(frame, text = "Max")
 		ymax_label.grid(column = 4, row = row, sticky = tk.W )
 
 		# Ny -> Nr, Npsi or NZ
 		self.Ny = tk.StringVar(); row += 1
-		if(self.createFlag.get() == 'polar'): self.Ny.set(str(int(data[6])))
-		elif(self.createFlag.get() == 'psi'): self.Ny.set(str(int(data[6])))
-		else: self.Ny.set(str(int(data[0])))
 		tk.Entry(frame, width = 16, textvariable = self.Ny).grid(column = 2, row = row, columnspan = 2)
 		tk.Label(frame, text = "     #").grid(column = 2, row = row, sticky = tk.W )
 
-		self.refresh_grid_labels()
-		
 		# --- toroidal turns ---
-		self.itt = tk.StringVar(); self.itt.set(str(int(data[1]))); row += 1
+		self.itt = tk.StringVar(); row += 1
 		tk.Entry(frame, width = 7, textvariable = self.itt).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "tor. Iterations").grid(column = 1, row = row, sticky = tk.E )
 
 		# --- phistart ---
-		self.phistart = tk.StringVar(); self.phistart.set(str(data[7])); row += 1
+		self.phistart = tk.StringVar(); row += 1
 		tk.Entry(frame, width = 7, textvariable = self.phistart).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "tor. Angle [deg]").grid(column = 1, row = row, sticky = tk.E )
 		tk.Label(frame, text = "For Machine coord. use negative angles").grid(column = 3, row = row, columnspan = 3, sticky = tk.W )
 
 		# --- MapDirection ---
-		self.MapDirection = tk.IntVar(); self.MapDirection.set(int(data[8])); row += 1
+		self.MapDirection = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = '+1', variable = self.MapDirection, value = 1).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = '-1', variable = self.MapDirection, value = -1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'both', variable = self.MapDirection, value = 0).grid(column = 4, row = row, sticky = tk.W + tk.E )
@@ -487,17 +497,17 @@ class dtplot_gui:
 		separator.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- coils ---
-		self.useFcoil = tk.IntVar(); self.useFcoil.set(int(data[13])); row += 1
+		self.useFcoil = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Off', variable = self.useFcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'On', variable = self.useFcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use F-coil").grid(column = 1, row = row, sticky = tk.E )
 
-		self.useCcoil = tk.IntVar(); self.useCcoil.set(int(data[14])); row += 1
+		self.useCcoil = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Off', variable = self.useCcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'On', variable = self.useCcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use C-coil").grid(column = 1, row = row, sticky = tk.E )
 
-		self.useIcoil = tk.IntVar(); self.useIcoil.set(int(data[15])); row += 1
+		self.useIcoil = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Off', variable = self.useIcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'On', variable = self.useIcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use I-coil").grid(column = 1, row = row, sticky = tk.E )
@@ -508,7 +518,7 @@ class dtplot_gui:
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); self.useM3DC1.set(int(data[10])); row += 1
+		self.useM3DC1 = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
@@ -519,22 +529,20 @@ class dtplot_gui:
 			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); self.response.set(int(data[9])); row += 1
+		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
 		
-		self.activate_response()
-
 		# --- separator ---
 		row += 1
 		separator3 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator3.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- particles ---
-		self.sigma = tk.IntVar(); self.sigma.set(int(data[16])); row += 1
+		self.sigma = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Field lines', variable = self.sigma, value = 0, 
 			command = self.show_particle_params).grid(column = 2, row = row, sticky = tk.W + tk.E + tk.N)
 		tk.Radiobutton(frame, text = 'Co pass', variable = self.sigma, value = 1,
@@ -543,7 +551,7 @@ class dtplot_gui:
 			command = self.show_particle_params).grid(column = 4, row = row, sticky = tk.W + tk.E + tk.N)
 		tk.Label(frame, text = "Orbits").grid(column = 1, row = row, sticky = tk.E + tk.N)
 
-		self.charge = tk.IntVar(); self.charge.set(int(data[17])); row += 1; self.row_particle = row
+		self.charge = tk.IntVar(); row += 1; self.row_particle = row
 		self.charge_R1 = tk.Radiobutton(frame, text = 'Electrons', variable = self.charge, value = -1)
 		self.charge_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.charge_R2 = tk.Radiobutton(frame, text = 'Ions', variable = self.charge, value = 1)
@@ -551,13 +559,13 @@ class dtplot_gui:
 		self.charge_label = tk.Label(frame, text = "Species")
 		self.charge_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.Ekin = tk.StringVar(); self.Ekin.set(str(data[18])); row += 1
+		self.Ekin = tk.StringVar(); row += 1
 		self.Ekin_entry = tk.Entry(frame, width = 7, textvariable = self.Ekin)
 		self.Ekin_entry.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.Ekin_label = tk.Label(frame, text = "kin Energy [keV]")
 		self.Ekin_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.Lambda = tk.StringVar(); self.Lambda.set(str(data[19]));
+		self.Lambda = tk.StringVar(); 
 		self.Lambda_entry = tk.Entry(frame, width = 7, textvariable = self.Lambda)
 		self.Lambda_entry.grid(column = 4, row = row, sticky = tk.W + tk.E )
 		self.Lambda_label = tk.Label(frame, text = "Energy ratio")	
@@ -569,7 +577,7 @@ class dtplot_gui:
 		separator4.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- Filament ---
-		self.useFilament = tk.StringVar(); self.useFilament.set(str(int(data[20]))); row += 1
+		self.useFilament = tk.StringVar(); row += 1
 		tk.Entry(frame, width = 7, textvariable = self.useFilament).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "# current Filaments").grid(column = 1, row = row, sticky = tk.E )
 
@@ -578,8 +586,55 @@ class dtplot_gui:
 		runButton = tk.Button(frame, text = "Run dtplot", command = self.run_funct)
 		runButton.grid(column = 1, row = row, columnspan = 5, sticky = tk.W + tk.E)
 
-		# --- adjust style for all ---
+		# --- adjust style ---
 		for child in frame.winfo_children(): child.grid_configure(padx=5, pady=5)
+		self.set_defaults()
+
+
+	# --- set default values ---
+	def set_defaults(self):
+		# --- read parameterfile, if it is there ---
+		if os.path.isfile(self.path.get() + '_plot.dat'):
+			_,_,_, data = self.M.readControlFile(self.path.get() + '_plot.dat')
+		else: # defaults
+			data = [0, 300, 0.42, 0.57, 0, 0, 40, 0, 1, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
+					100, 0.1, 0, 3.141592653589793, 6.283185307179586]
+										
+		if(data[12] == 0) | (data[12] == 1): self.createFlag.set('polar')
+		elif(data[12] == 3) | (data[12] == 4): self.createFlag.set('psi')
+		else: self.createFlag.set('RZ')
+		
+		if(self.createFlag.get() == 'RZ'): 
+			self.xmin.set(str(data[2]))
+			self.xmax.set(str(data[3]))
+			self.ymin.set(str(data[4]))
+			self.ymax.set(str(data[5]))
+			self.Nx.set(str(int(data[6])))
+			self.Ny.set(str(int(data[0])))
+		else: 
+			self.xmin.set(str(data[4]))
+			self.xmax.set(str(data[5]))
+			self.ymin.set(str(data[2]))
+			self.ymax.set(str(data[3]))
+			self.Nx.set(str(int(data[0])))
+			self.Ny.set(str(int(data[6])))
+
+		self.itt.set(str(int(data[1]))); 
+		self.phistart.set(str(data[7])); 
+		self.MapDirection.set(int(data[8])); 
+		self.useFcoil.set(int(data[13])); 
+		self.useCcoil.set(int(data[14])); 
+		self.useIcoil.set(int(data[15]));
+		self.useM3DC1.set(int(data[10])); 
+		self.response.set(int(data[9])); 
+		self.sigma.set(int(data[16])); 
+		self.charge.set(int(data[17])); 
+		self.Ekin.set(str(data[18])); 
+		self.Lambda.set(str(data[19]));
+		self.useFilament.set(str(int(data[20]))); 
+		
+		self.refresh_grid_labels()
+		self.activate_response()
 		self.show_particle_params()
 
 
@@ -589,6 +644,10 @@ class dtplot_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 
+		# check that gPath ends with a /
+		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
+	
+		# expand path to full
 		cwd = os.getcwd()
 		if(self.path.get()[0] == '.'):
 			path = cwd + self.path.get()[1::]
@@ -727,25 +786,13 @@ class dtplot_gui:
 class dtfix_gui:
 	def __init__(self, frame, M):
 		
-		# --- read parameterfile, if it is there ---
-		if os.path.isfile('_fix.dat'):
-			_,_,_, data = M.readControlFile('_fix.dat')
-		else: # defaults
-			data = [1e-4, 0, 1, 1.3, 4.1, 4.6, 900, 0, 1, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
-					100, 0.1, 0, 3.141592653589793, 6.283185307179586]
-	
+		self.M = M	
 		self.Shot = M.Shot
 		self.Time = M.Time
 		self.gPath = M.gPath
 		self.tag = M.tag
 		self.path = M.path
 		
-		# --- shift ---
-		self.shift = data[0]
-		
-		# --- MapDirection ---
-		self.MapDirection = int(data[8]); 
-
 		# --- Period of Hyperbolic point ---
 		# define... 
 		self.HypRPt = tk.IntVar(); self.HypRPt.set(2);
@@ -768,19 +815,19 @@ class dtfix_gui:
 		tk.Label(frame, text = "theta [rad]").grid(column = 1, row = row, sticky = tk.E)
 		
 		# Min
-		self.xmin = tk.StringVar(); self.xmin.set(str(data[4]))
+		self.xmin = tk.StringVar(); 
 		self.xmin_entry = tk.Entry(frame, width = 16, textvariable = self.xmin)
 		self.xmin_entry.grid(column = 2, row = row, columnspan = 2)
 		tk.Label(frame, text = "  Min").grid(column = 2, row = row, sticky = tk.W )
 		
 		# Max
-		self.xmax = tk.StringVar(); self.xmax.set(str(data[5]))
+		self.xmax = tk.StringVar(); 
 		self.xmax_entry = tk.Entry(frame, width = 16, textvariable = self.xmax)
 		self.xmax_entry.grid(column = 4, row = row, columnspan = 2)
 		tk.Label(frame, text = "Max").grid(column = 4, row = row, sticky = tk.W )
 
 		# Nx -> Nth
-		self.Nx = tk.StringVar();self.Nx.set(str(int(data[6]**0.5))); row += 1
+		self.Nx = tk.StringVar(); row += 1
 		self.Nx_entry = tk.Entry(frame, width = 16, textvariable = self.Nx)
 		self.Nx_entry.grid(column = 2, row = row, columnspan = 2)
 		tk.Label(frame, text = "     #").grid(column = 2, row = row, sticky = tk.W )
@@ -795,31 +842,29 @@ class dtfix_gui:
 		tk.Label(frame, text = "r [m]").grid(column = 1, row = row, sticky = tk.E )
 		
 		# Min
-		self.ymin = tk.StringVar(); self.ymin.set(str(data[2]))
+		self.ymin = tk.StringVar(); 
 		self.ymin_entry = tk.Entry(frame, width = 16, textvariable = self.ymin)
 		self.ymin_entry.grid(column = 2, row = row, columnspan = 2 )
 		tk.Label(frame, text = "  Min").grid(column = 2, row = row, sticky = tk.W )
 
 		# Max
-		self.ymax = tk.StringVar(); self.ymax.set(str(data[3]))
+		self.ymax = tk.StringVar(); 
 		self.ymax_entry = tk.Entry(frame, width = 16, textvariable = self.ymax)
 		self.ymax_entry.grid(column = 4, row = row, columnspan = 2 )
 		tk.Label(frame, text = "Max").grid(column = 4, row = row, sticky = tk.W )
 
 		# Ny -> Nr
-		self.Ny = tk.StringVar();self.Ny.set(str(int(data[6]**0.5))); row += 1
+		self.Ny = tk.StringVar(); row += 1
 		self.Ny_entry = tk.Entry(frame, width = 16, textvariable = self.Ny)
 		self.Ny_entry.grid(column = 2, row = row, columnspan = 2 )
 		tk.Label(frame, text = "     #").grid(column = 2, row = row, sticky = tk.W )
-
-		self.activate_entrys
 		
 		# --- invisible separator ---
 		row += 1
 		tk.Label(frame, text = "").grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W, ipady = 1)
 
 		# --- phistart ---
-		self.phistart = tk.StringVar(); self.phistart.set(str(data[7])); row += 1
+		self.phistart = tk.StringVar();  row += 1
 		tk.Entry(frame, width = 7, textvariable = self.phistart).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "tor. Angle [deg]").grid(column = 1, row = row, sticky = tk.E )
 		tk.Label(frame, text = "For Machine coord. use negative angles").grid(column = 3, row = row, columnspan = 3, sticky = tk.W )
@@ -834,17 +879,17 @@ class dtfix_gui:
 		separator.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- coils ---
-		self.useFcoil = tk.IntVar(); self.useFcoil.set(int(data[13])); row += 1
+		self.useFcoil = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Off', variable = self.useFcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'On', variable = self.useFcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use F-coil").grid(column = 1, row = row, sticky = tk.E )
 
-		self.useCcoil = tk.IntVar(); self.useCcoil.set(int(data[14])); row += 1
+		self.useCcoil = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Off', variable = self.useCcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'On', variable = self.useCcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use C-coil").grid(column = 1, row = row, sticky = tk.E )
 
-		self.useIcoil = tk.IntVar(); self.useIcoil.set(int(data[15])); row += 1
+		self.useIcoil = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Off', variable = self.useIcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'On', variable = self.useIcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use I-coil").grid(column = 1, row = row, sticky = tk.E )
@@ -855,7 +900,7 @@ class dtfix_gui:
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); self.useM3DC1.set(int(data[10])); row += 1
+		self.useM3DC1 = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
@@ -866,22 +911,20 @@ class dtfix_gui:
 			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); self.response.set(int(data[9])); row += 1
+		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
 		
-		self.activate_response()
-
 		# --- separator ---
 		row += 1
 		separator3 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator3.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- particles ---
-		self.sigma = tk.IntVar(); self.sigma.set(int(data[16])); row += 1
+		self.sigma = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Field lines', variable = self.sigma, value = 0, 
 			command = self.show_particle_params).grid(column = 2, row = row, sticky = tk.W + tk.E + tk.N)
 		tk.Radiobutton(frame, text = 'Co pass', variable = self.sigma, value = 1,
@@ -890,7 +933,7 @@ class dtfix_gui:
 			command = self.show_particle_params).grid(column = 4, row = row, sticky = tk.W + tk.E + tk.N)
 		tk.Label(frame, text = "Orbits").grid(column = 1, row = row, sticky = tk.E + tk.N)
 
-		self.charge = tk.IntVar(); self.charge.set(int(data[17])); row += 1; self.row_particle = row
+		self.charge = tk.IntVar(); row += 1; self.row_particle = row
 		self.charge_R1 = tk.Radiobutton(frame, text = 'Electrons', variable = self.charge, value = -1)
 		self.charge_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.charge_R2 = tk.Radiobutton(frame, text = 'Ions', variable = self.charge, value = 1)
@@ -898,13 +941,13 @@ class dtfix_gui:
 		self.charge_label = tk.Label(frame, text = "Species")
 		self.charge_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.Ekin = tk.StringVar(); self.Ekin.set(str(data[18])); row += 1
+		self.Ekin = tk.StringVar(); row += 1
 		self.Ekin_entry = tk.Entry(frame, width = 7, textvariable = self.Ekin)
 		self.Ekin_entry.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.Ekin_label = tk.Label(frame, text = "kin Energy [keV]")
 		self.Ekin_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.Lambda = tk.StringVar(); self.Lambda.set(str(data[19]));
+		self.Lambda = tk.StringVar();
 		self.Lambda_entry = tk.Entry(frame, width = 7, textvariable = self.Lambda)
 		self.Lambda_entry.grid(column = 4, row = row, sticky = tk.W + tk.E )
 		self.Lambda_label = tk.Label(frame, text = "Energy ratio")	
@@ -916,7 +959,7 @@ class dtfix_gui:
 		separator4.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- Filament ---
-		self.useFilament = tk.StringVar(); self.useFilament.set(str(int(data[20]))); row += 1
+		self.useFilament = tk.StringVar(); row += 1
 		tk.Entry(frame, width = 7, textvariable = self.useFilament).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "# current Filaments").grid(column = 1, row = row, sticky = tk.E )
 
@@ -925,10 +968,44 @@ class dtfix_gui:
 		runButton = tk.Button(frame, text = "Run dtfix", command = self.run_funct)
 		runButton.grid(column = 1, row = row, columnspan = 5, sticky = tk.W + tk.E)
 
-		# --- adjust style for all ---
+		# --- adjust style ---
 		for child in frame.winfo_children(): child.grid_configure(padx=5, pady=5)
-		self.show_particle_params()
+		self.set_defaults()
 
+
+	# --- set default values ---
+	def set_defaults(self):
+		# --- read parameterfile, if it is there ---
+		if os.path.isfile(self.path.get() + '_fix.dat'):
+			_,_,_, data = self.M.readControlFile(self.path.get() + '_fix.dat')
+		else: # defaults
+			data = [1e-4, 0, 1, 1.3, 4.1, 4.6, 900, 0, 1, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
+					100, 0.1, 0, 3.141592653589793, 6.283185307179586]
+					
+		self.shift = data[0]
+		self.MapDirection = int(data[8]); 		
+		self.xmin.set(str(data[4]))
+		self.xmax.set(str(data[5]))
+		self.Nx.set(str(int(data[6]**0.5)))
+		self.ymin.set(str(data[2]))
+		self.ymax.set(str(data[3]))
+		self.Ny.set(str(int(data[6]**0.5)))
+		self.phistart.set(str(data[7]));
+		self.useFcoil.set(int(data[13])); 
+		self.useCcoil.set(int(data[14])); 
+		self.useIcoil.set(int(data[15])); 
+		self.useM3DC1.set(int(data[10])); 
+		self.response.set(int(data[9])); 
+		self.sigma.set(int(data[16])); 
+		self.charge.set(int(data[17])); 
+		self.Ekin.set(str(data[18])); 
+		self.Lambda.set(str(data[19]));
+		self.useFilament.set(str(int(data[20]))); 
+		
+		self.activate_entrys	
+		self.activate_response()
+		self.show_particle_params()
+		
 
 	# --- Function, executed when Button is pressed ---
 	def run_funct(self):
@@ -936,6 +1013,10 @@ class dtfix_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 
+		# check that gPath ends with a /
+		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
+	
+		# expand path to full
 		cwd = os.getcwd()
 		if(self.path.get()[0] == '.'):
 			path = cwd + self.path.get()[1::]
@@ -1067,24 +1148,12 @@ class dtfix_gui:
 class dtman_gui:
 	def __init__(self, frame, M):
 		
-		# --- read parameterfile, if it is there ---
-		if os.path.isfile('_fix.dat'):
-			_,_,_, data = M.readControlFile('_fix.dat')
-		else: # defaults
-			data = [1e-4, 0, 1, 1.3, 4.1, 4.6, 900, 0, 1, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
-					100, 0.1, 0, 3.141592653589793, 6.283185307179586]
-	
+		self.M = M
 		self.Shot = M.Shot
 		self.Time = M.Time
 		self.gPath = M.gPath
 		self.tag = M.tag
 		self.path = M.path
-		
-		self.xmin = data[4]
-		self.xmax = data[5]
-		self.ymin = data[2]
-		self.ymax = data[3]
-		self.N = data[6]
 		
 		okayCommand = frame.register(self.isOkay)
 		notOkayCommand = frame.register(self.isNotOkay)
@@ -1092,8 +1161,6 @@ class dtman_gui:
 		# --- type ---
 		# define... 
 		self.Type = tk.IntVar(); row = 0
-		if(data[8] >= 0): self.Type.set(1)
-		else: self.Type.set(-1)
 
 		# ...and set type RadioButton
 		tk.Radiobutton(frame, text = 'unstable', variable = self.Type, value = 1, 
@@ -1103,13 +1170,11 @@ class dtman_gui:
 		tk.Label(frame, text = "Manifold").grid(column = 1, row = row, sticky = tk.E )
 
 		# --- shift ---
-		self.shift = tk.StringVar(); self.shift.set(str(abs(data[0]))); row += 1
+		self.shift = tk.StringVar(); row += 1
 		tk.Entry(frame, width = 7, textvariable = self.shift).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "|Shift|").grid(column = 1, row = row, sticky = tk.E )
 
 		self.shift_sign = tk.IntVar()
-		if(data[0] >= 0): self.shift_sign.set(1)
-		else: self.shift_sign.set(-1)
 		tk.Radiobutton(frame, text = 'right', variable = self.shift_sign, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'left', variable = self.shift_sign, value = -1).grid(column = 4, row = row, sticky = tk.W + tk.E )
 				
@@ -1142,37 +1207,35 @@ class dtman_gui:
 		tk.Label(frame, text = "").grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W, ipady = 1)
 
 		# --- phistart ---
-		self.phistart = tk.StringVar(); self.phistart.set(str(data[7])); row += 1
+		self.phistart = tk.StringVar();  row += 1
 		tk.Entry(frame, width = 7, textvariable = self.phistart).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "tor. Angle [deg]").grid(column = 1, row = row, sticky = tk.E )
 		tk.Label(frame, text = "For Machine coord. use negative angles").grid(column = 3, row = row, columnspan = 3, sticky = tk.W )
 
 		# --- MapDirection ---
-		self.MapDirection = tk.IntVar(); self.MapDirection.set(int(data[8])); row += 1
+		self.MapDirection = tk.IntVar();  row += 1
 		tk.Radiobutton(frame, text = '+1', variable = self.MapDirection, value = 1, state = tk.DISABLED).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = '-1', variable = self.MapDirection, value = -1, state = tk.DISABLED).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'both', variable = self.MapDirection, value = 0, state = tk.DISABLED).grid(column = 4, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "Map Direction").grid(column = 1, row = row, sticky = tk.E )
-
-		self.set_type()
-
+		
 		# --- separator ---
 		row += 1
 		separator = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- coils ---
-		self.useFcoil = tk.IntVar(); self.useFcoil.set(int(data[13])); row += 1
+		self.useFcoil = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Off', variable = self.useFcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'On', variable = self.useFcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use F-coil").grid(column = 1, row = row, sticky = tk.E )
 
-		self.useCcoil = tk.IntVar(); self.useCcoil.set(int(data[14])); row += 1
+		self.useCcoil = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Off', variable = self.useCcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'On', variable = self.useCcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use C-coil").grid(column = 1, row = row, sticky = tk.E )
 
-		self.useIcoil = tk.IntVar(); self.useIcoil.set(int(data[15])); row += 1
+		self.useIcoil = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Off', variable = self.useIcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'On', variable = self.useIcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use I-coil").grid(column = 1, row = row, sticky = tk.E )
@@ -1183,7 +1246,7 @@ class dtman_gui:
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); self.useM3DC1.set(int(data[10])); row += 1
+		self.useM3DC1 = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
@@ -1194,22 +1257,20 @@ class dtman_gui:
 			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); self.response.set(int(data[9])); row += 1
+		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
 		
-		self.activate_response()
-
 		# --- separator ---
 		row += 1
 		separator3 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator3.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- particles ---
-		self.sigma = tk.IntVar(); self.sigma.set(int(data[16])); row += 1
+		self.sigma = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Field lines', variable = self.sigma, value = 0, 
 			command = self.show_particle_params).grid(column = 2, row = row, sticky = tk.W + tk.E + tk.N)
 		tk.Radiobutton(frame, text = 'Co pass', variable = self.sigma, value = 1,
@@ -1218,7 +1279,7 @@ class dtman_gui:
 			command = self.show_particle_params).grid(column = 4, row = row, sticky = tk.W + tk.E + tk.N)
 		tk.Label(frame, text = "Orbits").grid(column = 1, row = row, sticky = tk.E + tk.N)
 
-		self.charge = tk.IntVar(); self.charge.set(int(data[17])); row += 1; self.row_particle = row
+		self.charge = tk.IntVar(); row += 1; self.row_particle = row
 		self.charge_R1 = tk.Radiobutton(frame, text = 'Electrons', variable = self.charge, value = -1)
 		self.charge_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.charge_R2 = tk.Radiobutton(frame, text = 'Ions', variable = self.charge, value = 1)
@@ -1226,13 +1287,13 @@ class dtman_gui:
 		self.charge_label = tk.Label(frame, text = "Species")
 		self.charge_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.Ekin = tk.StringVar(); self.Ekin.set(str(data[18])); row += 1
+		self.Ekin = tk.StringVar(); row += 1
 		self.Ekin_entry = tk.Entry(frame, width = 7, textvariable = self.Ekin)
 		self.Ekin_entry.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.Ekin_label = tk.Label(frame, text = "kin Energy [keV]")
 		self.Ekin_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.Lambda = tk.StringVar(); self.Lambda.set(str(data[19]));
+		self.Lambda = tk.StringVar(); 
 		self.Lambda_entry = tk.Entry(frame, width = 7, textvariable = self.Lambda)
 		self.Lambda_entry.grid(column = 4, row = row, sticky = tk.W + tk.E )
 		self.Lambda_label = tk.Label(frame, text = "Energy ratio")	
@@ -1244,7 +1305,7 @@ class dtman_gui:
 		separator4.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- Filament ---
-		self.useFilament = tk.StringVar(); self.useFilament.set(str(int(data[20]))); row += 1
+		self.useFilament = tk.StringVar(); row += 1
 		tk.Entry(frame, width = 7, textvariable = self.useFilament).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "# current Filaments").grid(column = 1, row = row, sticky = tk.E )
 
@@ -1256,8 +1317,49 @@ class dtman_gui:
 		# --- adjust style for all ---
 		for child in frame.winfo_children(): child.grid_configure(padx=5, pady=5)
 		self.cptag.grid_configure(pady = 1)
-		self.show_particle_params()
+		self.set_defaults()
 
+
+	# --- set default values ---
+	def set_defaults(self):
+		# --- read parameterfile, if it is there ---
+		if os.path.isfile(self.path.get() + '_fix.dat'):
+			_,_,_, data = self.M.readControlFile(self.path.get() + '_fix.dat')
+		else: # defaults
+			data = [1e-4, 0, 1, 1.3, 4.1, 4.6, 900, 0, 1, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
+					100, 0.1, 0, 3.141592653589793, 6.283185307179586]
+	
+		self.xmin = data[4]
+		self.xmax = data[5]
+		self.ymin = data[2]
+		self.ymax = data[3]
+		self.N = data[6]
+		
+		if(data[8] >= 0): self.Type.set(1)
+		else: self.Type.set(-1)
+			
+		self.shift.set(str(abs(data[0])))
+		
+		if(data[0] >= 0): self.shift_sign.set(1)
+		else: self.shift_sign.set(-1)
+			
+		self.phistart.set(str(data[7]));
+		self.MapDirection.set(int(data[8]));
+		self.useFcoil.set(int(data[13])); 
+		self.useCcoil.set(int(data[14])); 
+		self.useIcoil.set(int(data[15])); 
+		self.useM3DC1.set(int(data[10])); 
+		self.response.set(int(data[9])); 
+		self.sigma.set(int(data[16])); 
+		self.charge.set(int(data[17])); 
+		self.Ekin.set(str(data[18])); 
+		self.Lambda.set(str(data[19]));
+		self.useFilament.set(str(int(data[20])));
+		
+		self.set_type()
+		self.activate_response()
+		self.show_particle_params()
+		
 
 	# --- validity check of FixFile Tag ---
 	# returns True if tag is alphanumeric or has _ + - as special chars
@@ -1277,6 +1379,10 @@ class dtman_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 
+		# check that gPath ends with a /
+		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
+	
+		# expand path to full
 		cwd = os.getcwd()
 		if(self.path.get()[0] == '.'):
 			path = cwd + self.path.get()[1::]
@@ -1396,12 +1502,12 @@ class dtman_gui:
 class dtfoot_gui:
 	def __init__(self, frame, M):
 		
+		self.M = M
 		self.Shot = M.Shot
 		self.Time = M.Time
 		self.gPath = M.gPath
 		self.tag = M.tag
 		self.path = M.path
-		self.readControlFile = M.readControlFile
 
 		# --- target  type ---
 		# define... 
@@ -1409,11 +1515,11 @@ class dtfoot_gui:
 
 		# ...and set grid-type RadioButton
 		tk.Radiobutton(frame, text = 'Inner', variable = self.TargetFlag, value = 1, 
-			command = self.read_defaults).grid(column = 2, row = row, sticky = tk.W + tk.E )
+			command = self.set_defaults).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'Outer', variable = self.TargetFlag, value = 2, 
-			command = self.read_defaults).grid(column = 3, row = row, sticky = tk.W + tk.E )
+			command = self.set_defaults).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'Shelf', variable = self.TargetFlag, value = 3, 
-			command = self.read_defaults).grid(column = 4, row = row, sticky = tk.W + tk.E )
+			command = self.set_defaults).grid(column = 4, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "Target").grid(column = 1, row = row, sticky = tk.E )
 		
 		# --- x -> phi ---
@@ -1584,9 +1690,56 @@ class dtfoot_gui:
 
 		# --- adjust style for all ---
 		for child in frame.winfo_children(): child.grid_configure(padx=5, pady=5)
+		self.set_defaults()
+
+
+	# --- read initial settings from file or set defaults ---
+	def set_defaults(self):
+		if(self.TargetFlag.get() == 1):
+			self.y_label.configure(text = "t [-1 <--> 1]")
+			self.Info.configure(text = "t < 0: Centerpost upwards, t > 0: 45deg Tile downwards, t = 0: Connection point")
+			if os.path.isfile(self.path.get() + '_inner.dat'):
+				_,_,_, data = self.M.readControlFile(self.path.get() + '_inner.dat')
+			else: # defaults
+				data = [500, 300, -0.1, 0.3, 0, 6.283185307179586, 400, 0, -1, 0, -1, 1, 2, 1, 1, 1, 0, 1, 
+						100, 0.1, 0, 3.141592653589793, 6.283185307179586]
+		elif(self.TargetFlag.get() == 2):
+			self.y_label.configure(text = "t [0 <--> 1]")
+			self.Info.configure(text = "t > 0: Divertor Floor outwards, t = 0: Connection 45deg Tile, t = 1: Pump Entry")
+			if os.path.isfile(self.path.get() + '_outer.dat'):
+				_,_,_, data = self.M.readControlFile(self.path.get() + '_outer.dat')
+			else: # defaults
+				data = [500, 300, 0.9, 1.0, 0, 6.283185307179586, 100, 0, 1, 0, -1, 2, 2, 1, 1, 1, 0, 1, 
+						100, 0.1, 0, 3.141592653589793, 6.283185307179586]
+		else:
+			self.y_label.configure(text = "t [0 <--> 1]")
+			self.Info.configure(text = "t > 0: Shelf outwards, t = 0: Nose edge")
+			if os.path.isfile(self.path.get() + '_shelf.dat'):
+				_,_,_, data = self.M.readControlFile(self.path.get() + '_shelf.dat')
+			else: # defaults
+				data = [500, 300, 0.0, 0.1, 0, 6.283185307179586, 100, 0, 1, 0, -1, 3, 2, 1, 1, 1, 0, 1, 
+						100, 0.1, 0, 3.141592653589793, 6.283185307179586]
 		
-		# --- read parameterfile, if it is there ---
-		self.read_defaults()
+		self.xmin.set(str(data[4]))
+		self.xmax.set(str(data[5]))
+		self.Nx.set(str(int(data[0])))
+		self.ymin.set(str(data[2]))
+		self.ymax.set(str(data[3]))
+		self.Ny.set(str(int(data[6])))
+		self.itt.set(str(int(data[1])))
+		self.MapDirection.set(int(data[8]))
+		self.useFcoil.set(int(data[13]))
+		self.useCcoil.set(int(data[14]))
+		self.useIcoil.set(int(data[15]))
+		self.useM3DC1.set(int(data[10]))
+		self.response.set(int(data[9]))
+		self.sigma.set(int(data[16]))
+		self.charge.set(int(data[17]))
+		self.Ekin.set(str(data[18]))
+		self.Lambda.set(str(data[19]))
+		self.useFilament.set(str(int(data[20])))			
+		self.data = data
+		
 		self.activate_response()
 		self.show_particle_params()
 
@@ -1597,6 +1750,10 @@ class dtfoot_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 		
+		# check that gPath ends with a /
+		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
+	
+		# expand path to full
 		cwd = os.getcwd()
 		if(self.path.get()[0] == '.'):
 			path = cwd + self.path.get()[1::]
@@ -1649,55 +1806,7 @@ class dtfoot_gui:
 			elif(type == 'shelf'):
 				f.write('mpirun -n ${NSLOTS} dtfoot_mpi _shelf.dat ' + tag + '\n')
 			
-	
-	# --- read initial settings from file or set defaults ---
-	def read_defaults(self):
-		if(self.TargetFlag.get() == 1):
-			self.y_label.configure(text = "t [-1 <--> 1]")
-			self.Info.configure(text = "t < 0: Centerpost upwards, t > 0: 45deg Tile downwards, t = 0: Connection point")
-			if os.path.isfile('_inner.dat'):
-				_,_,_, data = self.readControlFile('_inner.dat')
-			else: # defaults
-				data = [500, 300, -0.1, 0.3, 0, 6.283185307179586, 400, 0, -1, 0, -1, 1, 2, 1, 1, 1, 0, 1, 
-						100, 0.1, 0, 3.141592653589793, 6.283185307179586]
-		elif(self.TargetFlag.get() == 2):
-			self.y_label.configure(text = "t [0 <--> 1]")
-			self.Info.configure(text = "t > 0: Divertor Floor outwards, t = 0: Connection 45deg Tile, t = 1: Pump Entry")
-			if os.path.isfile('_outer.dat'):
-				_,_,_, data = self.readControlFile('_outer.dat')
-			else: # defaults
-				data = [500, 300, 0.9, 1.0, 0, 6.283185307179586, 100, 0, 1, 0, -1, 2, 2, 1, 1, 1, 0, 1, 
-						100, 0.1, 0, 3.141592653589793, 6.283185307179586]
-		else:
-			self.y_label.configure(text = "t [0 <--> 1]")
-			self.Info.configure(text = "t > 0: Shelf outwards, t = 0: Nose edge")
-			if os.path.isfile('_shelf.dat'):
-				_,_,_, data = self.readControlFile('_shelf.dat')
-			else: # defaults
-				data = [500, 300, 0.0, 0.1, 0, 6.283185307179586, 100, 0, 1, 0, -1, 3, 2, 1, 1, 1, 0, 1, 
-						100, 0.1, 0, 3.141592653589793, 6.283185307179586]
-
-		self.xmin.set(str(data[4]))
-		self.xmax.set(str(data[5]))
-		self.Nx.set(str(int(data[0])))
-		self.ymin.set(str(data[2]))
-		self.ymax.set(str(data[3]))
-		self.Ny.set(str(int(data[6])))
-		self.itt.set(str(int(data[1])))
-		self.MapDirection.set(int(data[8]))
-		self.useFcoil.set(int(data[13]))
-		self.useCcoil.set(int(data[14]))
-		self.useIcoil.set(int(data[15]))
-		self.useM3DC1.set(int(data[10]))
-		self.response.set(int(data[9]))
-		self.sigma.set(int(data[16]))
-		self.charge.set(int(data[17]))
-		self.Ekin.set(str(data[18]))
-		self.Lambda.set(str(data[19]))
-		self.useFilament.set(str(int(data[20])))			
-		self.data = data
-
-			
+				
 	# --- turn on/off response radiobutton ---
 	def activate_response(self):
 		if(self.useM3DC1.get() == -1):
@@ -1766,30 +1875,16 @@ class dtfoot_gui:
 class dtlam_gui:
 	def __init__(self, frame, M):
 		
-		# --- read parameterfile, if it is there ---
-		if os.path.isfile('_lam_psi.dat'):
-			_,_,_, data = M.readControlFile('_lam_psi.dat')
-		else: # defaults
-			data = [1200, 200, 0.88, 1.02, 0, 6.283185307179586, 700, 0, 0, 0, -1, 1, 3, 1, 1, 1, 0, 1, 
-					100, 0.1, 0, 3.141592653589793, 6.283185307179586]
-		if os.path.isfile('_lam.dat'):
-			_,_,_, data = M.readControlFile('_lam.dat')
-		else: # defaults
-			data = [930, 200, 1.0, 1.45, -1.367, -0.902, 900, 0, 0, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
-					100, 0.1, 0, 3.141592653589793, 6.283185307179586]
-
+		self.M = M
 		self.Shot = M.Shot
 		self.Time = M.Time
 		self.gPath = M.gPath
 		self.tag = M.tag
 		self.path = M.path
-		self.readControlFile = M.readControlFile
 
 		# --- grid  type ---
 		# define... 
 		self.createFlag = tk.StringVar(); row = 0
-		if(data[12] == 3) | (data[12] == 4): self.createFlag.set('psi')
-		else: self.createFlag.set('RZ')
 
 		# ...and set grid-type RadioButton
 		tk.Radiobutton(frame, text = 'RZ', variable = self.createFlag, value = 'RZ', 
@@ -1805,24 +1900,18 @@ class dtlam_gui:
 		
 		# Min
 		self.xmin = tk.StringVar(); 
-		if(self.createFlag.get() == 'RZ'): self.xmin.set(str(data[2]))
-		else: self.xmin.set(str(data[4]))
 		tk.Entry(frame, width = 16, textvariable = self.xmin).grid(column = 2, row = row, columnspan = 2)
 		xmin_label = tk.Label(frame, text = "  Min")
 		xmin_label.grid(column = 2, row = row, sticky = tk.W )
 
 		# Max
 		self.xmax = tk.StringVar();
-		if(self.createFlag.get() == 'RZ'): self.xmax.set(str(data[3]))
-		else: self.xmax.set(str(data[5]))
 		tk.Entry(frame, width = 16, textvariable = self.xmax).grid(column = 4, row = row, columnspan = 2)
 		xmax_label = tk.Label(frame, text = "Max")
 		xmax_label.grid(column = 4, row = row, sticky = tk.W )
 
 		# Nx -> Nth or NR
 		self.Nx = tk.StringVar(); row += 1
-		if(self.createFlag.get() == 'psi'): self.Nx.set(str(int(data[0])))
-		else: self.Nx.set(str(int(data[6])))
 		tk.Entry(frame, width = 16, textvariable = self.Nx).grid(column = 2, row = row, columnspan = 2)
 		tk.Label(frame, text = "     #").grid(column = 2, row = row, sticky = tk.W )
 		
@@ -1839,40 +1928,34 @@ class dtlam_gui:
 		
 		# Min
 		self.ymin = tk.StringVar();
-		if(self.createFlag.get() == 'RZ'): self.ymin.set(str(data[4]))
-		else: self.ymin.set(str(data[2]))
 		tk.Entry(frame, width = 16, textvariable = self.ymin).grid(column = 2, row = row, columnspan = 2)
 		ymin_label = tk.Label(frame, text = "  Min")
 		ymin_label.grid(column = 2, row = row, sticky = tk.W )
 
 		# Max
 		self.ymax = tk.StringVar();
-		if(self.createFlag.get() == 'RZ'): self.ymax.set(str(data[5]))
-		else: self.ymax.set(str(data[3]))
 		tk.Entry(frame, width = 16, textvariable = self.ymax).grid(column = 4, row = row, columnspan = 2)
 		ymax_label = tk.Label(frame, text = "Max")
 		ymax_label.grid(column = 4, row = row, sticky = tk.W )
 
 		# Ny -> Nr, Npsi or NZ
 		self.Ny = tk.StringVar(); row += 1
-		if(self.createFlag.get() == 'psi'): self.Ny.set(str(int(data[6])))
-		else: self.Ny.set(str(int(data[0])))
 		tk.Entry(frame, width = 16, textvariable = self.Ny).grid(column = 2, row = row, columnspan = 2)
 		tk.Label(frame, text = "     #").grid(column = 2, row = row, sticky = tk.W )
 
 		# --- toroidal turns ---
-		self.itt = tk.StringVar(); self.itt.set(str(int(data[1]))); row += 1
+		self.itt = tk.StringVar(); row += 1
 		tk.Entry(frame, width = 7, textvariable = self.itt).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "tor. Iterations").grid(column = 1, row = row, sticky = tk.E )
 
 		# --- phistart ---
-		self.phistart = tk.StringVar(); self.phistart.set(str(data[7])); row += 1
+		self.phistart = tk.StringVar(); row += 1
 		tk.Entry(frame, width = 7, textvariable = self.phistart).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "tor. Angle [deg]").grid(column = 1, row = row, sticky = tk.E )
 		tk.Label(frame, text = "For Machine coord. use negative angles").grid(column = 3, row = row, columnspan = 3, sticky = tk.W )
 
 		# --- MapDirection ---
-		self.MapDirection = tk.IntVar(); self.MapDirection.set(int(data[8])); row += 1
+		self.MapDirection = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = '+1', variable = self.MapDirection, value = 1).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = '-1', variable = self.MapDirection, value = -1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'both', variable = self.MapDirection, value = 0).grid(column = 4, row = row, sticky = tk.W + tk.E )
@@ -1884,17 +1967,17 @@ class dtlam_gui:
 		separator.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- coils ---
-		self.useFcoil = tk.IntVar(); self.useFcoil.set(int(data[13])); row += 1
+		self.useFcoil = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Off', variable = self.useFcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'On', variable = self.useFcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use F-coil").grid(column = 1, row = row, sticky = tk.E )
 
-		self.useCcoil = tk.IntVar(); self.useCcoil.set(int(data[14])); row += 1
+		self.useCcoil = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Off', variable = self.useCcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'On', variable = self.useCcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use C-coil").grid(column = 1, row = row, sticky = tk.E )
 
-		self.useIcoil = tk.IntVar(); self.useIcoil.set(int(data[15])); row += 1
+		self.useIcoil = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Off', variable = self.useIcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'On', variable = self.useIcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use I-coil").grid(column = 1, row = row, sticky = tk.E )
@@ -1905,7 +1988,7 @@ class dtlam_gui:
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); self.useM3DC1.set(int(data[10])); row += 1
+		self.useM3DC1 = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
@@ -1916,22 +1999,20 @@ class dtlam_gui:
 			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); self.response.set(int(data[9])); row += 1
+		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
 		
-		self.activate_response()
-
 		# --- separator ---
 		row += 1
 		separator3 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator3.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- particles ---
-		self.sigma = tk.IntVar(); self.sigma.set(int(data[16])); row += 1
+		self.sigma = tk.IntVar(); row += 1
 		tk.Radiobutton(frame, text = 'Field lines', variable = self.sigma, value = 0, 
 			command = self.show_particle_params).grid(column = 2, row = row, sticky = tk.W + tk.E + tk.N)
 		tk.Radiobutton(frame, text = 'Co pass', variable = self.sigma, value = 1,
@@ -1940,7 +2021,7 @@ class dtlam_gui:
 			command = self.show_particle_params).grid(column = 4, row = row, sticky = tk.W + tk.E + tk.N)
 		tk.Label(frame, text = "Orbits").grid(column = 1, row = row, sticky = tk.E + tk.N)
 
-		self.charge = tk.IntVar(); self.charge.set(int(data[17])); row += 1; self.row_particle = row
+		self.charge = tk.IntVar(); row += 1; self.row_particle = row
 		self.charge_R1 = tk.Radiobutton(frame, text = 'Electrons', variable = self.charge, value = -1)
 		self.charge_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.charge_R2 = tk.Radiobutton(frame, text = 'Ions', variable = self.charge, value = 1)
@@ -1948,13 +2029,13 @@ class dtlam_gui:
 		self.charge_label = tk.Label(frame, text = "Species")
 		self.charge_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.Ekin = tk.StringVar(); self.Ekin.set(str(data[18])); row += 1
+		self.Ekin = tk.StringVar(); row += 1
 		self.Ekin_entry = tk.Entry(frame, width = 7, textvariable = self.Ekin)
 		self.Ekin_entry.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.Ekin_label = tk.Label(frame, text = "kin Energy [keV]")
 		self.Ekin_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.Lambda = tk.StringVar(); self.Lambda.set(str(data[19]));
+		self.Lambda = tk.StringVar()
 		self.Lambda_entry = tk.Entry(frame, width = 7, textvariable = self.Lambda)
 		self.Lambda_entry.grid(column = 4, row = row, sticky = tk.W + tk.E )
 		self.Lambda_label = tk.Label(frame, text = "Energy ratio")	
@@ -1966,7 +2047,7 @@ class dtlam_gui:
 		separator4.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- Filament ---
-		self.useFilament = tk.StringVar(); self.useFilament.set(str(int(data[20]))); row += 1
+		self.useFilament = tk.StringVar(); row += 1
 		tk.Entry(frame, width = 7, textvariable = self.useFilament).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "# current Filaments").grid(column = 1, row = row, sticky = tk.E )
 
@@ -1982,9 +2063,56 @@ class dtlam_gui:
 
 		# --- adjust style for all ---
 		for child in frame.winfo_children(): child.grid_configure(padx=5, pady=5)
+		self.set_defaults()
+		
+		
+	# --- set default values ---
+	def set_defaults(self):
+		# --- read parameterfile, if it is there ---
+		if os.path.isfile(self.path.get() + '_lam_psi.dat'):
+			_,_,_, data = self.M.readControlFile(self.path.get() + '_lam_psi.dat')
+		elif os.path.isfile(self.path.get() + '_lam.dat'):
+			_,_,_, data = self.M.readControlFile(self.path.get() + '_lam.dat')
+		else: # defaults
+			data = [930, 200, 1.0, 1.45, -1.367, -0.902, 900, 0, 0, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
+					100, 0.1, 0, 3.141592653589793, 6.283185307179586]
+					
+		if(data[12] == 3) | (data[12] == 4): self.createFlag.set('psi')
+		else: self.createFlag.set('RZ')
+		
+		if(self.createFlag.get() == 'RZ'): 
+			self.xmin.set(str(data[2]))
+			self.xmax.set(str(data[3]))
+			self.ymin.set(str(data[4]))
+			self.ymax.set(str(data[5]))
+			self.Nx.set(str(int(data[6])))
+			self.Ny.set(str(int(data[0])))
+		else: 
+			self.xmin.set(str(data[4]))
+			self.xmax.set(str(data[5]))
+			self.ymin.set(str(data[2]))
+			self.ymax.set(str(data[3]))
+			self.Nx.set(str(int(data[0])))
+			self.Ny.set(str(int(data[6])))
+
+		self.itt.set(str(int(data[1]))); 
+		self.phistart.set(str(data[7])); 
+		self.MapDirection.set(int(data[8])); 
+		self.useFcoil.set(int(data[13])); 
+		self.useCcoil.set(int(data[14])); 
+		self.useIcoil.set(int(data[15]));
+		self.useM3DC1.set(int(data[10])); 
+		self.response.set(int(data[9])); 
+		self.sigma.set(int(data[16])); 
+		self.charge.set(int(data[17])); 
+		self.Ekin.set(str(data[18])); 
+		self.Lambda.set(str(data[19]));
+		self.useFilament.set(str(int(data[20]))); 
+		
+		self.activate_response()
 		self.show_particle_params()
 		self.refresh_grid_labels()
-		
+
 
 	# --- Function, executed when Button is pressed ---
 	def run_funct(self):
@@ -1992,6 +2120,10 @@ class dtlam_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 
+		# check that gPath ends with a /
+		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
+	
+		# expand path to full
 		cwd = os.getcwd()
 		if(self.path.get()[0] == '.'):
 			path = cwd + self.path.get()[1::]
@@ -2042,8 +2174,8 @@ class dtlam_gui:
 			self.x_label.configure(text = "theta [rad]")
 			self.y_label.configure(text = "psi_n")
 			self.pi_text.grid(column = 4, row = self.pi_row, columnspan = 2)
-			if os.path.isfile('_lam_psi.dat'):
-				_,_,_, data = self.readControlFile('_lam_psi.dat')
+			if os.path.isfile(self.path.get() + '_lam_psi.dat'):
+				_,_,_, data = self.M.readControlFile(self.path.get() + '_lam_psi.dat')
 			else: # defaults
 				data = [1200, 200, 0.88, 1.02, 0, 6.283185307179586, 700, 0, 0, 0, -1, 1, 3, 1, 1, 1, 0, 1, 
 						100, 0.1, 0, 3.141592653589793, 6.283185307179586]
@@ -2058,8 +2190,8 @@ class dtlam_gui:
 			self.x_label.configure(text = "R [m]")
 			self.y_label.configure(text = "Z [m]")
 			self.pi_text.grid_forget()
-			if os.path.isfile('_lam.dat'):
-				_,_,_, data = self.readControlFile('_lam.dat')
+			if os.path.isfile(self.path.get() + '_lam.dat'):
+				_,_,_, data = self.M.readControlFile(self.path.get() + '_lam.dat')
 			else: # defaults
 				data = [930, 200, 1.0, 1.45, -1.367, -0.902, 900, 0, 0, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
 						100, 0.1, 0, 3.141592653589793, 6.283185307179586]
@@ -2161,7 +2293,7 @@ class info_gui:
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
 		'MAFOT Version 3.1 \n'
-		'GUI Version 1.0 \n'
+		'GUI Version 1.1 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'
@@ -2190,7 +2322,8 @@ def main():
 	elif(HOST == 'head.cluster'):
 		LD_LIBRARY_PATH = os.environ['LD_LIBRARY_PATH']
 		LD_LIBRARY_PATH += ':/opt/intel/composerxe-2011.0.084/compiler/lib/intel64:/opt/intel/composerxe-2011.0.084/mpirt/lib/intel64'
-		LD_LIBRARY_PATH += ':/opt/intel/composerxe-2011.0.084/mkl/lib/intel64:/home/wingen/lib/64/blitz/lib:/home/wingen/lib/64:/home/wingen/lib/64/hdf5/lib'
+		LD_LIBRARY_PATH += ':/opt/intel/composerxe-2011.0.084/mkl/lib/intel64'
+		LD_LIBRARY_PATH += ':/home/wingen/lib/64/blitz/lib:/home/wingen/lib/64:/home/wingen/lib/64/hdf5/lib'
 		os.environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
 
 	# --- set main window ---
