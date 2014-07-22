@@ -3,22 +3,22 @@ clear;
 % Color scaling in b
 TypeOfPlot = 1;   % 0: contourf  1: pcolor (fast)
 autoscale = 2;    %0: use b    1: scale color automatically   2: use b and set SOL value in Colormap to white
-spare_interior = 1; % (Laminar = 1 only) 0: interior is shown in red   1: interior is shown in white
+spare_interior = 0; % (Laminar = 1 only) 0: interior is shown in red   1: interior is shown in white
 b  = 0.22:0.02:1.8;   % Laminar (con. length only)
 b1 = 0.22:0.01:1.0;   % Inner target (con. length only)
 b2 = 0.22:0.01:1.0;   % Outer target (con. length only)
 
 % Main Filename
-Laminar = 0;          % 0: Footprint  1: Laminar Plot
+Laminar = 1;          % 0: Footprint  1: Laminar Plot
 WhatShallIPlot = 1;   % 0: ntor  1: con. length[km]  2: psimin
 printme = 1;          % 0: no export to jpg file     1: export to jpg
-FileToOpen = 'foot_in_Oliver.dat';
+FileToOpen = 'lam_pr.dat';
 
 % (printme==1 only) Comment line if not wanted: Add an additional string to output filename
 %praefix = '_psimin';
 
 % (Laminar == 0 only) Specify Target and Axis handling 
-Target = 1;   % 1: Inner 2: Outer
+Target = 2;   % 1: Inner 2: Outer
 Machine = 1;  % 0: x-Axis normal 1: x-Axis in deg (machine coordinates)
 Grid = 1;     % 0: no grid  1: grid on
 
@@ -45,8 +45,8 @@ styles = {'w-', 'wx', 'k.', 'w.', 'mx', 'm.', 'k+'};
 groesse = [20, 8, 15, 15, 8, 15, 6];    % markersizes for additional data 
 
 % (Laminar==1 & printme==1 only) Adjust colorbar position in [cm], if necessary
-correct_pos = +0.50;    % horizontal; Default: = 0
-correct_pos2 = 0.38;    % vertical (position and height, assumes symmetry); for total: 0.38
+correct_pos = 0.0;    % horizontal; Default: = 0
+correct_pos2 = 0;    % vertical (position and height, assumes symmetry); for total: 0.38
     
 %------------------------------------------------------------------
 %------------------------------------------------------------------
@@ -275,8 +275,8 @@ if(WhatShallIPlot==2)
 elseif(WhatShallIPlot==1)
     %text(cbpos(1)+0.5,0.6,'L_{c} [km]','FontName',schrift,'FontSize',schrift_size,'Rotation',-90, 'Units', 'normalized');
     set(get(cbar,'YLabel'),'String','L_{c} [km]','FontName',schrift,'FontSize',schrift_size,'Rotation',-90,'VerticalAlignment','bottom')
-    set(cbar,'YTick', [min(b)+0.2*(b(2)-b(1)) yTickCB 0.999]);
-    set(cbar, 'YTickLabel', {'SOL';yTickLabelCB; '1';});
+    %set(cbar,'YTick', [min(b)+0.2*(b(2)-b(1)) yTickCB 0.999]);
+    %set(cbar, 'YTickLabel', {'SOL';yTickLabelCB; '1';});
 %     set(cbar,'YTick', [min(b)+0.2*(b(2)-b(1)) yTickCB]);
 %     set(cbar, 'YTickLabel', {'SOL';yTickLabelCB;});
 

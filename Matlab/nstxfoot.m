@@ -12,13 +12,13 @@ b2 = [0.046:0.002:0.14];   % Outer target (con. length only)
 Laminar = 0;          % 0: Footprint  1: Laminar Plot
 WhatShallIPlot = 1;   % 0: ntor  1: con. length[km]  2: psimin
 printme = 0;          % 0: no export to jpg file     1: export to jpg
-FileToOpen = 'foot_inup.dat';
+FileToOpen = 'foot_outdwn_test.dat';
 
 % (printme==1 only) Comment line if not wanted: Add an additional string to output filename
 %praefix = '_long';
 
 % (Laminar == 0 only) Specify Target and Axis handling 
-Target = 1;   % 1: Inner 2: Outer
+Target = 2;   % 1: Inner 2: Outer
 Machine = 1;  % 0: x-Axis normal 1: x-Axis in deg (machine coordinates)
 
 % (Laminar == 0 only) Phi angle area 

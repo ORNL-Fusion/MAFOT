@@ -5,7 +5,7 @@ clc
 % -- Parameter setzen ----------------------------------------------
 
 % Minimal con. length to consider
-cmin = 0.22;
+cmin = 0.075;
 
 % -- Code ----------------------------------------------------------
 % Strikepoint and highest Tip position

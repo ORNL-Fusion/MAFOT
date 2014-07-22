@@ -5,9 +5,9 @@
 %function [Rg, Zg, PsiN] = readgfile(shotnum, tM)
 
 %clear
-shotnum=146626;
-tM=2250;
-gfile=['~/c++/d3d/gfiles/kinetic/g' int2str(shotnum) '.0' int2str(tM)];
+shotnum=132741;
+tM=3000;
+gfile=['~/c++/d3d/gfiles/g' int2str(shotnum) '.0' int2str(tM)];
 
 global Br
 global Bz
@@ -65,18 +65,18 @@ nz2=floor(nz/2);
 PsiN = (PsiRZ-PsiAxis)/(PsiSep-PsiAxis);
 PsiNMax=max(max(PsiN));
 
-% figure;
-% clf;
+figure;
+clf;
 % %surf(Rg,Zg,-PsiN)
 % shading interp
 % lighting phong 
 % camlight
 % view(2)
 % 
-% hold on
-% %contour(Rg,Zg,-PsiN,-(0:0.1:1),'k','Linewidth',1)
-% %contour(Rg,Zg,-PsiN,-(0.999999:0.000001:1),'r','Linewidth',2)
-% %contour(Rg,Zg,PsiN,1.02:0.02:1.04,'k','Linewidth',1)
+hold on
+contour(Rg,Zg,PsiN,(0:0.1:0.9),'k','Linewidth',1)
+contour(Rg,Zg,PsiN,(0.999999:0.000001:1),'r','Linewidth',2)
+contour(Rg,Zg,PsiN,1.02:0.02:1.04,'k','Linewidth',1)
 % C = contour(Rg,Zg,PsiN,0.95,'k','Linewidth',1);
 % 
 % % I coils
@@ -91,14 +91,14 @@ PsiNMax=max(max(PsiN));
 % zC=[0.8,-0.8];
 % %plot(rC(:),zC(:),'ok','MarkerFaceColor','b','MarkerSize',10)
 % 
-% rwall=wall(1:2:2*Nwall)';
-% zwall=wall(2:2:2*Nwall)';
-% rlcfs = lcfs(1:2:2*Nlcfs)';
-% zlcfs = lcfs(2:2:2*Nlcfs)';
-% plot(rlcfs,zlcfs,'k','Linewidth',2)
-% plot(rwall,zwall,'k','Linewidth',2)
-% plot(Raxis,Zaxis,'k+')
-% axis equal tight
+rwall=wall(1:2:2*Nwall)';
+zwall=wall(2:2:2*Nwall)';
+rlcfs = lcfs(1:2:2*Nlcfs)';
+zlcfs = lcfs(2:2:2*Nlcfs)';
+plot(rlcfs,zlcfs,'r','Linewidth',2)
+plot(rwall,zwall,'k','Linewidth',2)
+plot(Raxis,Zaxis,'k+')
+axis equal tight
 % 
 % title(horzcat(num2str(shot),'.0',num2str(time)))
 % set(get(gca,'title'),'fontsize',14,'fontweight', 'bold')

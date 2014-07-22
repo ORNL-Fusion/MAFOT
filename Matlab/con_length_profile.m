@@ -7,22 +7,22 @@
 %---------------- Set parameter here -------------------------------
 
 % Angle and Average range of profile in deg
-phi = 150;
+phi = 0;
 dphi = 5;      % average over [phi-dphi,phi+dphi]
 
 % Type of Profile
 profile = 0;    % 0 = Lc,   1 = HeatFlux
 
 % Strike-Point Position
-SP = 5.4;
-shift = -1.5;      % additional shift of Profile
+SP = 0;
+shift = 0;      % additional shift of Profile
 
 % Save Data to file
-saveme = 0;
+saveme = 1;
 shot = '132741';
 time = '3950';
 if(profile == 1) savename = ['./heatflux_' num2str(phi) 'deg_' shot '_' time '_inner_ip.dat'];
-else savename = ['./con_length_' num2str(phi) 'deg_' shot '_' time '_inner_fl.dat'];
+else savename = ['./con_length_' num2str(phi) 'deg_nopr.dat'];
 end
 
 %-------------------------------------------------------------------
@@ -35,7 +35,7 @@ index = find(X(:,1)>phi-dphi & X(:,1)<phi+dphi);
 Zp = Z(min(index):max(index),:);
 x = Y(1,:)';
 y = (sum(Zp,1)./size(Zp,1))';
-x = SP - x + shift;
+%x = SP - x + shift;
 
 % save Variables to disk
 if(saveme == 1) 
@@ -44,12 +44,13 @@ if(saveme == 1)
 end
 
 figure
-plot(x,y,'k-');
-%xlim([min(x) max(x)]);
-xlim([-20 20]);
-xlabel({'s [cm]'});
+plot(x,y,'k-', 'linewidth',1.5);
+xlim([min(x) max(x)]);
+xlim([1.4 1.6]);
+ylim([0 0.2]);
+xlabel({'R [m]'});
 ylabel({'L_c [km]'});
 grid on
 %close all;
 
-
+figure(gcf) % Bring current figure window to the front
