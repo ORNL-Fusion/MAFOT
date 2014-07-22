@@ -1,39 +1,49 @@
 import os
-import pickle
 from numpy import *
 from matplotlib.pyplot import *
 import scipy.interpolate as inter
 from matplotlib.colors import LogNorm
 from matplotlib.colors import LinearSegmentedColormap
 
-import readfile as rf
-from load_gfile_d3d import *
+import Misc.readfile as rf
+from EFIT.load_gfile_d3d import *
 import myColorMaps; reload(myColorMaps)
 
 HOME = os.getenv('HOME')
 
 
-def d3dplot(filename, path = './', printme = False, tag = None, graphic = 'png', typeOfPlot = 'contourf', 
-			coordinates = 'psi', what = 'psimin', target = None, physical = 1, b = None, N = 256, Title = None,
-			myticks = None, showSOL = True):
+def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', machine = 'd3d', 
+			tag = None, graphic = 'png', physical = 1, b = None, N = 60, Title = None,
+			typeOfPlot = 'contourf'):
 	# --- user input ------------------
+	# pathname		path/filename
 	# printme		True: save to File, False: no saving
-	# tag			arbitary string, attached to the file name of the saved figure
-	# graphic		'png', 'eps', 'pdf'
-	# typeOfPlot	'contourf', 'imshow'
 	# coordinates 	'RZ', 'psi', 'pest', 'phi'
 	# what 			'Lc', 'psimin', 'psimax', 'psiav'
-	# target		'in', 'out', 'shelf'
+	# machine		'd3d', 'iter'
+	# tag			arbitary string, attached to the file name of the saved figure
+	# graphic		'png', 'eps', 'pdf'
 	# physical		0: t native, 1: t in RZ, 2: t in cm
 	# b				array, user defined color range (e.g. use linspace), None: defaults are used
 	# N				int, Number of color levels, used only in default color array
 	# Title			string, Figure title
-	# mytick		array of where ticks are drawn on colorbar
-	# useSOL		bool, replace SOL tick with word 'SOL' on colorbar
+	# typeOfPlot	'contourf', 'imshow'
+	# ---------------------------------
+
+	# --- set path from pathname ---
+	idx = pathname[::-1].find('/')	# returns location of last '/' in pathname or -1 if not found
+	if(idx == -1):
+		path = './'
+		filename = pathname
+	else:
+		idx *= -1
+		path = pathname[0:idx - 1] + '/'	# path with a final '/'
+		filename = pathname[idx::]
 
 	if not (path[-1] == '/'): path += '/'
 	if(path[0] == '~'): path = HOME + path[1::]
-	
+
+	# --- auto-set footprint defaults from filename key-word ---
 	if(filename[0:4] == 'foot') & (target == None):
 		coordinates = 'phi'
 		if(filename[5:7] == 'in'): target = 'in'
@@ -43,7 +53,7 @@ def d3dplot(filename, path = './', printme = False, tag = None, graphic = 'png',
 			print 'Please specify target'
 			return
 		
-	# --- shot and time from fiel header ---
+	# --- shot and time from file header ---
 	with open(path + filename, 'r') as f:
 		# Skip first 3 lines
 		for i in xrange(3): head = f.readline()
@@ -61,7 +71,7 @@ def d3dplot(filename, path = './', printme = False, tag = None, graphic = 'png',
 	y = data[:,1].reshape(Nth,Npsi)
 	Lc = data[:,3].reshape(Nth,Npsi)
 	psimin = data[:,4].reshape(Nth,Npsi)
-	if (coordinates == 'psi') | (coordinates == 'pest'):
+	if ((coordinates == 'psi') | (coordinates == 'pest')) & (machine == 'd3d'):
 		psimax = data[:,5].reshape(Nth,Npsi)
 		psiav = data[:,6].reshape(Nth,Npsi)
 
@@ -79,31 +89,40 @@ def d3dplot(filename, path = './', printme = False, tag = None, graphic = 'png',
 		yLabel = '$\\psi$'
 
 	elif(coordinates == 'phi'):
-		xLabel = '$\\varphi$ $\\mathrm{[rad]}$'
-		yLabel = 't'
-		if(physical > 0):
-			x = (360 - x*180.0/pi)[:,::-1]	# reverse x
-			xLabel = '$\\phi$ $\\mathrm{[deg]}$'
-			yLabel = 'R [m]'
-			if(target== 'in'):
-				if(physical == 1):
-					y[y >= 0] *= 0.14
-					y[y < 0] *= 0.1959
-					y = -1.223 - y
-					y = y[::-1,:]	# reverse y
-					yLabel = 'Z [m]'
-				elif(physical == 2): 
-					y *= 19.59
-					yLabel = 't [cm]'
-			elif(target == 'out'): y = 1.153 + y*0.219
-			elif(target == 'shelf'): y = 1.372 + y*0.219
+		if(machine == 'd3d'):
+			xLabel = '$\\varphi$ $\\mathrm{[rad]}$'
+			yLabel = 't'
+			if(physical > 0):
+				x = (360 - x*180.0/pi)[:,::-1]	# reverse x
+				xLabel = '$\\phi$ $\\mathrm{[deg]}$'
+				yLabel = 'R [m]'
+				if(target== 'in'):
+					if(physical == 1):
+						y[y >= 0] *= 0.14
+						y[y < 0] *= 0.1959
+						y = -1.223 - y
+						y = y[::-1,:]	# reverse y
+						yLabel = 'Z [m]'
+					elif(physical == 2): 
+						y *= 19.59
+						yLabel = 't [cm]'
+				elif(target == 'out'): y = 1.153 + y*0.219
+				elif(target == 'shelf'): y = 1.372 + y*0.219
+		elif(machine == 'iter'):
+			xLabel = '$\\varphi$ $\\mathrm{[rad]}$'
+			yLabel = 't [cm]'
+			if(physical > 0):
+				x = x*180.0/pi
+				xLabel = '$\\phi$ $\\mathrm{[deg]}$'			
 	else:
 		print 'coordinates: Unknown input'
 		return
 
 	# --- set z data ------------------
 	if(what == 'Lc'):
-		if(b == None): b = linspace(0.075,0.4,N)
+		if(b == None): 
+			if(machine == 'd3d'): b = linspace(0.075,0.4,N)
+			elif(machine == 'iter'): b = linspace(0.22,1.8,N)
 		z = Lc
 		C_label = '$L_{c}$ $\\mathrm{[km]}$'
 		#usecolormap = cm.jet	#  'myjet', 'jet' or cm.jet, cm.jet_r
@@ -137,11 +156,14 @@ def d3dplot(filename, path = './', printme = False, tag = None, graphic = 'png',
 	usecolormap = LinearSegmentedColormap('my_cmap', cdict, len(b))
 	
 	# correct for PFR
+	if(machine == 'd3d'): Lcmin = 0.075
+	elif(machine == 'iter'): Lcmin = 0.22
+	
 	if(coordinates == 'RZ') | (coordinates == 'phi'): 
 		if not (what == 'Lc'):
-			z[Lc < 0.075] = 1.01*b.max()
+			z[Lc < Lcmin] = 1.01*b.max()
 	elif not (coordinates == 'phi'): 
-		if(what == 'Lc'): z[(y >= 1) & (z > 4)] = b.min()
+		if(what == 'Lc'): z[(y >= 1) & (z >= 4)] = b.min()
 		else: z[z < 0.5] = b.max()
 	
 	# reverse axes for footprint
@@ -162,7 +184,7 @@ def d3dplot(filename, path = './', printme = False, tag = None, graphic = 'png',
 
 	# --- Pest theta ------------------
 	if(coordinates == 'pest'):
-		import sfc_class
+		import Misc.sfc_class as sfc_class
 		sfc = sfc_class.straight_field_line_coordinates(shot, time)
 		xp = sfc.ev(x,y)
 		for i in xrange(Npsi):
@@ -171,9 +193,9 @@ def d3dplot(filename, path = './', printme = False, tag = None, graphic = 'png',
 
 	# --- layout ----------------------
 	#rcParams['text.latex.preamble'] = [r'\usepackage{times}']#\usepackage{amsmath}
-	rcParams['font.sans-serif'] = ['Arial', 'Helvetica']
-	rcParams['font.serif'] = ['Times', 'Times New Roman']
-	font = {'family' : 'serif',
+	rcParams['font.sans-serif'] = ['Arial', 'Helvetica', 'Bitstream Vera Sans']
+	rcParams['font.serif'] = ['Times', 'Times New Roman', 'Bitstream Vera Serif']
+	font = {'family' : 'sans-serif',
 			'weight' : 'normal', # normal
 			'size'   : 22} #18
 	matplotlib.rc('font', **font)
@@ -226,21 +248,20 @@ def d3dplot(filename, path = './', printme = False, tag = None, graphic = 'png',
 	
 	# --- Colorbar --------------------
 	# set ticks
-	if(myticks == None):
-		steps = (b.max() - b.min())/10.0
-		digit = int(floor(log10(steps)))
-		factor = 10**digit
-		steps = int(ceil(steps/factor))*factor
-		bmin = int(ceil(b.min()/factor))*factor
-		myticks = arange(bmin, b.max()+steps, steps)
-		if(coordinates == 'RZ') | (coordinates == 'phi'): 
-			if(what == 'psimin'): 
-				myticks = myticks[myticks <= b.max()]
-				myticks[-1] = b.max()
-			else:
-				myticks[0] = b.min()
+	steps = (b.max() - b.min())/10.0
+	digit = int(floor(log10(steps)))
+	factor = 10**digit
+	steps = int(ceil(steps/factor))*factor
+	bmin = int(ceil(b.min()/factor))*factor
+	myticks = arange(bmin, b.max()+steps, steps)
+	if(coordinates == 'RZ') | (coordinates == 'phi'): 
+		if(what == 'psimin'): 
+			myticks = myticks[myticks <= b.max()]
+			myticks[-1] = b.max()
+		else:
+			myticks[0] = b.min()
 	
-		myticks[abs(myticks) < 1e-10] = 0
+	myticks[abs(myticks) < 1e-10] = 0
 	
 	# If the "extend" argument is given, contourf sets the data limits to some odd extension of the actual data.
 	# Resetting the data limits, after plotting the contours, forces set_over & set_under colors to show,
@@ -248,14 +269,14 @@ def d3dplot(filename, path = './', printme = False, tag = None, graphic = 'png',
 	if(typeOfPlot == 'contourf'): cs.set_clim(b.min(),b.max())
 	if(coordinates == 'RZ') | (coordinates == 'phi'): 
 		if(what == 'psimin'): cs.cmap.set_over('w')
-		else: cs.cmap.set_under('w')
+		else: pass #cs.cmap.set_under('w')
 
 	# show colorbar
 	C = colorbar(cs, pad = 0.01, extend = 'both', format = '%.3g', ticks = myticks)
 	C.set_label(C_label, rotation = 270, size = C_label_size)
 	
 	# add SOL label in RZ plot and footprint
-	if((coordinates == 'RZ') | (coordinates == 'phi')) & (showSOL): 
+	if(coordinates == 'RZ') | (coordinates == 'phi'): 
 		myticklabels = [item.get_text() for item in C.ax.get_yticklabels()]
 		if(what == 'psimin'): myticklabels[-1] = 'SOL'
 		else: myticklabels[0] = 'SOL'
@@ -263,11 +284,15 @@ def d3dplot(filename, path = './', printme = False, tag = None, graphic = 'png',
 				
 	# --- additional plots ------------
 	if(coordinates == 'RZ'): # plot wall
-		wall = loadtxt(HOME + '/c++/d3d/wall.dat')
-		plot(wall[:,2], wall[:,3], 'k--', linewidth = 2)
+		if(machine == 'd3d'): 
+			wall = loadtxt(HOME + '/c++/d3d/wall.dat')
+			plot(wall[:,2], wall[:,3], 'k--', linewidth = 2)
+		elif(machine == 'iter'): 
+			wall = loadtxt(HOME + '/c++/iter/wall.dat')
+			plot(wall[:,0], wall[:,1], 'k--', linewidth = 2)
 		
 	if(coordinates == 'phi') & (target== 'in'):	# plot tile limit
-		if(physical == 1): plot([x.min(), x.max()], [-1.223, -1.223], 'k--', linewidth = 1.5)
+		if(physical == 1) & (machine == 'd3d'): plot([x.min(), x.max()], [-1.223, -1.223], 'k--', linewidth = 1.5)
 		else: plot([x.min(), x.max()], [0, 0], 'k--', linewidth = 1.5)
 		
 	# --- Title -----------------------
