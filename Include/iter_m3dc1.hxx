@@ -21,7 +21,7 @@
 
 bool outofBndy(double x, double y, EFIT& EQD);
 void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
-void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0);
+void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
 int get_target(EFIT& EQD, IO& PAR);
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
 					   EFIT& EQD, IO& PAR, PARTICLE& FLT);
@@ -428,7 +428,7 @@ B_phi += -B_X*sinp + B_Y*cosp;
 }
 
 //---------- prep_perturbation --------------------------------------------------------------------------------------------
-void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank)
+void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING supPath)
 {
 int i,j;
 int chk;
@@ -445,7 +445,7 @@ consts_.dtr = 1.0/consts_.rtd;
 // Read itersub.in file, if coils or M3D-C1 are on
 if(PAR.useIcoil == 1 || PAR.response_field > 0)
 {
-	in.open("itersup.in");
+	in.open(supPath + "itersup.in");
 	if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open itersup.in file " << endl; EXIT;}
 
 	for(i=1;i<=5;i++) in >> line;	// Skip 5 lines
@@ -468,8 +468,8 @@ if(PAR.response_field >= 0)		// use M3D-C1 plasma response output
 	if(in.fail()==1) // no m3dc1 control file found -> use default
 	{
 		m3dc1_nfiles = 1;
-		scale[0] = currents_.Iadj[0][2]	// Scale perturbation in M3D-C1 according to itersup.in, uses the top row adjust parameter (current = scale * 1kA)
-		m3dc1_filenames[0] = "C1.h5";	// set filename
+		scale[0] = currents_.Iadj[0][2];	// Scale perturbation in M3D-C1 according to itersup.in, uses the top row adjust parameter (current = scale * 1kA)
+		m3dc1_filenames[0] = "C1.h5";		// set filename
 	}
 	else	// m3dc1 control file found
 	{
