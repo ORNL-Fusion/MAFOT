@@ -74,15 +74,6 @@ extern "C"
 					double *x, double *y, double *z, double *bx, double *by, double *bz);
 }
 
-extern "C"
-{
-	void m3dc1_load_file_(int *itime, int *ierr);	// itime = 1: plasma response solution; itime = 0: vacuum field; ierr = 0: Read ok, else error
-	void m3dc1_get_field0_(double *R, double *phi, double *Z, double *br, double *bphi, double *bz);	// equilibrium field only
-	void m3dc1_get_field1_(double *R, double *phi, double *Z, double *br, double *bphi, double *bz);	// I-coil perturbation field only
-	void m3dc1_get_field_(double *R, double *phi, double *Z, double *br, double *bphi, double *bz);		// total field, turn off coils here
-	void m3dc1_unload_file_(void);
-	void m3dc1_set_scale_factor_(double *scale);
-}
 // -------------- global Parameters ---------------------------------------------------------------------------------------
 int simpleBndy = 0;		// 0: use real wall as boundaries, 1: use simple boundary box
 double bndy[4] = {1.0, 2.4, -1.367, 1.36};	// Boundary
@@ -91,6 +82,63 @@ Array<double,4> field;	// default constructed
 
 // ------------------ log file --------------------------------------------------------------------------------------------
 ofstream ofs2;
+
+// ---------------------- M3D-C1 functions --------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------------------------------
+#include <fusion_io_defs.h>
+#include <fusion_io_c.h>
+
+// M3D-C1 global Parameter and Variable
+const int m3dc1_nfiles_max = 10;	// max number of files = 10
+int m3dc1_nfiles = 1;				// default: use one file only
+int m3dc1_isrc[m3dc1_nfiles_max], m3dc1_imag[m3dc1_nfiles_max];
+
+// ----------------- m3dc1_load ---------------------------------------------------------------------------------------------
+int m3dc1_load(int response, int response_field, double scale[], LA_STRING m3dc1_filenames[])
+{
+int i, ierr, ierr2;
+for(i=0;i<m3dc1_nfiles;i++)
+{
+	// open file(s)
+	ierr =  fio_open_source(FIO_M3DC1_SOURCE, m3dc1_filenames[i], &(m3dc1_isrc[i]));
+
+    // Set options appropriate to this source
+    ierr2 = fio_get_options(m3dc1_isrc[i]);
+    ierr2 = fio_set_int_option(FIO_TIMESLICE, response);	// response = 1: plasma response solution; response = 0: vacuum field;
+
+    switch(response_field)
+    {
+    case 0: 	// M3D-C1: equilibrium field only
+    	ierr2 = fio_set_int_option(FIO_PART, FIO_EQUILIBRIUM_ONLY);
+    	break;
+
+    case 1:		// M3D-C1: I-coil perturbation field only
+        ierr2 = fio_set_real_option(FIO_LINEAR_SCALE, scale[i]);	// Scale I-coil perturbation in M3D-C1 according to diiidsup.in (current = scale * 1kA)
+    	ierr2 = fio_set_int_option(FIO_PART, FIO_PERTURBED_ONLY);
+    	break;
+
+    case 2:		// M3D-C1: total field
+        ierr2 = fio_set_real_option(FIO_LINEAR_SCALE, scale[i]);	// Scale I-coil perturbation in M3D-C1 according to diiidsup.in (current = scale * 1kA)
+    	ierr2 = fio_set_int_option(FIO_PART, FIO_TOTAL);
+    	break;
+    }
+
+    // set field handle
+    ierr2 = fio_get_field(m3dc1_isrc[i], FIO_MAGNETIC_FIELD, &(m3dc1_imag[i]));
+}
+return ierr;
+}
+
+// ----------------- m3dc1_unload -------------------------------------------------------------------------------------------
+void m3dc1_unload_file_(void)	// WARNING: name could become ambigous, when linked with library m3dc1_fortran.a (not the case so far)
+{
+int i, ierr;
+for(i=0;i<m3dc1_nfiles;i++)
+{
+	ierr = fio_close_field(m3dc1_imag[i]);
+	ierr = fio_close_source(m3dc1_isrc[i]);
+}
+}
 
 // ---------------------- IO Member functions -----------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------------------------------
@@ -265,12 +313,16 @@ return false;
 //---------------- getBfield ----------------------------------------------------------------------------------------------
 void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
 {
-int chk;
+int i, chk;
 double psi,dpsidr,dpsidz;
 double F;
 double X,Y,bx,by,bz;
 double B_X,B_Y;
 double sinp,cosp;
+double coord[3], b_field[3];
+
+coord[0] = R; coord[1] = phi; coord[2] = Z;
+B_R = 0; B_phi = 0; B_Z = 0;
 
 sinp = sin(phi);
 cosp = cos(phi);
@@ -293,22 +345,27 @@ case -1: case 1:	// Vacuum equilibrium field from g file
 	B_Z = -dpsidr/R;
 	break;
 
-case 0: 	// M3D-C1: equilibrium field only
-	m3dc1_get_field0_(&R, &phi, &Z, &B_R, &B_phi, &B_Z);
-	break;
-
-case 2: 	// M3D-C1: total field, coils are turned off in prep_perturbation
-	m3dc1_get_field_(&R, &phi, &Z, &B_R, &B_phi, &B_Z);
+case 0: case 2: 	// M3D-C1: equilibrium field or total field
+	for(i=0;i<m3dc1_nfiles;i++)
+	{
+		chk = fio_eval_field(m3dc1_imag[i], coord, b_field);
+		B_R += b_field[0];
+		B_phi += b_field[1];
+		B_Z += b_field[2];
+	}
 	break;
 }
 
 // M3D-C1: I-coil perturbation field only, coils are turned off in prep_perturbation
 if(PAR.response_field == 1)
 {
-	m3dc1_get_field1_(&R, &phi, &Z, &bx, &by, &bz);	// just reuse existing variables, routine returns bx = Br, by = Bphi, bz = Bz
-	B_R += bx;
-	B_phi += by;
-	B_Z += bz;
+	for(i=0;i<m3dc1_nfiles;i++)
+	{
+		chk = fio_eval_field(m3dc1_imag[i], coord, b_field);
+		B_R += b_field[0];
+		B_phi += b_field[1];
+		B_Z += b_field[2];
+	}
 }
 
 B_X = 0;	B_Y = 0;
@@ -353,40 +410,10 @@ B_phi += -B_X*sinp + B_Y*cosp;
 //---------- prep_perturbation --------------------------------------------------------------------------------------------
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING supPath)
 {
-int i;
+int i,j;
 int chk;
 LA_STRING line;	// entire line is read by ifstream
 ifstream in;
-
-// Read C1.h5 file
-if(PAR.response_field >= 0)		// use M3D-C1 plasma response output
-{
-	if(mpi_rank < 1) cout << "Loading M3D-C1 output file C1.h5" << endl;
-	ofs2 << "Loading M3D-C1 output file C1.h5" << endl;
-	
-	m3dc1_load_file_(&PAR.response, &chk);
-	if(chk != 0) {if(mpi_rank < 1) cout << "Error loding C1.h5 file" << endl; EXIT;}
-
-	if(mpi_rank < 1) cout << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
-	ofs2 << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
-}
-else
-{
-	if(mpi_rank < 1) cout << "Using g-file!" << endl;
-	ofs2 << "Using g-file!" << endl;
-}
-if(PAR.response_field > 0)		// Perturbation already included in M3D-C1 output
-{
-	if(mpi_rank < 1) cout << "Coils turned off: I-coil perturbation (only) already included in M3D-C1 output" << endl;
-	ofs2 << "Coils turned off: I-coil perturbation (only) already included in M3D-C1 output" << endl;
-
-	PAR.useFcoil = 0;
-	PAR.useCcoil = 0;
-	PAR.useIcoil = 0;
-}
-
-if(mpi_rank < 1) cout << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
-ofs2 << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
 
 // Set common blocks parameters
 consts_.pi = pi;
@@ -428,24 +455,83 @@ if(PAR.useFcoil == 1 || PAR.useCcoil == 1 || PAR.useIcoil == 1 || PAR.response_f
 	in.clear();	// reset ifstream for next use
 }
 
+// Prepare loading M3D-C1
+double scale[m3dc1_nfiles_max];
+LA_STRING m3dc1_filenames[m3dc1_nfiles_max];
+string m3dc1_file;
+if(PAR.response_field >= 0)		// use M3D-C1 plasma response output
+{
+	in.open(supPath + "m3dc1sup.in");
+	if(in.fail()==1) // no m3dc1 control file found -> use default: n = 3 only, scale by diiidsup.in file and filename = "C1.h5"
+	{
+		m3dc1_nfiles = 1;
+
+		// Scale I-coil perturbation in M3D-C1 according to diiidsup.in (current = scale * 1kA)
+		scale[0] = 0;
+		for(i=0;i<nIloops;i++) scale[0] += fabs(d3icoil_.curntIc[i]);
+		scale[0] /= 1000.0*nIloops;
+		scale[0] *= -sign(d3icoil_.curntIc[0]);		// proper phasing: first current < 0 -> 60¡ phase, else 0¡ phase
+
+		// set filename
+		m3dc1_filenames[0] = "C1.h5";
+	}
+	else	// m3dc1 control file found
+	{
+		i = 0;
+		while(in.eof()==0) // Last row is read twice --- can't be changed --- -> i-1 is actual number of rows in file
+		{
+			in >> m3dc1_file;
+			in >> scale[i];
+			m3dc1_filenames[i] = m3dc1_file.c_str();
+			i += 1;
+		}
+		m3dc1_nfiles = i - 1;
+	}
+}
+
+// Read C1.h5 file
+if(PAR.response_field >= 0)		// use M3D-C1 plasma response output
+{
+	if(mpi_rank < 1) cout << "Loading M3D-C1 output file C1.h5" << endl;
+	ofs2 << "Loading M3D-C1 output file C1.h5" << endl;
+
+	chk = m3dc1_load(PAR.response, PAR.response_field, scale, m3dc1_filenames);	// load C1.h5
+	if(chk != 0) {if(mpi_rank < 1) cout << "Error loding C1.h5 file" << endl; EXIT;}
+
+	if(mpi_rank < 1) cout << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
+	ofs2 << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
+}
+else
+{
+	if(mpi_rank < 1) cout << "Using g-file!" << endl;
+	ofs2 << "Using g-file!" << endl;
+}
+
+if(PAR.response_field > 0)		// Perturbation already included in M3D-C1 output
+{
+	for(j=0;j<m3dc1_nfiles;j++)
+	{
+		if(mpi_rank < 1) cout << "M3D-C1 file: " << m3dc1_filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << endl;
+		ofs2 << "M3D-C1 file: " << m3dc1_filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << endl;
+	}
+
+	if(mpi_rank < 1) cout << "Coils turned off: I-coil perturbation (only) already included in M3D-C1 output" << endl;
+	ofs2 << "Coils turned off: I-coil perturbation (only) already included in M3D-C1 output" << endl;
+
+	PAR.useFcoil = 0;
+	PAR.useCcoil = 0;
+	PAR.useIcoil = 0;
+}
+
+if(mpi_rank < 1) cout << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
+ofs2 << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
+
 // Write I-coil currents to log files (Check if corretly read in)
 ofs2 << "I-coil currents:" << endl;
 for(i=0;i<nIloops/2;i++) ofs2 << d3icoil_.curntIc[i] << "\t";
 ofs2 << endl;
 for(i=nIloops/2;i<nIloops;i++) ofs2 << d3icoil_.curntIc[i] << "\t";
 ofs2 << endl;
-
-// Scale I-coil perturbation in M3D-C1 according to diiidsup.in (current = scale * 1kA)
-double scale = 0;
-if(PAR.response_field > 0)
-{
-	for(i=0;i<nIloops;i++) scale += fabs(d3icoil_.curntIc[i]);
-	scale /= 1000.0*nIloops;
-	scale *= -sign(d3icoil_.curntIc[0]);		// proper phasing: first current < 0 -> 60¡ phase, else 0¡ phase
-	m3dc1_set_scale_factor_(&scale);
-	if(mpi_rank < 1) cout << "M3D-C1 perturbation scaling factor: " << scale << endl;
-	ofs2 << "M3D-C1 perturbation scaling factor: " << scale << endl;
-}
 
 // Set F-coil geometry
 if(PAR.useFcoil==1)
