@@ -1,0 +1,68 @@
+Read Parameterfile _plot.dat
+Shot: 126006	Time: 3600ms
+Using g-file!
+F-coil: 1	C-coil: 1	I-coil: 1
+
+Field lines are calculated
+Create (0=grid, 1=random, 2=target): 3
+
+Start Tracer for 40 points ... 
+Trax: 1	Steps: 300
+Trax: 2	Steps: 300
+Trax: 3	Steps: 300
+Trax: 4	Steps: 300
+Trax: 5	Steps: 300
+Trax: 6	Steps: 300
+Trax: 7	Steps: 300
+Trax: 8	Steps: 300
+Trax: 9	Steps: 300
+Trax: 10	Steps: 300
+Trax: 11	Steps: 300
+Trax: 12	Steps: 300
+Trax: 13	Steps: 300
+Trax: 14	Steps: 300
+Trax: 15	Steps: 300
+mapit: wall hit
+Trax: 16	Steps: 47
+Trax: 17	Steps: 300
+Trax: 18	Steps: 300
+Trax: 19	Steps: 300
+mapit: wall hit
+Trax: 20	Steps: 98
+Trax: 21	Steps: 300
+mapit: wall hit
+Trax: 22	Steps: 197
+mapit: wall hit
+Trax: 23	Steps: 43
+mapit: wall hit
+Trax: 24	Steps: 169
+mapit: wall hit
+Trax: 25	Steps: 243
+mapit: wall hit
+Trax: 26	Steps: 299
+Trax: 27	Steps: 300
+Trax: 28	Steps: 300
+mapit: wall hit
+Trax: 29	Steps: 144
+mapit: wall hit
+Trax: 30	Steps: 203
+mapit: wall hit
+Trax: 31	Steps: 289
+mapit: wall hit
+Trax: 32	Steps: 34
+mapit: wall hit
+Trax: 33	Steps: 236
+mapit: wall hit
+Trax: 34	Steps: 9
+Trax: 35	Steps: 300
+mapit: wall hit
+Trax: 36	Steps: 5
+mapit: wall hit
+Trax: 37	Steps: 4
+mapit: wall hit
+Trax: 38	Steps: 4
+mapit: wall hit
+Trax: 39	Steps: 4
+mapit: wall hit
+Trax: 40	Steps: 4
+Program terminates normally, Time: 196.116 s

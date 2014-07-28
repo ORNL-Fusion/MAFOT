@@ -1,0 +1,34 @@
+# ---- Folder ----
+MAFOT_DIR = /home/wingen/src/MAFOT
+BIN_DIR = /home/wingen/bin
+LIB_DIR = /home/wingen/lib/64
+
+# ---- Support M3DC1 ----
+# True or False
+M3DC1 = True
+
+# ---- Compiler ----
+CXX = g++
+CFLAGS = -O3 -fPIC
+OMPFLAGS = -fopenmp -w
+
+F90 = gfortran
+F90FLAGS = -O3 -fPIC
+
+# ---- Linker ----
+ARCH = ar crus
+
+LDD = g++ --shared
+LDFLAGS =
+
+# ---- external Libraries ---- 
+BLITZLIBS = -L/home/wingen/lib/64/blitz/lib -lblitz
+FLIBS = -L/usr/lib -lgfortran
+OMPLIBS = -L/usr/local/openmpi/lib -lmpi -lmpi_cxx
+M3DC1LIBS = -L/usr/local/m3dc1/lib -lfusionio -lm3dc1
+HDF5LIBS = -L/usr/local/hdf5/lib -lhdf5 -lz -Wl,-rpath,/usr/local/hdf5/lib -lstdc++
+
+# ---- external Includes ----
+BLITZINCLUDE = -I/home/wingen/lib/64/blitz/include
+OMPINCLUDE = -I/usr/local/openmpi/include -I/usr/local/openmpi/include/openmpi
+M3DC1INCLUDE = -I/usr/local/m3dc1/include

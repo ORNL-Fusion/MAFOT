@@ -1,0 +1,9 @@
+ &input
+!  ECcur(1:N,1) = currents in loop coil N [per turn, Amp], turns = 2
+!  ECadj(1:3,1) = addangle (deg), arcmax (deg), current scale factor (no dim) 
+!  Configuration: N=6 n=3
+ ECcur(:,1) =
+	+1000 -1000 +1000 -1000 +1000 -1000
+ ECadj(:,1) =
+	+000.0 15.0 +1.0
+ &END

@@ -1,0 +1,21 @@
+If your GCC compiler is version 4.3 or higher you will need to patch Blitz:
+
+Use a text editor to add
+#include <cstdlib>
+to blitz/funcs.h and blitz/mathfunc.h just before BZ_NAMESPACE(blitz)
+
+blitz/funcs.h:
+------------------------------------------------
+#include <blitz/prettyprint.h>
+#include <cstdlib>
+------------------------------------------------
+
+blitz/mathfunc.h:
+------------------------------------------------
+#ifndef BZ_PRETTYPRINT_H
+ #include <blitz/prettyprint.h>
+#endif
+ 
+#include <cstdlib>
+------------------------------------------------
+

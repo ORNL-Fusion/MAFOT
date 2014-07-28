@@ -1,0 +1,25 @@
+# Parameterfile for MAST programs
+# Shot: 025075	Time: 0450ms
+# Path: /home/wingen/work/mast/gfiles/
+NZ=	610
+itt=	200
+Rmin=	0.195
+Rmax=	1.9
+Zmin=	-1.825
+Zmax=	0.6
+NR=	850
+phistart(Grad)=	0
+MapDirection=	0
+PlasmaResponse(0=no,1=yes)=	1
+Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=	1
+target(1=inner,2=outer)=	1
+createPoints(0=set,1=random,2=target)=	0
+useECcoils(0=no,1=yes)= 1
+useIcoil(0=no,1=yes)= 1
+useFilament(0=no,1=yes)= 0
+ParticleDirection(1=pass,-1=co-pass,0=field-lines)=	0
+PartileCharge(-1=electrons,>=1=ions)=	1
+Ekin[keV]=	100
+lambda=	0.1
+pi=	3.141592653589793
+2*pi=	6.283185307179586

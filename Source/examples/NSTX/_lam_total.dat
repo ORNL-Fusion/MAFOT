@@ -1,0 +1,22 @@
+# Parameterfile for NSTX programs
+# Shot: 127317	Time: 0370ms
+free_Parameter(NZ)=	1320
+itt=	500
+Rmin=	0.17
+Rmax=	1.57
+Zmin=	-1.65
+Zmax=	1.65
+NR=	560
+phistart(Grad)=	0
+MapDirection=	0
+target(1=innerup,2=outerup,3=innerdwn,4=outerdwn)=	1
+createPoints(0=set,1=random,2=target)=	0
+useECcoil(0=no,1=yes)= 1
+useFilament(0=no,1=yes)= 0
+useTprofile(0=no,1=yes)= 0
+ParticleDirection(1=pass,-1=co-pass,0=field-lines)=	0
+PartileCharge(-1=electrons,>=1=ions)=	1
+Ekin[keV]=	100
+lambda=	0.1
+pi=	3.141592653589793
+2*pi=	6.283185307179586

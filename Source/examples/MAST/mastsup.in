@@ -1,0 +1,15 @@
+ &input
+!  ECcur(1:N,L) = currents in N loop coils of band L [single turn, Amp]
+!  ECadj(1:3,L) = addangle [deg], arcmax [deg], scale factor [dimless]   for band L
+!  Iadj(1:4,L) = addangle [deg], arcmax [deg], arcHmax [deg], scale factor [dimless]
+ECcur(:,:) = 
+	+1 -1 +1 -1
+ECadj(:,:) =  
+	000 15.0 1
+Icur(:,:) = 
+	+1 -1 +1 -1 +1 -1 0 0 0 0 0 0
+	+8000 -8000 +8000 -8000 +8000 -8000 +8000 -8000 +8000 -8000 +8000 -8000
+Iadj(:,:) =  
+	000 15.0 15.0 1
+	000 15.0 15.0 0.5
+ &END

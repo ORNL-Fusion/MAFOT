@@ -1,0 +1,8 @@
+#$ -N test_job
+#$ -cwd
+#$ -o /home/wingen/work/testcase/batch.out
+#$ -e /home/wingen/work/testcase/batch.err
+#$ -S /bin/bash
+#$ -V
+#$ -q all.q
+dtman _fix.dat fix_1_test.dat test 
