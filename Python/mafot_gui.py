@@ -596,10 +596,15 @@ class dtplot_gui:
 		tk.Entry(frame, width = 7, textvariable = self.useFilament).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "# current Filaments").grid(column = 1, row = row, sticky = tk.E )
 
+		# --- number of processes for mpi ---
+		self.nproc = tk.StringVar(); self.nproc.set(str(4)); row += 1
+		self.nproc_entry = tk.Entry(frame, width = 4, textvariable = self.nproc)
+		self.nproc_entry.grid(column = 1, row = row, sticky = tk.E)
+		tk.Label(frame, text = "       # Procs").grid(column = 1, row = row, sticky = tk.W )
+		
 		# --- run Button ---
-		row += 1
 		runButton = tk.Button(frame, text = "Run dtplot", command = self.run_funct)
-		runButton.grid(column = 1, row = row, columnspan = 5, sticky = tk.W + tk.E)
+		runButton.grid(column = 2, row = row, columnspan = 4, sticky = tk.W + tk.E)
 
 		# --- adjust style ---
 		for child in frame.winfo_children(): child.grid_configure(padx=5, pady=5)
@@ -672,16 +677,18 @@ class dtplot_gui:
 		if chk: os.chdir(path)	
 		self.writeControlFile('_plot.dat')
 		if(HOST == 'head.cluster'):		# Drop Cluster
-			self.write_qsub_file(self.tag.get())
+			self.write_qsub_file(int(self.nproc.get()), self.tag.get())
+			#self.write_qsub_file(int(self.tag.get())
 			call('qsub run_job', shell = True)
 		else:
-			call('dtplot _plot.dat ' + self.tag.get() + ' &', shell = True)		
+			call(MPIRUN + ' -n ' + str(int(self.nproc.get())) + ' dtplot_mpi _plot.dat ' + self.tag.get() + ' &', shell = True)
+			#call('dtplot _plot.dat ' + self.tag.get() + ' &', shell = True)		
 		if chk: os.chdir(cwd)
 
 
 	# --- Write qsub File on Drop Cluster ---
-	def write_qsub_file(self, tag):
-		with open('run_job', 'w') as f:
+	def write_qsub_file(self, nproc, tag):
+		with open('run_mpijob', 'w') as f:
 			f.write('#$ -N P' + tag + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
@@ -689,7 +696,21 @@ class dtplot_gui:
 			f.write('#$ -S /bin/bash \n')
 			f.write('#$ -V \n')
 			f.write('#$ -q all.q \n')
-			f.write('dtplot _plot.dat ' + tag + '\n')
+			f.write('#$ -pe mpi ' + str(nproc) + ' \n')
+			f.write('module load openmpi-1.6/gcc \n')
+			f.write('mpirun -n ${NSLOTS} dtplot_mpi _plot.dat ' + tag + '\n')
+			
+	# --- Write qsub File on Drop Cluster ---
+# 	def write_qsub_file(self, tag):
+# 		with open('run_job', 'w') as f:
+# 			f.write('#$ -N P' + tag + '\n')
+# 			f.write('#$ -cwd \n')
+# 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
+# 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
+# 			f.write('#$ -S /bin/bash \n')
+# 			f.write('#$ -V \n')
+# 			f.write('#$ -q all.q \n')
+# 			f.write('dtplot _plot.dat ' + tag + '\n')
 			
 
 	# --- Change Labels on grid variables, depending on createFlag ---
@@ -2459,10 +2480,15 @@ class iterplot_gui:
 		tk.Entry(frame, width = 7, textvariable = self.useFilament).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "# current Filaments").grid(column = 1, row = row, sticky = tk.E )
 
+		# --- number of processes for mpi ---
+		self.nproc = tk.StringVar(); self.nproc.set(str(4)); row += 1
+		self.nproc_entry = tk.Entry(frame, width = 4, textvariable = self.nproc)
+		self.nproc_entry.grid(column = 1, row = row, sticky = tk.E)
+		tk.Label(frame, text = "       # Procs").grid(column = 1, row = row, sticky = tk.W )
+		
 		# --- run Button ---
-		row += 1
 		runButton = tk.Button(frame, text = "Run iterplot", command = self.run_funct)
-		runButton.grid(column = 1, row = row, columnspan = 5, sticky = tk.W + tk.E)
+		runButton.grid(column = 2, row = row, columnspan = 4, sticky = tk.W + tk.E)
 
 		# --- adjust style ---
 		for child in frame.winfo_children(): child.grid_configure(padx=5, pady=5)
@@ -2533,16 +2559,16 @@ class iterplot_gui:
 		if chk: os.chdir(path)	
 		self.writeControlFile('_plot.dat')
 		if(HOST == 'head.cluster'):		# Drop Cluster
-			self.write_qsub_file(self.tag.get())
+			self.write_qsub_file(int(self.nproc.get()), self.tag.get())
 			call('qsub run_job', shell = True)
 		else:
-			call('iterplot _plot.dat ' + self.tag.get() + ' &', shell = True)		
+			call(MPIRUN + ' -n ' + str(int(self.nproc.get())) + ' iterplot_mpi _plot.dat ' + self.tag.get() + ' &', shell = True)
 		if chk: os.chdir(cwd)
 
 
 	# --- Write qsub File on Drop Cluster ---
-	def write_qsub_file(self, tag):
-		with open('run_job', 'w') as f:
+	def write_qsub_file(self, nproc, tag):
+		with open('run_mpijob', 'w') as f:
 			f.write('#$ -N P' + tag + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
@@ -2550,7 +2576,9 @@ class iterplot_gui:
 			f.write('#$ -S /bin/bash \n')
 			f.write('#$ -V \n')
 			f.write('#$ -q all.q \n')
-			f.write('iterplot _plot.dat ' + tag + '\n')
+			f.write('#$ -pe mpi ' + str(nproc) + ' \n')
+			f.write('module load openmpi-1.6/gcc \n')
+			f.write('mpirun -n ${NSLOTS} iterplot_mpi _plot.dat ' + tag + '\n')
 			
 
 	# --- Change Labels on grid variables, depending on createFlag ---
