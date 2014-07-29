@@ -1,16 +1,25 @@
 System requirements:
-1) gnu c++ compiler 4.1.2 or larger
+1) gnu c++ compiler 4.1.2 or newer
 2) intel or gnu fortran compiler
-3) openmp (comes with gnu c++ compiler 4.2 or larger)
+3) openmp (comes with gnu c++ compiler 4.2 or newer)
 
 Dependencies:
 1) blitz++
-2) openmpi
+2) openmpi 1.6.5
 3) (optional) m3dc1
+
+Dependecies GUI (optional):
+1) python 2.7
+2) Tk/Tcl 8.5 (Tkinter with ttk)
+3) pyinstaller 2.1
 
 Build:
 1) Edit make.inc and adjust to local platform. Examples are given in the install/ dir
 2) make		 options are: all, d3d, iter, nstx, mast, clean or any of the individual tools
+
+Build GUI (optional):
+1) Edit make.inc and set PYINSTALLER to the full pathname of the pyinstaller binary
+2) make gui
 
 Set environment
 1) check/add path to mpirun to PATH variable

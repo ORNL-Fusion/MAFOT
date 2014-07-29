@@ -32,3 +32,6 @@ HDF5LIBS =
 BLITZINCLUDE = -I/home/wingen/lib/32/blitz/include
 OMPINCLUDE = -I/home/wingen/lib/32/openmpi/include -I/home/wingen/lib/32/openmpi/include/openmpi
 M3DC1INCLUDE = 
+
+# ---- build GUI with python (optional) ----
+PYINSTALLER =

@@ -32,3 +32,6 @@ HDF5LIBS = -L/home/wingen/lib/64/hdf5/lib -lhdf5 -lz -Wl,-rpath,/home/wingen/lib
 BLITZINCLUDE = -I/home/wingen/lib/64/blitz/include
 OMPINCLUDE = -I/act/openmpi-1.6/gcc/include -I/act/openmpi-1.6/gcc/include/openmpi
 M3DC1INCLUDE = -I/home/ferraro/include
+
+# ---- build GUI with python (optional) ----
+PYINSTALLER =

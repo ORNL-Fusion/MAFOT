@@ -59,6 +59,15 @@ nstx : nstxplot nstxfix nstxman nstxlaminar_mpi nstxfoot_mpi nstxplot_mpi $(DIRS
 .PHONY : mast 
 mast : mastplot mastfix mastman mastlaminar_mpi mastfoot_mpi mastplot_mpi $(DIRS)
 
+.PHONY : gui
+gui : $(MAFOT_DIR)/python/mafot_gui.py
+ifdef PYINSTALLER
+	$(PYINSTALLER) -F --distpath=$(OBJDIR) --specpath=$(OBJDIR)/gui --workpath=$(OBJDIR)/gui $<
+	mv $(OBJDIR)/mafot_gui $(BIN_DIR)
+else
+	@echo "PYINSTALLER not defined"
+endif
+
 libtrip3d.a : $(FOBJS) $(DIRS)
 	$(ARCH) $(LIB_DIR)/$@ $(FOBJS)
 

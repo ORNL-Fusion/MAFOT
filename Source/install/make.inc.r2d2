@@ -32,3 +32,6 @@ HDF5LIBS = -L/usr/local/hdf5/lib -lhdf5 -lz -Wl,-rpath,/usr/local/hdf5/lib -lstd
 BLITZINCLUDE = -I/home/wingen/lib/64/blitz/include
 OMPINCLUDE = -I/usr/local/openmpi/include -I/usr/local/openmpi/include/openmpi
 M3DC1INCLUDE = -I/usr/local/m3dc1/include
+
+# ---- build GUI with python (optional) ----
+PYINSTALLER = /usr/local/enthought/bin/pyinstaller
