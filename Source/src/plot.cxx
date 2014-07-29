@@ -122,10 +122,10 @@ vector<LA_STRING> var(6);
 var[0] = "theta[rad]"; var[1] = "r[m]"; var[2] = "phi[deg]"; var[3] = "psi"; var[4] = "R[m]"; var[5] = "Z[m]";
 PAR.writeiodata(out,bndy,var);
 
-cout << "Create: " << PAR.create_flag << endl; 
+cout << "Create (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-random, 5=R-grid): " << PAR.create_flag << endl;
 if(PAR.create_flag==2) cout << "Target: " << PAR.which_target_plate << endl;
 cout << endl << "Start Tracer for " << PAR.N << " points ... " << endl;
-ofs2 << "Create: " << PAR.create_flag << endl; 
+ofs2 << "Create (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-random, 5=R-grid): " << PAR.create_flag << endl;
 if(PAR.create_flag==2) ofs2 << "Target: " << PAR.which_target_plate << endl;
 ofs2 << endl << "Start Tracer for " << PAR.N << " points ... " << endl;
 

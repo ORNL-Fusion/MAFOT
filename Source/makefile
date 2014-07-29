@@ -24,7 +24,7 @@ SRCS = la_string.cxx
 OBJS = $(SRCS:.cxx=.o)
 OBJS := $(addprefix $(OBJDIR)/, $(OBJS))
 
-MPISRCS = laminar_mpi.cxx foot_mpi.cxx
+MPISRCS = laminar_mpi.cxx foot_mpi.cxx plot_mpi.cxx
 MPIOBJS = $(MPISRCS:.cxx=.o)
 MPIOBJS_D3D = $(addprefix $(OBJDIR)/d3d/, $(MPIOBJS))
 MPIOBJS_ITER = $(addprefix $(OBJDIR)/iter/, $(MPIOBJS))
@@ -48,16 +48,16 @@ FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 all : $(DIRS) d3d iter nstx mast
 
 .PHONY : d3d
-d3d : dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi $(DIRS)
+d3d : dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi $(DIRS)
 
 .PHONY : iter
-iter : iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi $(DIRS)
+iter : iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi iterplot_mpi $(DIRS)
 
 .PHONY : nstx 
-nstx : nstxplot nstxfix nstxman nstxlaminar_mpi nstxfoot_mpi $(DIRS)
+nstx : nstxplot nstxfix nstxman nstxlaminar_mpi nstxfoot_mpi nstxplot_mpi $(DIRS)
 
 .PHONY : mast 
-mast : mastplot mastfix mastman mastlaminar_mpi mastfoot_mpi $(DIRS)
+mast : mastplot mastfix mastman mastlaminar_mpi mastfoot_mpi mastplot_mpi $(DIRS)
 
 libtrip3d.a : $(FOBJS) $(DIRS)
 	$(ARCH) $(LIB_DIR)/$@ $(FOBJS)
@@ -88,6 +88,9 @@ dtlaminar_mpi : $(OBJDIR)/d3d/laminar_mpi.o libla_string.a libtrip3d.a
 dtfoot_mpi : $(OBJDIR)/d3d/foot_mpi.o libla_string.a libtrip3d.a
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/d3d/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
+dtplot_mpi : $(OBJDIR)/d3d/plot_mpi.o libla_string.a libtrip3d.a
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/d3d/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
 
 # ---- ITER Targets ----
 iterplot : $(OBJDIR)/iter/plot.o libla_string.a libtrip3d.a
@@ -104,6 +107,9 @@ iterlaminar_mpi : $(OBJDIR)/iter/laminar_mpi.o libla_string.a libtrip3d.a
 
 iterfoot_mpi : $(OBJDIR)/iter/foot_mpi.o libla_string.a libtrip3d.a
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/iter/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
+iterplot_mpi : $(OBJDIR)/iter/plot_mpi.o libla_string.a libtrip3d.a
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/iter/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 
 # ---- NSTX Targets ----
@@ -122,6 +128,9 @@ nstxlaminar_mpi : $(OBJDIR)/nstx/laminar_mpi.o libla_string.a libtrip3d.a
 nstxfoot_mpi : $(OBJDIR)/nstx/foot_mpi.o libla_string.a libtrip3d.a
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/nstx/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
+nstxplot_mpi : $(OBJDIR)/nstx/plot_mpi.o libla_string.a libtrip3d.a
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/nstx/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
 
 # ---- MAST Targets ----
 mastplot : $(OBJDIR)/mast/plot.o libla_string.a libtrip3d.a
@@ -138,6 +147,9 @@ mastlaminar_mpi : $(OBJDIR)/mast/laminar_mpi.o libla_string.a libtrip3d.a
 
 mastfoot_mpi : $(OBJDIR)/mast/foot_mpi.o libla_string.a libtrip3d.a
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/mast/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
+mastplot_mpi : $(OBJDIR)/mast/plot_mpi.o libla_string.a libtrip3d.a
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/mast/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 
 # ---- Compile ----
