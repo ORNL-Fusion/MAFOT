@@ -33,3 +33,46 @@ or
 	  hostname: 		   Names of Hosts, separated by comma
 	  arbitrary_single_string: will be added to the output filename, no blanks!
 	)
+
+------------------------------------------------------------------------------------
+Current Version:
+----------------
+MAFOT 3.2
+GUI 1.13
+
+Version Notes: 
+----------------
+MAFOT 3.2 -- Jul 2014
+- M3D-C1 interface updated to use Nate's libfusionio -> resistive wall and multiple M3D-C1 files now enabled
+- Tools now unified across machines
+- plot is now parallel -> plot_mpi (old, serial plot version still exists)
+
+GUI 1.13 -- Jul 2014
+- GUI now uses plot_mpi instead of plot
+
+GUI 1.12 -- Feb 2014
+- NSTX foot_mpi added
+
+GUI 1.11 -- Nov 2013
+- Bug fixes for ITER
+
+GUI 1.1 -- Nov 2013
+- ITER added
+
+GUI 1.0 -- Oct 2013
+- first release for D3D MAFOT control
+
+MAFOT 3.1 -- Apr 2012
+- M3D-C1 interface added
+
+MAFOT 3.0 -- Jan 2011
+- EFIT, IO and Particle Classes introduced -> replace old includes
+- includes unified across machines; the parts that are unique to each machine are in a machine include file
+
+MAFOT 2.0 -- March 2009
+- current filaments enabled
+- support for multiple machines enabled
+- ITER, MAST & NSTX added
+
+MAFOT 1.0 -- May 2008
+- first release of D3D MAFOT code
