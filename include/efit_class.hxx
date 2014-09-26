@@ -228,39 +228,39 @@ psiSep = EQD.psiSep;
 Bt0 = EQD.Bt0;
 Ip = EQD.Ip;
 
-Fpol = EQD.Fpol.copy();
-Pres = EQD.Pres.copy();
-FFprime = EQD.FFprime.copy();
-Pprime = EQD.Pprime.copy();
-qpsi = EQD.qpsi.copy();
+Fpol.reference(EQD.Fpol.copy());
+Pres.reference(EQD.Pres.copy());
+FFprime.reference(EQD.FFprime.copy());
+Pprime.reference(EQD.Pprime.copy());
+qpsi.reference(EQD.qpsi.copy());
 
-psiRZ = EQD.psiRZ.copy();
+psiRZ.reference(EQD.psiRZ.copy());
 
 Nlcfs = EQD.Nlcfs;
 Nwall = EQD.Nwall;
-lcfs = EQD.lcfs.copy();
-wall = EQD.wall.copy();
+lcfs.reference(EQD.lcfs.copy());
+wall.reference(EQD.wall.copy());
 
 dR = EQD.dR;
 dZ = EQD.dZ;
 dpsi = EQD.dpsi;
 
-R = EQD.R.copy();
-Z = EQD.Z.copy();
-psi = EQD.psi.copy();
+R.reference(EQD.R.copy());
+Z.reference(EQD.Z.copy());
+psi.reference(EQD.psi.copy());
 
-d2Fpol = EQD.d2Fpol.copy();
-d2Pres = EQD.d2Pres.copy();
-d2FFprime = EQD.d2FFprime.copy();
-d2Pprime = EQD.d2Pprime.copy();
-d2qpsi = EQD.d2qpsi.copy();
+d2Fpol.reference(EQD.d2Fpol.copy());
+d2Pres.reference(EQD.d2Pres.copy());
+d2FFprime.reference(EQD.d2FFprime.copy());
+d2Pprime.reference(EQD.d2Pprime.copy());
+d2qpsi.reference(EQD.d2qpsi.copy());
 
-d2psi = EQD.d2psi.copy();
-dpsidR = EQD.dpsidR.copy();
-dpsidZ = EQD.dpsidZ.copy();
-d2psidRdZ = EQD.d2psidRdZ.copy();
+d2psi.reference(EQD.d2psi.copy());
+dpsidR.reference(EQD.dpsidR.copy());
+dpsidZ.reference(EQD.dpsidZ.copy());
+d2psidRdZ.reference(EQD.d2psidRdZ.copy());
 
-Ca = EQD.Ca.copy();
+Ca.reference(EQD.Ca.copy());
 
 helicity = EQD.helicity;
 helicity_adjust = EQD.helicity_adjust;

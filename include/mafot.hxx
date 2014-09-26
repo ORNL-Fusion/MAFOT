@@ -14,6 +14,9 @@
 #include <andi.hxx>				// includes many usefull tools and defines 
 #include <efit_class.hxx>			// includes all EFIT data and interpolation routines
 #include <io_class.hxx>				// includes Control file data
+#ifdef USE_SIESTA
+	#include <siesta_class_interpolation.hxx>			// includes the SIESTA interface
+#endif
 #include <particle_class.hxx>		// includes all particle/fieldline parameters and Runge-Kutta Integrator
 
 // --------------- Prototypes ---------------------------------------------------------------------------------------------

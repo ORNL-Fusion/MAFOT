@@ -14,6 +14,7 @@
 // Define
 //--------
 #define USE_MPI
+#define USE_SIESTA
 #if defined(ITER)
 	#define program_name "iterplot_mpi"
 #elif defined(NSTX)
@@ -77,7 +78,11 @@ if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use mo
 
 // Variables
 int i,j,n,chk;
+double s,u;
 EFIT EQD;
+#ifdef USE_SIESTA
+	SIESTA SIES;
+#endif
 Range all = Range::all();
 
 int tag,sender;
@@ -126,8 +131,22 @@ int N = PAR.N;
 int N_slave = 1;	// Number of field lines per package
 int NoOfPackages = int(PAR.N/N_slave);
 
-// Prepare particles
-PARTICLE FLT(EQD,PAR,mpi_rank);
+#ifdef USE_SIESTA
+	// Prepare SIESTA
+	if(PAR.response_field == -2)
+	{
+		//LA_STRING SIESTA_filename = "siesta_akima.154921.nc";
+		LA_STRING SIESTA_filename = "akima.154921-bfield_tracing-0047.dat";
+		if(mpi_rank < 1) cout << "Read SIESTA file: " << SIESTA_filename << endl;
+		ofs2 << "Read SIESTA file: " << SIESTA_filename << endl;
+		SIES.read(SIESTA_filename);
+	}
+
+	// Prepare particles
+	PARTICLE FLT(EQD,PAR,SIES,mpi_rank);
+#else
+	PARTICLE FLT(EQD,PAR,mpi_rank);
+#endif
 
 MPI::COMM_WORLD.Barrier();	// Syncronize all Nodes
 
@@ -183,6 +202,7 @@ if(mpi_rank < 1)
 	out.precision(16);
 	vector<LA_STRING> var(6);
 	var[0] = "theta[rad]"; var[1] = "r[m]"; var[2] = "phi[deg]"; var[3] = "psi"; var[4] = "R[m]"; var[5] = "Z[m]";
+	if(PAR.response_field == -2) {var[0] = "u"; var[3] = "s";}
 	PAR.writeiodata(out,bndy,var);
 
 	cout << "Create (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-random, 5=R-grid): " << PAR.create_flag << endl;
@@ -359,10 +379,24 @@ if(mpi_rank < 1)
 						FLT.phi=PAR.MapDirection*i*dpinit*ilt + PAR.phistart;
 
 						// Store results
+#ifdef USE_SIESTA
+						if(PAR.response_field == -2)
+						{
+							SIES.get_su(FLT.R, FLT.phi, FLT.Z, s, u);
+							results(1,(n-Nmin_slave)*PAR.itt + i) = u;
+							results(4,(n-Nmin_slave)*PAR.itt + i) = s;
+						}
+						else
+						{
+							results(1,(n-Nmin_slave)*PAR.itt + i) = FLT.get_theta();
+							results(4,(n-Nmin_slave)*PAR.itt + i) = FLT.psi;
+						}
+#else
 						results(1,(n-Nmin_slave)*PAR.itt + i) = FLT.get_theta();
+						results(4,(n-Nmin_slave)*PAR.itt + i) = FLT.psi;
+#endif
 						results(2,(n-Nmin_slave)*PAR.itt + i) = FLT.get_r();
 						results(3,(n-Nmin_slave)*PAR.itt + i) = FLT.phi;
-						results(4,(n-Nmin_slave)*PAR.itt + i) = FLT.psi;
 						results(5,(n-Nmin_slave)*PAR.itt + i) = FLT.R;
 						results(6,(n-Nmin_slave)*PAR.itt + i) = FLT.Z;
 					} // end for i
@@ -454,10 +488,25 @@ if(mpi_rank > 0)
 				FLT.phi=PAR.MapDirection*i*dpinit*ilt + PAR.phistart;
 
 				// Store results
+#ifdef USE_SIESTA
+				if(PAR.response_field == -2)
+				{
+					SIES.get_su(FLT.R, FLT.phi, FLT.Z, s, u);
+					results(1,(n-Nmin_slave)*PAR.itt + i) = u;
+					results(4,(n-Nmin_slave)*PAR.itt + i) = s;
+				}
+				else
+				{
+					results(1,(n-Nmin_slave)*PAR.itt + i) = FLT.get_theta();
+					results(4,(n-Nmin_slave)*PAR.itt + i) = FLT.psi;
+				}
+#else
 				results(1,(n-Nmin_slave)*PAR.itt + i) = FLT.get_theta();
+				results(4,(n-Nmin_slave)*PAR.itt + i) = FLT.psi;
+
+#endif
 				results(2,(n-Nmin_slave)*PAR.itt + i) = FLT.get_r();
 				results(3,(n-Nmin_slave)*PAR.itt + i) = FLT.phi;
-				results(4,(n-Nmin_slave)*PAR.itt + i) = FLT.psi;
 				results(5,(n-Nmin_slave)*PAR.itt + i) = FLT.R;
 				results(6,(n-Nmin_slave)*PAR.itt + i) = FLT.Z;
 			} // end for i
