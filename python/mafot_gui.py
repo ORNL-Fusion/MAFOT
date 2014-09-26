@@ -664,7 +664,8 @@ class dtplot_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 
-		# check that gPath ends with a /
+		# make gPath absolute & check that gPath ends with a /
+		self.gPath.set(os.path.abspath(self.gPath.get()))
 		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
 	
 		# convert relative path to absolute
@@ -1047,7 +1048,8 @@ class dtfix_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 
-		# check that gPath ends with a /
+		# make gPath absolute & check that gPath ends with a /
+		self.gPath.set(os.path.abspath(self.gPath.get()))
 		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
 	
 		# convert relative path to absolute
@@ -1411,7 +1413,8 @@ class dtman_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 
-		# check that gPath ends with a /
+		# make gPath absolute & check that gPath ends with a /
+		self.gPath.set(os.path.abspath(self.gPath.get()))
 		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
 	
 		# convert relative path to absolute
@@ -1780,7 +1783,8 @@ class dtfoot_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 		
-		# check that gPath ends with a /
+		# make gPath absolute & check that gPath ends with a /
+		self.gPath.set(os.path.abspath(self.gPath.get()))
 		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
 	
 		# convert relative path to absolute
@@ -2148,7 +2152,8 @@ class dtlam_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 
-		# check that gPath ends with a /
+		# make gPath absolute & check that gPath ends with a /
+		self.gPath.set(os.path.abspath(self.gPath.get()))
 		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
 	
 		# convert relative path to absolute
@@ -2546,7 +2551,8 @@ class iterplot_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 
-		# check that gPath ends with a /
+		# make gPath absolute & check that gPath ends with a /
+		self.gPath.set(os.path.abspath(self.gPath.get()))
 		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
 	
 		# convert relative path to absolute
@@ -2902,7 +2908,8 @@ class iterfix_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 
-		# check that gPath ends with a /
+		# make gPath absolute & check that gPath ends with a /
+		self.gPath.set(os.path.abspath(self.gPath.get()))
 		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
 	
 		# convert relative path to absolute
@@ -3253,7 +3260,8 @@ class iterman_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 
-		# check that gPath ends with a /
+		# make gPath absolute & check that gPath ends with a /
+		self.gPath.set(os.path.abspath(self.gPath.get()))
 		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
 	
 		# convert relative path to absolute
@@ -3601,7 +3609,8 @@ class iterfoot_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 		
-		# check that gPath ends with a /
+		# make gPath absolute & check that gPath ends with a /
+		self.gPath.set(os.path.abspath(self.gPath.get()))
 		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
 	
 		# convert relative path to absolute
@@ -3947,7 +3956,8 @@ class iterlam_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 
-		# check that gPath ends with a /
+		# make gPath absolute & check that gPath ends with a /
+		self.gPath.set(os.path.abspath(self.gPath.get()))
 		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
 	
 		# convert relative path to absolute
@@ -4365,7 +4375,8 @@ class nstxfoot_gui:
 			print 'You must enter a Shot # and a Time'
 			return
 		
-		# check that gPath ends with a /
+		# make gPath absolute & check that gPath ends with a /
+		self.gPath.set(os.path.abspath(self.gPath.get()))
 		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
 	
 		# convert relative path to absolute
@@ -4523,7 +4534,7 @@ class info_gui:
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
 		'MAFOT Version 3.2 \n'
-		'GUI Version 1.13 \n'
+		'GUI Version 1.131 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'
