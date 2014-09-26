@@ -14,7 +14,7 @@ HOME = os.getenv('HOME')
 
 def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', machine = 'd3d', 
 			tag = None, graphic = 'png', physical = 1, b = None, N = 60, Title = None,
-			typeOfPlot = 'contourf'):
+			typeOfPlot = 'contourf', xlimit = None, ylimit = None):
 	# --- user input ------------------
 	# pathname		path/filename
 	# printme		True: save to File, False: no saving
@@ -28,6 +28,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	# N				int, Number of color levels, used only in default color array
 	# Title			string, Figure title
 	# typeOfPlot	'contourf', 'imshow'
+	# x-,ylimit		tuple (min,max) for the respective axis limits, None: defaults are used
 	# ---------------------------------
 
 	# --- set path from pathname ---
@@ -44,14 +45,15 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	if(path[0] == '~'): path = HOME + path[1::]
 
 	# --- auto-set footprint defaults from filename key-word ---
-	if(filename[0:4] == 'foot') & (target == None):
+	if(filename[0:4] == 'foot'):
 		coordinates = 'phi'
 		if(filename[5:7] == 'in'): target = 'in'
 		elif(filename[5:7] == 'ou'): target = 'out'
 		elif(filename[5:7] == 'sh'): target = 'shelf'
 		else: 
-			print 'Please specify target'
+			print 'cannot identify target'
 			return
+	else: target = None
 		
 	# --- shot and time from file header ---
 	with open(path + filename, 'r') as f:
@@ -236,6 +238,9 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		ylim(y.min(), min([y.max(), 1.0]))
 	if(coordinates == 'phi') & (target== 'in') & (physical == 2): 
 		gca().invert_yaxis()
+		
+	if not (xlimit == None): xlim(xlimit)
+	if not (ylimit == None): ylim(ylimit)
 
 	xlabel(xLabel, size = xlabel_size)
 	ylabel(yLabel, size = ylabel_size, labelpad = 10)
@@ -269,7 +274,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	if(typeOfPlot == 'contourf'): cs.set_clim(b.min(),b.max())
 	if(coordinates == 'RZ') | (coordinates == 'phi'): 
 		if(what == 'psimin'): cs.cmap.set_over('w')
-		else: pass #cs.cmap.set_under('w')
+		else: cs.cmap.set_under('w')
 
 	# show colorbar
 	C = colorbar(cs, pad = 0.01, extend = 'both', format = '%.3g', ticks = myticks)

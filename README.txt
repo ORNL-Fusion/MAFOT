@@ -47,10 +47,13 @@ or
 Current Version:
 ----------------
 MAFOT 3.2
-GUI 1.13
+GUI 1.131
 
 Version Notes: 
 ----------------
+GUI 1.131 -- Sep 2014
+- g-file path can now be a relative path too
+
 MAFOT 3.2 -- Jul 2014
 - M3D-C1 interface updated to use Nate's libfusionio -> resistive wall and multiple M3D-C1 files now enabled
 - Tools now unified across machines
