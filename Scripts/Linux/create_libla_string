@@ -1,2 +1,0 @@
-g++ -c la_string.cxx -o la_string.o -O3 -fPIC -I ~/src/include
-ar ruvs libla_string.a la_string.o

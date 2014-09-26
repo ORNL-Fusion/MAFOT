@@ -1,7 +1,0 @@
-
-g++ $1.cxx -o ~/bin/$1 \
--L ~/lib/64 -lla_string \
--L ~/lib/64/blitz/lib -lblitz \
--I ~/src/include \
--I ~/lib/64/blitz/include \
--O3 -Dlinux

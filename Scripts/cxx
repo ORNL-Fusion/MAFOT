@@ -1,7 +1,0 @@
-
-g++ $1.cxx -o /Users/wingen/c++/bin/$1 \
--L/Users/wingen/Documents/Eclipse/Lib -lla_string \
--L/Users/wingen/Documents/Eclipse/Lib/blitz/lib -lblitz \
--I ~/Documents/Eclipse/Source/Include \
--I ~/Documents/Eclipse/Lib/blitz/include \
--O3 -Dlinux -Dmac
