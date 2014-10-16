@@ -19,6 +19,22 @@ else
 endif
 
 
+# ---- DIAGNO support ----
+ifdef DIAGNO
+ifeq ($(DIAGNO),True)
+   DEFINES += -DUSE_DIAGNO
+endif
+endif
+
+
+# ---- SIESTA support ----
+ifdef SIESTA
+ifeq ($(SIESTA),True)
+   DEFINES += -DUSE_SIESTA
+endif
+endif
+
+
 # ---- Sources ----
 SRCS = la_string.cxx
 OBJS = $(SRCS:.cxx=.o)

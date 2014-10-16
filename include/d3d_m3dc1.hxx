@@ -85,6 +85,13 @@ double bndy[4] = {1.0, 2.4, -1.367, 1.36};	// Boundary
 
 Array<double,4> field;	// default constructed
 
+#ifdef USE_SIESTA
+	SIESTA SIES;
+#endif
+#ifdef USE_DIAGNO
+	DIAGNO dia;
+#endif
+
 // ------------------ log file --------------------------------------------------------------------------------------------
 ofstream ofs2;
 
@@ -335,6 +342,16 @@ Y = R*sinp;
 // Equilibrium field
 switch(PAR.response_field)
 {
+#ifdef USE_DIAGNO
+case -3:
+	dia.get_B(R, phi, Z, B_R, B_phi, B_Z);
+	break;
+#endif
+#ifdef USE_SIESTA
+case -2:
+	SIES.get_B(R, phi, Z, B_R, B_phi, B_Z);
+	break;
+#endif
 case -1: case 1:	// Vacuum equilibrium field from g file
 	// get normalized poloidal Flux psi (should be chi in formulas!)
 	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
@@ -524,6 +541,26 @@ if(PAR.response_field > 0)		// Perturbation already included in M3D-C1 output
 	PAR.useCcoil = 0;
 	PAR.useIcoil = 0;
 }
+
+// Prepare SIESTA
+#ifdef USE_SIESTA
+	if(PAR.response_field == -2)
+	{
+		if(mpi_rank < 1) cout << "Read SIESTA file" << endl;
+		ofs2 << "Read SIESTA file" << endl;
+		SIES.read("siesta.dat");
+	}
+#endif
+
+// Prepare DIAGNO
+#ifdef USE_DIAGNO
+	if(PAR.response_field == -3)
+	{
+		if(mpi_rank < 1) cout << "Read DIAGNO file" << endl;
+		ofs2 << "Read DIAGNO file" << endl;
+		dia.read("diagno.dat");
+	}
+#endif
 
 if(mpi_rank < 1) cout << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
 ofs2 << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;

@@ -14,7 +14,6 @@
 // Define
 //--------
 #define USE_MPI
-#define USE_SIESTA
 #if defined(ITER)
 	#define program_name "iterplot_mpi"
 #elif defined(NSTX)
@@ -78,12 +77,9 @@ if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use mo
 
 // Variables
 int i,j,n,chk;
-double s,u;
 EFIT EQD;
-#ifdef USE_SIESTA
-	SIESTA SIES;
-#endif
 Range all = Range::all();
+double s,u;
 
 int tag,sender;
 int Nmin_slave,Nmax_slave;
@@ -131,22 +127,8 @@ int N = PAR.N;
 int N_slave = 1;	// Number of field lines per package
 int NoOfPackages = int(PAR.N/N_slave);
 
-#ifdef USE_SIESTA
-	// Prepare SIESTA
-	if(PAR.response_field == -2)
-	{
-		//LA_STRING SIESTA_filename = "siesta_akima.154921.nc";
-		LA_STRING SIESTA_filename = "akima.154921-bfield_tracing-0047.dat";
-		if(mpi_rank < 1) cout << "Read SIESTA file: " << SIESTA_filename << endl;
-		ofs2 << "Read SIESTA file: " << SIESTA_filename << endl;
-		SIES.read(SIESTA_filename);
-	}
-
-	// Prepare particles
-	PARTICLE FLT(EQD,PAR,SIES,mpi_rank);
-#else
-	PARTICLE FLT(EQD,PAR,mpi_rank);
-#endif
+// Prepare particles
+PARTICLE FLT(EQD,PAR,mpi_rank);
 
 MPI::COMM_WORLD.Barrier();	// Syncronize all Nodes
 
@@ -232,7 +214,7 @@ if(mpi_rank < 1)
 		{
 		#pragma omp section	//-------- Master Thread: controlles comunication ----------------------------------------------------------------------------------------------------------------------
 		{
-			#pragma omp barrier	// Syncronize with Slave Thread
+			//#pragma omp barrier	// Syncronize with Slave Thread
 			MPI::COMM_WORLD.Barrier();	// Master waits for Slaves
 
 			cout << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
@@ -315,7 +297,7 @@ if(mpi_rank < 1)
 			// each process gets a different seed
 			long idum=long(now) + 1000*mpi_rank;
 
-			#pragma omp barrier	// Syncronize with Master Thread
+			//#pragma omp barrier	// Syncronize with Master Thread
 
 			ofs2 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
 

@@ -203,7 +203,7 @@ if(mpi_rank < 1)
 		{
 		#pragma omp section	//-------- Master Thread: controlles comunication ----------------------------------------------------------------------------------------------------------------------
 		{
-			#pragma omp barrier	// Syncronize with Slave Thread
+			//#pragma omp barrier	// Syncronize with Slave Thread
 			MPI::COMM_WORLD.Barrier();	// Master waits for Slaves
 
 			cout << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
@@ -297,7 +297,7 @@ if(mpi_rank < 1)
 			// Prepare Perturbation
 			prep_perturbation(EQD,PAR,mpi_rank);
 
-			#pragma omp barrier	// Syncronize with Master Thread
+			//#pragma omp barrier	// Syncronize with Master Thread
 
 			ofs2 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
 

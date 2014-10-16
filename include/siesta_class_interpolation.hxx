@@ -136,11 +136,11 @@ d2BZ.resize(Ns,Nu,Nv);		d2BZ.reindexSelf(index3);
 d2R.resize(Ns,Nu,Nv);		d2R.reindexSelf(index3);
 d2Z.resize(Ns,Nu,Nv);		d2Z.reindexSelf(index3);
 
-CaBR.resize(Ns-1,Nu-1,Nv-1,4,4);	CaBR.reindexSelf(index5);
-CaBPHI.resize(Ns-1,Nu-1,Nv-1,4,4);	CaBPHI.reindexSelf(index5);
-CaBZ.resize(Ns-1,Nu-1,Nv-1,4,4);	CaBZ.reindexSelf(index5);
-CaR.resize(Ns-1,Nu-1,Nv-1,4,4);		CaR.reindexSelf(index5);
-CaZ.resize(Ns-1,Nu-1,Nv-1,4,4);		CaZ.reindexSelf(index5);
+CaBR.resize(Ns-1,Nu-1,Nv,4,4);	CaBR.reindexSelf(index5);
+CaBPHI.resize(Ns-1,Nu-1,Nv,4,4);CaBPHI.reindexSelf(index5);
+CaBZ.resize(Ns-1,Nu-1,Nv,4,4);	CaBZ.reindexSelf(index5);
+CaR.resize(Ns-1,Nu-1,Nv,4,4);	CaR.reindexSelf(index5);
+CaZ.resize(Ns-1,Nu-1,Nv,4,4);	CaZ.reindexSelf(index5);
 
 Raxis.resize(Nv);			Raxis.reindexSelf(index);
 Zaxis.resize(Nv);			Zaxis.reindexSelf(index);
@@ -236,7 +236,7 @@ for(i=1;i<=Ns;i++) S(i) = smin + (i-1)*ds;
 U.resize(Nu);
 for(i=1;i<=Nu;i++) U(i) = (i-1)*du;
 
-// resize data: (0 -> Ns-1, 0 -> Nu-1, 0 -> Nv-1)
+// resize data: (1 -> Ns, 1 -> Nu, 1 -> Nv)
 R.resize(Ns, Nu, Nv);
 PHI.resize(Ns, Nu, Nv);
 Z.resize(Ns, Nu, Nv);
@@ -361,7 +361,7 @@ find_su(r, k, z, s, u);
 
 if(t > 0)	// not exactly in the v-plane (k-1)*dv
 {
-	find_su(r, k+1, z, su, uu);
+	find_su(r, k+1, z, su, uu, s, u);
 
 	// linear interpolation of s,u in v
 	s += t*(su - s);
@@ -405,11 +405,11 @@ d2BZ.resize(Ns,Nu,Nv);
 d2R.resize(Ns,Nu,Nv);
 d2Z.resize(Ns,Nu,Nv);
 
-CaBR.resize(Ns-1,Nu-1,Nv-1,4,4);
-CaBPHI.resize(Ns-1,Nu-1,Nv-1,4,4);
-CaBZ.resize(Ns-1,Nu-1,Nv-1,4,4);
-CaR.resize(Ns-1,Nu-1,Nv-1,4,4);
-CaZ.resize(Ns-1,Nu-1,Nv-1,4,4);
+CaBR.resize(Ns-1,Nu-1,Nv,4,4);
+CaBPHI.resize(Ns-1,Nu-1,Nv,4,4);
+CaBZ.resize(Ns-1,Nu-1,Nv,4,4);
+CaR.resize(Ns-1,Nu-1,Nv,4,4);
+CaZ.resize(Ns-1,Nu-1,Nv,4,4);
 
 // Get the derivatives
 for(i=1;i<=Nv;i++)
@@ -474,7 +474,7 @@ for(i=1;i<Ns;i++)
 {
 	for(j=1;j<Nu;j++)
 	{
-		for(k=1;k<Nv;k++)
+		for(k=1;k<=Nv;k++)	// MUST BE k<=Nv right????
 		{
 			y_sq(1) = BR(i,j,k); y_sq(2) = BR(i+1,j,k); y_sq(3) = BR(i+1,j+1,k); y_sq(4) = BR(i,j+1,k);
 			y1_sq(1) = dBRds(i,j,k); y1_sq(2) = dBRds(i+1,j,k); y1_sq(3) = dBRds(i+1,j+1,k); y1_sq(4) = dBRds(i,j+1,k);
@@ -653,8 +653,8 @@ if(err > 0) cout << "SIESTA Newton2D: no convergence; remaining error: " << err 
 // 2D Newton procedure
 int SIESTA::newton2D(double r0, int k, double z0, double& s, double& u)
 {
-const int imax = 20;
-const double delta = 1e-12;
+const int imax = 100;
+const double delta = 1e-15;
 
 int i;
 double r,z,drds,drdu,dzds,dzdu;
@@ -692,7 +692,7 @@ int i;
 double s,dummy,rminor,r,z,f;
 
 // Iterations
-const int imax = 4;
+const int imax = 10;
 
 // reference point
 const double rminor0 = (r0 - Raxis(k))*(r0 - Raxis(k)) + (z0 - Zaxis(k))*(z0 - Zaxis(k));

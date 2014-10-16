@@ -23,11 +23,7 @@
 using namespace blitz;
 
 // extern Prototypes, defined in Machine-specific header
-#ifdef USE_SIESTA
-	void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR, SIESTA& SIES);
-#else
-	void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
-#endif
+void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 bool outofBndy(double x, double y, EFIT& EQD);	
 
 // Prototypes  
@@ -43,6 +39,9 @@ const double dpinit = 1.0;		// step size of phi in [deg]
 
 // Golbal Parameters 
 extern ofstream ofs2;
+#ifdef USE_SIESTA
+	extern SIESTA SIES;
+#endif
 
 //--------- Begin Class PARTICLE ----------------------------------------------------------------------------------------------
 class PARTICLE
@@ -51,9 +50,6 @@ private:
 // Member Variables
 	EFIT& EQDr;		// Only a Reference, not a copy
 	IO& PARr;		// Only a Reference, not a copy
-#ifdef USE_SIESTA
-	SIESTA& SIESr;	// Only a Reference, not a copy
-#endif
 
 	double GAMMA;
 	double eps0;
@@ -85,11 +81,7 @@ public:
 	double Lmfp_total;	// Sum of all mean free paths along the trajectory (PARr.useTprofile == 1 only)
 
 // Constructors
-#ifdef USE_SIESTA
-	PARTICLE(EFIT& EQD, IO& PAR, SIESTA& SIES, int mpi_rank=0);		// Default Constructor
-#else
-	PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
-#endif
+PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 
 // Member-Operators
 	PARTICLE& operator =(const PARTICLE& FLT);								// Operator =
@@ -115,11 +107,7 @@ public:
 
 //--------- Default Constructor -------------------------------------------------------------------------------------------
 // Constructor list necessary to set EQDr and PARr since references cannot be empty
-#ifdef USE_SIESTA
-	PARTICLE::PARTICLE(EFIT& EQD, IO& PAR, SIESTA& SIES, int mpi_rank): EQDr(EQD), PARr(PAR), SIESr(SIES)
-#else
-	PARTICLE::PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank): EQDr(EQD), PARr(PAR)
-#endif
+PARTICLE::PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank): EQDr(EQD), PARr(PAR)
 {
 // Variables
 double omegac;
@@ -477,7 +465,7 @@ switch(flag)
 {
 case 2:		// get R, Z from x = psi and y = theta
 #ifdef USE_SIESTA
-	if(PARr.response_field == -2) SIESr.get_RZ(x, y, phi, R, Z);
+	if(PARr.response_field == -2) SIES.get_RZ(x, y, phi, R, Z);
 	else getRZ(x, y, R, Z, EQDr);
 #else
 	getRZ(x, y, R, Z, EQDr);
@@ -528,7 +516,7 @@ switch(flag)
 {
 case 2:		// get R, Z from psi and theta
 #ifdef USE_SIESTA
-	if(PARr.response_field == -2) SIESr.get_RZ(x, y, phi, R, Z);
+	if(PARr.response_field == -2) SIES.get_RZ(x, y, phi, R, Z);
 	else getRZ(x, y, R, Z, EQDr);
 #else
 	getRZ(x, y, R, Z, EQDr);
@@ -577,11 +565,8 @@ void PARTICLE::dgls(double x, Array<double,1> y, Array<double,1>& dydx)
 {
 double B_R,B_Z,B_phi;
 double S;
-#ifdef USE_SIESTA
-	getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr,SIESr);
-#else
-	getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
-#endif
+
+getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
 
 dydx(0) = y(0)*B_R/B_phi;
 dydx(1) = y(0)*B_Z/B_phi;

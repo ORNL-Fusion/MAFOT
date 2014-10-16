@@ -233,7 +233,7 @@ if(mpi_rank < 1)
 		{
 		#pragma omp section	//-------- Master Thread: controlles comunication ----------------------------------------------------------------------------------------------------------------------
 		{
-			#pragma omp barrier	// Syncronize with Slave Thread
+			//#pragma omp barrier	// Syncronize with Slave Thread
 			MPI::COMM_WORLD.Barrier();	// Master waits for Slaves
 
 			cout << "Target: " << PAR.which_target_plate << endl;
@@ -327,7 +327,7 @@ if(mpi_rank < 1)
 			// Prepare Perturbation
 			prep_perturbation(EQD,PAR,mpi_rank);
 
-			#pragma omp barrier	// Syncronize with Master Thread
+			//#pragma omp barrier	// Syncronize with Master Thread
 
 			ofs2 << "Target: " << PAR.which_target_plate << endl;
 

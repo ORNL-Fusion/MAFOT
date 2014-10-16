@@ -13,11 +13,7 @@
 //void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var);	// declared in IO class, defined here
 
 bool outofBndy(double x, double y, EFIT& EQD);
-#ifdef USE_SIESTA
-	void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR, SIESTA& SIES);
-#else
-	void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
-#endif
+void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
 					 EFIT& EQD, IO& PAR, PARTICLE& FLT);
@@ -75,6 +71,13 @@ int simpleBndy = 0;		// 0: use real wall as boundaries, 1: use simple boundary b
 double bndy[4] = {1.0, 2.4, -1.367, 1.36};	// Boundary
 
 Array<double,4> field;	// default constructed
+
+#ifdef USE_SIESTA
+	SIESTA SIES;
+#endif
+#ifdef USE_DIAGNO
+	DIAGNO dia;
+#endif
 
 // ------------------ log file --------------------------------------------------------------------------------------------
 ofstream ofs2;
@@ -243,11 +246,7 @@ return false;
 }
 
 //---------------- getBfield ----------------------------------------------------------------------------------------------
-#ifdef USE_SIESTA
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR, SIESTA& SIES)
-#else
 void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
-#endif
 {
 int chk;
 double psi,dpsidr,dpsidz;
@@ -262,13 +261,19 @@ cosp = cos(phi);
 X = R*cosp;
 Y = R*sinp;
 
-#ifdef USE_SIESTA
 switch(PAR.response_field)
 {
+#ifdef USE_DIAGNO
+case -3:
+	dia.get_B(R, phi, Z, B_R, B_phi, B_Z);
+	break;
+#endif
+#ifdef USE_SIESTA
 case -2:
 	SIES.get_B(R, phi, Z, B_R, B_phi, B_Z);
 	break;
-case -1:
+#endif
+default:
 	// get normalized poloidal Flux psi (should be chi in formulas!)
 	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
 	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return;}	// integration of this point terminates
@@ -281,18 +286,6 @@ case -1:
 	B_Z = -dpsidr/R;
 	break;
 }
-#else
-	// get normalized poloidal Flux psi (should be chi in formulas!)
-	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
-	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return;}	// integration of this point terminates
-
-	// Equilibrium field
-	F = EQD.get_Fpol(psi);
-	B_R = dpsidz/R;
-	B_phi = F/R;
-	//B_phi = EQD.Bt0*EQD.R0/R;
-	B_Z = -dpsidr/R;
-#endif
 
 B_X = 0;	B_Y = 0;
 // F-coil perturbation field
@@ -339,6 +332,26 @@ void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING supPath)
 int i;
 LA_STRING line;	// entire line is read by ifstream
 ifstream in;
+
+// Prepare SIESTA
+#ifdef USE_SIESTA
+	if(PAR.response_field == -2)
+	{
+		if(mpi_rank < 1) cout << "Read SIESTA file" << endl;
+		ofs2 << "Read SIESTA file" << endl;
+		SIES.read("siesta.dat");
+	}
+#endif
+
+// Prepare DIAGNO
+#ifdef USE_DIAGNO
+	if(PAR.response_field == -3)
+	{
+		if(mpi_rank < 1) cout << "Read DIAGNO file" << endl;
+		ofs2 << "Read DIAGNO file" << endl;
+		dia.read("diagno.dat");
+	}
+#endif
 
 if(mpi_rank < 1) cout << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
 ofs2 << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
