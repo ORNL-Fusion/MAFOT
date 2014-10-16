@@ -1,12 +1,12 @@
 import os
-from numpy import *
-from matplotlib.pyplot import *
+import numpy as np
+import matplotlib.pyplot as plt
 import scipy.interpolate as inter
 from matplotlib.colors import LogNorm
 from matplotlib.colors import LinearSegmentedColormap
 
 import Misc.readfile as rf
-from EFIT.load_gfile_d3d import *
+import Misc.sfc_class as sfc_class
 import myColorMaps; reload(myColorMaps)
 
 HOME = os.getenv('HOME')
@@ -15,21 +15,24 @@ HOME = os.getenv('HOME')
 def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', machine = 'd3d', 
 			tag = None, graphic = 'png', physical = 1, b = None, N = 60, Title = None,
 			typeOfPlot = 'contourf', xlimit = None, ylimit = None):
-	# --- user input ------------------
-	# pathname		path/filename
-	# printme		True: save to File, False: no saving
-	# coordinates 	'RZ', 'psi', 'pest', 'phi'
-	# what 			'Lc', 'psimin', 'psimax', 'psiav'
-	# machine		'd3d', 'iter'
-	# tag			arbitary string, attached to the file name of the saved figure
-	# graphic		'png', 'eps', 'pdf'
-	# physical		0: t native, 1: t in RZ, 2: t in cm
-	# b				array, user defined color range (e.g. use linspace), None: defaults are used
-	# N				int, Number of color levels, used only in default color array
-	# Title			string, Figure title
-	# typeOfPlot	'contourf', 'imshow'
-	# x-,ylimit		tuple (min,max) for the respective axis limits, None: defaults are used
-	# ---------------------------------
+	"""
+	plot MAFOT results
+	--- user input ------------------
+	pathname    path/filename
+	printme     True: save to File, False: no saving
+	coordinates 'RZ', 'psi', 'pest', 'phi'
+	what        'Lc', 'psimin', 'psimax', 'psiav'
+	machine     'd3d', 'iter'
+	tag         arbitary string, attached to the file name of the saved figure
+	graphic     'png', 'eps', 'pdf'
+	physical    0: t native, 1: t in RZ, 2: t in cm
+	b           array, user defined color range (e.g. use linspace), None: defaults are used
+	N           int, Number of color levels, used only in default color array
+	Title       string, Figure title
+	typeOfPlot  'contourf', 'imshow'
+	x-,ylimit   tuple (min,max) for the respective axis limits, None: defaults are used
+	---------------------------------
+	"""
 
 	# --- set path from pathname ---
 	idx = pathname[::-1].find('/')	# returns location of last '/' in pathname or -1 if not found
@@ -123,33 +126,33 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	# --- set z data ------------------
 	if(what == 'Lc'):
 		if(b == None): 
-			if(machine == 'd3d'): b = linspace(0.075,0.4,N)
-			elif(machine == 'iter'): b = linspace(0.22,1.8,N)
+			if(machine == 'd3d'): b = np.linspace(0.075,0.4,N)
+			elif(machine == 'iter'): b = np.linspace(0.22,1.8,N)
 		z = Lc
 		C_label = '$L_{c}$ $\\mathrm{[km]}$'
 		#usecolormap = cm.jet	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = cm.jet._segmentdata
+		cdict = plt.cm.jet._segmentdata
 		
 	elif(what == 'psimin'):
-		if(b == None): b = linspace(0.88,1.02,N)
+		if(b == None): b = np.linspace(0.88,1.02,N)
 		z = psimin
 		C_label = '$\\psi_{Min}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = cm.jet_r._segmentdata
+		cdict = plt.cm.jet_r._segmentdata
 
 	elif(what == 'psimax'):
-		if(b == None): b = linspace(0.88,1.02,N)
+		if(b == None): b = np.linspace(0.88,1.02,N)
 		z = psimax
 		C_label = '$\\psi_{Max}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = cm.jet_r._segmentdata
+		cdict = plt.cm.jet_r._segmentdata
 		
 	elif(what == 'psiav'):
-		if(b == None): b = linspace(0.88,1.02,N)
+		if(b == None): b = np.linspace(0.88,1.02,N)
 		z = psiav
 		C_label = '$\\psi_{av}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = cm.jet_r._segmentdata
+		cdict = plt.cm.jet_r._segmentdata
 		
 	else: 
 		print 'what: Unknown input'
@@ -174,7 +177,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if(target== 'in') & (physical == 1):
 			z = z[::-1,:]	# reverse y-axis
 			if(typeOfPlot == 'imshow'):
-				x0, y0 = meshgrid(linspace(x.min(), x.max(), Npsi), linspace(y.min(), y.max(), Nth))
+				x0, y0 = np.meshgrid(np.linspace(x.min(), x.max(), Npsi), np.linspace(y.min(), y.max(), Nth))
 				z = inter.griddata((x.flatten(),y.flatten()), z.flatten(), (x0,y0), method = 'linear')
 				x, y = x0, y0
 		
@@ -186,7 +189,6 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 	# --- Pest theta ------------------
 	if(coordinates == 'pest'):
-		import Misc.sfc_class as sfc_class
 		sfc = sfc_class.straight_field_line_coordinates(shot, time)
 		xp = sfc.ev(x,y)
 		for i in xrange(Npsi):
@@ -195,12 +197,12 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 	# --- layout ----------------------
 	#rcParams['text.latex.preamble'] = [r'\usepackage{times}']#\usepackage{amsmath}
-	rcParams['font.sans-serif'] = ['Arial', 'Helvetica', 'Bitstream Vera Sans']
-	rcParams['font.serif'] = ['Times', 'Times New Roman', 'Bitstream Vera Serif']
+	plt.rcParams['font.sans-serif'] = ['Arial', 'Helvetica', 'Bitstream Vera Sans']
+	plt.rcParams['font.serif'] = ['Times', 'Times New Roman', 'Bitstream Vera Serif']
 	font = {'family' : 'sans-serif',
 			'weight' : 'normal', # normal
 			'size'   : 22} #18
-	matplotlib.rc('font', **font)
+	plt.matplotlib.rc('font', **font)
 	latexFontSize = 24
 
 	if(coordinates == 'RZ'): 
@@ -219,46 +221,46 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	C_label_size = latexFontSize
 
 	# --- make plot -------------------
-	F = figure(figsize = (width,height))
+	F = plt.figure(figsize = (width,height))
 	if(typeOfPlot == 'contourf'):
-		cs = contourf(x, y, z, b, cmap = usecolormap, extend = 'both')
+		cs = plt.contourf(x, y, z, b, cmap = usecolormap, extend = 'both')
 	else:
-		cs = imshow(z.T, extent = [x.min(), x.max(), y.min(), y.max()], cmap = usecolormap, origin = 'lower', vmin = b.min(), vmax = b.max(), aspect = 'auto', interpolation = 'bilinear')
+		cs = plt.imshow(z.T, extent = [x.min(), x.max(), y.min(), y.max()], cmap = usecolormap, origin = 'lower', vmin = b.min(), vmax = b.max(), aspect = 'auto', interpolation = 'bilinear')
 
 	# --- Axes  -----------------------
 	if(coordinates == 'RZ'): 
-		axes().set_aspect('equal')
-		xlim(x.min(),x.max())
-		ylim(y.min(),y.max())
-		locator_params(axis = 'x', nbins = 5)
+		plt.axes().set_aspect('equal')
+		plt.xlim(x.min(),x.max())
+		plt.ylim(y.min(),y.max())
+		plt.locator_params(axis = 'x', nbins = 5)
 	elif(coordinates == 'phi'): 
-		xlim(x.min(),x.max())
-		ylim(y.min(),y.max())
+		plt.xlim(x.min(),x.max())
+		plt.ylim(y.min(),y.max())
 	elif(coordinates == 'pest'): 
-		ylim(y.min(), min([y.max(), 1.0]))
+		plt.ylim(y.min(), min([y.max(), 1.0]))
 	if(coordinates == 'phi') & (target== 'in') & (physical == 2): 
-		gca().invert_yaxis()
+		plt.gca().invert_yaxis()
 		
-	if not (xlimit == None): xlim(xlimit)
-	if not (ylimit == None): ylim(ylimit)
+	if not (xlimit == None): plt.xlim(xlimit)
+	if not (ylimit == None): plt.ylim(ylimit)
 
-	xlabel(xLabel, size = xlabel_size)
-	ylabel(yLabel, size = ylabel_size, labelpad = 10)
+	plt.xlabel(xLabel, size = xlabel_size)
+	plt.ylabel(yLabel, size = ylabel_size, labelpad = 10)
 	
 	# adjust axis position on screen; leaves savefile unaffected
-	pos = gca().get_position().get_points()	# get bounding-box
+	pos = plt.gca().get_position().get_points()	# get bounding-box
 	pos[0,0] += 0.025; pos[1,0] += 0.025	# x-position: left; right
 	pos[0,1] += 0.05; pos[1,1] += 0.05		# y-position: bottom; top
-	gca().set_position(matplotlib.transforms.Bbox(pos))
+	plt.gca().set_position(plt.matplotlib.transforms.Bbox(pos))
 	
 	# --- Colorbar --------------------
 	# set ticks
 	steps = (b.max() - b.min())/10.0
-	digit = int(floor(log10(steps)))
+	digit = int(np.floor(np.log10(steps)))
 	factor = 10**digit
-	steps = int(ceil(steps/factor))*factor
-	bmin = int(ceil(b.min()/factor))*factor
-	myticks = arange(bmin, b.max()+steps, steps)
+	steps = int(np.ceil(steps/factor))*factor
+	bmin = int(np.ceil(b.min()/factor))*factor
+	myticks = np.arange(bmin, b.max()+steps, steps)
 	if(coordinates == 'RZ') | (coordinates == 'phi'): 
 		if(what == 'psimin'): 
 			myticks = myticks[myticks <= b.max()]
@@ -266,7 +268,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		else:
 			myticks[0] = b.min()
 	
-	myticks[abs(myticks) < 1e-10] = 0
+	myticks[np.abs(myticks) < 1e-10] = 0
 	
 	# If the "extend" argument is given, contourf sets the data limits to some odd extension of the actual data.
 	# Resetting the data limits, after plotting the contours, forces set_over & set_under colors to show,
@@ -277,7 +279,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		else: cs.cmap.set_under('w')
 
 	# show colorbar
-	C = colorbar(cs, pad = 0.01, extend = 'both', format = '%.3g', ticks = myticks)
+	C = plt.colorbar(cs, pad = 0.01, extend = 'both', format = '%.3g', ticks = myticks)
 	C.set_label(C_label, rotation = 270, size = C_label_size)
 	
 	# add SOL label in RZ plot and footprint
@@ -290,19 +292,19 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	# --- additional plots ------------
 	if(coordinates == 'RZ'): # plot wall
 		if(machine == 'd3d'): 
-			wall = loadtxt(HOME + '/c++/d3d/wall.dat')
-			plot(wall[:,2], wall[:,3], 'k--', linewidth = 2)
+			wall = np.loadtxt(HOME + '/c++/d3d/wall.dat')
+			plt.plot(wall[:,2], wall[:,3], 'k--', linewidth = 2)
 		elif(machine == 'iter'): 
-			wall = loadtxt(HOME + '/c++/iter/wall.dat')
-			plot(wall[:,0], wall[:,1], 'k--', linewidth = 2)
+			wall = np.loadtxt(HOME + '/c++/iter/wall.dat')
+			plt.plot(wall[:,0], wall[:,1], 'k--', linewidth = 2)
 		
 	if(coordinates == 'phi') & (target== 'in'):	# plot tile limit
-		if(physical == 1) & (machine == 'd3d'): plot([x.min(), x.max()], [-1.223, -1.223], 'k--', linewidth = 1.5)
-		else: plot([x.min(), x.max()], [0, 0], 'k--', linewidth = 1.5)
+		if(physical == 1) & (machine == 'd3d'): plt.plot([x.min(), x.max()], [-1.223, -1.223], 'k--', linewidth = 1.5)
+		else: plt.plot([x.min(), x.max()], [0, 0], 'k--', linewidth = 1.5)
 		
 	# --- Title -----------------------
-	if(Title == True): title(str(shot) + ',  ' + str(time) + 'ms', size = 18)
-	elif not (Title == None): title(Title, size = 18)
+	if(Title == True): plt.title(str(shot) + ',  ' + str(time) + 'ms', size = 18)
+	elif not (Title == None): plt.title(Title, size = 18)
 
 	# --- save Figure to file ---------
 	if not (tag == None): printme = True
