@@ -46,11 +46,18 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.2
+MAFOT 3.3
 GUI 1.131
 
 Version Notes: 
 ----------------
+MAFOT 3.3 -- Oct 2014
+- VMEC/DIAGNO support added
+- pragma OMP barrier removed to comply with latest compiler rules
+
+GUI 1.14 -- Oct 2014
+- VMEC/DIAGNO support added
+
 GUI 1.131 -- Sep 2014
 - g-file path can now be a relative path too
 

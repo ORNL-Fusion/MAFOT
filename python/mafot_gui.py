@@ -532,24 +532,36 @@ class dtplot_gui:
 		separator2 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
-		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
+		# --- magnetic field ---
+		self.selectField = tk.IntVar(); row += 1
+		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.selectField, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
+		tk.Radiobutton(frame, width = 8, text = 'M3D-C1', variable = self.selectField, value = 0,
 			command = self.activate_response).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Perturbation', variable = self.useM3DC1, value = 1,
+		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2,
-			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
+		tk.Radiobutton(frame, text = 'SIESTA', variable = self.selectField, value = -2,
+			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
+
+		# --- M3DC1 ---
+		self.useM3DC1 = tk.IntVar(); row += 1; self.row_M3DC1 = row
+		self.useM3DC1_R1 = tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0)
+		self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R2 = tk.Radiobutton(frame, text = 'Pert.', variable = self.useM3DC1, value = 1)
+		self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R3 = tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2)
+		self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
+		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
 		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
+		self.response_label = tk.Label(frame, text = "Plasma response")
+		self.response_label.grid(column = 1, row = row, sticky = tk.E )
 		
 		# --- separator ---
 		row += 1
@@ -639,19 +651,26 @@ class dtplot_gui:
 			self.Nx.set(str(int(data[0])))
 			self.Ny.set(str(int(data[6])))
 
-		self.itt.set(str(int(data[1]))); 
-		self.phistart.set(repr(data[7])); 
-		self.MapDirection.set(int(data[8])); 
-		self.useFcoil.set(int(data[13])); 
-		self.useCcoil.set(int(data[14])); 
-		self.useIcoil.set(int(data[15]));
-		self.useM3DC1.set(int(data[10])); 
-		self.response.set(int(data[9])); 
-		self.sigma.set(int(data[16])); 
-		self.charge.set(int(data[17])); 
-		self.Ekin.set(repr(data[18])); 
-		self.Lambda.set(repr(data[19]));
-		self.useFilament.set(str(int(data[20]))); 
+		self.itt.set(str(int(data[1])))
+		self.phistart.set(repr(data[7]))
+		self.MapDirection.set(int(data[8]))
+		self.useFcoil.set(int(data[13]))
+		self.useCcoil.set(int(data[14]))
+		self.useIcoil.set(int(data[15]))
+		
+		if (int(data[10]) >= 0):
+			self.selectField.set(0)
+			self.useM3DC1.set(int(data[10]))
+		else:
+			self.selectField.set(int(data[10]))
+			self.useM3DC1.set(0)
+			
+		self.response.set(int(data[9]))
+		self.sigma.set(int(data[16]))
+		self.charge.set(int(data[17]))
+		self.Ekin.set(repr(data[18]))
+		self.Lambda.set(repr(data[19]))
+		self.useFilament.set(str(int(data[20])))
 		
 		self.refresh_grid_labels()
 		self.activate_response()
@@ -732,13 +751,40 @@ class dtplot_gui:
 			
 	# --- turn on/off response radiobutton ---
 	def activate_response(self):
-		if(self.useM3DC1.get() == -1):
-			self.response_R1.configure(state=tk.DISABLED)
-			self.response_R2.configure(state=tk.DISABLED)
+		if(self.selectField.get() < 0):
+			self.useM3DC1.set(0)
+			self.useM3DC1_R1.grid_forget()
+			self.useM3DC1_R2.grid_forget()
+			self.useM3DC1_R3.grid_forget()
+			self.useM3DC1_label.grid_forget()
+			self.response_R1.grid_forget()
+			self.response_R2.grid_forget()
+			self.response_label.grid_forget()
+#  			self.response_R1.configure(state=tk.DISABLED)
+#  			self.response_R2.configure(state=tk.DISABLED)
+# 			self.response_label.configure(state=tk.DISABLED)
+#  			self.useM3DC1_R1.configure(state=tk.DISABLED)
+#  			self.useM3DC1_R2.configure(state=tk.DISABLED)
+#  			self.useM3DC1_R3.configure(state=tk.DISABLED)
+# 			self.useM3DC1_label.configure(state=tk.DISABLED)
 		else:
-			self.response_R1.configure(state=tk.NORMAL)
-			self.response_R2.configure(state=tk.NORMAL)
-
+			row = self.row_M3DC1
+			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			row = self.row_M3DC1 + 1
+			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+# 			self.response_R1.configure(state=tk.NORMAL)
+# 			self.response_R2.configure(state=tk.NORMAL)
+# 			self.response_label.configure(state=tk.NORMAL)
+# 			self.useM3DC1_R1.configure(state=tk.NORMAL)
+# 			self.useM3DC1_R2.configure(state=tk.NORMAL)
+# 			self.useM3DC1_R3.configure(state=tk.NORMAL)
+# 			self.useM3DC1_label.configure(state=tk.NORMAL)
+			
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
 	def show_particle_params(self):
@@ -797,7 +843,7 @@ class dtplot_gui:
 			f.write('phistart(deg)=\t' + self.phistart.get() + '\n')
 			f.write('MapDirection=\t' + str(self.MapDirection.get()) + '\n')
 			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
-			f.write('Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=\t' + str(self.useM3DC1.get()) + '\n')
+			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t0\n')
 			
 			if(self.createFlag.get() == 'polar'): f.write('createPoints(0=setr,3=setpsi,5=setR)=\t0\n')
@@ -934,24 +980,36 @@ class dtfix_gui:
 		separator2 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
-		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
+		# --- magnetic field ---
+		self.selectField = tk.IntVar(); row += 1
+		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.selectField, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
+		tk.Radiobutton(frame, width = 8, text = 'M3D-C1', variable = self.selectField, value = 0,
 			command = self.activate_response).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Perturbation', variable = self.useM3DC1, value = 1,
+		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2,
-			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
+		tk.Radiobutton(frame, text = 'SIESTA', variable = self.selectField, value = -2,
+			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
+
+		# --- M3DC1 ---
+		self.useM3DC1 = tk.IntVar(); row += 1; self.row_M3DC1 = row
+		self.useM3DC1_R1 = tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0)
+		self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R2 = tk.Radiobutton(frame, text = 'Pert.', variable = self.useM3DC1, value = 1)
+		self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R3 = tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2)
+		self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
+		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
 		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
+		self.response_label = tk.Label(frame, text = "Plasma response")
+		self.response_label.grid(column = 1, row = row, sticky = tk.E )
 		
 		# --- separator ---
 		row += 1
@@ -1029,7 +1087,14 @@ class dtfix_gui:
 		self.useFcoil.set(int(data[13])); 
 		self.useCcoil.set(int(data[14])); 
 		self.useIcoil.set(int(data[15])); 
-		self.useM3DC1.set(int(data[10])); 
+		
+		if (int(data[10]) >= 0):
+			self.selectField.set(0)
+			self.useM3DC1.set(int(data[10]))
+		else:
+			self.selectField.set(int(data[10]))
+			self.useM3DC1.set(0)
+			
 		self.response.set(int(data[9])); 
 		self.sigma.set(int(data[16])); 
 		self.charge.set(int(data[17])); 
@@ -1115,12 +1180,25 @@ class dtfix_gui:
 			
 	# --- turn on/off response radiobutton ---
 	def activate_response(self):
-		if(self.useM3DC1.get() == -1):
-			self.response_R1.configure(state=tk.DISABLED)
-			self.response_R2.configure(state=tk.DISABLED)
+		if(self.selectField.get() < 0):
+			self.useM3DC1.set(0)
+			self.useM3DC1_R1.grid_forget()
+			self.useM3DC1_R2.grid_forget()
+			self.useM3DC1_R3.grid_forget()
+			self.useM3DC1_label.grid_forget()
+			self.response_R1.grid_forget()
+			self.response_R2.grid_forget()
+			self.response_label.grid_forget()
 		else:
-			self.response_R1.configure(state=tk.NORMAL)
-			self.response_R2.configure(state=tk.NORMAL)
+			row = self.row_M3DC1
+			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			row = self.row_M3DC1 + 1
+			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -1162,7 +1240,7 @@ class dtfix_gui:
 			f.write('phistart(deg)=\t' + self.phistart.get() + '\n')
 			f.write('MapDirection=\t' + str(self.MapDirection) + '\n')
 			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
-			f.write('Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=\t' + str(self.useM3DC1.get()) + '\n')
+			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t0\n')			
 			f.write('createPoints(0=setr,3=setpsi,5=setR)=\t0\n')			
 			f.write('useFcoil(0=no,1=yes)=\t' + str(self.useFcoil.get()) + '\n')
@@ -1279,24 +1357,36 @@ class dtman_gui:
 		separator2 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
-		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
+		# --- magnetic field ---
+		self.selectField = tk.IntVar(); row += 1
+		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.selectField, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
+		tk.Radiobutton(frame, width = 8, text = 'M3D-C1', variable = self.selectField, value = 0,
 			command = self.activate_response).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Perturbation', variable = self.useM3DC1, value = 1,
+		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2,
-			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
+		tk.Radiobutton(frame, width = 7, text = 'SIESTA', variable = self.selectField, value = -2,
+			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
+
+		# --- M3DC1 ---
+		self.useM3DC1 = tk.IntVar(); row += 1; self.row_M3DC1 = row
+		self.useM3DC1_R1 = tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0)
+		self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R2 = tk.Radiobutton(frame, text = 'Pert.', variable = self.useM3DC1, value = 1)
+		self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R3 = tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2)
+		self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
+		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
 		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
+		self.response_label = tk.Label(frame, text = "Plasma response")
+		self.response_label.grid(column = 1, row = row, sticky = tk.E )
 		
 		# --- separator ---
 		row += 1
@@ -1382,7 +1472,14 @@ class dtman_gui:
 		self.useFcoil.set(int(data[13])); 
 		self.useCcoil.set(int(data[14])); 
 		self.useIcoil.set(int(data[15])); 
-		self.useM3DC1.set(int(data[10])); 
+		
+		if (int(data[10]) >= 0):
+			self.selectField.set(0)
+			self.useM3DC1.set(int(data[10]))
+		else:
+			self.selectField.set(int(data[10]))
+			self.useM3DC1.set(0)
+			
 		self.response.set(int(data[9])); 
 		self.sigma.set(int(data[16])); 
 		self.charge.set(int(data[17])); 
@@ -1468,12 +1565,25 @@ class dtman_gui:
 			
 	# --- turn on/off response radiobutton ---
 	def activate_response(self):
-		if(self.useM3DC1.get() == -1):
-			self.response_R1.configure(state=tk.DISABLED)
-			self.response_R2.configure(state=tk.DISABLED)
+		if(self.selectField.get() < 0):
+			self.useM3DC1.set(0)
+			self.useM3DC1_R1.grid_forget()
+			self.useM3DC1_R2.grid_forget()
+			self.useM3DC1_R3.grid_forget()
+			self.useM3DC1_label.grid_forget()
+			self.response_R1.grid_forget()
+			self.response_R2.grid_forget()
+			self.response_label.grid_forget()
 		else:
-			self.response_R1.configure(state=tk.NORMAL)
-			self.response_R2.configure(state=tk.NORMAL)
+			row = self.row_M3DC1
+			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			row = self.row_M3DC1 + 1
+			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -1515,7 +1625,7 @@ class dtman_gui:
 			f.write('phistart(deg)=\t' + self.phistart.get() + '\n')
 			f.write('MapDirection=\t' + str(self.MapDirection.get()) + '\n')
 			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
-			f.write('Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=\t' + str(self.useM3DC1.get()) + '\n')
+			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t0\n')			
 			f.write('createPoints(0=setr,3=setpsi,5=setR)=\t0\n')			
 			f.write('useFcoil(0=no,1=yes)=\t' + str(self.useFcoil.get()) + '\n')
@@ -1647,24 +1757,36 @@ class dtfoot_gui:
 		separator2 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
-		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
+		# --- magnetic field ---
+		self.selectField = tk.IntVar(); row += 1
+		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.selectField, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
+		tk.Radiobutton(frame, width = 8, text = 'M3D-C1', variable = self.selectField, value = 0,
 			command = self.activate_response).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Perturbation', variable = self.useM3DC1, value = 1,
+		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2,
-			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
+		tk.Radiobutton(frame, text = 'SIESTA', variable = self.selectField, value = -2,
+			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
+
+		# --- M3DC1 ---
+		self.useM3DC1 = tk.IntVar(); row += 1; self.row_M3DC1 = row
+		self.useM3DC1_R1 = tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0)
+		self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R2 = tk.Radiobutton(frame, text = 'Pert.', variable = self.useM3DC1, value = 1)
+		self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R3 = tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2)
+		self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
+		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
 		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
+		self.response_label = tk.Label(frame, text = "Plasma response")
+		self.response_label.grid(column = 1, row = row, sticky = tk.E )
 		
 		# --- separator ---
 		row += 1
@@ -1764,7 +1886,14 @@ class dtfoot_gui:
 		self.useFcoil.set(int(data[13]))
 		self.useCcoil.set(int(data[14]))
 		self.useIcoil.set(int(data[15]))
-		self.useM3DC1.set(int(data[10]))
+		
+		if (int(data[10]) >= 0):
+			self.selectField.set(0)
+			self.useM3DC1.set(int(data[10]))
+		else:
+			self.selectField.set(int(data[10]))
+			self.useM3DC1.set(0)
+			
 		self.response.set(int(data[9]))
 		self.sigma.set(int(data[16]))
 		self.charge.set(int(data[17]))
@@ -1841,12 +1970,25 @@ class dtfoot_gui:
 				
 	# --- turn on/off response radiobutton ---
 	def activate_response(self):
-		if(self.useM3DC1.get() == -1):
-			self.response_R1.configure(state=tk.DISABLED)
-			self.response_R2.configure(state=tk.DISABLED)
+		if(self.selectField.get() < 0):
+			self.useM3DC1.set(0)
+			self.useM3DC1_R1.grid_forget()
+			self.useM3DC1_R2.grid_forget()
+			self.useM3DC1_R3.grid_forget()
+			self.useM3DC1_label.grid_forget()
+			self.response_R1.grid_forget()
+			self.response_R2.grid_forget()
+			self.response_label.grid_forget()
 		else:
-			self.response_R1.configure(state=tk.NORMAL)
-			self.response_R2.configure(state=tk.NORMAL)
+			row = self.row_M3DC1
+			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			row = self.row_M3DC1 + 1
+			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -1887,7 +2029,7 @@ class dtfoot_gui:
 			f.write('phistart(deg)=\t0\n')
 			f.write('MapDirection=\t' + str(self.MapDirection.get()) + '\n')
 			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
-			f.write('Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=\t' + str(self.useM3DC1.get()) + '\n')
+			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t' + str(self.TargetFlag.get()) + '\n')			
 			f.write('createPoints(2=target)=\t2\n')	
 			f.write('useFcoil(0=no,1=yes)=\t' + str(self.useFcoil.get()) + '\n')
@@ -2019,24 +2161,36 @@ class dtlam_gui:
 		separator2 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
-		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
+		# --- magnetic field ---
+		self.selectField = tk.IntVar(); row += 1
+		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.selectField, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
+		tk.Radiobutton(frame, width = 8, text = 'M3D-C1', variable = self.selectField, value = 0,
 			command = self.activate_response).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Perturbation', variable = self.useM3DC1, value = 1,
+		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2,
-			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
+		tk.Radiobutton(frame, width = 8, text = 'SIESTA', variable = self.selectField, value = -2,
+			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
+
+		# --- M3DC1 ---
+		self.useM3DC1 = tk.IntVar(); row += 1; self.row_M3DC1 = row
+		self.useM3DC1_R1 = tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0)
+		self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R2 = tk.Radiobutton(frame, text = 'Pert.', variable = self.useM3DC1, value = 1)
+		self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R3 = tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2)
+		self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
+		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
 		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
+		self.response_label = tk.Label(frame, text = "Plasma response")
+		self.response_label.grid(column = 1, row = row, sticky = tk.E )
 		
 		# --- separator ---
 		row += 1
@@ -2133,7 +2287,14 @@ class dtlam_gui:
 		self.useFcoil.set(int(data[13])); 
 		self.useCcoil.set(int(data[14])); 
 		self.useIcoil.set(int(data[15]));
-		self.useM3DC1.set(int(data[10])); 
+		
+		if (int(data[10]) >= 0):
+			self.selectField.set(0)
+			self.useM3DC1.set(int(data[10]))
+		else:
+			self.selectField.set(int(data[10]))
+			self.useM3DC1.set(0)
+			
 		self.response.set(int(data[9])); 
 		self.sigma.set(int(data[16])); 
 		self.charge.set(int(data[17])); 
@@ -2236,12 +2397,25 @@ class dtlam_gui:
 			
 	# --- turn on/off response radiobutton ---
 	def activate_response(self):
-		if(self.useM3DC1.get() == -1):
-			self.response_R1.configure(state=tk.DISABLED)
-			self.response_R2.configure(state=tk.DISABLED)
+		if(self.selectField.get() < 0):
+			self.useM3DC1.set(0)
+			self.useM3DC1_R1.grid_forget()
+			self.useM3DC1_R2.grid_forget()
+			self.useM3DC1_R3.grid_forget()
+			self.useM3DC1_label.grid_forget()
+			self.response_R1.grid_forget()
+			self.response_R2.grid_forget()
+			self.response_label.grid_forget()
 		else:
-			self.response_R1.configure(state=tk.NORMAL)
-			self.response_R2.configure(state=tk.NORMAL)
+			row = self.row_M3DC1
+			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			row = self.row_M3DC1 + 1
+			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -2294,7 +2468,7 @@ class dtlam_gui:
 			f.write('phistart(deg)=\t' + self.phistart.get() + '\n')
 			f.write('MapDirection=\t' + str(self.MapDirection.get()) + '\n')
 			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
-			f.write('Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=\t' + str(self.useM3DC1.get()) + '\n')
+			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t0\n')
 			
 			if(self.createFlag.get() == 'psi'): f.write('createPoints(0=setR,3=setpsi)=\t3\n')
@@ -2421,24 +2595,36 @@ class iterplot_gui:
 		separator2 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
-		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
+		# --- magnetic field ---
+		self.selectField = tk.IntVar(); row += 1
+		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.selectField, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
+		tk.Radiobutton(frame, width = 8, text = 'M3D-C1', variable = self.selectField, value = 0,
 			command = self.activate_response).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Perturbation', variable = self.useM3DC1, value = 1,
+		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2,
-			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
+		tk.Radiobutton(frame, text = 'SIESTA', variable = self.selectField, value = -2,
+			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
+
+		# --- M3DC1 ---
+		self.useM3DC1 = tk.IntVar(); row += 1; self.row_M3DC1 = row
+		self.useM3DC1_R1 = tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0)
+		self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R2 = tk.Radiobutton(frame, text = 'Pert.', variable = self.useM3DC1, value = 1)
+		self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R3 = tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2)
+		self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
+		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
 		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
+		self.response_label = tk.Label(frame, text = "Plasma response")
+		self.response_label.grid(column = 1, row = row, sticky = tk.E )
 		
 		# --- separator ---
 		row += 1
@@ -2532,7 +2718,14 @@ class iterplot_gui:
 		self.phistart.set(repr(data[7])); 
 		self.MapDirection.set(int(data[8])); 
 		self.useIcoil.set(int(data[11]))
-		self.useM3DC1.set(int(data[19]))
+		
+		if (int(data[19]) >= 0):
+			self.selectField.set(0)
+			self.useM3DC1.set(int(data[19]))
+		else:
+			self.selectField.set(int(data[19]))
+			self.useM3DC1.set(0)
+			
 		self.response.set(int(data[18]))
 		self.sigma.set(int(data[14]))
 		self.charge.set(int(data[15]))
@@ -2605,12 +2798,25 @@ class iterplot_gui:
 			
 	# --- turn on/off response radiobutton ---
 	def activate_response(self):
-		if(self.useM3DC1.get() == -1):
-			self.response_R1.configure(state=tk.DISABLED)
-			self.response_R2.configure(state=tk.DISABLED)
+		if(self.selectField.get() < 0):
+			self.useM3DC1.set(0)
+			self.useM3DC1_R1.grid_forget()
+			self.useM3DC1_R2.grid_forget()
+			self.useM3DC1_R3.grid_forget()
+			self.useM3DC1_label.grid_forget()
+			self.response_R1.grid_forget()
+			self.response_R2.grid_forget()
+			self.response_label.grid_forget()
 		else:
-			self.response_R1.configure(state=tk.NORMAL)
-			self.response_R2.configure(state=tk.NORMAL)
+			row = self.row_M3DC1
+			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			row = self.row_M3DC1 + 1
+			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -2683,7 +2889,7 @@ class iterplot_gui:
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
 			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
-			f.write('Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=\t' + str(self.useM3DC1.get()) + '\n')
+			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
 
@@ -2796,24 +3002,36 @@ class iterfix_gui:
 		separator2 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
-		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
+		# --- magnetic field ---
+		self.selectField = tk.IntVar(); row += 1
+		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.selectField, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
+		tk.Radiobutton(frame, width = 8, text = 'M3D-C1', variable = self.selectField, value = 0,
 			command = self.activate_response).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Perturbation', variable = self.useM3DC1, value = 1,
+		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2,
-			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
+		tk.Radiobutton(frame, text = 'SIESTA', variable = self.selectField, value = -2,
+			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
+
+		# --- M3DC1 ---
+		self.useM3DC1 = tk.IntVar(); row += 1; self.row_M3DC1 = row
+		self.useM3DC1_R1 = tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0)
+		self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R2 = tk.Radiobutton(frame, text = 'Pert.', variable = self.useM3DC1, value = 1)
+		self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R3 = tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2)
+		self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
+		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
 		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
+		self.response_label = tk.Label(frame, text = "Plasma response")
+		self.response_label.grid(column = 1, row = row, sticky = tk.E )
 		
 		# --- separator ---
 		row += 1
@@ -2889,7 +3107,14 @@ class iterfix_gui:
 		self.Ny.set(str(int(data[6]**0.5)))
 		self.phistart.set(repr(data[7]))
 		self.useIcoil.set(int(data[11]))
-		self.useM3DC1.set(int(data[19]))
+		
+		if (int(data[19]) >= 0):
+			self.selectField.set(0)
+			self.useM3DC1.set(int(data[19]))
+		else:
+			self.selectField.set(int(data[19]))
+			self.useM3DC1.set(0)
+			
 		self.response.set(int(data[18]))
 		self.sigma.set(int(data[14]))
 		self.charge.set(int(data[15]))
@@ -2975,12 +3200,25 @@ class iterfix_gui:
 			
 	# --- turn on/off response radiobutton ---
 	def activate_response(self):
-		if(self.useM3DC1.get() == -1):
-			self.response_R1.configure(state=tk.DISABLED)
-			self.response_R2.configure(state=tk.DISABLED)
+		if(self.selectField.get() < 0):
+			self.useM3DC1.set(0)
+			self.useM3DC1_R1.grid_forget()
+			self.useM3DC1_R2.grid_forget()
+			self.useM3DC1_R3.grid_forget()
+			self.useM3DC1_label.grid_forget()
+			self.response_R1.grid_forget()
+			self.response_R2.grid_forget()
+			self.response_label.grid_forget()
 		else:
-			self.response_R1.configure(state=tk.NORMAL)
-			self.response_R2.configure(state=tk.NORMAL)
+			row = self.row_M3DC1
+			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			row = self.row_M3DC1 + 1
+			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -3031,7 +3269,7 @@ class iterfix_gui:
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
 			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
-			f.write('Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=\t' + str(self.useM3DC1.get()) + '\n')
+			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
 	
@@ -3128,24 +3366,36 @@ class iterman_gui:
 		separator2 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
-		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
+		# --- magnetic field ---
+		self.selectField = tk.IntVar(); row += 1
+		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.selectField, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
+		tk.Radiobutton(frame, width = 8, text = 'M3D-C1', variable = self.selectField, value = 0,
 			command = self.activate_response).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Perturbation', variable = self.useM3DC1, value = 1,
+		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2,
-			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
+		tk.Radiobutton(frame, width = 7, text = 'SIESTA', variable = self.selectField, value = -2,
+			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
+
+		# --- M3DC1 ---
+		self.useM3DC1 = tk.IntVar(); row += 1; self.row_M3DC1 = row
+		self.useM3DC1_R1 = tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0)
+		self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R2 = tk.Radiobutton(frame, text = 'Pert.', variable = self.useM3DC1, value = 1)
+		self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R3 = tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2)
+		self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
+		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
 		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
+		self.response_label = tk.Label(frame, text = "Plasma response")
+		self.response_label.grid(column = 1, row = row, sticky = tk.E )
 		
 		# --- separator ---
 		row += 1
@@ -3229,7 +3479,14 @@ class iterman_gui:
 		self.phistart.set(repr(data[7]));
 		self.MapDirection.set(int(data[8]));
 		self.useIcoil.set(int(data[11]))
-		self.useM3DC1.set(int(data[19]))
+		
+		if (int(data[19]) >= 0):
+			self.selectField.set(0)
+			self.useM3DC1.set(int(data[19]))
+		else:
+			self.selectField.set(int(data[19]))
+			self.useM3DC1.set(0)
+			
 		self.response.set(int(data[18]))
 		self.sigma.set(int(data[14]))
 		self.charge.set(int(data[15]))
@@ -3315,12 +3572,25 @@ class iterman_gui:
 			
 	# --- turn on/off response radiobutton ---
 	def activate_response(self):
-		if(self.useM3DC1.get() == -1):
-			self.response_R1.configure(state=tk.DISABLED)
-			self.response_R2.configure(state=tk.DISABLED)
+		if(self.selectField.get() < 0):
+			self.useM3DC1.set(0)
+			self.useM3DC1_R1.grid_forget()
+			self.useM3DC1_R2.grid_forget()
+			self.useM3DC1_R3.grid_forget()
+			self.useM3DC1_label.grid_forget()
+			self.response_R1.grid_forget()
+			self.response_R2.grid_forget()
+			self.response_label.grid_forget()
 		else:
-			self.response_R1.configure(state=tk.NORMAL)
-			self.response_R2.configure(state=tk.NORMAL)
+			row = self.row_M3DC1
+			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			row = self.row_M3DC1 + 1
+			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -3371,7 +3641,7 @@ class iterman_gui:
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
 			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
-			f.write('Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=\t' + str(self.useM3DC1.get()) + '\n')
+			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
 		
@@ -3481,24 +3751,36 @@ class iterfoot_gui:
 		separator2 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
-		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
+		# --- magnetic field ---
+		self.selectField = tk.IntVar(); row += 1
+		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.selectField, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
+		tk.Radiobutton(frame, width = 8, text = 'M3D-C1', variable = self.selectField, value = 0,
 			command = self.activate_response).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Perturbation', variable = self.useM3DC1, value = 1,
+		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2,
-			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
+		tk.Radiobutton(frame, text = 'SIESTA', variable = self.selectField, value = -2,
+			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
+
+		# --- M3DC1 ---
+		self.useM3DC1 = tk.IntVar(); row += 1; self.row_M3DC1 = row
+		self.useM3DC1_R1 = tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0)
+		self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R2 = tk.Radiobutton(frame, text = 'Pert.', variable = self.useM3DC1, value = 1)
+		self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R3 = tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2)
+		self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
+		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
 		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
+		self.response_label = tk.Label(frame, text = "Plasma response")
+		self.response_label.grid(column = 1, row = row, sticky = tk.E )
 		
 		# --- separator ---
 		row += 1
@@ -3590,7 +3872,14 @@ class iterfoot_gui:
 		self.itt.set(str(int(data[1])))
 		self.MapDirection.set(int(data[8]))
 		self.useIcoil.set(int(data[11]))
-		self.useM3DC1.set(int(data[19]))
+		
+		if (int(data[19]) >= 0):
+			self.selectField.set(0)
+			self.useM3DC1.set(int(data[19]))
+		else:
+			self.selectField.set(int(data[19]))
+			self.useM3DC1.set(0)
+			
 		self.response.set(int(data[18]))
 		self.sigma.set(int(data[14]))
 		self.charge.set(int(data[15]))
@@ -3658,12 +3947,25 @@ class iterfoot_gui:
 				
 	# --- turn on/off response radiobutton ---
 	def activate_response(self):
-		if(self.useM3DC1.get() == -1):
-			self.response_R1.configure(state=tk.DISABLED)
-			self.response_R2.configure(state=tk.DISABLED)
+		if(self.selectField.get() < 0):
+			self.useM3DC1.set(0)
+			self.useM3DC1_R1.grid_forget()
+			self.useM3DC1_R2.grid_forget()
+			self.useM3DC1_R3.grid_forget()
+			self.useM3DC1_label.grid_forget()
+			self.response_R1.grid_forget()
+			self.response_R2.grid_forget()
+			self.response_label.grid_forget()
 		else:
-			self.response_R1.configure(state=tk.NORMAL)
-			self.response_R2.configure(state=tk.NORMAL)
+			row = self.row_M3DC1
+			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			row = self.row_M3DC1 + 1
+			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -3713,7 +4015,7 @@ class iterfoot_gui:
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
 			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
-			f.write('Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=\t' + str(self.useM3DC1.get()) + '\n')
+			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
 		
@@ -3825,24 +4127,36 @@ class iterlam_gui:
 		separator2 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
-		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
+		# --- magnetic field ---
+		self.selectField = tk.IntVar(); row += 1
+		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.selectField, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
+		tk.Radiobutton(frame, width = 8, text = 'M3D-C1', variable = self.selectField, value = 0,
 			command = self.activate_response).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Perturbation', variable = self.useM3DC1, value = 1,
+		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2,
-			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
+		tk.Radiobutton(frame, width = 8, text = 'SIESTA', variable = self.selectField, value = -2,
+			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
+
+		# --- M3DC1 ---
+		self.useM3DC1 = tk.IntVar(); row += 1; self.row_M3DC1 = row
+		self.useM3DC1_R1 = tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0)
+		self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R2 = tk.Radiobutton(frame, text = 'Pert.', variable = self.useM3DC1, value = 1)
+		self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R3 = tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2)
+		self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
+		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
 		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
+		self.response_label = tk.Label(frame, text = "Plasma response")
+		self.response_label.grid(column = 1, row = row, sticky = tk.E )
 		
 		# --- separator ---
 		row += 1
@@ -3937,7 +4251,14 @@ class iterlam_gui:
 		self.phistart.set(repr(data[7])); 
 		self.MapDirection.set(int(data[8])); 
 		self.useIcoil.set(int(data[11]))
-		self.useM3DC1.set(int(data[19]))
+		
+		if (int(data[19]) >= 0):
+			self.selectField.set(0)
+			self.useM3DC1.set(int(data[19]))
+		else:
+			self.selectField.set(int(data[19]))
+			self.useM3DC1.set(0)
+			
 		self.response.set(int(data[18]))
 		self.sigma.set(int(data[14]))
 		self.charge.set(int(data[15]))
@@ -4040,12 +4361,25 @@ class iterlam_gui:
 			
 	# --- turn on/off response radiobutton ---
 	def activate_response(self):
-		if(self.useM3DC1.get() == -1):
-			self.response_R1.configure(state=tk.DISABLED)
-			self.response_R2.configure(state=tk.DISABLED)
+		if(self.selectField.get() < 0):
+			self.useM3DC1.set(0)
+			self.useM3DC1_R1.grid_forget()
+			self.useM3DC1_R2.grid_forget()
+			self.useM3DC1_R3.grid_forget()
+			self.useM3DC1_label.grid_forget()
+			self.response_R1.grid_forget()
+			self.response_R2.grid_forget()
+			self.response_label.grid_forget()
 		else:
-			self.response_R1.configure(state=tk.NORMAL)
-			self.response_R2.configure(state=tk.NORMAL)
+			row = self.row_M3DC1
+			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			row = self.row_M3DC1 + 1
+			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -4110,7 +4444,7 @@ class iterlam_gui:
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
 			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
-			f.write('Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=\t' + str(self.useM3DC1.get()) + '\n')
+			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
 		
@@ -4225,24 +4559,36 @@ class nstxfoot_gui:
 		separator2 = tk.Label(frame, text = "---------------------------------------------------------------------------------------")
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
-		# --- M3DC1 ---
-		self.useM3DC1 = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.useM3DC1, value = -1,
+		# --- magnetic field ---
+		self.selectField = tk.IntVar(); row += 1
+		tk.Radiobutton(frame, text = 'g-file Vacuum', variable = self.selectField, value = -1,
 			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0,
+		tk.Radiobutton(frame, width = 8, text = 'M3D-C1', variable = self.selectField, value = 0,
 			command = self.activate_response).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Perturbation', variable = self.useM3DC1, value = 1,
+		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2,
-			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use M3DC1").grid(column = 1, row = row, sticky = tk.E )
+		tk.Radiobutton(frame, text = 'SIESTA', variable = self.selectField, value = -2,
+			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
+
+		# --- M3DC1 ---
+		self.useM3DC1 = tk.IntVar(); row += 1; self.row_M3DC1 = row
+		self.useM3DC1_R1 = tk.Radiobutton(frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0)
+		self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R2 = tk.Radiobutton(frame, text = 'Pert.', variable = self.useM3DC1, value = 1)
+		self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_R3 = tk.Radiobutton(frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2)
+		self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E )
+		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
+		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
 		self.response = tk.IntVar(); row += 1
 		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "Plasma response").grid(column = 1, row = row, sticky = tk.E )
+		self.response_label = tk.Label(frame, text = "Plasma response")
+		self.response_label.grid(column = 1, row = row, sticky = tk.E )
 		
 		# --- separator ---
 		row += 1
@@ -4356,7 +4702,14 @@ class nstxfoot_gui:
 		self.itt.set(str(int(data[1])))
 		self.MapDirection.set(int(data[8]))
 		self.useIcoil.set(int(data[11]))
-		self.useM3DC1.set(int(data[19]))
+		
+		if (int(data[19]) >= 0):
+			self.selectField.set(0)
+			self.useM3DC1.set(int(data[19]))
+		else:
+			self.selectField.set(int(data[19]))
+			self.useM3DC1.set(0)
+			
 		self.response.set(int(data[18]))
 		self.sigma.set(int(data[14]))
 		self.charge.set(int(data[15]))
@@ -4442,12 +4795,25 @@ class nstxfoot_gui:
 				
 	# --- turn on/off response radiobutton ---
 	def activate_response(self):
-		if(self.useM3DC1.get() == -1):
-			self.response_R1.configure(state=tk.DISABLED)
-			self.response_R2.configure(state=tk.DISABLED)
+		if(self.selectField.get() < 0):
+			self.useM3DC1.set(0)
+			self.useM3DC1_R1.grid_forget()
+			self.useM3DC1_R2.grid_forget()
+			self.useM3DC1_R3.grid_forget()
+			self.useM3DC1_label.grid_forget()
+			self.response_R1.grid_forget()
+			self.response_R2.grid_forget()
+			self.response_label.grid_forget()
 		else:
-			self.response_R1.configure(state=tk.NORMAL)
-			self.response_R2.configure(state=tk.NORMAL)
+			row = self.row_M3DC1
+			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			row = self.row_M3DC1 + 1
+			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
+			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -4514,7 +4880,7 @@ class nstxfoot_gui:
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
 			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
-			f.write('Field(-1=M3D-C1_off,0=Eq,1=EC-coil,2=both)=\t' + str(self.useM3DC1.get()) + '\n')
+			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
 			
@@ -4533,8 +4899,8 @@ class info_gui:
 		self.info_text.grid(column = 1, row = row, columnspan = 5, padx=10, pady=10); 
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
-		'MAFOT Version 3.2 \n'
-		'GUI Version 1.131 \n'
+		'MAFOT Version 3.3 \n'
+		'GUI Version 1.14 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'
