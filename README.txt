@@ -52,10 +52,10 @@ GUI 1.14
 Version Notes: 
 ----------------
 MAFOT 3.4 -- Oct 2014
-- SIESTA support added
+- SIESTA support added; code looks for file "siesta.dat"
 
 MAFOT 3.3 -- Oct 2014
-- VMEC/DIAGNO support added
+- VMEC/DIAGNO support added; code looks for files "diagno.dat" and "wout.nc"
 - pragma OMP barrier removed to comply with latest compiler rules
 
 GUI 1.14 -- Oct 2014
@@ -85,7 +85,7 @@ GUI 1.0 -- Oct 2013
 - first release for D3D MAFOT control
 
 MAFOT 3.1 -- Apr 2012
-- M3D-C1 interface added
+- M3D-C1 interface added; code looks for file "C1.h5"
 
 MAFOT 3.0 -- Jan 2011
 - EFIT, IO and Particle Classes introduced -> replace old includes
