@@ -47,10 +47,13 @@ or
 Current Version:
 ----------------
 MAFOT 3.4
-GUI 1.14
+GUI 1.15
 
 Version Notes: 
 ----------------
+GUI 1.15 -- Oct 2014
+- SIESTA support added; plot und laminar only
+
 MAFOT 3.4 -- Oct 2014
 - SIESTA support added; code looks for file "siesta.dat"
 

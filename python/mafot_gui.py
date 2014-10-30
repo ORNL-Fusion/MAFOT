@@ -431,12 +431,15 @@ class dtplot_gui:
 		self.createFlag = tk.StringVar(); row = 0
 
 		# ...and set grid-type RadioButton
-		tk.Radiobutton(frame, text = 'RZ', variable = self.createFlag, value = 'RZ', 
-			command = self.refresh_grid_labels).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'psi_n', variable = self.createFlag, value = 'psi', 
-			command = self.refresh_grid_labels).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Polar', variable = self.createFlag, value = 'polar', 
-			command = self.refresh_grid_labels).grid(column = 4, row = row, sticky = tk.W + tk.E )
+		self.create_R1 = tk.Radiobutton(frame, text = 'RZ', variable = self.createFlag, value = 'RZ', 
+			command = self.refresh_grid_labels)
+		self.create_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.create_R2 = tk.Radiobutton(frame, text = 'psi_n', variable = self.createFlag, value = 'psi', 
+			command = self.refresh_grid_labels)
+		self.create_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.create_R3 = tk.Radiobutton(frame, text = 'Polar', variable = self.createFlag, value = 'polar', 
+			command = self.refresh_grid_labels)
+		self.create_R3.grid(column = 4, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "Coordinate Type").grid(column = 1, row = row, sticky = tk.E )
 
 		# --- x -> theta or R ---
@@ -540,8 +543,8 @@ class dtplot_gui:
 			command = self.activate_response).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'SIESTA', variable = self.selectField, value = -2,
-			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+		tk.Radiobutton(frame, width = 9, text = 'SIESTA', variable = self.selectField, value = -2,
+			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
 
 		# --- M3DC1 ---
@@ -740,8 +743,12 @@ class dtplot_gui:
 			self.y_label.configure(text = "r [m]")
 			self.pi_text.grid(column = 4, row = self.pi_row, columnspan = 2)
 		elif(self.createFlag.get() == 'psi'):
-			self.x_label.configure(text = "theta [rad]")
-			self.y_label.configure(text = "psi_n")
+			if(self.selectField.get() == -2):
+				self.x_label.configure(text = "u [rad]")
+				self.y_label.configure(text = "s")
+			else:
+				self.x_label.configure(text = "theta [rad]")
+				self.y_label.configure(text = "psi_n")
 			self.pi_text.grid(column = 4, row = self.pi_row, columnspan = 2)
 		else:
 			self.x_label.configure(text = "R [m]")
@@ -784,6 +791,17 @@ class dtplot_gui:
 # 			self.useM3DC1_R2.configure(state=tk.NORMAL)
 # 			self.useM3DC1_R3.configure(state=tk.NORMAL)
 # 			self.useM3DC1_label.configure(state=tk.NORMAL)
+		if(self.selectField.get() == -2):
+			self.createFlag.set('psi')
+			self.refresh_grid_labels()
+			self.create_R1.configure(state=tk.DISABLED)
+			self.create_R2.configure(text = 's,u')
+			self.create_R3.configure(state=tk.DISABLED)
+		else:
+			self.refresh_grid_labels()
+			self.create_R1.configure(state=tk.NORMAL)
+			self.create_R2.configure(text = 'psi_n')
+			self.create_R3.configure(state=tk.NORMAL)
 			
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -2061,10 +2079,12 @@ class dtlam_gui:
 		self.createFlag = tk.StringVar(); row = 0
 
 		# ...and set grid-type RadioButton
-		tk.Radiobutton(frame, text = 'RZ', variable = self.createFlag, value = 'RZ', 
-			command = self.refresh_grid_labels).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'psi_n', variable = self.createFlag, value = 'psi', 
-			command = self.refresh_grid_labels).grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.create_R1 = tk.Radiobutton(frame, text = 'RZ', variable = self.createFlag, value = 'RZ', 
+			command = self.refresh_grid_labels)
+		self.create_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.create_R2 = tk.Radiobutton(frame, text = 'psi_n', variable = self.createFlag, value = 'psi', 
+			command = self.refresh_grid_labels)
+		self.create_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "Coordinate Type").grid(column = 1, row = row, sticky = tk.E )
 
 		# --- x -> theta or R ---
@@ -2170,7 +2190,7 @@ class dtlam_gui:
 		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, width = 8, text = 'SIESTA', variable = self.selectField, value = -2,
-			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
 
 		# --- M3DC1 ---
@@ -2363,14 +2383,21 @@ class dtlam_gui:
 	# --- Change Labels on grid variables, depending on createFlag ---
 	def refresh_grid_labels(self):
 		if(self.createFlag.get() == 'psi'):
-			self.x_label.configure(text = "theta [rad]")
-			self.y_label.configure(text = "psi_n")
-			self.pi_text.grid(column = 4, row = self.pi_row, columnspan = 2)
 			if os.path.isfile(self.path.get() + '_lam_psi.dat'):
+				use_defaults = False
 				_,_,_, data = self.M.readControlFile(self.path.get() + '_lam_psi.dat')
 			else: # defaults
+				use_defaults = True
 				data = [1200, 200, 0.88, 1.02, 0, 6.283185307179586, 700, 0, 0, 0, -1, 1, 3, 1, 1, 1, 0, 1, 
 						100, 0.1, 0, 3.141592653589793, 6.283185307179586]
+			if(self.selectField.get() == -2):
+				self.x_label.configure(text = "u [rad]")
+				self.y_label.configure(text = "s")
+				if use_defaults: data[2] = 0.1; data[3] = 1.0
+			else:
+				self.x_label.configure(text = "theta [rad]")
+				self.y_label.configure(text = "psi_n")
+			self.pi_text.grid(column = 4, row = self.pi_row, columnspan = 2)
 			self.xmin.set(repr(data[4]))
 			self.xmax.set(repr(data[5]))
 			self.Nx.set(str(int(data[0])))
@@ -2416,6 +2443,15 @@ class dtlam_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+		if(self.selectField.get() == -2):
+			self.createFlag.set('psi')
+			self.refresh_grid_labels()
+			self.create_R1.configure(state=tk.DISABLED)
+			self.create_R2.configure(text = 's,u')
+		else:
+			self.refresh_grid_labels()
+			self.create_R1.configure(state=tk.NORMAL)
+			self.create_R2.configure(text = 'psi_n')
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -2504,12 +2540,15 @@ class iterplot_gui:
 		self.createFlag = tk.StringVar(); row = 0
 
 		# ...and set grid-type RadioButton
-		tk.Radiobutton(frame, text = 'RZ', variable = self.createFlag, value = 'RZ', 
-			command = self.refresh_grid_labels).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'psi_n', variable = self.createFlag, value = 'psi', 
-			command = self.refresh_grid_labels).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'Polar', variable = self.createFlag, value = 'polar', 
-			command = self.refresh_grid_labels).grid(column = 4, row = row, sticky = tk.W + tk.E )
+		self.create_R1 = tk.Radiobutton(frame, text = 'RZ', variable = self.createFlag, value = 'RZ', 
+			command = self.refresh_grid_labels)
+		self.create_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.create_R2 = tk.Radiobutton(frame, text = 'psi_n', variable = self.createFlag, value = 'psi', 
+			command = self.refresh_grid_labels)
+		self.create_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.create_R3 = tk.Radiobutton(frame, text = 'Polar', variable = self.createFlag, value = 'polar', 
+			command = self.refresh_grid_labels)
+		self.create_R3.grid(column = 4, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "Coordinate Type").grid(column = 1, row = row, sticky = tk.E )
 
 		# --- x -> theta or R ---
@@ -2603,8 +2642,8 @@ class iterplot_gui:
 			command = self.activate_response).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'SIESTA', variable = self.selectField, value = -2,
-			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+		tk.Radiobutton(frame, width = 9, text = 'SIESTA', variable = self.selectField, value = -2,
+			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
 
 		# --- M3DC1 ---
@@ -2787,8 +2826,12 @@ class iterplot_gui:
 			self.y_label.configure(text = "r [m]")
 			self.pi_text.grid(column = 4, row = self.pi_row, columnspan = 2)
 		elif(self.createFlag.get() == 'psi'):
-			self.x_label.configure(text = "theta [rad]")
-			self.y_label.configure(text = "psi_n")
+			if(self.selectField.get() == -2):
+				self.x_label.configure(text = "u [rad]")
+				self.y_label.configure(text = "s")
+			else:
+				self.x_label.configure(text = "theta [rad]")
+				self.y_label.configure(text = "psi_n")
 			self.pi_text.grid(column = 4, row = self.pi_row, columnspan = 2)
 		else:
 			self.x_label.configure(text = "R [m]")
@@ -2817,6 +2860,17 @@ class iterplot_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+		if(self.selectField.get() == -2):
+			self.createFlag.set('psi')
+			self.refresh_grid_labels()
+			self.create_R1.configure(state=tk.DISABLED)
+			self.create_R2.configure(text = 's,u')
+			self.create_R3.configure(state=tk.DISABLED)
+		else:
+			self.refresh_grid_labels()
+			self.create_R1.configure(state=tk.NORMAL)
+			self.create_R2.configure(text = 'psi_n')
+			self.create_R3.configure(state=tk.NORMAL)
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -4037,10 +4091,12 @@ class iterlam_gui:
 		self.createFlag = tk.StringVar(); row = 0
 
 		# ...and set grid-type RadioButton
-		tk.Radiobutton(frame, text = 'RZ', variable = self.createFlag, value = 'RZ', 
-			command = self.refresh_grid_labels).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'psi_n', variable = self.createFlag, value = 'psi', 
-			command = self.refresh_grid_labels).grid(column = 3, row = row, sticky = tk.W + tk.E )
+		self.create_R1 = tk.Radiobutton(frame, text = 'RZ', variable = self.createFlag, value = 'RZ', 
+			command = self.refresh_grid_labels)
+		self.create_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.create_R2 = tk.Radiobutton(frame, text = 'psi_n', variable = self.createFlag, value = 'psi', 
+			command = self.refresh_grid_labels)
+		self.create_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "Coordinate Type").grid(column = 1, row = row, sticky = tk.E )
 
 		# --- x -> theta or R ---
@@ -4136,7 +4192,7 @@ class iterlam_gui:
 		tk.Radiobutton(frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, width = 8, text = 'SIESTA', variable = self.selectField, value = -2,
-			command = self.activate_response, state=tk.DISABLED).grid(column = 5, row = row, sticky = tk.W + tk.E )
+			command = self.activate_response).grid(column = 5, row = row, sticky = tk.W + tk.E )
 		tk.Label(frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
 
 		# --- M3DC1 ---
@@ -4327,14 +4383,21 @@ class iterlam_gui:
 	# --- Change Labels on grid variables, depending on createFlag ---
 	def refresh_grid_labels(self):
 		if(self.createFlag.get() == 'psi'):
-			self.x_label.configure(text = "theta [rad]")
-			self.y_label.configure(text = "psi_n")
-			self.pi_text.grid(column = 4, row = self.pi_row, columnspan = 2)
 			if os.path.isfile(self.path.get() + '_lam_psi.dat'):
+				use_defaults = False
 				_,_,_, data = self.M.readControlFile(self.path.get() + '_lam_psi.dat')
 			else: # defaults
+				use_defaults = True
 				data = [1200, 200, 0.88, 1.02, 0, 6.283185307179586, 700, 0, 0, 1, 0, 1, 0, 0, 0, 1, 100, 0.1, 
 						0, -1, 3.141592653589793, 6.283185307179586]
+			if(self.selectField.get() == -2):
+				self.x_label.configure(text = "u [rad]")
+				self.y_label.configure(text = "s")
+				if use_defaults: data[2] = 0.1; data[3] = 1.0
+			else:
+				self.x_label.configure(text = "theta [rad]")
+				self.y_label.configure(text = "psi_n")
+			self.pi_text.grid(column = 4, row = self.pi_row, columnspan = 2)
 			self.xmin.set(repr(data[4]))
 			self.xmax.set(repr(data[5]))
 			self.Nx.set(str(int(data[0])))
@@ -4380,6 +4443,15 @@ class iterlam_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+		if(self.selectField.get() == -2):
+			self.createFlag.set('psi')
+			self.refresh_grid_labels()
+			self.create_R1.configure(state=tk.DISABLED)
+			self.create_R2.configure(text = 's,u')
+		else:
+			self.refresh_grid_labels()
+			self.create_R1.configure(state=tk.NORMAL)
+			self.create_R2.configure(text = 'psi_n')
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -4899,8 +4971,8 @@ class info_gui:
 		self.info_text.grid(column = 1, row = row, columnspan = 5, padx=10, pady=10); 
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
-		'MAFOT Version 3.3 \n'
-		'GUI Version 1.14 \n'
+		'MAFOT Version 3.4 \n'
+		'GUI Version 1.15 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'
