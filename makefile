@@ -19,18 +19,21 @@ else
 endif
 
 
-# ---- DIAGNO support ----
-ifdef DIAGNO
-ifeq ($(DIAGNO),True)
-   DEFINES += -DUSE_DIAGNO
-endif
-endif
-
-
 # ---- SIESTA support ----
 ifdef SIESTA
 ifeq ($(SIESTA),True)
    DEFINES += -DUSE_SIESTA
+   VMEC = True
+endif
+endif
+
+
+# ---- VMEC support ----
+ifdef VMEC
+ifeq ($(VMEC),True)
+   LIBS += $(NETCDFLIBS)
+   INCLUDE += $(NETCDFINCLUDE)
+   DEFINES += -DUSE_DIAGNO
 endif
 endif
 
@@ -64,16 +67,16 @@ FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 all : $(DIRS) d3d iter nstx mast
 
 .PHONY : d3d
-d3d : dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi $(DIRS)
+d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi
 
 .PHONY : iter
-iter : iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi iterplot_mpi $(DIRS)
+iter : $(DIRS) iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi iterplot_mpi 
 
 .PHONY : nstx 
-nstx : nstxplot nstxfix nstxman nstxlaminar_mpi nstxfoot_mpi nstxplot_mpi $(DIRS)
+nstx : $(DIRS) nstxplot nstxfix nstxman nstxlaminar_mpi nstxfoot_mpi nstxplot_mpi 
 
 .PHONY : mast 
-mast : mastplot mastfix mastman mastlaminar_mpi mastfoot_mpi mastplot_mpi $(DIRS)
+mast : $(DIRS) mastplot mastfix mastman mastlaminar_mpi mastfoot_mpi mastplot_mpi 
 
 .PHONY : gui
 gui : $(MAFOT_DIR)/python/mafot_gui.py
@@ -84,10 +87,10 @@ else
 	@echo "PYINSTALLER not defined"
 endif
 
-libtrip3d.a : $(FOBJS) $(DIRS)
+libtrip3d.a : $(DIRS) $(FOBJS) 
 	$(ARCH) $(LIB_DIR)/$@ $(FOBJS)
 
-libla_string.a : $(OBJS) $(DIRS)
+libla_string.a : $(DIRS) $(OBJS) 
 	$(ARCH) $(LIB_DIR)/$@ $(OBJS)
 
 clean :

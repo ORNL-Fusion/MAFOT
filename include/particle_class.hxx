@@ -68,6 +68,7 @@ public:
 	double Z;		// cylindrical vertical coordinate [m]
 	double phi;		// toroidal angle [deg]
 	double psi;		// normalized flux
+	double theta;	// poloidal angle (not always used!)
 
 	double Lc;		// connection length [m]
 	double psimin;	// minimum of normalized flux reached by trajectory
@@ -121,11 +122,11 @@ const double E0p=mp*c*c/e/1000.0;	// Rest energy of Protons in [keV]
 const int Massnumber=1;				// Mass number
 
 // Public Member Variables
-
 R = 0;				// cylindrical major radius [m]
 Z = 0;				// cylindrical vertical coordinate [m]
 phi = 0;			// toroidal angle [deg]
 psi = 0;			// normalized flux
+theta = 0;			// poloidal angle
 
 Lc = 0;				// connection length [m]
 psimin = 10;		// minimum of normalized flux reached by trajectory
@@ -187,7 +188,8 @@ steps = FLT.steps;
 R = FLT.R;	
 Z = FLT.Z;	
 phi = FLT.phi;	
-psi = FLT.psi;	
+psi = FLT.psi;
+theta = FLT.theta;
 
 Lc = FLT.Lc;	
 psimin = FLT.psimin;
@@ -465,12 +467,13 @@ switch(flag)
 {
 case 2:		// get R, Z from x = psi and y = theta
 #ifdef USE_SIESTA
-	if(PARr.response_field == -2) SIES.get_RZ(x, y, phi, R, Z);
+	if(PARr.response_field == -2) SIES.get_RZ(x, y, phi/rTOd, R, Z);	// x = s and y = u
 	else getRZ(x, y, R, Z, EQDr);
 #else
 	getRZ(x, y, R, Z, EQDr);
 #endif
 	psi = x;
+	theta = y;
 	break;
 case 1:		// get R, Z from r and theta
 	R = x*cos(y) + EQDr.RmAxis;
@@ -516,12 +519,13 @@ switch(flag)
 {
 case 2:		// get R, Z from psi and theta
 #ifdef USE_SIESTA
-	if(PARr.response_field == -2) SIES.get_RZ(x, y, phi, R, Z);
+	if(PARr.response_field == -2) SIES.get_RZ(x, y, phi/rTOd, R, Z);	// x = s and y = u
 	else getRZ(x, y, R, Z, EQDr);
 #else
 	getRZ(x, y, R, Z, EQDr);
 #endif
 	psi = x;
+	theta = y;
 	break;
 case 1:		// get R, Z from r and theta
 	R = x*cos(y) + EQDr.RmAxis;
@@ -604,7 +608,12 @@ for (k=1;k<=nstep;k++)
 
 	// Get additional Parameter
 	Lc += sqrt((yout(0)-y(0))*(yout(0)-y(0)) + (yout(1)-y(1))*(yout(1)-y(1)) + 0.25*(yout(0)+y(0))*(yout(0)+y(0))*dx*dx);
+#ifdef USE_SIESTA
+	if(PARr.response_field == -2) SIES.get_su(yout(0),x,yout(1),psi,theta);
+	else EQDr.get_psi(yout(0),yout(1),psi,dummy,dummy);
+#else
 	EQDr.get_psi(yout(0),yout(1),psi,dummy,dummy);
+#endif
 	if(psi < psimin) psimin = psi;
 	if(psi > psimax) psimax = psi;
 	psiav += psi;

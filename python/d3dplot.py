@@ -98,7 +98,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			xLabel = '$\\varphi$ $\\mathrm{[rad]}$'
 			yLabel = 't'
 			if(physical > 0):
-				x = (360 - x*180.0/pi)[:,::-1]	# reverse x
+				x = (360 - x*180.0/np.pi)[:,::-1]	# reverse x
 				xLabel = '$\\phi$ $\\mathrm{[deg]}$'
 				yLabel = 'R [m]'
 				if(target== 'in'):
@@ -117,7 +117,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			xLabel = '$\\varphi$ $\\mathrm{[rad]}$'
 			yLabel = 't [cm]'
 			if(physical > 0):
-				x = x*180.0/pi
+				x = x*180.0/np.pi
 				xLabel = '$\\phi$ $\\mathrm{[deg]}$'			
 	else:
 		print 'coordinates: Unknown input'

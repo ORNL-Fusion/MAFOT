@@ -263,18 +263,18 @@ for(i=1;i<=Nu-1;i++)	// go one less, since Nu is one larger
 in.close();
 
 // make periodic
-R(all,Nu,all) = R(all,1,all);
-R(all,all,Nv) = R(all,all,1);
-PHI(all,Nu,all) = PHI(all,1,all);
+R(all,Nu,all) = R(all,1,all).copy();
+R(all,all,Nv) = R(all,all,1).copy();
+PHI(all,Nu,all) = PHI(all,1,all).copy();
 PHI(all,all,Nv) = pi2;
-Z(all,Nu,all) = Z(all,1,all);
-Z(all,all,Nv) = Z(all,all,1);
-BR(all,Nu,all) = BR(all,1,all);
-BR(all,all,Nv) = BR(all,all,1);
-BPHI(all,Nu,all) = BPHI(all,1,all);
-BPHI(all,all,Nv) = BPHI(all,all,1);
-BZ(all,Nu,all) = BZ(all,1,all);
-BZ(all,all,Nv) = BZ(all,all,1);
+Z(all,Nu,all) = Z(all,1,all).copy();
+Z(all,all,Nv) = Z(all,all,1).copy();
+BR(all,Nu,all) = BR(all,1,all).copy();
+BR(all,all,Nv) = BR(all,all,1).copy();
+BPHI(all,Nu,all) = BPHI(all,1,all).copy();
+BPHI(all,all,Nv) = BPHI(all,all,1).copy();
+BZ(all,Nu,all) = BZ(all,1,all).copy();
+BZ(all,all,Nv) = BZ(all,all,1).copy();
 
 // get a guess of the Axis location
 Raxis.resize(Nv);
@@ -363,6 +363,10 @@ if(t > 0)	// not exactly in the v-plane (k-1)*dv
 {
 	find_su(r, k+1, z, su, uu, s, u);
 
+	// u and uu can be ±2*pi apart
+	if((uu-u) > 6) uu -= pi2;
+	else if((uu-u) < -6) uu += pi2;
+
 	// linear interpolation of s,u in v
 	s += t*(su - s);
 	u += t*(uu - u);
@@ -449,25 +453,20 @@ for(i=1;i<=Nv;i++)
 // df1 = (f2 - f1)/du;	dfN = (fN - fN-1)/du;
 // periodicity: df1 = dfN = (df1 + dfN)/2
 // df1 = dfN = (f2 - f1 + fN - fN-1)/2du = (f2 - fN-1)/2du
-//dBRds(all,1,all) = (dBRds(all,1,all) + dBRds(all,Nu,all))/2.0;	dBRds(all,Nu,all) = dBRds(all,1,all);
-dBRdu(all,1,all) = (dBRdu(all,1,all) + dBRdu(all,Nu,all))/2.0;	dBRdu(all,Nu,all) = dBRdu(all,1,all);
-d2BR(all,1,all) = (d2BR(all,1,all) + d2BR(all,Nu,all))/2.0;		d2BR(all,Nu,all) = d2BR(all,1,all);
+slicedu.reference(dBRdu(all,1,all)); slice.reference(dBRdu(all,Nu,all)); slicedu /= 2.0; slicedu += slice/2.0; slice = slicedu.copy();
+sliced2.reference(d2BR(all,1,all)); slice.reference(d2BR(all,Nu,all)); sliced2 /= 2.0; sliced2 += slice/2.0; slice = sliced2.copy();
 
-//dBPHIds(all,1,all) = (dBPHIds(all,1,all) + dBPHIds(all,Nu,all))/2.0;	dBPHIds(all,Nu,all) = dBPHIds(all,1,all);
-dBPHIdu(all,1,all) = (dBPHIdu(all,1,all) + dBPHIdu(all,Nu,all))/2.0;	dBPHIdu(all,Nu,all) = dBPHIdu(all,1,all);
-d2BPHI(all,1,all) = (d2BPHI(all,1,all) + d2BPHI(all,Nu,all))/2.0;		d2BPHI(all,Nu,all) = d2BPHI(all,1,all);
+slicedu.reference(dBPHIdu(all,1,all)); slice.reference(dBPHIdu(all,Nu,all)); slicedu /= 2.0; slicedu += slice/2.0; slice = slicedu.copy();
+sliced2.reference(d2BPHI(all,1,all)); slice.reference(d2BPHI(all,Nu,all)); sliced2 /= 2.0; sliced2 += slice/2.0; slice = sliced2.copy();
 
-//dBZds(all,1,all) = (dBZds(all,1,all) + dBZds(all,Nu,all))/2.0;	dBZds(all,Nu,all) = dBZds(all,1,all);
-dBZdu(all,1,all) = (dBZdu(all,1,all) + dBZdu(all,Nu,all))/2.0;	dBZdu(all,Nu,all) = dBZdu(all,1,all);
-d2BZ(all,1,all) = (d2BZ(all,1,all) + d2BZ(all,Nu,all))/2.0;		d2BZ(all,Nu,all) = d2BZ(all,1,all);
+slicedu.reference(dBZdu(all,1,all)); slice.reference(dBZdu(all,Nu,all)); slicedu /= 2.0; slicedu += slice/2.0; slice = slicedu.copy();
+sliced2.reference(d2BZ(all,1,all)); slice.reference(d2BZ(all,Nu,all)); sliced2 /= 2.0; sliced2 += slice/2.0; slice = sliced2.copy();
 
-//dRds(all,1,all) = (dRds(all,1,all) + dRds(all,Nu,all))/2.0;		dRds(all,Nu,all) = dRds(all,1,all);
-dRdu(all,1,all) = (dRdu(all,1,all) + dRdu(all,Nu,all))/2.0;		dRdu(all,Nu,all) = dRdu(all,1,all);
-d2R(all,1,all) = (d2R(all,1,all) + d2R(all,Nu,all))/2.0;		d2R(all,Nu,all) = d2R(all,1,all);
+slicedu.reference(dRdu(all,1,all)); slice.reference(dRdu(all,Nu,all)); slicedu /= 2.0; slicedu += slice/2.0; slice = slicedu.copy();
+sliced2.reference(d2R(all,1,all)); slice.reference(d2R(all,Nu,all)); sliced2 /= 2.0; sliced2 += slice/2.0; slice = sliced2.copy();
 
-//dZds(all,1,all) = (dZds(all,1,all) + dZds(all,Nu,all))/2.0;		dZds(all,Nu,all) = dZds(all,1,all);
-dZdu(all,1,all) = (dZdu(all,1,all) + dZdu(all,Nu,all))/2.0;		dZdu(all,Nu,all) = dZdu(all,1,all);
-d2Z(all,1,all) = (d2Z(all,1,all) + d2Z(all,Nu,all))/2.0;		d2Z(all,Nu,all) = d2Z(all,1,all);
+slicedu.reference(dZdu(all,1,all)); slice.reference(dZdu(all,Nu,all)); slicedu /= 2.0; slicedu += slice/2.0; slice = slicedu.copy();
+sliced2.reference(d2Z(all,1,all)); slice.reference(d2Z(all,Nu,all)); sliced2 /= 2.0; sliced2 += slice/2.0; slice = sliced2.copy();
 
 // Get the c's for bcuint, as done by bcucof
 for(i=1;i<Ns;i++)

@@ -140,7 +140,7 @@ public:
 	EFIT& operator =(const EFIT& EQD);		// Operator =
 
 // Member-Funktionen
-	void ReadData(const LA_STRING ShotNr, const LA_STRING ShotTime);	// Reads EFIT data from g-file
+	void ReadData(const LA_STRING ShotNr, const LA_STRING ShotTime, double Raxis = 0, double Zaxis = 0);	// Reads EFIT data from g-file
 
 	// Interpolates psi and derivatives; flag: 0 = 2D splines, 1 = bicubic interpolation; norm specifies if psi is to be normalized
 	int get_psi(const double x1, const double x2, double& y, double& dy1, double& dy2, int flag=1, bool norm=true);		// 0: ok	-1: Point outside of EFIT grid
@@ -272,7 +272,7 @@ return(*this);
 //-------------------------------------------------------------------------------------------------------------------------
 
 //---------------------- ReadEFITdata -------------------------------------------------------------------------------------
-void EFIT::ReadData(LA_STRING ShotNr, LA_STRING ShotTime)
+void EFIT::ReadData(LA_STRING ShotNr, LA_STRING ShotTime, double Raxis, double Zaxis)
 {
 int i,j;
 string stdummy;
@@ -345,6 +345,23 @@ for(i=1;i<=2*Nlcfs;i++) in >> lcfs(i);	// Position of the LCFS in R,Z plane; R,Z
 for(i=1;i<=2*Nwall;i++) in >> wall(i);	// Position of the Wall in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
 
 in.close();
+
+// shift R,Z grid
+if(Raxis > 0)
+{
+	double dRmAxis = Raxis - RmAxis;
+	double dZmAxis = Zaxis - ZmAxis;
+
+	RmAxis += dRmAxis;
+	ZmAxis += dZmAxis;
+	R1 += dRmAxis;
+	Zmid += dZmAxis;
+	for(i=1;i<=2*Nlcfs;i+=2)
+	{
+		lcfs(i) += dRmAxis;
+		lcfs(i+1) += dZmAxis;
+	}
+}
 
 // Set R, Z and psi Arrays
 R.resize(NR);
@@ -766,14 +783,19 @@ void bcuint(Array<double,1>& Ra, Array<double,1>& Za, Array<double,4>& Ca, doubl
 			double R, double Z, double& y, double& y1, double& y2)
 {
 int i,j,k;
+int NR = Ra.rows();
+int NZ = Za.rows();
 double t,u;
 Array<double,2> c;
 Range all = Range::all();
 
 // Determine grid square where (R,Z) is in
+// square includes lower and left boundary, but not upper or right boundary -> in next box included
 j = int((R-Ra(1))/dR) + 1;
 k = int((Z-Za(1))/dZ) + 1;
-if(j>Ra.rows() || j<1 || k>Za.rows() || k<1)	{cout << "Point outside of grid" << endl; exit(0);}
+if(j == NR) j -= 1;	// exception: add outermost right boundary to square one to the left
+if(k == NZ) k -= 1;	// exception: add outermost top boundary to square one down
+if(j>NR || j<1 || k>NZ || k<1)	{cout << "Point outside of grid" << endl; exit(0);}
 
 // Get the c’s.
 c.reference(Ca(j,k,all,all));

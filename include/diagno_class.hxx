@@ -110,6 +110,7 @@ CaBZ.resize(NR-1,NZ-1,Np,4,4);	CaBZ.reindexSelf(index5);
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
+// arrays are just referenced; use A.reference(class.A.copy()) for true copy
 DIAGNO& DIAGNO::operator =(const DIAGNO& dia)
 {
 if (this == &dia) return(*this);	    // if: x=x
@@ -125,28 +126,28 @@ dR = dia.dR;
 dZ = dia.dZ;
 dp = dia.dp;
 
-Ra.reference(dia.Ra.copy());
-Za.reference(dia.Za.copy());
+Ra.reference(dia.Ra);
+Za.reference(dia.Za);
 
-BR.reference(dia.BR.copy());
-BPHI.reference(dia.BPHI.copy());
-BZ.reference(dia.BZ.copy());
+BR.reference(dia.BR);
+BPHI.reference(dia.BPHI);
+BZ.reference(dia.BZ);
 
-dBRdR.reference(dia.dBRdR.copy());
-dBPHIdR.reference(dia.dBPHIdR.copy());
-dBZdR.reference(dia.dBZdR.copy());
+dBRdR.reference(dia.dBRdR);
+dBPHIdR.reference(dia.dBPHIdR);
+dBZdR.reference(dia.dBZdR);
 
-dBRdZ.reference(dia.dBRdZ.copy());
-dBPHIdZ.reference(dia.dBPHIdZ.copy());
-dBZdZ.reference(dia.dBZdZ.copy());
+dBRdZ.reference(dia.dBRdZ);
+dBPHIdZ.reference(dia.dBPHIdZ);
+dBZdZ.reference(dia.dBZdZ);
 
-d2BR.reference(dia.d2BR.copy());
-d2BPHI.reference(dia.d2BPHI.copy());
-d2BZ.reference(dia.d2BZ.copy());
+d2BR.reference(dia.d2BR);
+d2BPHI.reference(dia.d2BPHI);
+d2BZ.reference(dia.d2BZ);
 
-CaBR.reference(dia.CaBR.copy());
-CaBPHI.reference(dia.CaBPHI.copy());
-CaBZ.reference(dia.CaBZ.copy());
+CaBR.reference(dia.CaBR);
+CaBPHI.reference(dia.CaBPHI);
+CaBZ.reference(dia.CaBZ);
 
 return(*this);
 }
@@ -204,6 +205,7 @@ for(i=2;i<=Np;i++)	// start at 2, since Np is one larger; first point = last poi
 			in >> BR(k,j,i);
 			in >> BPHI(k,j,i);
 			in >> BZ(k,j,i);
+			in >> dummy;	// Pressure
 		}
 	}
 }

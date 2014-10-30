@@ -125,7 +125,21 @@ IO PAR(EQD,parfilename,11,mpi_rank);
 ofs2 << "ok" << endl;
 
 // Read EFIT-data
+#ifdef USE_DIAGNO
+if(PAR.response_field == -3)
+{
+	VMEC vmec;
+	double Raxis,Zaxis;
+	if(mpi_rank < 1) cout << "Read VMEC file" << endl;
+	ofs2 << "Read VMEC file" << endl;
+	vmec.read("wout.nc");
+	vmec.get_axis(PAR.phistart/rTOd,Raxis,Zaxis);
+	EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
+}
+else EQD.ReadData(EQD.Shot,EQD.Time);
+#else
 EQD.ReadData(EQD.Shot,EQD.Time);
+#endif
 if(mpi_rank < 1) cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 
@@ -182,6 +196,7 @@ if(mpi_rank < 1)
 	vector<LA_STRING> var(7);
 	var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";  var[5] = "psimax";  var[6] = "psiav";
 	if(PAR.create_flag == 3) {var[0] = "theta";  var[1] = "psi";}
+	if(PAR.response_field == -2) {var[0] = "u"; var[3] = "s";}
 	PAR.writeiodata(out,bndy,var);
 
 	// Result array:					Package ID,  Column Number,  Values
@@ -325,7 +340,7 @@ if(mpi_rank < 1)
 					if(PAR.create_flag == 3)	// creates regular grid from theta and psi
 					{
 						FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave,2);	// here Rmin = psimin and Zmin = thetamin; max respectively
-						results_all(tag,1,i) = FLT.get_theta();
+						results_all(tag,1,i) = FLT.theta;
 						results_all(tag,2,i) = FLT.psi;
 					}
 					else						// creates regular grid from R and Z
@@ -427,7 +442,7 @@ if(mpi_rank > 0)
 			if(PAR.create_flag == 3)	// creates regular grid from theta and psi
 			{
 				FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave,2);	// here Rmin = psimin and Zmin = thetamin; max respectively
-				results(1,i) = FLT.get_theta();
+				results(1,i) = FLT.theta;
 				results(2,i) = FLT.psi;
 			}
 			else						// creates regular grid from R and Z

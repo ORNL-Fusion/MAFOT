@@ -118,7 +118,21 @@ ofs2 << "Read Parameterfile " << parfilename << endl;
 IO PAR(EQD,parfilename,10,mpi_rank);
 
 // Read EFIT-data
+#ifdef USE_DIAGNO
+if(PAR.response_field == -3)
+{
+	VMEC vmec;
+	double Raxis,Zaxis;
+	if(mpi_rank < 1) cout << "Read VMEC file" << endl;
+	ofs2 << "Read VMEC file" << endl;
+	vmec.read("wout.nc");
+	vmec.get_axis(PAR.phistart/rTOd,Raxis,Zaxis);
+	EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
+}
+else EQD.ReadData(EQD.Shot,EQD.Time);
+#else
 EQD.ReadData(EQD.Shot,EQD.Time);
+#endif
 if(mpi_rank < 1) cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 
@@ -364,7 +378,7 @@ if(mpi_rank < 1)
 #ifdef USE_SIESTA
 						if(PAR.response_field == -2)
 						{
-							SIES.get_su(FLT.R, FLT.phi, FLT.Z, s, u);
+							SIES.get_su(FLT.R, FLT.phi/rTOd, FLT.Z, s, u);
 							results(1,(n-Nmin_slave)*PAR.itt + i) = u;
 							results(4,(n-Nmin_slave)*PAR.itt + i) = s;
 						}
@@ -473,7 +487,7 @@ if(mpi_rank > 0)
 #ifdef USE_SIESTA
 				if(PAR.response_field == -2)
 				{
-					SIES.get_su(FLT.R, FLT.phi, FLT.Z, s, u);
+					SIES.get_su(FLT.R, FLT.phi/rTOd, FLT.Z, s, u);
 					results(1,(n-Nmin_slave)*PAR.itt + i) = u;
 					results(4,(n-Nmin_slave)*PAR.itt + i) = s;
 				}

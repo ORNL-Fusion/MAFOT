@@ -156,7 +156,28 @@ if(mpi_rank < 1) outputtest(filenameout);
 MPI::COMM_WORLD.Barrier();	// All Nodes wait for Master
 
 // Read EFIT-data
+#ifdef USE_DIAGNO
+if(PAR.response_field == -3)
+{
+	VMEC vmec;
+	double Raxis,Zaxis,Raxisv,Zaxisv,v;
+	if(mpi_rank < 1) cout << "Read VMEC file" << endl;
+	ofs2 << "Read VMEC file" << endl;
+	vmec.read("wout.nc");
+	Raxis = 0; Zaxis = 0;
+	for(i=0;i<40;i++)
+	{
+		v = i*pi2/40.0;
+		vmec.get_axis(v,Raxisv,Zaxisv);
+		Raxis += Raxisv;
+		Zaxis += Zaxisv;
+	}
+	EQD.ReadData(EQD.Shot,EQD.Time,Raxis/40.0,Zaxis/40.0);
+}
+else EQD.ReadData(EQD.Shot,EQD.Time);
+#else
 EQD.ReadData(EQD.Shot,EQD.Time);
+#endif
 if(mpi_rank < 1) cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 

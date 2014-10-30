@@ -46,11 +46,14 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.3
-GUI 1.131
+MAFOT 3.4
+GUI 1.14
 
 Version Notes: 
 ----------------
+MAFOT 3.4 -- Oct 2014
+- SIESTA support added
+
 MAFOT 3.3 -- Oct 2014
 - VMEC/DIAGNO support added
 - pragma OMP barrier removed to comply with latest compiler rules

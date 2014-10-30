@@ -352,8 +352,8 @@ private:
 // Member-Functions
 	void prepare_splines(void);		// prepare all 1D splines in s by calling spline from efit_class
 	void get_RZ(double s, double u, double v, double& r, double& z, double& drds, double& drdu, double& drdv, double& dzds, double& dzdu, double& dzdv); // same as public, but with derivatives
-	int newton2D(double r, double phi, double z, double& s, double& u);	// 2D Newton procedure to find s,u from a given R,Z
-	double bisec(double r0, double phi, double z0, double u, double Raxis, double Zaxis, double a = 0, double b = 1);	// preconditioner to give a rough estimate of s to use as initial condition in newton2D
+	//int newton2D(double r, double phi, double z, double& s, double& u);	// 2D Newton procedure to find s,u from a given R,Z
+	//double bisec(double r0, double phi, double z0, double u, double Raxis, double Zaxis, double a = 0, double b = 1);	// preconditioner to give a rough estimate of s to use as initial condition in newton2D
 
 public: 
 // Member Variables
@@ -382,7 +382,8 @@ public:
 	void read(LA_STRING filename);			// read in B-field tracer file from SIESTA
 	void get_B(double r, double phi, double z, double& br, double& bphi, double& bz);	// evaluate B at any location (r,phi,z) inside the SIESTA boundary
 	void get_RZ(double s, double u, double v, double& r, double& z);	// evaluate R,Z at any location (s,u,v)
-	void get_su(double r, double phi, double z, double& s, double& u, double sstart = -1, double ustart = -1);	// find s,u at any location (r,phi,z) inside the SIESTA boundary
+	//void get_su(double r, double phi, double z, double& s, double& u, double sstart = -1, double ustart = -1);	// find s,u at any location (r,phi,z) inside the SIESTA boundary
+	void get_su(double r, double phi, double z, double& s, double& u);
 }; //end of class
 
 //------------------------ End of Class -----------------------------------------------------------------------------------
@@ -444,6 +445,8 @@ int chk, ncid, varid;
 Range all = Range::all();
 
 // Input
+i=filename.length();
+if(filename.right(4) == ".dat") filename = filename(1,i-4) + ".nc";
 chk = nc_open(filename, NC_NOWRITE, &ncid);
 if(chk != 0) {cout << "Unable to open file " << filename << endl; EXIT;}
 
@@ -524,7 +527,7 @@ prepare_splines();
 void SIESTA::get_B(double r, double phi, double z, double& br, double& bphi, double& bz)
 {
 double s, u, v;
-//double bsups;
+double bsups;
 double bsupu,bsupv;
 double R,Z,g,gb;
 double dRds, dRdu, dRdv, dZds, dZdu, dZdv;
@@ -533,7 +536,7 @@ phi = modulo2pi(phi);	// make sure phi in [0, 2pi]
 v = phi;
 
 get_su(r, phi, z, s, u);
-//bsups = bsupsmn.ev(s, u, v);
+bsups = bsupsmn.ev(s, u, v);
 bsupu = bsupumn.ev(s, u, v);
 bsupv = bsupvmn.ev(s, u, v);
 
@@ -541,12 +544,12 @@ get_RZ(s, u, v, R, Z, dRds, dRdu, dRdv, dZds, dZdu, dZdv);
 g = wout.gmn.ev(s*s, u, v) * 2*s;
 
 gb = g*b_factor;
-//bsups /= gb;
+bsups /= gb;
 bsupu /= gb;
 bsupv /= gb;
 
-br = dRdu*bsupu + dRdv*bsupv; //+ dRds*bsups
-bz = dZdu*bsupu + dZdv*bsupv; //+ dZds*bsups
+br = dRdu*bsupu + dRdv*bsupv + dRds*bsups;
+bz = dZdu*bsupu + dZdv*bsupv + dZds*bsups;
 bphi = R * bsupv;
 }
 
@@ -558,26 +561,41 @@ r = wout.rmn.ev(s*s, u, v);
 z = wout.zmn.ev(s*s, u, v);
 }
 
+////------------------------- get_su ---------------------------------------------------------------------------------------
+//// find s,u at any location (r,phi,z) inside the SIESTA boundary
+//// sstart and ustart are optional initial guesses of s and u
+//void SIESTA::get_su(double r, double phi, double z, double& s, double& u, double sstart, double ustart)
+//{
+//double err, Raxis, Zaxis;
+//
+//if((ustart == -1) || (sstart == -1)) wout.get_axis(phi, Raxis, Zaxis);
+//
+//// set initial guesses
+//if(ustart == -1) u = polar_phi(r - Raxis, z - Zaxis);
+//else u = ustart;
+//if(sstart == -1) s = bisec(r, phi, z, u, Raxis, Zaxis);
+//else s = sstart;
+//
+//// run Newton
+//u = modulo2pi(u);	// make sure u in [0, 2pi]
+//err = newton2D(r,phi,z,s,u);
+//if(err > 0) cout << "SIESTA Newton2D: no convergence; remaining error: " << err << endl;
+//
+//}
+
 //------------------------- get_su ---------------------------------------------------------------------------------------
 // find s,u at any location (r,phi,z) inside the SIESTA boundary
 // sstart and ustart are optional initial guesses of s and u
-void SIESTA::get_su(double r, double phi, double z, double& s, double& u, double sstart, double ustart)
+void SIESTA::get_su(double r, double phi, double z, double& s, double& u)
 {
-double err, Raxis, Zaxis;
-
-if((ustart == -1) || (sstart == -1)) wout.get_axis(phi, Raxis, Zaxis);
-
-// set initial guesses
-if(ustart == -1) u = polar_phi(r - Raxis, z - Zaxis);
-else u = ustart;
-if(sstart == -1) s = bisec(r, phi, z, u, Raxis, Zaxis);
-else s = sstart;
-
-// run Newton
-u = modulo2pi(u);	// make sure u in [0, 2pi]
-err = newton2D(r,phi,z,s,u);
-if(err > 0) cout << "SIESTA Newton2D: no convergence; remaining error: " << err << endl;
-
+wout.get_su(r, phi, z, s, u);
+int imax = 12;
+while(s < 0 || s > 1)
+{
+	wout.get_su(r, phi, z, s, u, -1, -1, imax);
+	imax += 2;
+}
+s = sqrt(s);
 }
 
 //----------------------- End of Public Member Functions ------------------------------------------------------------------
@@ -620,67 +638,67 @@ bsupvmn.Vspline();
 presmn.Vspline();
 }
 
-//------------------------ newton2D ----------------------------------------------------------------------------------------
-// 2D Newton procedure
-int SIESTA::newton2D(double r0, double phi0, double z0, double& s, double& u)
-{
-const int imax = 20;
-const double delta = 1e-12;
-
-int i;
-double r,z,drds,drdu,drdv,dzds,dzdu,dzdv;
-double det,delta_s,delta_u,fr,fz,err;
-
-for(i=0;i<imax;i++)
-{
-	get_RZ(s, u, phi0, r, z, drds, drdu, drdv, dzds, dzdu, dzdv);
-
-	fr = r - r0;
-	fz = z - z0;
-
-	det = drds * dzdu - drdu * dzds;
-	delta_s = (dzdu * fr - drdu * fz) / det;
-	delta_u = (drds * fz - dzds * fr) / det;
-
-	err = sqrt(delta_s*delta_s + delta_u*delta_u);
-	if(err < delta) return 0;	// convergence
-
-	s -= delta_s;
-	u -= delta_u;
-	u = modulo2pi(u);	// make sure u in [0, 2pi]
-}
-return err;	// no convergence
-}
-
-//------------------------ bisec ----------------------------------------------------------------------------------------
-// bisection with only imax steps to find a crude estimate of s; use as preconditioner for newton2D
-// set u fixed as the geometric angle
-// assume f(a) < 0 & f(b) > 0 with f = (r(s,u,v) - Raxis)^2 + (z(s,u,v) - Zaxis)^2 - (r0 - Raxis)^2 - (z0 - Zaxis)^2
-// and v = phi0
-double SIESTA::bisec(double r0, double phi0, double z0, double u, double Raxis, double Zaxis, double a, double b)
-{
-int i;
-double s,rminor,r,z,f;
-
-// Iterations
-const int imax = 4;
-
-// reference point
-const double rminor0 = (r0 - Raxis)*(r0 - Raxis) + (z0 - Zaxis)*(z0 - Zaxis);
-
-for(i=1;i<=imax;i++)
-{
-	s = (a + b)/2.0;
-	get_RZ(s, u, phi0, r, z);
-	r -= Raxis;
-	z -= Zaxis;
-	rminor = r*r + z*z;
-	f = rminor - rminor0;
-	if(f > 0) b = s;
-	else a = s;
-}
-return s;
-}
+////------------------------ newton2D ----------------------------------------------------------------------------------------
+//// 2D Newton procedure
+//int SIESTA::newton2D(double r0, double phi0, double z0, double& s, double& u)
+//{
+//const int imax = 20;
+//const double delta = 1e-12;
+//
+//int i;
+//double r,z,drds,drdu,drdv,dzds,dzdu,dzdv;
+//double det,delta_s,delta_u,fr,fz,err;
+//
+//for(i=0;i<imax;i++)
+//{
+//	get_RZ(s, u, phi0, r, z, drds, drdu, drdv, dzds, dzdu, dzdv);
+//
+//	fr = r - r0;
+//	fz = z - z0;
+//
+//	det = drds * dzdu - drdu * dzds;
+//	delta_s = (dzdu * fr - drdu * fz) / det;
+//	delta_u = (drds * fz - dzds * fr) / det;
+//
+//	err = sqrt(delta_s*delta_s + delta_u*delta_u);
+//	if(err < delta) return 0;	// convergence
+//
+//	s -= delta_s;
+//	u -= delta_u;
+//	u = modulo2pi(u);	// make sure u in [0, 2pi]
+//}
+//return err;	// no convergence
+//}
+//
+////------------------------ bisec ----------------------------------------------------------------------------------------
+//// bisection with only imax steps to find a crude estimate of s; use as preconditioner for newton2D
+//// set u fixed as the geometric angle
+//// assume f(a) < 0 & f(b) > 0 with f = (r(s,u,v) - Raxis)^2 + (z(s,u,v) - Zaxis)^2 - (r0 - Raxis)^2 - (z0 - Zaxis)^2
+//// and v = phi0
+//double SIESTA::bisec(double r0, double phi0, double z0, double u, double Raxis, double Zaxis, double a, double b)
+//{
+//int i;
+//double s,rminor,r,z,f;
+//
+//// Iterations
+//const int imax = 10;
+//
+//// reference point
+//const double rminor0 = (r0 - Raxis)*(r0 - Raxis) + (z0 - Zaxis)*(z0 - Zaxis);
+//
+//for(i=1;i<=imax;i++)
+//{
+//	s = (a + b)/2.0;
+//	get_RZ(s, u, phi0, r, z);
+//	r -= Raxis;
+//	z -= Zaxis;
+//	rminor = r*r + z*z;
+//	f = rminor - rminor0;
+//	if(f > 0) b = s;
+//	else a = s;
+//}
+//return s;
+//}
 
 //----------------------- End of Member Functions -------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------

@@ -16,9 +16,11 @@
 #include <io_class.hxx>				// includes Control file data
 #ifdef USE_SIESTA
 	#include <siesta_class_interpolation.hxx>			// includes the SIESTA interface
+	//#include <siesta_class_evaluation.hxx>
 #endif
 #ifdef USE_DIAGNO
 	#include <diagno_class.hxx>			// includes the DIAGNO interface
+	#include <vmec_class.hxx>			// includes the VMEC interface
 #endif
 #include <particle_class.hxx>		// includes all particle/fieldline parameters and Runge-Kutta Integrator
 
