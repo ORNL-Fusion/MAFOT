@@ -22,6 +22,7 @@ using namespace blitz;
 
 // Prototypes
 //-----------
+void biot_savart(Array<double,2>& xc, Array<double,2>& dv, double I, Array<double,1>& x, Array<double,1>& b);
 
 // Golbal Parameters
 //------------------
@@ -354,22 +355,21 @@ private:
 	int maxRecDepth; 		// max recursion in adaptive Simpson, defaut = 14
 	MGRID mgrid;
 	VMEC wout;
-	double ctor_fac;		// 1e-7 * wout.ctor * Raxis
-	double Raxis;			// average Raxis of VMEC
-	double Zaxis;			// average Zaxis of VMEC
 
 	double du,dv;
 	Array<double,1> U;
 	Array<double,1> V;
 	Array<double,4> CaRs, CaZs, CaPot;
+	Array<double,2> Axis;	// Magnetic axis in ns segments using cartesian coordinates (x,y,z): Axis(1,2,3; 1,..,ns); endpoint of last segment = first point in Axis
+	Array<double,2> dAxis;	// directional vectors along each segment in Axis (i=1,2,3) and segment length (i=4): dAxis(1,2,3,4; 1,..,ns)
 
 	//int count, count2;	// counter for Simpson integration
 
 	// Member-Functions
-	Array<double,1> biotSavartIntegs(double v2, double Rs, double v, double Zs);
 	Array<double,1> integ_v(double u, int N);
 	Array<double,1> integ_u(double v, int N);
-	Array<double,1> normal(double dRdu, double dRdv, double dZdu, double dZdv);
+	Array<double,1> normal(double r, double dRdu, double dRdv, double dZdu, double dZdv);
+	double areal(double r, double drdu, double drdv, double dzdu, double dzdv);
 	double green(double Rs, double v, double Zs);
 	Array<double,1> integs(double u, double v, int N);
 	Array<double,1> adaptiveSimpson(int flag, double args[], int N, double a, double b, double epsabs, double epsrel, int maxRecursionDepth);
@@ -452,9 +452,6 @@ epsrel = pot.epsrel;
 maxRecDepth = pot.maxRecDepth;
 wout = pot.wout;
 mgrid = pot.mgrid;
-ctor_fac = pot.ctor_fac;
-Raxis = pot.Raxis;
-Zaxis = pot.Zaxis;
 R = pot.R;
 phi = pot.phi;
 Z = pot.Z;
@@ -466,6 +463,8 @@ V.reference(pot.V);
 CaRs.reference(pot.CaRs);
 CaZs.reference(pot.CaZs);
 CaPot.reference(pot.CaPot);
+Axis.reference(pot.Axis);
+dAxis.reference(pot.dAxis);
 
 return(*this);
 }
@@ -476,27 +475,38 @@ return(*this);
 // --- read ---------------------------------------------------------------------------------------------------------------
 void POTENTIAL::init(VMEC woutin)
 {
-int i;
-int N = 50;
+int j,jend;
+int ns = 200;
 double Ra, Za, v;
 wout = woutin;
 mgrid.read(wout.mgrid_file, wout.nextcur, wout.extcur);
+Range all = Range::all();
 
-// get average magnetic axis for VMEC
-Raxis = 0; Zaxis = 0;
-for(i=0;i<N;i++)
+// get segments of magnetic axis from VMEC for biot_savart
+TinyVector <int,2> index2(1,1);	// Array range
+Axis.resize(3,ns);	Axis.reindexSelf(index2);
+dAxis.resize(4,ns);	dAxis.reindexSelf(index2);
+for(j=1;j<=ns;j++)
 {
-	v = i*pi2/N;
+	v = (j-1)*pi2/ns;
 	wout.get_axis(v, Ra, Za);
-	Raxis += Ra;
-	Zaxis += Za;
+	Axis(1,j) = Ra*cos(v);
+	Axis(2,j) = Ra*sin(v);
+	Axis(3,j) = Za;
 }
-Raxis /= N;
-Zaxis /= N;
-ctor_fac = 1e-7 * wout.ctor * Raxis;	// factor for currentB -field
+
+// get directional vectors and segment length
+for(j=1;j<=ns;j++)
+{
+    if(j < ns) jend = j+1;	// segment end point for all segments but last
+    else jend = 1;			// segment end point for last segment
+
+	dAxis(Range(1,3),j) = Axis(all,jend) - Axis(all,j);
+	dAxis(4,j) = sqrt(dAxis(1,j)*dAxis(1,j) + dAxis(2,j)*dAxis(2,j) + dAxis(3,j)*dAxis(3,j));
+}
 
 // compute plasmaCurrentB on MGRID and add to MGRID B-field
-//cout << "prepare plasmaCurrentB" << endl;
+//cout << "prepare Vacuum fields" << endl;
 prep_plasmaCurrentB();
 
 // get s = 1 surface and prepare interpolation
@@ -526,7 +536,7 @@ integ = adaptiveSimpson(4, args, 2, 0, pi2, epsabs, epsrel, maxRecDepth);
 //****************
 //cout << "total function calls: " << count << "\t" << "1D integrals: " << count2 << endl;
 //****************
-return -(integ(0) + integ(1))/pi2;
+return -(integ(0) + integ(1))/pi2/2.0;
 }
 
 // --- grad ---------------------------------------------------------------------------------------------------------------
@@ -541,7 +551,7 @@ R = Rin; phi = phiin; Z = Zin; 		// load into member variables
 // integ = adaptiveSimpson(1, args, 3, 0, pi2, epsabs, epsrel, maxRecDepth);
 integ = adaptiveSimpson(4, args, 3, 0, pi2, epsabs, epsrel, maxRecDepth);
 integ(1) /= R;
-integ /= -pi2;
+integ /= -2*pi2;	// whereever this factor 2 in the denominator comes from, it did the trick!
 //****************
 //cout << "total function calls: " << count << "\t" << "1D integrals: " << count2 << endl;
 //****************
@@ -566,12 +576,22 @@ return B;
 // --- get_plasmaCurrentB -------------------------------------------------------------------------------------------------
 Array<double,1> POTENTIAL::get_plasmaCurrentB(double Rs, double v, double Zs)
 {
-Array<double,1> B(3), integ(2);
-double args[3] = {Rs,v,Zs};
-integ = adaptiveSimpson(2, args, 2, 0, pi2, epsabs, epsrel, maxRecDepth);
-B(0) = ctor_fac * (Zs - Zaxis)*integ(0);
-B(1) = 0;
-B(2) = ctor_fac * (Raxis*integ(1) - Rs*integ(0));
+Array<double,1> B(3), x(Range(1,3)), b(Range(1,3));
+double sinp = sin(v);
+double cosp = cos(v);
+
+// cartesian
+x(1) = Rs*cosp;
+x(2) = Rs*sinp;
+x(3) = Zs;
+
+// Biot-Savart integrator
+biot_savart(Axis, dAxis, wout.ctor, x, b);
+
+// back to cylinder
+B(0) =  b(1)*cosp + b(2)*sinp;
+B(1) = -b(1)*sinp + b(2)*cosp;
+B(2) =  b(3);
 return B;
 }
 
@@ -601,7 +621,7 @@ return adaptiveSimpson(3, args, N, 0, pi2, epsabs, epsrel, maxRecDepth);
 // --- integs -------------------------------------------------------------------------------------------------------------
 Array<double,1> POTENTIAL::integs(double u, double v, int N)
 {
-double Rs, Zs, G, pot;
+double Rs, Zs, G, pot, dA;
 double nx,nB,G3,G3p,nxG5p_nBG3, cospv, sinpv;
 double dZdu, dZdv, dRdu, dRdv;
 Array<double,1> out(N);
@@ -611,13 +631,16 @@ Array<double,1> n(3), B(3);
 //***************
 
 // point on s = 1 surface
-//double dummy;
-//Rs = wout.rmn.ev(1.0, u, v, dummy, dRdu, dRdv);
-//Zs = wout.zmn.ev(1.0, u, v, dummy, dZdu, dZdv);
+//double dRds, dZds;
+//Rs = wout.rmn.ev(1.0, u, v, dRds, dRdu, dRdv);
+//Zs = wout.zmn.ev(1.0, u, v, dZds, dZdu, dZdv);
 interpolate_RZ(u, v, Rs, Zs, dRdu, dRdv, dZdu, dZdv);
 
 // normal vector at this point
-n = normal(dRdu, dRdv, dZdu, dZdv);
+n = normal(Rs, dRdu, dRdv, dZdu, dZdv);
+
+// area element at this point
+dA = areal(Rs, dRdu, dRdv, dZdu, dZdv);
 
 // evaluate Green's function
 G = green(Rs, v, Zs);
@@ -648,19 +671,29 @@ if(N == 3)
 	out(1) = R*(-n(0)*sinpv + n(1)*cospv)*G3p + 2*R*Rs*sinpv*nxG5p_nBG3;
 	out(2) = n(2)*G3p + 2*(Z - Zs)*nxG5p_nBG3;
 }
+out *= dA;
 return out;
 }
 
 // --- normal -------------------------------------------------------------------------------------------------------------
-Array<double,1> POTENTIAL::normal(double drdu, double drdv, double dzdu, double dzdv)
+Array<double,1> POTENTIAL::normal(double r, double drdu, double drdv, double dzdu, double dzdv)
 {
 Array<double,1> n(3);
-n(0) = -dzdu;
+n(0) = -dzdu * r;
 n(1) = dzdu*drdv - drdu*dzdv;
-n(2) = drdu;
+n(2) = drdu * r;
 
-n /= sqrt(n(0)*n(0) + n(1)*n(1) + n(2)*n(2));
+//n /= sqrt(n(0)*n(0) + n(1)*n(1) + n(2)*n(2));
+// the length of n is also the area element, so set return from 'areal' to 1 and omit the normalization here
 return n;
+}
+
+// --- areal -------------------------------------------------------------------------------------------------------------
+double POTENTIAL::areal(double r, double drdu, double drdv, double dzdu, double dzdv)
+{
+//double tmp = drdu*dzdv - drdv*dzdu;
+//return sqrt(r*r*(drdu*drdu + dzdu*dzdu) + tmp*tmp);
+return 1;
 }
 
 // --- green --------------------------------------------------------------------------------------------------------------
@@ -669,19 +702,6 @@ double POTENTIAL::green(double Rs, double v, double Zs)
 return 1.0/sqrt(R*R + Rs*Rs - 2*R*Rs*cos(phi-v) + (Z - Zs)*(Z - Zs));
 }
 
-// --- biotSavartIntegs ---------------------------------------------------------------------------------------------------
-Array<double,1> POTENTIAL::biotSavartIntegs(double v2, double Rs, double v, double Zs)
-{
-double cosv, Zm, d2, d3;
-Array<double,1> out(2);
-Zm = Zs - Zaxis;
-cosv = cos(v - v2);
-d2 = Rs*Rs + Raxis*Raxis - 2*Rs*Raxis*cosv + Zm*Zm;
-d3 = d2*sqrt(d2);
-out(0) = cosv/d3;
-out(1) = 1.0/d3;
-return out;
-}
 
 //--- Adaptive Simpson's Rule Recursor ------------------------------------------------------------------------------------
 Array<double,1> POTENTIAL::adaptiveSimpsonsAux(int flag, double args[], int N, double a, double b, double epsabs, double epsrel,
@@ -702,10 +722,6 @@ case 0:	// integs(u, x)
 case 1: // integ_v(x)
 	fd = integ_v(d, N);
 	fe = integ_v(e, N);
-	break;
-case 2:	// biotSavartIntegs(x, Rs, v, Zs)
-	fd = biotSavartIntegs(d, args[0], args[1], args[2]);
-	fe = biotSavartIntegs(e, args[0], args[1], args[2]);
 	break;
 case 3:	// integs(x, v)
 	fd = integs(d, args[0], N);
@@ -748,11 +764,6 @@ case 1: // integ_v(x)
 	fa = integ_v(a, N);
 	fb = integ_v(b, N);
 	fc = integ_v(c, N);
-	break;
-case 2:	// biotSavartIntegs(x, Rs, v, Zs)
-	fa = biotSavartIntegs(a, args[0], args[1], args[2]);
-	fb = biotSavartIntegs(b, args[0], args[1], args[2]);
-	fc = biotSavartIntegs(c, args[0], args[1], args[2]);
 	break;
 case 3:	// integs(x, v)
 	fa = integs(a, args[0], N);
@@ -881,6 +892,61 @@ return pot;
 
 //------------------------ End of Class POTENTIAL -------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+
+//------------------------- biot-savart -----------------------------------------------------------------------------------
+// Biot-Savart integrator for closed loop by segments in cartesian coordinates
+// The numerical method of Hanson & Hirshman, Phys. Plasmas vol.9 (2002) 4410 is used
+// xc(i,j), i=1,2,3 j=1...ns are (x,y,z) Cartesian position
+//      vectors. There must be j=1,ns path-defining loop-point
+//      position vectors.
+// dv(i,j), i=1,2,3,4 j=1...ns are Cartesian direction vectors (NOT normalized!)
+//      (3 elements) and segment lengths (4th element).
+//      There must be j=1,ns path-defining loop-point position vectors.
+//      The start point of segment j is col j of xc, its end point is
+//      col j+1 of xc, except the end point of segment ns is col 1 of xc.
+// I = Electric current (amp) in the closed polygon loop.
+// x(i), i=1,2,3 is (x,y,z) Cartesian position vector of field point.
+// b(i), i=1,2,3 is (Bx,By,Bz) Cartesian magnetic induction vector
+//      (tesla) of the closed current polygon at x.
+void biot_savart(Array<double,2>& xc, Array<double,2>& dv, double I, Array<double,1>& x, Array<double,1>& b)
+{
+int j,jend;
+int ns = xc.cols();
+double Rimag,Rfmag,Rsum,dbf;
+Array<double,1> Ri(Range(1,3)), Rf(Range(1,3)), cross(Range(1,3));
+Range all = Range::all();
+
+b = 0;
+for(j=1;j<=ns;j++)
+{
+    if(j < ns) jend = j+1;	// segment end point for all segments but last
+    else jend = 1;			// segment end point for last segment
+
+    Ri = x - xc(all,j);		// start point of segment j
+    Rf = x - xc(all,jend);	// end point of segment j
+
+    Rimag = sqrt(Ri(1)*Ri(1) + Ri(2)*Ri(2) + Ri(3)*Ri(3));
+    Rfmag = sqrt(Rf(1)*Rf(1) + Rf(2)*Rf(2) + Rf(3)*Rf(3));
+    Rsum  = Rimag + Rfmag;
+
+    // calculate cross product between segment direction vector and Ri
+    cross(1) = dv(2,j)*Ri(3) - dv(3,j)*Ri(2);
+    cross(2) = dv(3,j)*Ri(1) - dv(1,j)*Ri(3);
+    cross(3) = dv(1,j)*Ri(2) - dv(2,j)*Ri(1);
+
+    // calculate Hansen & Hirshman's factor (the "missing" factor L is implicitly in dv, because dv(all,j) is not unit length, but length L)
+    dbf = (2*Rsum/Rimag/Rfmag)/(Rsum*Rsum - dv(4,j)*dv(4,j));
+
+    // the "geometric B" (the vector components of B without the common scale factors) of segment j is:
+	cross *= dbf;
+
+    // sum to get total "geometric B"
+	b += cross;
+}
+b *= 1e-7*I;	// mu0/4pi * I
+}
+
+
 
 #endif //  EXTENDER_CLASS_INCLUDED
 //----------------------- End of File -------------------------------------------------------------------------------------

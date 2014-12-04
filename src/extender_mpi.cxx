@@ -103,11 +103,7 @@ LA_STRING wout_name;
 LA_STRING praefix = "";
 if(argc==optind+2) praefix = "_" + LA_STRING(argv[optind+1]);
 if(argc>=optind+1) wout_name = LA_STRING(argv[optind]);
-else	// No Input: Abort
-{
-	cout << "No Input files -> Abort!" << endl;
-	exit(0);
-}
+else {if(mpi_rank < 1) cout << "No Input files -> Abort!" << endl; EXIT;}
 
 // log file
 //ofs2.open("log_" + LA_STRING(program_name) + praefix + ".dat");
@@ -116,6 +112,7 @@ ofstream ofs3;
 // Init classes
 if(mpi_rank < 1) cout << "Initialize..." << endl;
 VMEC wout(wout_name);
+if(not wout.lpot) {if(mpi_rank < 1) cout << "wout-file does not contain the scalar potential data -> Abort!" << endl; EXIT;}
 POTENTIAL Pot(wout, epsabs, epsrel, 14);
 INSIDE_VMEC inside(wout);
 
@@ -124,7 +121,7 @@ Array<double,2> points;
 if(mpi_rank < 1) cout << "Read points..." << endl;
 readfile("points.dat", 3, points);
 N = points.rows();
-double phi_old = points(0,2);
+double phi_old = points(1,2);
 
 // Output
 LA_STRING filenameout = "ext" + praefix + ".dat";

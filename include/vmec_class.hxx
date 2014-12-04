@@ -120,7 +120,7 @@ mnmax = mnmax0;
 xn.reference(xn0);
 xm.reference(xm0);
 S.reference(S0);
-ds = 1.0 / (ns - 1);
+ds = (S(ns) - S(1)) / (ns - 1);
 }
 
 //---------------------------- spline -------------------------------------------------------------------------------------
@@ -140,8 +140,8 @@ if(parity >= 0)
 	d2ymnc.resize(ns,mnmax);	d2ymnc.reindexSelf(index2);
 	for(i=0;i<mnmax;i++)
 	{
-		d1 = (ymnc(2,i) - ymnc(1,i)) / ds;
-		dn = (ymnc(ns,i) - ymnc(ns-1,i)) / ds;
+		d1 = (-49/20.0*ymnc(1,i) + 6*ymnc(2,i) - 15/2.0*ymnc(3,i) + 20/3.0*ymnc(4,i) - 15/4.0*ymnc(5,i) + 6/5.0*ymnc(6,i) - 1/6.0*ymnc(7,i)) / ds;
+		dn = (49/20.0*ymnc(ns,i) - 6*ymnc(ns-1,i) + 15/2.0*ymnc(ns-2,i) - 20/3.0*ymnc(ns-3,i) + 15/4.0*ymnc(ns-4,i) - 6/5.0*ymnc(ns-5,i) + 1/6.0*ymnc(ns-6,i)) / ds;
 		slice.reference(ymnc(all,i));
 		d2slice.reference(d2ymnc(all,i));
 		spline(S, slice, ns, d1, dn, d2slice);
@@ -154,8 +154,8 @@ if(parity <= 0)
 	d2ymns.resize(ns,mnmax);	d2ymns.reindexSelf(index2);
 	for(i=0;i<mnmax;i++)
 	{
-		d1 = (ymns(2,i) - ymns(1,i)) / ds;
-		dn = (ymns(ns,i) - ymns(ns-1,i)) / ds;
+		d1 = (-49/20.0*ymns(1,i) + 6*ymns(2,i) - 15/2.0*ymns(3,i) + 20/3.0*ymns(4,i) - 15/4.0*ymns(5,i) + 6/5.0*ymns(6,i) - 1/6.0*ymns(7,i)) / ds;
+		dn = (49/20.0*ymns(ns,i) - 6*ymns(ns-1,i) + 15/2.0*ymns(ns-2,i) - 20/3.0*ymns(ns-3,i) + 15/4.0*ymns(ns-4,i) - 6/5.0*ymns(ns-5,i) + 1/6.0*ymns(ns-6,i)) / ds;
 		slice.reference(ymns(all,i));
 		d2slice.reference(d2ymns(all,i));
 		spline(S, slice, ns, d1, dn, d2slice);
@@ -209,6 +209,7 @@ if(parity >= 0)
 {
 	for(i=0;i<mnmax;i++)
 	{
+		if(s == 0 && xm(i) > 0) continue;	// no m modes on magnetic axis
 		cosuv = cos(xm(i)*u - xn(i)*v);
 		spl = Vsplint(s, i, 1);
 		y += spl * cosuv;
@@ -220,6 +221,7 @@ if(parity <= 0)
 {
 	for(i=0;i<mnmax;i++)
 	{
+		if(s == 0 && xm(i) > 0) continue;	// no m modes on magnetic axis
 		sinuv = sin(xm(i)*u - xn(i)*v);
 		spl = Vsplint(s, i, -1);
 		y += spl * sinuv;
@@ -248,6 +250,7 @@ if(parity == 1)
 	{
 		m = xm(i);
 		n = xn(i);
+		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
 		sinuv = sin(m*u - n*v);
 		cosuv = cos(m*u - n*v);
 		spl = Vsplint(s, i, 1, dsplds);
@@ -265,6 +268,7 @@ if(parity == -1)
 	{
 		m = xm(i);
 		n = xn(i);
+		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
 		sinuv = sin(m*u - n*v);
 		cosuv = cos(m*u - n*v);
 		spl = Vsplint(s, i, -1, dsplds);
@@ -282,6 +286,7 @@ if(parity == 0)
 	{
 		m = xm(i);
 		n = xn(i);
+		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
 		sinuv = sin(m*u - n*v);
 		cosuv = cos(m*u - n*v);
 
@@ -322,6 +327,7 @@ if(parity == 1)
 	{
 		m = xm(i);
 		n = xn(i);
+		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
 		sinuv = sin(m*u - n*v);
 		cosuv = cos(m*u - n*v);
 		spl = Vsplint(s, i, 1, dsplds);
@@ -340,6 +346,7 @@ if(parity == -1)
 	{
 		m = xm(i);
 		n = xn(i);
+		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
 		sinuv = sin(m*u - n*v);
 		cosuv = cos(m*u - n*v);
 		spl = Vsplint(s, i, -1, dsplds);
@@ -358,6 +365,7 @@ if(parity == 0)
 	{
 		m = xm(i);
 		n = xn(i);
+		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
 		sinuv = sin(m*u - n*v);
 		cosuv = cos(m*u - n*v);
 
@@ -407,8 +415,6 @@ private:
 	Array<double,1> potsin;
 	Array<double,1> potcos;
 
-	bool pot_available;		// potential spectral data available or not
-
 // Member-Functions
 	void prepare_splines(void);		// prepare all 1D splines in s by calling spline from efit_class
 	int newton2D(double r, double phi, double z, double& s, double& u);	// 2D Newton procedure to find s,u from a given R,Z
@@ -422,6 +428,7 @@ public:
 	double ctor;
 
 	bool lasym;
+	bool lpot;		// potential spectral data available or not
 
 	LA_STRING input_extension;
 	LA_STRING mgrid_file;
@@ -474,7 +481,7 @@ wb = 0;
 ctor = 0;
 
 lasym = false;
-pot_available = false;
+lpot = false;
 
 input_extension = "None";
 mgrid_file = "None";
@@ -508,7 +515,7 @@ wb = V.wb;
 ctor = V.ctor;
 
 lasym = V.lasym;
-pot_available = V.pot_available;
+lpot = V.lpot;
 
 input_extension = V.input_extension;
 mgrid_file = V.mgrid_file;
@@ -563,7 +570,7 @@ chk = nc_inq_varid(ncid, "ntor", &varid);	// get variable id
 chk = nc_get_var_int(ncid, varid, &ntor);	// read
 chk = nc_inq_varid(ncid, "mnmax", &varid);	// get variable id
 chk = nc_get_var_int(ncid, varid, &mnmax);	// read
-nshalf = ns - 1;
+nshalf = ns;
 
 // read lasym
 int lasym_in;
@@ -578,6 +585,14 @@ chk = nc_get_var_int(ncid, varid, xn.data());
 xm.resize(mnmax);
 chk = nc_inq_varid(ncid, "xm", &varid);
 chk = nc_get_var_int(ncid, varid, xm.data());
+
+// set sign array for s < 0 entry in half-grid spectral variables
+Array<int,1> signhalf(mnmax);
+for(i=0;i<mnmax;i++) 	// signhalf = (-1)^xm
+{
+	if(xm(i)%2 == 0) signhalf(i) = 1;
+	else signhalf(i) = -1;
+}
 
 // read and reindex spectral data: full-mesh:(1 -> ns, 0 -> mnmax-1),  half-mesh:(1 -> nshalf, 0 -> mnmax-1)
 TinyVector <int,2> index2(1,0);	// Array range
@@ -602,19 +617,22 @@ if(lasym)
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	gmn.ymns.resize(nshalf, mnmax); 						// set size
 	gmn.ymns.reindexSelf(index2);							// set indices
-	gmn.ymns = input(Range(1,nshalf),all).copy();			// drop the first (index = 0) s value
+	gmn.ymns = input.copy();							// move into place
+	gmn.ymns(1,all) = gmn.ymns(2,all) * signhalf;	// expand beyond magnetic axis: Shalf(1) = -Shalf(2) => Amn(-s)*sin(mu-nv) = Amn(s)*sin(m(u+pi)-nv) = (-1)^m * Amn(s)*sin(mu-nv); same for cos
 
 	chk = nc_inq_varid(ncid, "bsupumns", &varid);			// get variable id
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	bsupumn.ymns.resize(nshalf, mnmax); 						// set size
-	bsupumn.ymns.reindexSelf(index2);							// set indices
-	bsupumn.ymns = input(Range(1,nshalf),all).copy();			// drop the first (index = 0) s value
+	bsupumn.ymns.reindexSelf(index2);							// set indices^n
+	bsupumn.ymns = input.copy();							// move into place
+	bsupumn.ymns(1,all) = bsupumn.ymns(2,all) * signhalf;
 
 	chk = nc_inq_varid(ncid, "bsupvmns", &varid);			// get variable id
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	bsupvmn.ymns.resize(nshalf, mnmax); 						// set size
 	bsupvmn.ymns.reindexSelf(index2);							// set indices
-	bsupvmn.ymns = input(Range(1,nshalf),all).copy();			// drop the first (index = 0) s value
+	bsupvmn.ymns = input.copy();							// move into place
+	bsupvmn.ymns(1,all) = bsupvmn.ymns(2,all) * signhalf;
 }
 
 chk = nc_inq_varid(ncid, "rmnc", &varid);			// get variable id
@@ -633,19 +651,22 @@ chk = nc_inq_varid(ncid, "gmnc", &varid);			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 gmn.ymnc.resize(nshalf, mnmax); 						// set size
 gmn.ymnc.reindexSelf(index2);							// set indices
-gmn.ymnc = input(Range(1,nshalf),all).copy();			// drop the first (index = 0) s value
+gmn.ymnc = input.copy();							// move into place
+gmn.ymnc(1,all) = gmn.ymnc(2,all) * signhalf;
 
 chk = nc_inq_varid(ncid, "bsupumnc", &varid);			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 bsupumn.ymnc.resize(nshalf, mnmax); 						// set size
 bsupumn.ymnc.reindexSelf(index2);							// set indices
-bsupumn.ymnc = input(Range(1,nshalf),all).copy();			// drop the first (index = 0) s value
+bsupumn.ymnc = input.copy();							// move into place
+bsupumn.ymnc(1,all) = bsupumn.ymnc(2,all) * signhalf;
 
 chk = nc_inq_varid(ncid, "bsupvmnc", &varid);			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 bsupvmn.ymnc.resize(nshalf, mnmax); 						// set size
 bsupvmn.ymnc.reindexSelf(index2);							// set indices
-bsupvmn.ymnc = input(Range(1,nshalf),all).copy();			// drop the first (index = 0) s value
+bsupvmn.ymnc = input.copy();							// move into place
+bsupvmn.ymnc(1,all) = bsupvmn.ymnc(2,all) * signhalf;
 
 // read axis
 if(lasym)
@@ -672,9 +693,9 @@ chk = nc_get_var_double(ncid, varid, &ctor);
 chk = nc_inq_varid(ncid, "nextcur", &varid);
 chk = nc_get_var_int(ncid, varid, &nextcur);
 chk = nc_inq_varid(ncid, "mnmaxpot", &varid);
-if(chk == 0) pot_available = true;
-else pot_available = false;
-if(pot_available) chk = nc_get_var_int(ncid, varid, &mnmaxpot);
+if(chk == 0) lpot = true;
+else lpot = false;
+if(lpot) chk = nc_get_var_int(ncid, varid, &mnmaxpot);
 
 // read names
 char text[500];
@@ -692,7 +713,7 @@ extcur.resize(nextcur); extcur.reindexSelf(index1);
 chk = nc_inq_varid(ncid, "extcur", &varid);
 chk = nc_get_var_double(ncid, varid, extcur.data());
 
-if(pot_available)
+if(lpot)
 {
 	xnpot.resize(mnmaxpot);
 	chk = nc_inq_varid(ncid, "xnpot", &varid);
@@ -719,7 +740,7 @@ S.resize(ns); 			S.reindexSelf(index);
 Shalf.resize(nshalf);	Shalf.reindexSelf(index);
 double ds = 1.0 / (ns - 1);
 for(i=1;i<=ns;i++) S(i) = (i-1)*ds;
-for(i=1;i<=nshalf;i++) Shalf(i) = S(i) + ds/2;
+for(i=1;i<=nshalf;i++) Shalf(i) = S(i) - ds/2;	// Shalf(1) < 0; Shalf(1) = -Shalf(2)
 
 prepare_splines();
 }
@@ -751,15 +772,24 @@ for(n=0;n<=ntor;n++)
 void VMEC::get_B2D(double s, double u, double v, double& BR, double& Bphi, double& BZ)
 {
 double dummy,R,Z,dRdu,dRdv,dZdu,dZdv,bsupu,bsupv;
-R = rmn.ev(s, u, v, dummy, dRdu, dRdv);
-Z = zmn.ev(s, u, v, dummy, dZdu, dZdv);
+//if(s > Shalf(nshalf)) // field between s = Shalf(nshalf)  and s = 1
+//{
+//	BR = 0;
+//	BZ = 0;
+//	Bphi = 0;
+//}
+//else	// bsupu & bsupv well defined inside Shalf(nshalf)
+//{
+	R = rmn.ev(s, u, v, dummy, dRdu, dRdv);
+	Z = zmn.ev(s, u, v, dummy, dZdu, dZdv);
 
-bsupu = bsupumn.ev(s,u,v);
-bsupv = bsupvmn.ev(s,u,v);
+	bsupu = bsupumn.ev(s,u,v);
+	bsupv = bsupvmn.ev(s,u,v);
 
-BR = dRdu*bsupu + dRdv*bsupv;
-BZ = dZdu*bsupu + dZdv*bsupv;
-Bphi = R * bsupv;
+	BR = dRdu*bsupu + dRdv*bsupv;
+	BZ = dZdu*bsupu + dZdv*bsupv;
+	Bphi = R * bsupv;
+//}
 }
 
 //------------------------ pot --------------------------------------------------------------------------------------------
@@ -769,7 +799,7 @@ double VMEC::pot(double u, double v)
 int i;
 double mu_nv;
 double out = 0;
-if(not pot_available) return out;
+if(not lpot) return out;
 
 for(i=0;i<mnmaxpot;i++)
 {
@@ -787,7 +817,7 @@ int i,m,n;
 double mu_nv, sinuv, cosuv;
 double out = 0;
 dpdu = 0; dpdv = 0; dpdudv = 0;
-if(not pot_available) return out;
+if(not lpot) return out;
 
 for(i=0;i<mnmaxpot;i++)
 {
