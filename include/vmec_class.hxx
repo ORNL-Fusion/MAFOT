@@ -64,9 +64,13 @@ public:
 	void Vspline();											// prepare interpolation in s
 	double Vsplint(double s, int i, int par);				// evaluate spline at s for m,n mode i, and parity par
 	double Vsplint(double s, int i, int par, double& dyds);	// same as above, but with first derivative
-	double ev(double s, double u, double v);				// evaluate Fourier series at (s,u,v)
-	double ev(double s, double u, double v, double& dyds, double& dydu, double& dydv);	// same as above but with 1st derivatives
-	double ev(double s, double u, double v, double& dyds, double& dydu, double& dydv, double& dydudv); // same as above but with mixed derivative dudv
+	void get_sincos(double u, double v, Array<double,1>& sinuv, Array<double,1>& cosuv);		// precalculates sin(mu-nv) and cos(mu-nv)
+	double ev(double s, double u, double v, Array<double,1>& sinuv, Array<double,1>& cosuv, bool use_spline = true);															// evaluate Fourier series at (s,u,v);
+	double ev(double s, double u, double v, double& dyds, double& dydu, double& dydv, Array<double,1>& sinuv, Array<double,1>& cosuv, bool use_spline = true);					// same as above, but with 1st derivatives
+	double ev(double s, double u, double v, double& dyds, double& dydu, double& dydv, double& dydudv, Array<double,1>& sinuv, Array<double,1>& cosuv, bool use_spline = true); 	// same as above, but with mixed derivative dudv
+	double ev(double s, double u, double v, bool use_spline = true);											// same as ev, but with sinuv and cosuv calculation
+	double ev(double s, double u, double v, double& dyds, double& dydu, double& dydv, bool use_spline = true);	// same as above, but with 1st derivatives and sinuv and cosuv calculation
+	double ev(double s, double u, double v, double& dyds, double& dydu, double& dydv, double& dydudv, bool use_spline = true); // same as above, but with mixed derivative dudv and sinuv and cosuv calculation
 
 }; //end of class
 
@@ -195,14 +199,36 @@ else // sine series
 return y;
 }
 
-//---------------------------- ev -----------------------------------------------------------------------------------------
-// evaluates Fourier series at location (s,u,v)
-double VMEC_SPECTRAL::ev(double s, double u, double v)
+//---------------------------- get_sincos ---------------------------------------------------------------------------------
+// pre-evaluates sin and cos at location (u,v) for speed up
+void VMEC_SPECTRAL::get_sincos(double u, double v, Array<double,1>& sinuv, Array<double,1>& cosuv)
 {
 int i;
-double sinuv, cosuv;
+double mu_nv;
+sinuv.resize(mnmax);
+cosuv.resize(mnmax);
+
+for(i=0;i<mnmax;i++)
+{
+	mu_nv = xm(i)*u - xn(i)*v;
+	sinuv(i) = sin(mu_nv);
+	cosuv(i) = cos(mu_nv);
+}
+}
+
+//---------------------------- ev -----------------------------------------------------------------------------------------
+// evaluates Fourier series at location (s,u,v);
+// sinuv = sin(mu-nv) and cosuv = cos(mu-nv) needs to be provided for all m,n; use get_sincos() before calling ev
+// use_spline = true (default) uses cubic slines on Fourier coeff array
+// use_spline = false forces nearest neighbor approx and deactivates dyds derivative (dyds = 0 always)
+double VMEC_SPECTRAL::ev(double s, double u, double v, Array<double,1>& sinuv, Array<double,1>& cosuv, bool use_spline)
+{
+int i;
+//double sinuv, cosuv;
 double spl;
 double y = 0;
+int j = int(s*(ns-1) + 1.5);
+if(j > ns) j = ns;
 
 // cosine series
 if(parity >= 0)
@@ -210,9 +236,9 @@ if(parity >= 0)
 	for(i=0;i<mnmax;i++)
 	{
 		if(s == 0 && xm(i) > 0) continue;	// no m modes on magnetic axis
-		cosuv = cos(xm(i)*u - xn(i)*v);
-		spl = Vsplint(s, i, 1);
-		y += spl * cosuv;
+		if(use_spline) spl = Vsplint(s, i, 1);
+		else spl = ymnc(j,i);
+		y += spl * cosuv(i);
 	}
 }
 
@@ -222,22 +248,24 @@ if(parity <= 0)
 	for(i=0;i<mnmax;i++)
 	{
 		if(s == 0 && xm(i) > 0) continue;	// no m modes on magnetic axis
-		sinuv = sin(xm(i)*u - xn(i)*v);
-		spl = Vsplint(s, i, -1);
-		y += spl * sinuv;
+		if(use_spline) spl = Vsplint(s, i, -1);
+		else spl = ymns(j,i);
+		y += spl * sinuv(i);
 	}
 }
 
 return y;
 }
 //-----------------------------------------------
-// ... and return all 1st derivatives
-double VMEC_SPECTRAL::ev(double s, double u, double v, double& dyds, double& dydu, double& dydv)
+// ... and return all 1st derivatives; sinuv and cosuv are precalculated for speed up
+double VMEC_SPECTRAL::ev(double s, double u, double v, double& dyds, double& dydu, double& dydv, Array<double,1>& sinuv, Array<double,1>& cosuv, bool use_spline)
 {
 int i,m,n;
-double sinuv, cosuv;
+//double sinuv, cosuv;
 double spl, dsplds;
 double y = 0;
+int j = int(s*(ns-1) + 1.5);
+if(j > ns) j = ns;
 
 dyds = 0;
 dydu = 0;
@@ -251,13 +279,12 @@ if(parity == 1)
 		m = xm(i);
 		n = xn(i);
 		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
-		sinuv = sin(m*u - n*v);
-		cosuv = cos(m*u - n*v);
-		spl = Vsplint(s, i, 1, dsplds);
-		y += spl * cosuv;
-		dyds += dsplds * cosuv;
-		dydu += -m * spl * sinuv;
-		dydv += n * spl * sinuv;
+		if(use_spline) spl = Vsplint(s, i, 1, dsplds);
+		else spl = ymnc(j,i);
+		y += spl * cosuv(i);
+		dyds += dsplds * cosuv(i);
+		dydu += -m * spl * sinuv(i);
+		dydv += n * spl * sinuv(i);
 	}
 }
 
@@ -269,13 +296,12 @@ if(parity == -1)
 		m = xm(i);
 		n = xn(i);
 		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
-		sinuv = sin(m*u - n*v);
-		cosuv = cos(m*u - n*v);
-		spl = Vsplint(s, i, -1, dsplds);
-		y += spl * sinuv;
-		dyds += dsplds * sinuv;
-		dydu += m * spl * cosuv;
-		dydv += -n * spl * cosuv;
+		if(use_spline) spl = Vsplint(s, i, -1, dsplds);
+		else spl = ymns(j,i);
+		y += spl * sinuv(i);
+		dyds += dsplds * sinuv(i);
+		dydu += m * spl * cosuv(i);
+		dydv += -n * spl * cosuv(i);
 	}
 }
 
@@ -287,33 +313,35 @@ if(parity == 0)
 		m = xm(i);
 		n = xn(i);
 		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
-		sinuv = sin(m*u - n*v);
-		cosuv = cos(m*u - n*v);
 
-		spl = Vsplint(s, i, 1, dsplds);
-		y += spl * cosuv;
-		dyds += dsplds * cosuv;
-		dydu += -m * spl * sinuv;
-		dydv += n * spl * sinuv;
+		if(use_spline) spl = Vsplint(s, i, 1, dsplds);
+		else spl = ymnc(j,i);
+		y += spl * cosuv(i);
+		dyds += dsplds * cosuv(i);
+		dydu += -m * spl * sinuv(i);
+		dydv += n * spl * sinuv(i);
 
-		spl = Vsplint(s, i, -1, dsplds);
-		y += spl * sinuv;
-		dyds += dsplds * sinuv;
-		dydu += m * spl * cosuv;
-		dydv += -n * spl * cosuv;
+		if(use_spline) spl = Vsplint(s, i, -1, dsplds);
+		else spl = ymns(j,i);
+		y += spl * sinuv(i);
+		dyds += dsplds * sinuv(i);
+		dydu += m * spl * cosuv(i);
+		dydv += -n * spl * cosuv(i);
 	}
 }
 return y;
 }
 
 //-----------------------------------------------
-// ... ,return all 1st derivatives and the mixed derivative dudv
-double VMEC_SPECTRAL::ev(double s, double u, double v, double& dyds, double& dydu, double& dydv, double& dydudv)
+// ... ,return all 1st derivatives and the mixed derivative dudv; sinuv and cosuv are precalculated for speed up
+double VMEC_SPECTRAL::ev(double s, double u, double v, double& dyds, double& dydu, double& dydv, double& dydudv, Array<double,1>& sinuv, Array<double,1>& cosuv, bool use_spline)
 {
 int i,m,n;
-double sinuv, cosuv;
+//double sinuv, cosuv;
 double spl, dsplds;
 double y = 0;
+int j = int(s*(ns-1) + 1.5);
+if(j > ns) j = ns;
 
 dyds = 0;
 dydu = 0;
@@ -328,14 +356,13 @@ if(parity == 1)
 		m = xm(i);
 		n = xn(i);
 		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
-		sinuv = sin(m*u - n*v);
-		cosuv = cos(m*u - n*v);
-		spl = Vsplint(s, i, 1, dsplds);
-		y += spl * cosuv;
-		dyds += dsplds * cosuv;
-		dydu += -m * spl * sinuv;
-		dydv += n * spl * sinuv;
-		dydudv += n*m * spl * cosuv;
+		if(use_spline) spl = Vsplint(s, i, 1, dsplds);
+		else spl = ymnc(j,i);
+		y += spl * cosuv(i);
+		dyds += dsplds * cosuv(i);
+		dydu += -m * spl * sinuv(i);
+		dydv += n * spl * sinuv(i);
+		dydudv += n*m * spl * cosuv(i);
 	}
 }
 
@@ -347,14 +374,13 @@ if(parity == -1)
 		m = xm(i);
 		n = xn(i);
 		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
-		sinuv = sin(m*u - n*v);
-		cosuv = cos(m*u - n*v);
-		spl = Vsplint(s, i, -1, dsplds);
-		y += spl * sinuv;
-		dyds += dsplds * sinuv;
-		dydu += m * spl * cosuv;
-		dydv += -n * spl * cosuv;
-		dydudv += n*m * spl * sinuv;
+		if(use_spline) spl = Vsplint(s, i, -1, dsplds);
+		else spl = ymns(j,i);
+		y += spl * sinuv(i);
+		dyds += dsplds * sinuv(i);
+		dydu += m * spl * cosuv(i);
+		dydv += -n * spl * cosuv(i);
+		dydudv += n*m * spl * sinuv(i);
 	}
 }
 
@@ -366,39 +392,169 @@ if(parity == 0)
 		m = xm(i);
 		n = xn(i);
 		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
-		sinuv = sin(m*u - n*v);
-		cosuv = cos(m*u - n*v);
 
-		spl = Vsplint(s, i, 1, dsplds);
-		y += spl * cosuv;
-		dyds += dsplds * cosuv;
-		dydu += -m * spl * sinuv;
-		dydv += n * spl * sinuv;
-		dydudv += n*m * spl * cosuv;
+		if(use_spline) spl = Vsplint(s, i, 1, dsplds);
+		else spl = ymnc(j,i);
+		y += spl * cosuv(i);
+		dyds += dsplds * cosuv(i);
+		dydu += -m * spl * sinuv(i);
+		dydv += n * spl * sinuv(i);
+		dydudv += n*m * spl * cosuv(i);
 
-		spl = Vsplint(s, i, -1, dsplds);
-		y += spl * sinuv;
-		dyds += dsplds * sinuv;
-		dydu += m * spl * cosuv;
-		dydv += -n * spl * cosuv;
-		dydudv += n*m * spl * sinuv;
+		if(use_spline) spl = Vsplint(s, i, -1, dsplds);
+		else spl = ymns(j,i);
+		y += spl * sinuv(i);
+		dyds += dsplds * sinuv(i);
+		dydu += m * spl * cosuv(i);
+		dydv += -n * spl * cosuv(i);
+		dydudv += n*m * spl * sinuv(i);
 	}
 }
 return y;
 }
 
+//-----------------------------------------------
+// ... , sinuv and cosuv are not precalculated before ev call
+double VMEC_SPECTRAL::ev(double s, double u, double v, bool use_spline)
+{
+Array<double,1> sinuv, cosuv;
+get_sincos(u, v, sinuv, cosuv);
+return ev(s, u, v, sinuv, cosuv, use_spline);
+}
+
+//-----------------------------------------------
+// ... , sinuv and cosuv are not precalculated before ev call
+double VMEC_SPECTRAL::ev(double s, double u, double v, double& dyds, double& dydu, double& dydv, bool use_spline)
+{
+Array<double,1> sinuv, cosuv;
+get_sincos(u, v, sinuv, cosuv);
+return ev(s, u, v, dyds, dydu, dydv, sinuv, cosuv, use_spline);
+}
+
+//-----------------------------------------------
+// ... , sinuv and cosuv are not precalculated before ev call
+double VMEC_SPECTRAL::ev(double s, double u, double v, double& dyds, double& dydu, double& dydv, double& dydudv, bool use_spline)
+{
+Array<double,1> sinuv, cosuv;
+get_sincos(u, v, sinuv, cosuv);
+return ev(s, u, v, dyds, dydu, dydv, dydudv, sinuv, cosuv, use_spline);
+}
+
 //------------------------ End of Class VMEC_SPECTRAL----------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
+
+//--------- Begin Class VMEC_PROFILE -------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+// Handles any 1-D profile in the wout file
+//-------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+class VMEC_PROFILE
+{
+private:
+	// Member Variables
+	double ds;				// s array step size
+	Array<double,1> d2y;	// d^2/ds^2 y(s), output of spline and input of splint
+
+public:
+	// Member Variables
+	int ns;
+	Array<double,1> S;	// s array
+	Array<double,1> y; 	// profile data
+
+	// Constructors
+	VMEC_PROFILE();								// Default Constructor
+
+	// Member-Operators
+	VMEC_PROFILE& operator =(const VMEC_PROFILE& prof);	// Operator =
+
+	// Member-Functions
+	double ev(double s);				// evaluate profile at s
+	double ev(double s, double& dyds);	// same as above, but with first derivative
+	void set(int ns0, Array<double,1>& S0);
+	void Vspline();
+}; //end of class
+
+//------------------------ Contructors & Operator -------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+
+//--------- Constructors --------------------------------------------------------------------------------------------------
+// Default Constructor
+VMEC_PROFILE::VMEC_PROFILE()
+{
+ns = 0;
+ds = 0;
+}
+
+//--------- Operator = ----------------------------------------------------------------------------------------------------
+// arrays are just referenced; use A.reference(class.A.copy()) for true copy
+VMEC_PROFILE& VMEC_PROFILE::operator =(const VMEC_PROFILE& prof)
+{
+if (this == &prof) return(*this);	    // if: x=x
+ds = prof.ds;
+d2y.reference(prof.d2y);
+S.reference(prof.S);
+y.reference(prof.y);
+
+return(*this);
+}
+
+//--------------------- Public Member Functions ---------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+
+//--------- ev ------------------------------------------------------------------------------------------------------------
+// evaluate profile at s
+double VMEC_PROFILE::ev(double s)
+{
+double dyds;
+return ev(s, dyds);
+}
+
+//-----------------------------------------------
+// ... with first derivative
+double VMEC_PROFILE::ev(double s, double& dyds)
+{
+double ys;
+splint(S, y, d2y, ns, s, ys, dyds);
+return ys;
+}
+
+//---------------------------- set ----------------------------------------------------------------------------------------
+// initalize all public & private member variables, except y and d2y
+void VMEC_PROFILE::set(int ns0, Array<double,1>& S0)
+{
+ns = ns0;
+S.reference(S0);
+ds = (S(ns) - S(1)) / (ns - 1);
+}
+
+//---------------------------- spline -------------------------------------------------------------------------------------
+// prepare 1D spline interpolation of y(s)  ->  constructs d2y
+void VMEC_PROFILE::Vspline()
+{
+double d1,dn;
+TinyVector <int,1> index(1);	// Array range
+
+d2y.resize(ns);	d2y.reindexSelf(index);
+d1 = (-49/20.0*y(1) + 6*y(2) - 15/2.0*y(3) + 20/3.0*y(4) - 15/4.0*y(5) + 6/5.0*y(6) - 1/6.0*y(7)) / ds;
+dn = (49/20.0*y(ns) - 6*y(ns-1) + 15/2.0*y(ns-2) - 20/3.0*y(ns-3) + 15/4.0*y(ns-4) - 6/5.0*y(ns-5) + 1/6.0*y(ns-6)) / ds;
+spline(S, y, ns, d1, dn, d2y);
+}
+
+//--------------------- End of Class VMEC_PROFILE -------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+
+
 //--------- Begin Class VMEC ----------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+// Provides data from the VMEC wout-file
+//-------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
 class VMEC
 {
 private:
 // Member Variables
 	int ntor;
-	int ns;
-	int nshalf;
 	int mnmax;
 	int mnmaxpot;
 
@@ -423,6 +579,8 @@ private:
 public: 
 // Member Variables
 	int nextcur;
+	int ns;
+	int nshalf;
 
 	double wb;
 	double ctor;
@@ -443,6 +601,8 @@ public:
 	VMEC_SPECTRAL bsupumn;
 	VMEC_SPECTRAL bsupvmn;
 
+	VMEC_PROFILE presf;
+
 // Constructors
 	VMEC();								// Default Constructor
 	VMEC(const VMEC& wout);				// Copy Constructor
@@ -460,6 +620,7 @@ public:
 	double get_r(double R, double Z, double Raxis, double Zaxis);
 	double get_theta(double R, double Z, double Raxis, double Zaxis);
 	void get_su(double R, double phi, double Z, double& s, double& u, double sstart = -1, double ustart = -1, int imax = 10);	// find s,u at any location (R,phi,Z) inside the VMEC boundary
+	void get_sincos(double u, double v, Array<double,1>& sinuv, Array<double,1>& cosuv);		// precalculates sin(mu-nv) and cos(mu-nv)
 
 }; //end of class
 
@@ -534,6 +695,8 @@ zmn = V.zmn;
 gmn = V.gmn;
 bsupumn = V.bsupumn;
 bsupvmn = V.bsupvmn;
+
+presf = V.presf;
 
 raxis_cc.reference(V.raxis_cc);
 raxis_cs.reference(V.raxis_cs);
@@ -707,8 +870,14 @@ chk = nc_inq_varid(ncid, "mgrid_file", &varid);
 chk = nc_get_var_text(ncid, varid, &text[0]);
 mgrid_file = text; mgrid_file = mgrid_file.left(mgrid_file.indexOf(".nc") + 2);
 
-// read other 1D-arrays
+// read 1D-profiles
 TinyVector <int,1> index1(1);
+
+presf.y.resize(ns); presf.y.reindexSelf(index1);
+chk = nc_inq_varid(ncid, "presf", &varid);
+chk = nc_get_var_double(ncid, varid, presf.y.data());
+
+// read other 1D-arrays
 extcur.resize(nextcur); extcur.reindexSelf(index1);
 chk = nc_inq_varid(ncid, "extcur", &varid);
 chk = nc_get_var_double(ncid, varid, extcur.data());
@@ -874,6 +1043,13 @@ err = newton2D(R,phi,Z,s,u);
 if(err > 0) cout << "VMEC Newton2D: no convergence; remaining error: " << err << endl;
 }
 
+//------------------------- get_sincos ------------------------------------------------------------------------------------
+// precalculates sin(mu-nv) and cos(mu-nv)
+void VMEC::get_sincos(double u, double v, Array<double,1>& sinuv, Array<double,1>& cosuv)
+{
+rmn.get_sincos(u,v,sinuv,cosuv);
+}
+
 //----------------------- Private Member Functions ------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
@@ -881,6 +1057,7 @@ if(err > 0) cout << "VMEC Newton2D: no convergence; remaining error: " << err <<
 // get the 2. derivative in s-direction, which is input to splint for all modes n, m
 void VMEC::prepare_splines(void)
 {
+// spectral data
 if(lasym)
 {
 	rmn.set("rmn", 0, ns, mnmax, xn, xm, S);
@@ -903,6 +1080,10 @@ zmn.Vspline();
 gmn.Vspline();
 bsupumn.Vspline();
 bsupvmn.Vspline();
+
+// 1-D profiles
+presf.set(ns, S);
+presf.Vspline();
 }
 
 //------------------------ newton2D ----------------------------------------------------------------------------------------
