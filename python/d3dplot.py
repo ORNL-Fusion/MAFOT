@@ -14,7 +14,7 @@ HOME = os.getenv('HOME')
 
 def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', machine = 'd3d', 
 			tag = None, graphic = 'png', physical = 1, b = None, N = 60, Title = None,
-			typeOfPlot = 'contourf', xlimit = None, ylimit = None):
+			typeOfPlot = 'contourf', xlimit = None, ylimit = None, figwidth = None, figheight = None):
 	"""
 	plot MAFOT results
 	--- user input ------------------
@@ -217,11 +217,14 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		ylabel_size = latexFontSize
 	if(coordinates == 'phi'):
 		ylabel_size = font['size']
+		
+	if figwidth == None: figwidth = width
+	if figheight == None: figheight = height
 	
 	C_label_size = latexFontSize
 
 	# --- make plot -------------------
-	F = plt.figure(figsize = (width,height))
+	F = plt.figure(figsize = (figwidth,figheight))
 	if(typeOfPlot == 'contourf'):
 		cs = plt.contourf(x, y, z, b, cmap = usecolormap, extend = 'both')
 	else:
