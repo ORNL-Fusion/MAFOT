@@ -19,10 +19,14 @@ else
 endif
 
 
+# ---- Defines ----
+D3DDEFS = -DD3D
+
+
 # ---- SIESTA support ----
 ifdef SIESTA
 ifeq ($(SIESTA),True)
-   DEFINES += -DUSE_SIESTA
+   D3DDEFS += -DUSE_SIESTA
    VMEC = True
 endif
 endif
@@ -33,7 +37,7 @@ ifdef VMEC
 ifeq ($(VMEC),True)
    LIBS += $(NETCDFLIBS)
    INCLUDE += $(NETCDFINCLUDE)
-   DEFINES += -DUSE_DIAGNO
+   D3DDEFS += -DUSE_DIAGNO
 endif
 endif
 
@@ -64,7 +68,7 @@ FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 
 
 # ---- Common Targets ----
-all : $(DIRS) d3d iter nstx mast
+all : $(DIRS) d3d iter nstx mast gui xpand
 
 .PHONY : d3d
 d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi
@@ -84,8 +88,11 @@ ifdef PYINSTALLER
 	$(PYINSTALLER) -F --distpath=$(OBJDIR) --specpath=$(OBJDIR)/gui --workpath=$(OBJDIR)/gui $<
 	mv $(OBJDIR)/mafot_gui $(BIN_DIR)
 else
-	@echo "PYINSTALLER not defined"
+	@echo "PYINSTALLER not supported"
 endif
+
+.PHONY : xpand
+xpand : $(DIRS) xpand_mpi
 
 libtrip3d.a : $(DIRS) $(FOBJS) 
 	$(ARCH) $(LIB_DIR)/$@ $(FOBJS)
@@ -98,6 +105,16 @@ clean :
 	
 $(DIRS) : 
 	mkdir -p $@
+
+
+# ---- Targets ----
+xpand_mpi : $(MAFOT_DIR)/src/xpand_mpi.cxx
+ifdef VMEC
+	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) $< -o $(OBJDIR)/xpand_mpi.o
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/xpand_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+else
+	@echo "VMEC not supported"
+endif
 
 
 # ---- D3D Targets ----
@@ -188,7 +205,7 @@ $(FOBJS) : $(OBJDIR)/%.o : $(MAFOT_DIR)/src/libtrip3d/%.f
 	$(F90) -c $(F90FLAGS) $< -o $@
 
 $(MPIOBJS_D3D) : $(OBJDIR)/d3d/%.o : $(MAFOT_DIR)/src/%.cxx
-	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DD3D $< -o $@
+	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) $(D3DDEFS) $< -o $@
 
 $(MPIOBJS_ITER) : $(OBJDIR)/iter/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DITER $< -o $@
@@ -200,7 +217,7 @@ $(MPIOBJS_NSTX) : $(OBJDIR)/nstx/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DNSTX $< -o $@
 
 $(SEROBJS_D3D) : $(OBJDIR)/d3d/%.o : $(MAFOT_DIR)/src/%.cxx
-	$(CXX) -c $(CFLAGS) $(INCLUDE) $(DEFINES) -DD3D $< -o $@
+	$(CXX) -c $(CFLAGS) $(INCLUDE) $(DEFINES) $(D3DDEFS) $< -o $@
 
 $(SEROBJS_ITER) : $(OBJDIR)/iter/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) $(INCLUDE) $(DEFINES) -DITER $< -o $@
