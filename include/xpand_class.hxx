@@ -4,8 +4,8 @@
 
 // Define
 //--------
-#ifndef EXTENDER_CLASS_INCLUDED
-#define EXTENDER_CLASS_INCLUDED
+#ifndef XPAND_CLASS_INCLUDED
+#define XPAND_CLASS_INCLUDED
 
 // Include
 //--------
@@ -29,6 +29,10 @@ void biot_savart(Array<double,2>& xc, Array<double,2>& dv, double I, Array<doubl
 
 
 //--------- Begin Class MGRID ---------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+// Calculate vacuum magnetic field from MGRID file
+//-------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
 class MGRID
 {
 private:
@@ -86,7 +90,7 @@ Np = 48;
 
 dR = 0.001;
 dZ = 0.001;
-dp = pi2/(Np-1);				// 0 -> 2*pi
+dp = pi2/Np;				// 0 -> 2*pi
 
 R.resize(NR);				R.reindexSelf(index);
 Z.resize(NZ);				Z.reindexSelf(index);
@@ -166,7 +170,7 @@ void MGRID::read(LA_STRING file, int N, Array<double,1> cur)
 {
 // Variables
 int i,chk, ncid, varid;
-firstIndex k;
+int k;
 stringstream ss;
 string s;
 LA_STRING varname;
@@ -201,11 +205,11 @@ chk = nc_get_var_double(ncid, varid, &zmax);		// read
 
 R.resize(NR);
 Z.resize(NZ);
-dR = (rmax - rmin)/double(NR);
-dZ = (zmax - zmin)/double(NZ);
-dp = pi2/(Np-1);
-R = rmin + k*dR;
-Z = zmin + k*dZ;
+dR = (rmax - rmin)/double(NR-1);
+dZ = (zmax - zmin)/double(NZ-1);
+dp = pi2/double(Np);	// Np + 1 surface is the phi = 2pi surface
+for(k=1;k<=NR;k++) R(k) = rmin + (k-1)*dR;
+for(k=1;k<=NZ;k++) Z(k) = zmin + (k-1)*dZ;
 
 // read B-field data
 Array<double,3> input;
@@ -345,13 +349,18 @@ bcuint(R,Z,slice,dR,dZ,r,z,bz,dummy,dummy);
 //------------------------ End of Class MGRID -----------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
-//--------- Begin Class POTENTIAL -----------------------------------------------------------------------------------------
-class POTENTIAL
+
+//--------- Begin Class BFIELDVC ------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+// Calculate magnetic field outside of VMEC s = 1 using a virtual casing principle
+//-------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+class BFIELDVC
 {
 private:
 	// Member Variables
-	double epsabs; 			// absolute accuracy tolerance in adaptive Simpson, default = 1e-6
-	double epsrel; 			// relative accuracy tolerance in adaptive Simpson, default = 1e-4
+	double epsabs; 			// absolute accuracy tolerance, default = 1e-6
+	double epsrel; 			// relative accuracy tolerance, default = 1e-4
 	int maxRecDepth; 		// max recursion in adaptive Simpson, defaut = 14
 	MGRID mgrid;
 	VMEC wout;
@@ -359,26 +368,21 @@ private:
 	double du,dv;
 	Array<double,1> U;
 	Array<double,1> V;
-	Array<double,4> CaRs, CaZs, CaPot;
-	Array<double,2> Axis;	// Magnetic axis in ns segments using cartesian coordinates (x,y,z): Axis(1,2,3; 1,..,ns); endpoint of last segment = first point in Axis
-	Array<double,2> dAxis;	// directional vectors along each segment in Axis (i=1,2,3) and segment length (i=4): dAxis(1,2,3,4; 1,..,ns)
-
-	//int count, count2;	// counter for Simpson integration
+	Array<double,4> CaRs, CaZs, CaKR, CaKp, CaKZ, CanB;
 
 	// Member-Functions
-	Array<double,1> integ_v(double u, int N);
-	Array<double,1> integ_u(double v, int N);
-	Array<double,1> normal(double r, double dRdu, double dRdv, double dZdu, double dZdv);
+	Array<double,1> integ_v(double u);
+	Array<double,1> integ_u(double v);
+	Array<double,1> normal(double r, double sinv, double cosv, double drdu, double drdv, double dzdu, double dzdv);	// carthesian
 	double areal(double r, double drdu, double drdv, double dzdu, double dzdv);
-	double green(double Rs, double v, double Zs);
-	Array<double,1> integs(double u, double v, int N);
-	Array<double,1> adaptiveSimpson(int flag, double args[], int N, double a, double b, double epsabs, double epsrel, int maxRecursionDepth);
-	Array<double,1> adaptiveSimpsonsAux(int flag, double args[], int N, double a, double b, double epsabs, double epsrel, Array<double,1>&  S,
+	double green(Array<double,1>& x);
+	Array<double,1> adaptiveSimpson(int flag, double args[], double a, double b, double epsabs, double epsrel, int maxRecursionDepth);
+	Array<double,1> adaptiveSimpsonsAux(int flag, double args[], double a, double b, double epsabs, double epsrel, Array<double,1>&  S,
 										Array<double,1>& fa, Array<double,1>& fb, Array<double,1>& fc, int bottom);
-	void prep_plasmaCurrentB(void);							// compute plasmaCurrentB on MGRID and add to MGRID B-field
-	void prep_sInterpolation(int Nu = 200, int Nv = 200);	// get s = 1 surface and prepare interpolation
-	void interpolate_RZ(double u, double v, double& Rs, double& Zs, double& dRdu, double& dRdv, double& dZdu, double& dZdv);
-	double interpolate_pot(double u, double v);
+	void prep_sInterpolation(int Nu = 300, int Nv = 300);	// get s = 1 surface and prepare interpolation
+	void interpolate_RZ(double u, double v, double& Rs, double& Zs);
+	void interpolate_VCcur(double u, double v, double& KR, double& Kp, double& KZ);
+	double interpolate_dipole(double u, double v);
 
 public:
 	// Member Variables
@@ -387,21 +391,20 @@ public:
 	double Z;
 
 	// Constructors
-	POTENTIAL();						// Default Constructor
-	POTENTIAL(const POTENTIAL& pot);	// Copy Constructor
-	POTENTIAL(VMEC woutin);				// Standard Constructor, uses defaults
-	POTENTIAL(VMEC woutin, double epsabsin, double epsrelin, int maxRecDepthin); // set all Constructor
+	BFIELDVC();							// Default Constructor
+	BFIELDVC(const BFIELDVC& bvc);		// Copy Constructor
+	BFIELDVC(VMEC woutin);				// Standard Constructor, uses defaults
+	BFIELDVC(VMEC woutin, double epsabsin, double epsrelin, int maxRecDepthin); // set all Constructor
 
 	// Member-Operators
-	POTENTIAL& operator =(const POTENTIAL& pot);	// Operator =
+	BFIELDVC& operator =(const BFIELDVC& bvc);	// Operator =
 
 	// Member-Functions
 	void init(VMEC woutin);												// load mgrid and prepare all interpolations
-	void setup_simps(double epsabsin = 1e-6, double epsrelin = 1e-4, int maxRecDepthin = 14);	// set control parameter for adaptive Simpson
-	double ev(double R, double phi, double Z);							// evaluate scalar potential
-	Array<double,1> grad(double Rin, double phiin, double Zin);			// evaluate Bplasma = gradPHI; returns Bplasma = (BR,Bphi,BZ)
-	Array<double,1> get_vacuumB(double Rs, double v, double Zs);		// returns vacuum B-field Bvac = Bmgrid + Bip = (BR,Bphi,BZ)
-	Array<double,1> get_plasmaCurrentB(double Rs, double v, double Zs);	// returns B-field from plasma current Bip = (BR,Bphi,BZ)
+	void setup_accuracy(double epsabsin = 1e-6, double epsrelin = 1e-4, int maxRecDepthin = 14);	// set control parameter for adaptive integration
+	Array<double,1> ev(double R, double phi, double Z);					// evaluate magentic field by virtual casing, uses adaptive Simpson integration
+	Array<double,1> get_vacuumB(double Rs, double v, double Zs);		// returns vacuum B-field Bvac = Bmgrid = (BR,Bphi,BZ)
+	Array<double,1> integs(double u, double v);							// integrad for all three integrals: BR, Bphi and BZ
 }; //end of class
 
 //------------------------ Contructors & Operator -------------------------------------------------------------------------
@@ -409,62 +412,63 @@ public:
 
 //--------- Constructors --------------------------------------------------------------------------------------------------
 // Default Constructor
-POTENTIAL::POTENTIAL()
+BFIELDVC::BFIELDVC()
 {
 R = 0;
 phi = 0;
 Z = 0;
-setup_simps();
+setup_accuracy();
 }
 
 // Copy Constructor
-POTENTIAL::POTENTIAL(const POTENTIAL& pot)
+BFIELDVC::BFIELDVC(const BFIELDVC& bvc)
 {
-*this = pot;
+*this = bvc;
 }
 
 // Standard Constructor
-POTENTIAL::POTENTIAL(VMEC woutin)
+BFIELDVC::BFIELDVC(VMEC woutin)
 {
 R = 0;
 phi = 0;
 Z = 0;
-setup_simps();	// default values
+setup_accuracy();	// default values
 init(woutin);
 }
 
 // set all Constructor
-POTENTIAL::POTENTIAL(VMEC woutin, double epsabsin, double epsrelin, int maxRecDepthin)
+BFIELDVC::BFIELDVC(VMEC woutin, double epsabsin, double epsrelin, int maxRecDepthin)
 {
 R = 0;
 phi = 0;
 Z = 0;
-setup_simps(epsabsin, epsrelin, maxRecDepthin);
+setup_accuracy(epsabsin, epsrelin, maxRecDepthin);
 init(woutin);
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
-POTENTIAL& POTENTIAL::operator =(const POTENTIAL& pot)
+BFIELDVC& BFIELDVC::operator =(const BFIELDVC& bvc)
 {
-if (this == &pot) return(*this);	    // if: x=x
-epsabs = pot.epsabs;
-epsrel = pot.epsrel;
-maxRecDepth = pot.maxRecDepth;
-wout = pot.wout;
-mgrid = pot.mgrid;
-R = pot.R;
-phi = pot.phi;
-Z = pot.Z;
+if (this == &bvc) return(*this);	    // if: x=x
+epsabs = bvc.epsabs;
+epsrel = bvc.epsrel;
+maxRecDepth = bvc.maxRecDepth;
+wout = bvc.wout;
+mgrid = bvc.mgrid;
+R = bvc.R;
+phi = bvc.phi;
+Z = bvc.Z;
 
-du = pot.du;
-dv = pot.dv;
-U.reference(pot.U);
-V.reference(pot.V);
-CaRs.reference(pot.CaRs);
-CaZs.reference(pot.CaZs);
-CaPot.reference(pot.CaPot);
-Axis.reference(pot.Axis);
-dAxis.reference(pot.dAxis);
+du = bvc.du;
+dv = bvc.dv;
+U.reference(bvc.U);
+V.reference(bvc.V);
+CaRs.reference(bvc.CaRs);
+CaZs.reference(bvc.CaZs);
+CaKR.reference(bvc.CaKR);
+CaKp.reference(bvc.CaKp);
+CaKZ.reference(bvc.CaKZ);
+CanB.reference(bvc.CanB);
 
 return(*this);
 }
@@ -473,93 +477,46 @@ return(*this);
 //-------------------------------------------------------------------------------------------------------------------------
 
 // --- read ---------------------------------------------------------------------------------------------------------------
-void POTENTIAL::init(VMEC woutin)
+void BFIELDVC::init(VMEC woutin)
 {
-int j,jend;
-int ns = 200;
-double Ra, Za, v;
 wout = woutin;
 mgrid.read(wout.mgrid_file, wout.nextcur, wout.extcur);
-Range all = Range::all();
-
-// get segments of magnetic axis from VMEC for biot_savart
-TinyVector <int,2> index2(1,1);	// Array range
-Axis.resize(3,ns);	Axis.reindexSelf(index2);
-dAxis.resize(4,ns);	dAxis.reindexSelf(index2);
-for(j=1;j<=ns;j++)
-{
-	v = (j-1)*pi2/ns;
-	wout.get_axis(v, Ra, Za);
-	Axis(1,j) = Ra*cos(v);
-	Axis(2,j) = Ra*sin(v);
-	Axis(3,j) = Za;
-}
-
-// get directional vectors and segment length
-for(j=1;j<=ns;j++)
-{
-    if(j < ns) jend = j+1;	// segment end point for all segments but last
-    else jend = 1;			// segment end point for last segment
-
-	dAxis(Range(1,3),j) = Axis(all,jend) - Axis(all,j);
-	dAxis(4,j) = sqrt(dAxis(1,j)*dAxis(1,j) + dAxis(2,j)*dAxis(2,j) + dAxis(3,j)*dAxis(3,j));
-}
-
-// compute plasmaCurrentB on MGRID and add to MGRID B-field
-//cout << "prepare Vacuum fields" << endl;
-prep_plasmaCurrentB();
+mgrid.prep_interpolation();
 
 // get s = 1 surface and prepare interpolation
-//cout << "prepare Interpolations" << endl;
 prep_sInterpolation();
 }
 
-// --- set_simps ----------------------------------------------------------------------------------------------------------
-void POTENTIAL::setup_simps(double epsabsin, double epsrelin, int maxRecDepthin)
+
+// --- set_accuracy -------------------------------------------------------------------------------------------------------
+void BFIELDVC::setup_accuracy(double epsabsin, double epsrelin, int maxRecDepthin)
 {
 epsabs = epsabsin;
 epsrel = epsrelin;
-maxRecDepth = maxRecDepthin;
+maxRecDepth = maxRecDepthin;	// Simpson only
 }
+
 
 // --- ev -----------------------------------------------------------------------------------------------------------------
-double POTENTIAL::ev(double Rin, double phiin, double Zin)
-{
-Array<double,1> integ(2);
-double args[1];
-R = Rin; phi = phiin; Z = Zin; 		// load into member variables
-//****************
-//count = 0; count2 = 0;
-//****************
-// integ = adaptiveSimpson(1, args, 2, 0, pi2, epsabs, epsrel, maxRecDepth);
-integ = adaptiveSimpson(4, args, 2, 0, pi2, epsabs, epsrel, maxRecDepth);
-//****************
-//cout << "total function calls: " << count << "\t" << "1D integrals: " << count2 << endl;
-//****************
-return -(integ(0) + integ(1))/pi2/2.0;
-}
-
-// --- grad ---------------------------------------------------------------------------------------------------------------
-Array<double,1> POTENTIAL::grad(double Rin, double phiin, double Zin)
+Array<double,1> BFIELDVC::ev(double Rin, double phiin, double Zin)
 {
 Array<double,1> integ(3);
 double args[1];
 R = Rin; phi = phiin; Z = Zin; 		// load into member variables
-//****************
-//count = 0; count2 = 0;
-//****************
-// integ = adaptiveSimpson(1, args, 3, 0, pi2, epsabs, epsrel, maxRecDepth);
-integ = adaptiveSimpson(4, args, 3, 0, pi2, epsabs, epsrel, maxRecDepth);
-integ(1) /= R;
-integ /= -2*pi2;	// whereever this factor 2 in the denominator comes from, it did the trick!
-//****************
-//cout << "total function calls: " << count << "\t" << "1D integrals: " << count2 << endl;
-//****************
+
+integ = adaptiveSimpson(4, args, 0, pi2, epsabs, epsrel, maxRecDepth);
+integ /= -4*pi;	// mu0/4pi and mu0*H = B; because K = n x H originally
+
+double Bx, By;
+Bx = integ(0); By = integ(1);
+integ(0) =  Bx*cos(phiin) + By*sin(phiin);
+integ(1) = -Bx*sin(phiin) + By*cos(phiin);
 return integ;
 }
 
+
 // --- get_vacuumB --------------------------------------------------------------------------------------------------------
-Array<double,1> POTENTIAL::get_vacuumB(double Rs, double v, double Zs)
+Array<double,1> BFIELDVC::get_vacuumB(double Rs, double v, double Zs)
 {
 double dphi = pi2 / mgrid.Np;
 int k = (int(round(v/dphi)) % mgrid.Np) + 1;	// nearest neighbor approximation
@@ -573,114 +530,67 @@ B(2) = bz;
 return B;
 }
 
-// --- get_plasmaCurrentB -------------------------------------------------------------------------------------------------
-Array<double,1> POTENTIAL::get_plasmaCurrentB(double Rs, double v, double Zs)
-{
-Array<double,1> B(3), x(Range(1,3)), b(Range(1,3));
-double sinp = sin(v);
-double cosp = cos(v);
-
-// cartesian
-x(1) = Rs*cosp;
-x(2) = Rs*sinp;
-x(3) = Zs;
-
-// Biot-Savart integrator
-biot_savart(Axis, dAxis, wout.ctor, x, b);
-
-// back to cylinder
-B(0) =  b(1)*cosp + b(2)*sinp;
-B(1) = -b(1)*sinp + b(2)*cosp;
-B(2) =  b(3);
-return B;
-}
-
 //--------------------- Private Member Functions --------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
-// --- integ_u/v ----------------------------------------------------------------------------------------------------------
-Array<double,1> POTENTIAL::integ_v(double u, int N)
+// --- integ_v ------------------------------------------------------------------------------------------------------------
+Array<double,1> BFIELDVC::integ_v(double u)
 {
-//****************
-//count2 += 1;
-//****************
 double args[1] = {u};
-return adaptiveSimpson(0, args, N, 0, pi2, epsabs, epsrel, maxRecDepth);
+return adaptiveSimpson(0, args, 0, pi2, epsabs, epsrel, maxRecDepth);
 }
+
 
 // --- integ_u ------------------------------------------------------------------------------------------------------------
-Array<double,1> POTENTIAL::integ_u(double v, int N)
+Array<double,1> BFIELDVC::integ_u(double v)
 {
-//****************
-//count2 += 1;
-//****************
 double args[1] = {v};
-return adaptiveSimpson(3, args, N, 0, pi2, epsabs, epsrel, maxRecDepth);
+return adaptiveSimpson(3, args, 0, pi2, epsabs, epsrel, maxRecDepth);
 }
+
 
 // --- integs -------------------------------------------------------------------------------------------------------------
-Array<double,1> POTENTIAL::integs(double u, double v, int N)
+Array<double,1> BFIELDVC::integs(double u, double v)
 {
-double Rs, Zs, G, pot, dA;
-double nx,nB,G3,G3p,nxG5p_nBG3, cospv, sinpv;
-double dZdu, dZdv, dRdu, dRdv;
-Array<double,1> out(N);
-Array<double,1> n(3), B(3);
-//***************
-//count +=1;
-//***************
+double Rs, Zs, G, G3, nB;
+Array<double,1> out(3);
+Array<double,1> K(3), x(3);
 
-// point on s = 1 surface
-//double dRds, dZds;
-//Rs = wout.rmn.ev(1.0, u, v, dRds, dRdu, dRdv);
-//Zs = wout.zmn.ev(1.0, u, v, dZds, dZdu, dZdv);
-interpolate_RZ(u, v, Rs, Zs, dRdu, dRdv, dZdu, dZdv);
+// point on last closed flux surface (LCFS
+interpolate_RZ(u, v, Rs, Zs);
 
-// normal vector at this point
-n = normal(Rs, dRdu, dRdv, dZdu, dZdv);
+// dipole moment
+nB = interpolate_dipole(u, v);
 
-// area element at this point
-dA = areal(Rs, dRdu, dRdv, dZdu, dZdv);
+// virtual casing current density on s = 1; K = n x B
+interpolate_VCcur(u, v, K(0), K(1), K(2));
+
+// \vec r - \vec r';  carthesian
+x(0) = R*cos(phi) - Rs*cos(v);
+x(1) = R*sin(phi) - Rs*sin(v);
+x(2) = Z - Zs;
+
+// virtual casing integrals
+out(0) = K(1)*x(2) - K(2)*x(1) + nB*x(0);
+out(1) = K(2)*x(0) - K(0)*x(2) + nB*x(1);
+out(2) = K(0)*x(1) - K(1)*x(0) + nB*x(2);
 
 // evaluate Green's function
-G = green(Rs, v, Zs);
-
-// scalar potential on s = 1 surface
-//pot = wout.pot(u, v);
-pot = interpolate_pot(u, v);
-
-// vacuum magnetic field on s = 1 surface
-B = get_vacuumB(Rs, v, Zs);
-
-sinpv = sin(phi-v);
-cospv = cos(phi-v);
-nx = n(0)*(R*cospv - Rs) + n(1)*R*sinpv + n(2)*(Z - Zs);
-nB = n(0)*B(0) + n(1)*B(1) + n(2)*B(2);
+G = green(x);
 G3 = G*G*G;
-G3p = G3*pot;
+out *= G3;
 
-if(N == 2)
-{
-	out(0) = nx * G3p;
-	out(1) = nB * G;
-}
-if(N == 3)
-{
-	nxG5p_nBG3 = -1.5*nx*G3p*G*G - 0.5*nB*G3;
-	out(0) = (n(0)*cospv + n(1)*sinpv)*G3p + 2*(R - Rs*cospv)*nxG5p_nBG3;
-	out(1) = R*(-n(0)*sinpv + n(1)*cospv)*G3p + 2*R*Rs*sinpv*nxG5p_nBG3;
-	out(2) = n(2)*G3p + 2*(Z - Zs)*nxG5p_nBG3;
-}
-out *= dA;
 return out;
 }
 
+
 // --- normal -------------------------------------------------------------------------------------------------------------
-Array<double,1> POTENTIAL::normal(double r, double drdu, double drdv, double dzdu, double dzdv)
+// normal vector, \vec n = \partial/(\partial u) \vec r x \partial/(\partial v) \vec r, in carthesian coordinates
+Array<double,1> BFIELDVC::normal(double r, double sinv, double cosv, double drdu, double drdv, double dzdu, double dzdv)
 {
 Array<double,1> n(3);
-n(0) = -dzdu * r;
-n(1) = dzdu*drdv - drdu*dzdv;
+n(0) = drdu*dzdv*sinv - drdv*dzdu*sinv - dzdu*r*cosv;
+n(1) = drdv*dzdu*cosv - dzdu*r*sinv - drdu*dzdv*cosv;
 n(2) = drdu * r;
 
 //n /= sqrt(n(0)*n(0) + n(1)*n(1) + n(2)*n(2));
@@ -688,25 +598,26 @@ n(2) = drdu * r;
 return n;
 }
 
+
 // --- areal -------------------------------------------------------------------------------------------------------------
-double POTENTIAL::areal(double r, double drdu, double drdv, double dzdu, double dzdv)
+double BFIELDVC::areal(double r, double drdu, double drdv, double dzdu, double dzdv)
 {
-//double tmp = drdu*dzdv - drdv*dzdu;
-//return sqrt(r*r*(drdu*drdu + dzdu*dzdu) + tmp*tmp);
 return 1;
 }
 
+
 // --- green --------------------------------------------------------------------------------------------------------------
-double POTENTIAL::green(double Rs, double v, double Zs)
+double BFIELDVC::green(Array<double,1>& x)
 {
-return 1.0/sqrt(R*R + Rs*Rs - 2*R*Rs*cos(phi-v) + (Z - Zs)*(Z - Zs));
+return 1.0/sqrt(x(0)*x(0) + x(1)*x(1) + x(2)*x(2));
 }
 
 
 //--- Adaptive Simpson's Rule Recursor ------------------------------------------------------------------------------------
-Array<double,1> POTENTIAL::adaptiveSimpsonsAux(int flag, double args[], int N, double a, double b, double epsabs, double epsrel,
+Array<double,1> BFIELDVC::adaptiveSimpsonsAux(int flag, double args[], double a, double b, double epsabs, double epsrel,
 									Array<double,1>& S, Array<double,1>& fa, Array<double,1>& fb, Array<double,1>& fc, int bottom)
 {
+int N = 3;
 double c = (a + b)/2.0;
 double h = (b - a)/12.0;
 double d = (a + c)/2.0;
@@ -716,20 +627,20 @@ Array<double,1> fd(N), fe(N), out(N), Sleft(N), Sright(N), Snew(N);
 switch(flag)
 {
 case 0:	// integs(u, x)
-	fd = integs(args[0], d, N);
-	fe = integs(args[0], e, N);
+	fd = integs(args[0], d);
+	fe = integs(args[0], e);
 	break;
 case 1: // integ_v(x)
-	fd = integ_v(d, N);
-	fe = integ_v(e, N);
+	fd = integ_v(d);
+	fe = integ_v(e);
 	break;
 case 3:	// integs(x, v)
-	fd = integs(d, args[0], N);
-	fe = integs(e, args[0], N);
+	fd = integs(d, args[0]);
+	fe = integs(e, args[0]);
 	break;
 case 4: // integ_u(x)
-	fd = integ_u(d, N);
-	fe = integ_u(e, N);
+	fd = integ_u(d);
+	fe = integ_u(e);
 	break;
 }
 
@@ -742,13 +653,15 @@ if (bottom <= 0 || (max(fabs(Snew - S)) <= 15*epsabs || max(fabs(Snew - S)/fabs(
 	out = Snew + (Snew - S)/15.0;
 	return out;
 }
-out = adaptiveSimpsonsAux(flag, args, N, a, c, epsabs/2, epsrel/2, Sleft, fa, fc, fd, bottom-1) + adaptiveSimpsonsAux(flag, args, N, c, b, epsabs/2, epsrel/2, Sright, fc, fb, fe, bottom-1);
+out = adaptiveSimpsonsAux(flag, args, a, c, epsabs/2, epsrel/2, Sleft, fa, fc, fd, bottom-1) + adaptiveSimpsonsAux(flag, args, c, b, epsabs/2, epsrel/2, Sright, fc, fb, fe, bottom-1);
 return out;
 }
 
+
 //--- Adaptive Simpson's Rule ---------------------------------------------------------------------------------------------
-Array<double,1> POTENTIAL::adaptiveSimpson(int flag, double args[], int N, double a, double b, double epsabs, double epsrel, int maxRecursionDepth)
+Array<double,1> BFIELDVC::adaptiveSimpson(int flag, double args[], double a, double b, double epsabs, double epsrel, int maxRecursionDepth)
 {
+int N = 3;
 double c = (a + b)/2;
 double h = (b - a)/6.0;
 
@@ -756,67 +669,57 @@ Array<double,1> fa(N),fb(N),fc(N),out(N),S(N);
 switch(flag)
 {
 case 0:	// integs(u, x)
-	fa = integs(args[0], a, N);
-	fb = integs(args[0], b, N);
-	fc = integs(args[0], c, N);
+	fa = integs(args[0], a);
+	fb = integs(args[0], b);
+	fc = integs(args[0], c);
 	break;
 case 1: // integ_v(x)
-	fa = integ_v(a, N);
-	fb = integ_v(b, N);
-	fc = integ_v(c, N);
+	fa = integ_v(a);
+	fb = integ_v(b);
+	fc = integ_v(c);
 	break;
 case 3:	// integs(x, v)
-	fa = integs(a, args[0], N);
-	fb = integs(b, args[0], N);
-	fc = integs(c, args[0], N);
+	fa = integs(a, args[0]);
+	fb = integs(b, args[0]);
+	fc = integs(c, args[0]);
 	break;
 case 4: // integ_u(x)
-	fa = integ_u(a, N);
-	fb = integ_u(b, N);
-	fc = integ_u(c, N);
+	fa = integ_u(a);
+	fb = integ_u(b);
+	fc = integ_u(c);
 	break;
 }
 S = h*(fa + 4*fc + fb);
 
-return adaptiveSimpsonsAux(flag, args, N, a, b, epsabs, epsrel, S, fa, fb, fc, maxRecursionDepth);
+return adaptiveSimpsonsAux(flag, args, a, b, epsabs, epsrel, S, fa, fb, fc, maxRecursionDepth);
 }
 
-// --- prep_plasmaCurrentB ------------------------------------------------------------------------------------------------
-void POTENTIAL::prep_plasmaCurrentB(void)
-{
-Array<double,3> BR(Range(1,mgrid.NR), Range(1,mgrid.NZ), Range(1,mgrid.Np));
-Array<double,3> BPHI(Range(1,mgrid.NR), Range(1,mgrid.NZ), Range(1,mgrid.Np));
-Array<double,3> BZ(Range(1,mgrid.NR), Range(1,mgrid.NZ), Range(1,mgrid.Np));
-//#pragma omp parallel
-//{
-	Array<double,1> B(3);
-//	#pragma omp for collapse(3)
-	for(int i=1;i<=mgrid.NR;i++)
-		for(int j=1;j<=mgrid.NZ;j++)
-			for(int k=1;k<=mgrid.Np;k++)
-			{
-				B = get_plasmaCurrentB(mgrid.R(i), (k-1)*pi2/mgrid.Np, mgrid.Z(j));
-				BR(i,j,k) = B(0);
-				BPHI(i,j,k) = B(1);
-				BZ(i,j,k) = B(2);
-			}
-//}
-mgrid.BR += BR;
-mgrid.BPHI += BPHI;
-mgrid.BZ += BZ;
-mgrid.prep_interpolation();
-}
 
 // --- prep_sInterpolation ------------------------------------------------------------------------------------------------
-void POTENTIAL::prep_sInterpolation(int Nu, int Nv)
+void BFIELDVC::prep_sInterpolation(int Nu, int Nv)
 {
 int i,j;
 double dummy;
-Array<double,2> Rs(Range(1,Nu), Range(1,Nv)), Zs(Range(1,Nu), Range(1,Nv)), Pot(Range(1,Nu), Range(1,Nv));
+double bsupu,bsupv;
+double sinv, cosv, BR, Bphi;
+Array<double,1> sinuv, cosuv;
+Array<double,1> n(3), B(3), Bvac(3);
+
+Array<double,2> Rs(Range(1,Nu), Range(1,Nv)), Zs(Range(1,Nu), Range(1,Nv));
 Array<double,2> dRdu(Range(1,Nu), Range(1,Nv)), dZdu(Range(1,Nu), Range(1,Nv));
 Array<double,2> dRdv(Range(1,Nu), Range(1,Nv)), dZdv(Range(1,Nu), Range(1,Nv));
 Array<double,2> d2R(Range(1,Nu), Range(1,Nv)), d2Z(Range(1,Nu), Range(1,Nv));
-Array<double,2> dPdu(Range(1,Nu), Range(1,Nv)), dPdv(Range(1,Nu), Range(1,Nv)), d2P(Range(1,Nu), Range(1,Nv));
+
+Array<double,2> KR(Range(1,Nu), Range(1,Nv)), Kp(Range(1,Nu), Range(1,Nv)), KZ(Range(1,Nu), Range(1,Nv));
+Array<double,2> dKRdu(Range(1,Nu), Range(1,Nv)), dKpdu(Range(1,Nu), Range(1,Nv)), dKZdu(Range(1,Nu), Range(1,Nv));
+Array<double,2> dKRdv(Range(1,Nu), Range(1,Nv)), dKpdv(Range(1,Nu), Range(1,Nv)), dKZdv(Range(1,Nu), Range(1,Nv));
+Array<double,2> d2KR(Range(1,Nu), Range(1,Nv)), d2Kp(Range(1,Nu), Range(1,Nv)), d2KZ(Range(1,Nu), Range(1,Nv));
+
+Array<double,2> nB(Range(1,Nu), Range(1,Nv));
+Array<double,2> dnBdu(Range(1,Nu), Range(1,Nv));
+Array<double,2> dnBdv(Range(1,Nu), Range(1,Nv));
+Array<double,2> d2nB(Range(1,Nu), Range(1,Nv));
+
 Range all = Range::all();
 
 TinyVector <int,1> index(1);
@@ -825,9 +728,14 @@ U.resize(Nu);	U.reindexSelf(index);
 V.resize(Nv);	V.reindexSelf(index);
 CaRs.resize(Nu-1,Nv-1,4,4);		CaRs.reindexSelf(index4);
 CaZs.resize(Nu-1,Nv-1,4,4);		CaZs.reindexSelf(index4);
-CaPot.resize(Nu-1,Nv-1,4,4);	CaPot.reindexSelf(index4);
+CaKR.resize(Nu-1,Nv-1,4,4);		CaKR.reindexSelf(index4);
+CaKp.resize(Nu-1,Nv-1,4,4);		CaKp.reindexSelf(index4);
+CaKZ.resize(Nu-1,Nv-1,4,4);		CaKZ.reindexSelf(index4);
+CanB.resize(Nu-1,Nv-1,4,4);		CanB.reindexSelf(index4);
 
-// s = 1 surface
+// last closed flux surface
+double s = wout.Shalf(wout.nshalf);
+//cout << "VC shell is at s = " << s << endl;
 du = pi2/(Nu-1);
 dv = pi2/(Nv-1);
 for(i=1;i<=Nu;i++) U(i) = (i-1)*du;
@@ -837,10 +745,51 @@ for(j=1;j<=Nv;j++) V(j) = (j-1)*dv;
 for(i=1;i<=Nu;i++)
 	for(j=1;j<=Nv;j++)
 	{
-		Rs(i,j) = wout.rmn.ev(1.0, U(i), V(j), dummy, dRdu(i,j), dRdv(i,j), d2R(i,j));
-		Zs(i,j) = wout.zmn.ev(1.0, U(i), V(j), dummy, dZdu(i,j), dZdv(i,j), d2Z(i,j));
-		Pot(i,j) = wout.pot(U(i), V(j), dPdu(i,j), dPdv(i,j), d2P(i,j));
+		wout.get_sincos(U(i), V(j), sinuv, cosuv);
+		sinv = sin(V(j));
+		cosv = cos(V(j));
+
+		// Surface
+		Rs(i,j) = wout.rmn.ev(s, U(i), V(j), dummy, dRdu(i,j), dRdv(i,j), d2R(i,j), sinuv, cosuv);
+		Zs(i,j) = wout.zmn.ev(s, U(i), V(j), dummy, dZdu(i,j), dZdv(i,j), d2Z(i,j), sinuv, cosuv);
+
+		// normal vector at this point
+		n = normal(Rs(i,j), sinv, cosv, dRdu(i,j), dRdv(i,j), dZdu(i,j), dZdv(i,j));	// carthesian
+
+		// Bvmec field components
+		bsupu = wout.bsupumn.ev(s, U(i), V(j), sinuv, cosuv);
+		bsupv = wout.bsupvmn.ev(s, U(i), V(j), sinuv, cosuv);
+
+		// Bvmec
+		BR = dRdu(i,j)*bsupu + dRdv(i,j)*bsupv;
+		Bphi = Rs(i,j) * bsupv;
+		B(2) = dZdu(i,j)*bsupu + dZdv(i,j)*bsupv;	// BZ
+
+		// make cartesian
+		B(0) = BR*cosv - Bphi*sinv;	// Bx
+		B(1) = BR*sinv + Bphi*cosv;	// By
+
+		// Bplasma = Bvmec - Vacuum B-field
+		Bvac = get_vacuumB(Rs(i,j), V(j), Zs(i,j));
+		BR = Bvac(0); Bphi = Bvac(1);
+		Bvac(0) = BR*cosv - Bphi*sinv;	// Bx
+		Bvac(1) = BR*sinv + Bphi*cosv;	// By
+		B -= Bvac;
+
+		// dipole moment
+		nB(i,j) = n(0)*B(0) + n(1)*B(1) + n(2)*B(2);
+
+		// virtual casing current density on s = 1; K = n x B
+		KR(i,j) = n(1)*B(2) - n(2)*B(1);
+		Kp(i,j) = n(2)*B(0) - n(0)*B(2);
+		KZ(i,j) = n(0)*B(1) - n(1)*B(0);
 	}
+
+// get the derivatives
+bcuderiv(KR, du, dv, dKRdu, dKRdv, d2KR);
+bcuderiv(Kp, du, dv, dKpdu, dKpdv, d2Kp);
+bcuderiv(KZ, du, dv, dKZdu, dKZdv, d2KZ);
+bcuderiv(nB, du, dv, dnBdu, dnBdv, d2nB);
 
 // get the C's
 Array<double,2> slice;
@@ -863,35 +812,71 @@ for(i=1;i<Nu;i++)
 		slice.reference(CaZs(i,j,all,all));
 		bcucof(y_sq,y1_sq,y2_sq,y12_sq,du,dv,slice);
 
-		y_sq(1) = Pot(i,j); y_sq(2) = Pot(i+1,j); y_sq(3) = Pot(i+1,j+1); y_sq(4) = Pot(i,j+1);
-		y1_sq(1) = dPdu(i,j); y1_sq(2) = dPdu(i+1,j); y1_sq(3) = dPdu(i+1,j+1); y1_sq(4) = dPdu(i,j+1);
-		y2_sq(1) = dPdv(i,j); y2_sq(2) = dPdv(i+1,j); y2_sq(3) = dPdv(i+1,j+1); y2_sq(4) = dPdv(i,j+1);
-		y12_sq(1) = d2P(i,j); y12_sq(2) = d2P(i+1,j); y12_sq(3) = d2P(i+1,j+1); y12_sq(4) = d2P(i,j+1);
-		slice.reference(CaPot(i,j,all,all));
+		y_sq(1) = KR(i,j); y_sq(2) = KR(i+1,j); y_sq(3) = KR(i+1,j+1); y_sq(4) = KR(i,j+1);
+		y1_sq(1) = dKRdu(i,j); y1_sq(2) = dKRdu(i+1,j); y1_sq(3) = dKRdu(i+1,j+1); y1_sq(4) = dKRdu(i,j+1);
+		y2_sq(1) = dKRdv(i,j); y2_sq(2) = dKRdv(i+1,j); y2_sq(3) = dKRdv(i+1,j+1); y2_sq(4) = dKRdv(i,j+1);
+		y12_sq(1) = d2KR(i,j); y12_sq(2) = d2KR(i+1,j); y12_sq(3) = d2KR(i+1,j+1); y12_sq(4) = d2KR(i,j+1);
+		slice.reference(CaKR(i,j,all,all));
+		bcucof(y_sq,y1_sq,y2_sq,y12_sq,du,dv,slice);
+
+		y_sq(1) = Kp(i,j); y_sq(2) = Kp(i+1,j); y_sq(3) = Kp(i+1,j+1); y_sq(4) = Kp(i,j+1);
+		y1_sq(1) = dKpdu(i,j); y1_sq(2) = dKpdu(i+1,j); y1_sq(3) = dKpdu(i+1,j+1); y1_sq(4) = dKpdu(i,j+1);
+		y2_sq(1) = dKpdv(i,j); y2_sq(2) = dKpdv(i+1,j); y2_sq(3) = dKpdv(i+1,j+1); y2_sq(4) = dKpdv(i,j+1);
+		y12_sq(1) = d2Kp(i,j); y12_sq(2) = d2Kp(i+1,j); y12_sq(3) = d2Kp(i+1,j+1); y12_sq(4) = d2Kp(i,j+1);
+		slice.reference(CaKp(i,j,all,all));
+		bcucof(y_sq,y1_sq,y2_sq,y12_sq,du,dv,slice);
+
+		y_sq(1) = KZ(i,j); y_sq(2) = KZ(i+1,j); y_sq(3) = KZ(i+1,j+1); y_sq(4) = KZ(i,j+1);
+		y1_sq(1) = dKZdu(i,j); y1_sq(2) = dKZdu(i+1,j); y1_sq(3) = dKZdu(i+1,j+1); y1_sq(4) = dKZdu(i,j+1);
+		y2_sq(1) = dKZdv(i,j); y2_sq(2) = dKZdv(i+1,j); y2_sq(3) = dKZdv(i+1,j+1); y2_sq(4) = dKZdv(i,j+1);
+		y12_sq(1) = d2KZ(i,j); y12_sq(2) = d2KZ(i+1,j); y12_sq(3) = d2KZ(i+1,j+1); y12_sq(4) = d2KZ(i,j+1);
+		slice.reference(CaKZ(i,j,all,all));
+		bcucof(y_sq,y1_sq,y2_sq,y12_sq,du,dv,slice);
+
+		y_sq(1) = nB(i,j); y_sq(2) = nB(i+1,j); y_sq(3) = nB(i+1,j+1); y_sq(4) = nB(i,j+1);
+		y1_sq(1) = dnBdu(i,j); y1_sq(2) = dnBdu(i+1,j); y1_sq(3) = dnBdu(i+1,j+1); y1_sq(4) = dnBdu(i,j+1);
+		y2_sq(1) = dnBdv(i,j); y2_sq(2) = dnBdv(i+1,j); y2_sq(3) = dnBdv(i+1,j+1); y2_sq(4) = dnBdv(i,j+1);
+		y12_sq(1) = d2nB(i,j); y12_sq(2) = d2nB(i+1,j); y12_sq(3) = d2nB(i+1,j+1); y12_sq(4) = d2nB(i,j+1);
+		slice.reference(CanB(i,j,all,all));
 		bcucof(y_sq,y1_sq,y2_sq,y12_sq,du,dv,slice);
 	}
 }
 }
 
+
 //------------------------- interpolate_RZ --------------------------------------------------------------------------------
 // gets Rs(u,v), Zs(u,v) on the s = 1 surface through bicubic spline interpolation
-void POTENTIAL::interpolate_RZ(double u, double v, double& Rs, double& Zs, double& dRdu, double& dRdv, double& dZdu, double& dZdv)
+void BFIELDVC::interpolate_RZ(double u, double v, double& Rs, double& Zs)
 {
-bcuint(U,V,CaRs,du,dv,u,v,Rs,dRdu,dRdv);
-bcuint(U,V,CaZs,du,dv,u,v,Zs,dZdu,dZdv);
+double dummy;
+bcuint(U,V,CaRs,du,dv,u,v,Rs,dummy,dummy);
+bcuint(U,V,CaZs,du,dv,u,v,Zs,dummy,dummy);
 }
 
-//------------------------- interpolate_pot -------------------------------------------------------------------------------
-// gets potential(u,v) on the s = 1 surface through bicubic spline interpolation
-double POTENTIAL::interpolate_pot(double u, double v)
+
+//------------------------- interpolate_VCcur -----------------------------------------------------------------------------
+// gets KR(u,v), Kp(u,v) and KZ(u,v) with K = n x Bplasma on the s = 1 surface through bicubic spline interpolation
+void BFIELDVC::interpolate_VCcur(double u, double v, double& KR, double& Kp, double& KZ)
 {
-double dummy, pot;
-bcuint(U,V,CaPot,du,dv,u,v,pot,dummy,dummy);
-return pot;
+double dummy;
+bcuint(U,V,CaKR,du,dv,u,v,KR,dummy,dummy);
+bcuint(U,V,CaKp,du,dv,u,v,Kp,dummy,dummy);
+bcuint(U,V,CaKZ,du,dv,u,v,KZ,dummy,dummy);
 }
 
-//------------------------ End of Class POTENTIAL -------------------------------------------------------------------------
+
+//------------------------- interpolate_dipole ----------------------------------------------------------------------------
+// gets dipole_moment(u,v) = n · Bplasma on the s = 1 surface through bicubic spline interpolation
+double BFIELDVC::interpolate_dipole(double u, double v)
+{
+double nB,dummy;
+bcuint(U,V,CanB,du,dv,u,v,nB,dummy,dummy);
+return nB;
+}
+
+//------------------------ End of Class BFIELDVC --------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+
 
 //------------------------- biot-savart -----------------------------------------------------------------------------------
 // Biot-Savart integrator for closed loop by segments in cartesian coordinates
@@ -948,6 +933,6 @@ b *= 1e-7*I;	// mu0/4pi * I
 
 
 
-#endif //  EXTENDER_CLASS_INCLUDED
+#endif //  XPAND_CLASS_INCLUDED
 //----------------------- End of File -------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------

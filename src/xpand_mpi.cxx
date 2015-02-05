@@ -4,14 +4,15 @@
 //--------
 //#define BZ_DEBUG
 #define USE_MPI
-#define program_name "extender_mpi"
+#define program_name "xpand_mpi"
 
 // Include
 //--------
 #include <openmpi/ompi/mpi/cxx/mpicxx.h>
 #include <andi.hxx>
 #include <vmec_class.hxx>
-#include <extender_class.hxx>
+#include <xpand_class.hxx>
+#include <adapt_gauss_kronrod_class.hxx>
 #include <omp.h>
 #include <unistd.h>
 
@@ -21,12 +22,58 @@ using namespace blitz;
 
 // Prototypes
 //-----------
+Array<double,1> evGK(double Rin, double phiin, double Zin, AdaptiveGK& GKx, AdaptiveGK& GKy, BFIELDVC& bvc, double epsabs, double epsrel);
+Array<double,1> B_fkt(double u, double v, BFIELDVC& bvc);
+Array<double,1> B_u(double v, AdaptiveGK& GK, BFIELDVC& bvc, double epsabs, double epsrel);
+
+class FUNCTIONx : public FtnBase
+{
+private:
+	typedef Array<double,1> defn_t(double, double, BFIELDVC&);
+	defn_t& function_;
+
+	BFIELDVC& bvc_;
+	double a;
+	Array<double,1> out;
+
+public:
+	FUNCTIONx(defn_t& function, double A, BFIELDVC& bvc) : function_(function), bvc_(bvc)
+	{
+		a = A;
+		out.resize(3);
+	}
+	virtual Array<double,1> operator() (double x) { out = function_(x, a, bvc_); return out;};
+};
+
+class FUNCTIONy : public FtnBase
+{
+private:
+	typedef Array<double,1> defn_t(double, AdaptiveGK&, BFIELDVC&, double, double);
+	defn_t& function_;
+
+	AdaptiveGK& GK_;
+	BFIELDVC& bvc_;
+	double epsabs_;
+	double epsrel_;
+	Array<double,1> out;
+
+public:
+	FUNCTIONy(defn_t& function, AdaptiveGK& GK, BFIELDVC& bvc, double epsabs, double epsrel) : function_(function), GK_(GK), bvc_(bvc)
+	{
+		epsabs_ = epsabs;
+		epsrel_ = epsrel;
+		out.resize(3);
+	}
+	virtual Array<double,1> operator() (double x) { out = function_(x, GK_, bvc_, epsabs_, epsrel_); return out;};
+};
+
 
 // Switches
 //----------
 
 // Golbal Parameters
 //------------------
+ofstream logfile;
 
 // Main Program
 //--------------
@@ -40,42 +87,49 @@ if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use mo
 
 // Variables
 int i,j, N, idx;
-double R, phi, Z, s, u;
+double R, phi, Z, s, u, Pres;
 Array<double,1> B(3), Bvac(3);
 double now=zeit();
 Range all = Range::all();
 int c;
+ofstream ofs3;
 
 int tag,sender;
 int Nmin_slave,Nmax_slave;
 Array<int,1> send_N_limits(Range(1,2));
 MPI::Status status;
 
-// adaptive Simpson accuracy defaults
+// adaptive integrator defaults
 double epsabs = 1e-6;
 double epsrel = 1e-4;
+int limit = 1000;
+int degree = 10;
+bool use_GK = true;	 // true: use adaptive Gauss-Kronrod integration;   false: use adaptive Simpson integration
 
 // Command line input parsing
 opterr = 0;
-while ((c = getopt(argc, argv, "ha:r:")) != -1)
+while ((c = getopt(argc, argv, "ha:r:i:m:S")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> extender_mpi [-h] [-a epsabs] [-r epsrel] wout [tag]" << endl << endl;
+		cout << "usage: mpirun -n <cores> xpand_mpi [-h] [-a epsabs] [-r epsrel] wout [tag]" << endl << endl;
 		cout << "Calculate magnetic field outside of VMEC boundary." << endl << endl;
 		cout << "positional arguments:" << endl;
 		cout << "  wout          VMEC wout-file name" << endl;
 		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 		cout << endl << "optional arguments:" << endl;
 		cout << "  -h            show this help message and exit" << endl;
-		cout << "  -a            set absolute tolerance for Simpson; default 1e-6" << endl;
-		cout << "  -r            set relative tolerance for Simpson; default 1e-4" << endl;
+		cout << "  -a            set absolute tolerance; default 1e-6" << endl;
+		cout << "  -r            set relative tolerance; default 1e-4" << endl;
+		cout << "  -i            set maximum refinement level; default 1000" << endl;
+		cout << "  -m            set Gauss-Legendre degree (2*m+1); default 10" << endl;
+		cout << "  -S            use adaptive Simpson instead of Gauss-Kronrod" << endl;
 		cout << endl << "Examples:" << endl;
-		cout << "  mpirun -n 4 extender_mpi wout.nc" << endl;
-		cout << "  mpirun -n 12 extender_mpi -a 1e-8 wout.nc test" << endl;
-		cout << "  mpirun -n 12 extender_mpi -a 1e-8 -r 1e-6 wout.nc test2" << endl;
+		cout << "  mpirun -n 4 xpand_mpi wout.nc" << endl;
+		cout << "  mpirun -n 12 xpand_mpi -a 1e-8 wout.nc test" << endl;
+		cout << "  mpirun -n 12 xpand_mpi -a 1e-8 -r 1e-6 wout.nc test2" << endl;
 	}
 	MPI::Finalize();
 	return 0;
@@ -84,6 +138,15 @@ case 'a':
 	break;
 case 'r':
 	epsrel = atof(optarg);
+	break;
+case 'i':
+	limit = atof(optarg);
+	break;
+case 'm':
+	degree = atof(optarg);
+	break;
+case 'S':
+	use_GK = false;
 	break;
 case '?':
 	if(mpi_rank < 1)
@@ -105,15 +168,14 @@ if(argc==optind+2) praefix = "_" + LA_STRING(argv[optind+1]);
 if(argc>=optind+1) wout_name = LA_STRING(argv[optind]);
 else {if(mpi_rank < 1) cout << "No Input files -> Abort!" << endl; EXIT;}
 
-// log file
-//ofs2.open("log_" + LA_STRING(program_name) + praefix + ".dat");
-ofstream ofs3;
-
 // Init classes
 if(mpi_rank < 1) cout << "Initialize..." << endl;
+AdaptiveGK GKx(limit, degree, 3);
+AdaptiveGK GKy(limit, degree, 3);
 VMEC wout(wout_name);
-if(not wout.lpot) {if(mpi_rank < 1) cout << "wout-file does not contain the scalar potential data -> Abort!" << endl; EXIT;}
-POTENTIAL Pot(wout, epsabs, epsrel, 14);
+//if(not wout.lpot) {if(mpi_rank < 1) cout << "wout-file does not contain the scalar potential data -> Abort!" << endl; EXIT;}
+//POTENTIAL Pot(wout, epsabs, epsrel, 14);
+BFIELDVC bvc(wout, epsabs, epsrel, 14);
 INSIDE_VMEC inside(wout);
 
 // read input
@@ -124,7 +186,7 @@ N = points.rows();
 double phi_old = points(1,2);
 
 // Output
-LA_STRING filenameout = "ext" + praefix + ".dat";
+LA_STRING filenameout = "xpand" + praefix + ".dat";
 if(mpi_rank < 1) outputtest(filenameout);
 
 // Set starting parameters
@@ -146,19 +208,23 @@ if(mpi_rank < 1)
 {
 	ofstream out(filenameout);
 	out.precision(16);
-	out << "# Extender results from VMEC file " << wout_name << endl;
+	out << "# Xpand results from VMEC file " << wout_name << endl;
 	out << "# " << N << " points" << endl;
-	out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t BRvac[T]   \t Bphivac[T] \t BZvac[T]" << endl;
+	out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t Pressure[Pa]" << endl;
 
 	// log file
+	if(use_GK) logfile.open("log_" + LA_STRING(program_name) + praefix + "_GK" + ".dat");
 	ofs3.open("log_" + LA_STRING(program_name) + praefix + "_Master" + ".dat");
 	ofs3.precision(16);
+	if(use_GK) ofs3 << "Use Gauss-Kronrod integrator with limit = " << limit << " and degree = " << degree << endl;
+	else ofs3 << "Use adaptive Simpson integrator" << endl;
+	ofs3 << "Tolerances are: epsabs = " << epsabs << "\t epsrel = " << epsrel << endl;
 	ofs3 << "Calculate B-field for " << N << " points" << endl;
 	ofs3 << "No. of Packages = " << NoOfPackages << " Points per Package = " << N_slave << endl << endl;
 
 	// Result array:	 Column Number,  Values
-	Array<double,3> results_all(Range(1,NoOfPackages),Range(1,6),Range(1,N_slave));
-	Array<double,2> recieve(Range(1,6),Range(1,N_slave));
+	Array<double,3> results_all(Range(1,NoOfPackages),Range(1,4),Range(1,N_slave));
+	Array<double,2> recieve(Range(1,4),Range(1,N_slave));
 	Array<double,2> slice;
 	tag = 1;	// first Package
 
@@ -206,7 +272,7 @@ if(mpi_rank < 1)
 			while(workingNodes > 0)	// workingNodes > 0: Slave still working -> MPI:Revc needed		workingNodes == 0: all Slaves recieved termination signal
 			{
 				// Recieve Result
-				MPI::COMM_WORLD.Recv(recieve.dataFirst(),6*N_slave,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
+				MPI::COMM_WORLD.Recv(recieve.dataFirst(),4*N_slave,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
 				sender = status.Get_source();
 				tag = status.Get_tag();
 				ofs3 << "Recieve from Node: " << sender << " Package: " << tag << endl;
@@ -255,7 +321,7 @@ if(mpi_rank < 1)
 					for(j=1;j<=N_slave;j++)
 					{
 						idx = N_values((i-1)*N_slave+j);
-						out << points(idx,1) << "\t" << points(idx,2) << "\t" << points(idx,3) << "\t" << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << endl;
+						out << points(idx,1) << "\t" << points(idx,2) << "\t" << points(idx,3) << "\t" << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << endl;
 					}
 					write_memory(i) = 2;
 				}
@@ -298,22 +364,22 @@ if(mpi_rank < 1)
 					{
 						wout.get_su(R, phi, Z, s, u);
 						wout.get_B2D(s, u, phi, B(0), B(1), B(2));
-						Bvac = 0;
+						Pres = wout.presf.ev(s);
 					}
 					else
 					{
-						B = Pot.grad(R, phi, Z);
-						Bvac = Pot.get_vacuumB(R, phi, Z);
+						if(use_GK) B = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
+						else B = bvc.ev(R, phi, Z);
+						Bvac = bvc.get_vacuumB(R, phi, Z);
 						B += Bvac;
+						Pres = wout.presf.y(wout.ns); // just the value of presf at LCFS; same as: wout.presf.ev(1.0)
 					}
 
 					// Store results
 					results_all(tag,1,i) = B(0);
 					results_all(tag,2,i) = B(1);
 					results_all(tag,3,i) = B(2);
-					results_all(tag,4,i) = Bvac(0);
-					results_all(tag,5,i) = Bvac(1);
-					results_all(tag,6,i) = Bvac(2);
+					results_all(tag,4,i) = Pres;
 				} // end for
 
 				#pragma omp critical
@@ -335,7 +401,7 @@ if(mpi_rank < 1)
 		for(j=1;j<=N_slave;j++)
 		{
 			idx = N_values((i-1)*N_slave+j);
-			out << points(idx,1) << "\t" << points(idx,2) << "\t" << points(idx,3) << "\t" << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << endl;
+			out << points(idx,1) << "\t" << points(idx,2) << "\t" << points(idx,3) << "\t" << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << endl;
 		}
 	}
 
@@ -355,19 +421,21 @@ if(mpi_rank < 1)
 		{
 			wout.get_su(R, phi, Z, s, u);
 			wout.get_B2D(s, u, phi, B(0), B(1), B(2));
-			Bvac = 0;
+			Pres = wout.presf.ev(s);
 		}
 		else
 		{
-			B = Pot.grad(R, phi, Z);
-			Bvac = Pot.get_vacuumB(R, phi, Z);
+			if(use_GK) B = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
+			else B = bvc.ev(R, phi, Z);
+			Bvac = bvc.get_vacuumB(R, phi, Z);
 			B += Bvac;
+			Pres = wout.presf.y(wout.ns);
 		}
 		// show progress
 		count -= 1;
 		cout << "\rDone: " << int(10000*double(N-count)/double(N))/100.0 << "%   " << flush;
 		// Output
-		out << R << "\t" << phi << "\t" << Z << "\t" << B(0) << "\t" << B(1) << "\t" << B(2) << "\t" << Bvac(0) << "\t" << Bvac(1) << "\t" << Bvac(2) << endl;
+		out << R << "\t" << phi << "\t" << Z << "\t" << B(0) << "\t" << B(1) << "\t" << B(2) << "\t" << Pres << endl;
 	}
 } // end Master
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -378,7 +446,7 @@ if(mpi_rank < 1)
 if(mpi_rank > 0)
 {
 	// Result array for Slave
-	Array<double,2> results(Range(1,6),Range(1,N_slave));
+	Array<double,2> results(Range(1,4),Range(1,N_slave));
 
 	// Start working...
 	while(1)
@@ -410,26 +478,26 @@ if(mpi_rank > 0)
 			{
 				wout.get_su(R, phi, Z, s, u);
 				wout.get_B2D(s, u, phi, B(0), B(1), B(2));
-				Bvac = 0;
+				Pres = wout.presf.ev(s);
 			}
 			else
 			{
-				B = Pot.grad(R, phi, Z);
-				Bvac = Pot.get_vacuumB(R, phi, Z);
+				if(use_GK) B = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
+				else B = bvc.ev(R, phi, Z);
+				Bvac = bvc.get_vacuumB(R, phi, Z);
 				B += Bvac;
+				Pres = wout.presf.y(wout.ns);
 			}
 
 			// Store results
 			results(1,i) = B(0);
 			results(2,i) = B(1);
 			results(3,i) = B(2);
-			results(4,i) = Bvac(0);
-			results(5,i) = Bvac(1);
-			results(6,i) = Bvac(2);
+			results(4,i) = Pres;
 		} // end for
 
 		// Send results to Master
-		MPI::COMM_WORLD.Send(results.dataFirst(),6*N_slave,MPI::DOUBLE,0,tag);
+		MPI::COMM_WORLD.Send(results.dataFirst(),4*N_slave,MPI::DOUBLE,0,tag);
 
 	}// end while
 } // end Slaves
@@ -452,6 +520,36 @@ return 0;
 //------------------------ End of Main ------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
+// --- ev -----------------------------------------------------------------------------------------------------------------
+Array<double,1> evGK(double Rin, double phiin, double Zin, AdaptiveGK& GKx, AdaptiveGK& GKy, BFIELDVC& bvc, double epsabs, double epsrel)
+{
+Array<double,1> integ(3);
+double error;
+bvc.R = Rin; bvc.phi = phiin; bvc.Z = Zin; 		// load into member variables
+FUNCTIONy fBR(B_u, GKx, bvc, epsabs, epsrel);
+GKy.qag(fBR, 0, pi2, epsabs, epsrel, integ, error);
+integ /= -4*pi;	// mu0/4pi and mu0*H = B; because K = n x H originally
+return integ;
+}
+
+
+// --- B_fkt -----------------------------------------
+Array<double,1> B_fkt(double u, double v, BFIELDVC& bvc)
+{
+Array<double,1> out(3);
+out = bvc.integs(u, v);
+return out;
+}
+
+// --- BR_u -----------------------------------------
+Array<double,1> B_u(double v, AdaptiveGK& GK, BFIELDVC& bvc, double epsabs, double epsrel)
+{
+double error;
+Array<double,1> result(3);
+FUNCTIONx f(B_fkt, v, bvc);
+GK.qag(f, 0, pi2, epsabs, epsrel, result, error);	// B(v = const)
+return result;
+}
 
 
 //----------------------- End of File -------------------------------------------------------------------------------------
