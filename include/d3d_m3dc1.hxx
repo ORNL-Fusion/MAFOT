@@ -106,36 +106,52 @@ int m3dc1_isrc[m3dc1_nfiles_max], m3dc1_imag[m3dc1_nfiles_max];
 int m3dc1_load(int response, int response_field, double scale[], LA_STRING m3dc1_filenames[])
 {
 int i, ierr, ierr2;
-for(i=0;i<m3dc1_nfiles;i++)
+
+// open file(s)
+ierr =  fio_open_source(FIO_M3DC1_SOURCE, m3dc1_filenames[0], &(m3dc1_isrc[0]));
+
+// Set options appropriate to this source
+ierr2 = fio_get_options(m3dc1_isrc[0]);
+ierr2 += fio_set_int_option(FIO_TIMESLICE, response);	// response = 1: plasma response solution; response = 0: vacuum field;
+
+switch(response_field)
+{
+case 0: 	// M3D-C1: equilibrium field only
+	ierr2 += fio_set_int_option(FIO_PART, FIO_EQUILIBRIUM_ONLY);
+	break;
+
+case 1:		// M3D-C1: I-coil perturbation field only
+    ierr2 += fio_set_real_option(FIO_LINEAR_SCALE, scale[0]);	// Scale I-coil perturbation in M3D-C1 according to diiidsup.in (current = scale * 1kA)
+	ierr2 += fio_set_int_option(FIO_PART, FIO_PERTURBED_ONLY);
+	break;
+
+case 2:		// M3D-C1: total field
+    ierr2 += fio_set_real_option(FIO_LINEAR_SCALE, scale[0]);	// Scale I-coil perturbation in M3D-C1 according to diiidsup.in (current = scale * 1kA)
+	ierr2 += fio_set_int_option(FIO_PART, FIO_TOTAL);
+	break;
+}
+
+// set field handle
+ierr2 += fio_get_field(m3dc1_isrc[0], FIO_MAGNETIC_FIELD, &(m3dc1_imag[0]));
+
+// further sources only contribute the perturbation, since the equilibrium is already in source 0
+for(i=1;i<m3dc1_nfiles;i++)
 {
 	// open file(s)
-	ierr =  fio_open_source(FIO_M3DC1_SOURCE, m3dc1_filenames[i], &(m3dc1_isrc[i]));
+	ierr +=  fio_open_source(FIO_M3DC1_SOURCE, m3dc1_filenames[i], &(m3dc1_isrc[i]));
 
     // Set options appropriate to this source
-    ierr2 = fio_get_options(m3dc1_isrc[i]);
-    ierr2 = fio_set_int_option(FIO_TIMESLICE, response);	// response = 1: plasma response solution; response = 0: vacuum field;
+    ierr2 += fio_get_options(m3dc1_isrc[i]);
+    ierr2 += fio_set_int_option(FIO_TIMESLICE, response);	// response = 1: plasma response solution; response = 0: vacuum field;
 
-    switch(response_field)
-    {
-    case 0: 	// M3D-C1: equilibrium field only
-    	ierr2 = fio_set_int_option(FIO_PART, FIO_EQUILIBRIUM_ONLY);
-    	break;
-
-    case 1:		// M3D-C1: I-coil perturbation field only
-        ierr2 = fio_set_real_option(FIO_LINEAR_SCALE, scale[i]);	// Scale I-coil perturbation in M3D-C1 according to diiidsup.in (current = scale * 1kA)
-    	ierr2 = fio_set_int_option(FIO_PART, FIO_PERTURBED_ONLY);
-    	break;
-
-    case 2:		// M3D-C1: total field
-        ierr2 = fio_set_real_option(FIO_LINEAR_SCALE, scale[i]);	// Scale I-coil perturbation in M3D-C1 according to diiidsup.in (current = scale * 1kA)
-    	ierr2 = fio_set_int_option(FIO_PART, FIO_TOTAL);
-    	break;
-    }
+    // M3D-C1: I-coil perturbation field only
+    ierr2 += fio_set_real_option(FIO_LINEAR_SCALE, scale[i]);	// Scale I-coil perturbation in M3D-C1 according to diiidsup.in (current = scale * 1kA)
+    ierr2 += fio_set_int_option(FIO_PART, FIO_PERTURBED_ONLY);
 
     // set field handle
-    ierr2 = fio_get_field(m3dc1_isrc[i], FIO_MAGNETIC_FIELD, &(m3dc1_imag[i]));
+    ierr2 += fio_get_field(m3dc1_isrc[i], FIO_MAGNETIC_FIELD, &(m3dc1_imag[i]));
 }
-return ierr;
+return ierr+ierr2;
 }
 
 // ----------------- m3dc1_unload -------------------------------------------------------------------------------------------
@@ -305,6 +321,7 @@ out << "#" << endl;
 // simpleBndy = 1: use simple boundary box
 bool outofBndy(double x, double y, EFIT& EQD)
 {
+if(isnan(x) || isnan(y) || isinf(x) || isinf(y)) return false;
 switch(simpleBndy)
 {
 case 0:
@@ -368,9 +385,24 @@ case 0: case 2: 	// M3D-C1: equilibrium field or total field
 	for(i=0;i<m3dc1_nfiles;i++)
 	{
 		chk = fio_eval_field(m3dc1_imag[i], coord, b_field);
-		B_R += b_field[0];
-		B_phi += b_field[1];
-		B_Z += b_field[2];
+		if(chk != 0) // field eval failed, probably outside of M3DC1 domain -> fall back to g-file equilibrium
+		{
+			chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
+			if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return;}	// integration of this point terminates
+
+			// Equilibrium field
+			F = EQD.get_Fpol(psi);
+			B_R = dpsidz/R;
+			B_phi = F/R;	//B_phi = EQD.Bt0*EQD.R0/R;
+			B_Z = -dpsidr/R;
+			break;	// break the for loop
+		}
+		else
+		{
+			B_R += b_field[0];
+			B_phi += b_field[1];
+			B_Z += b_field[2];
+		}
 	}
 	break;
 }
@@ -381,6 +413,7 @@ if(PAR.response_field == 1)
 	for(i=0;i<m3dc1_nfiles;i++)
 	{
 		chk = fio_eval_field(m3dc1_imag[i], coord, b_field);
+		if(chk != 0) {b_field[0] = 0; b_field[1] = 0; b_field[2] = 0; break;}
 		B_R += b_field[0];
 		B_phi += b_field[1];
 		B_Z += b_field[2];
@@ -455,8 +488,36 @@ d3icoil_.addanglIL = 0.0;
 d3icoil_.scaleIU = 1.0;
 d3icoil_.scaleIL = 1.0;
 
+// Prepare loading M3D-C1
+bool no_m3dc1sup = false;
+double scale[m3dc1_nfiles_max];
+LA_STRING m3dc1_filenames[m3dc1_nfiles_max];
+string m3dc1_file;
+if(PAR.response_field >= 0)		// use M3D-C1 plasma response output
+{
+	in.open(supPath + "m3dc1sup.in");
+	if(in.fail()==1) // no m3dc1 control file found -> use default: n = 3 only, scale by diiidsup.in file and filename = "C1.h5"
+	{
+		no_m3dc1sup = true;
+	}
+	else	// m3dc1 control file found
+	{
+		i = 0;
+		while(in.eof()==0) // Last row is read twice --- can't be changed --- -> i-1 is actual number of rows in file
+		{
+			in >> m3dc1_file;
+			in >> scale[i];
+			m3dc1_filenames[i] = m3dc1_file.c_str();
+			i += 1;
+		}
+		m3dc1_nfiles = i - 1;
+	}
+	in.close();
+	in.clear();
+}
+
 // Read diiidsub.in file, if coils or M3D-C1 are on
-if(PAR.useFcoil == 1 || PAR.useCcoil == 1 || PAR.useIcoil == 1 || PAR.response_field > 0)
+if(PAR.useFcoil == 1 || PAR.useCcoil == 1 || PAR.useIcoil == 1 || (PAR.response_field > 0 && no_m3dc1sup))
 {
 	in.open(supPath + "diiidsup.in");
 	if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open diiidsup.in file " << endl; EXIT;}
@@ -474,14 +535,10 @@ if(PAR.useFcoil == 1 || PAR.useCcoil == 1 || PAR.useIcoil == 1 || PAR.response_f
 	in.clear();	// reset ifstream for next use
 }
 
-// Prepare loading M3D-C1
-double scale[m3dc1_nfiles_max];
-LA_STRING m3dc1_filenames[m3dc1_nfiles_max];
-string m3dc1_file;
+// no m3dc1sup.in file found -> scale from diiidsup.in file
 if(PAR.response_field >= 0)		// use M3D-C1 plasma response output
 {
-	in.open(supPath + "m3dc1sup.in");
-	if(in.fail()==1) // no m3dc1 control file found -> use default: n = 3 only, scale by diiidsup.in file and filename = "C1.h5"
+	if(no_m3dc1sup)
 	{
 		m3dc1_nfiles = 1;
 
@@ -489,22 +546,10 @@ if(PAR.response_field >= 0)		// use M3D-C1 plasma response output
 		scale[0] = 0;
 		for(i=0;i<nIloops;i++) scale[0] += fabs(d3icoil_.curntIc[i]);
 		scale[0] /= 1000.0*nIloops;
-		scale[0] *= -sign(d3icoil_.curntIc[0]);		// proper phasing: first current < 0 -> 60¡ phase, else 0¡ phase
+		scale[0] *= -sign(d3icoil_.curntIc[0]);		// proper phasing: first current < 0 -> 60ï¿½ phase, else 0ï¿½ phase
 
 		// set filename
 		m3dc1_filenames[0] = "C1.h5";
-	}
-	else	// m3dc1 control file found
-	{
-		i = 0;
-		while(in.eof()==0) // Last row is read twice --- can't be changed --- -> i-1 is actual number of rows in file
-		{
-			in >> m3dc1_file;
-			in >> scale[i];
-			m3dc1_filenames[i] = m3dc1_file.c_str();
-			i += 1;
-		}
-		m3dc1_nfiles = i - 1;
 	}
 }
 
