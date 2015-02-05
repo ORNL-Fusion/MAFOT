@@ -46,11 +46,17 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.4
+MAFOT 3.41
 GUI 1.15
 
 Version Notes: 
 ----------------
+MAFOT 3.41 -- Feb 2014
+- BUG fixes in M3DC1 multimode capability for all machines:
+    Equilibrium only used from first modefile, not from all
+    <machine>sup.in file no longer required, if m3dc1sup.in is used
+    field eval fails are now properly handled
+
 GUI 1.15 -- Oct 2014
 - SIESTA support added; plot und laminar only
 
