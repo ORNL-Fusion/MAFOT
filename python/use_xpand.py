@@ -84,7 +84,7 @@ class xpand_class:
 	   xpand.wite(filename)
 	"""
 	def __init__(self, wout, Rmin = 1, Rmax = 2.4, NR = 2, Zmin = -1.5, Zmax = 1.5, 
-				 NZ = 2, pmin = 0, pmax = 2*pi, Np = 1):
+				 NZ = 2, pmin = 0, pmax = 2*np.pi, Np = 1):
 		"initialize & set 3-D grid"
 		self.W = WC.Wout(wout)
 		self.Rmin = Rmin
@@ -304,7 +304,7 @@ class xpand_class:
 		scan through multiple eps for best results; see self.heal_all() for more info on eps
 		"""
 		title_string = str(k) + ': Angle = ' + str(round(self.phi[k,0,0],3))
-		Bmod = sqrt(self.BR[k,:,:]**2 + self.Bphi[k,:,:]**2 + self.BZ[k,:,:]**2)
+		Bmod = np.sqrt(self.BR[k,:,:]**2 + self.Bphi[k,:,:]**2 + self.BZ[k,:,:]**2)
 		if spots: 
 			_,index = self._heal_spots(self.Bphi[k,:,:], eps = eps, index_only = True, quiet = quiet)
 		
@@ -312,7 +312,7 @@ class xpand_class:
 			plt.rcParams['font.size'] = 18
 			plt.rcParams['font.family'] = 'Arial'
 			plt.figure(figsize = (7,9)); plt.subplot(111, aspect = 'equal')
-			cs = plt.contourf(self.R[k,:,:], self.Z[k,:,:], self.BR[k,:,:], linspace(-BRrange,BRrange,128))
+			cs = plt.contourf(self.R[k,:,:], self.Z[k,:,:], self.BR[k,:,:], np.linspace(-BRrange,BRrange,128))
 			plt.xlabel('R [m]'); plt.ylabel('Z [m]'); plt.title(title_string, size = 18)
 			plt.xlim(self.Rmin, self.Rmax); plt.ylim(self.Zmin, self.Zmax)
 			C = plt.colorbar(cs, pad = 0.01, extend = 'neither', format = '%.2g')
@@ -332,7 +332,7 @@ class xpand_class:
 					plt.plot(self.R[k,i,j], self.Z[k,i,j], 'ko', mfc = 'none')
 		
 			plt.figure(figsize = (7,9)); plt.subplot(111, aspect = 'equal')
-			cs = plt.contourf(self.R[k,:,:], self.Z[k,:,:], self.BZ[k,:,:], linspace(-BZrange,BZrange,128))
+			cs = plt.contourf(self.R[k,:,:], self.Z[k,:,:], self.BZ[k,:,:], np.linspace(-BZrange,BZrange,128))
 			plt.xlabel('R [m]'); plt.ylabel('Z [m]'); plt.title(title_string, size = 18)
 			plt.xlim(self.Rmin, self.Rmax); plt.ylim(self.Zmin, self.Zmax)
 			C = plt.colorbar(cs, pad = 0.01, extend = 'neither', format = '%.2g')
@@ -342,7 +342,7 @@ class xpand_class:
 					plt.plot(self.R[k,i,j], self.Z[k,i,j], 'ko', mfc = 'none')
 		else:
 			plt.figure(figsize = (7,9)); plt.subplot(111, aspect = 'equal')
-			cs = plt.contourf(self.R[k,:,:], self.Z[k,:,:], Bmod, linspace(0,4,128), cmap = plt.cm.prism)
+			cs = plt.contourf(self.R[k,:,:], self.Z[k,:,:], Bmod, np.linspace(0,4,128), cmap = plt.cm.prism)
 			plt.xlabel('R [m]'); plt.ylabel('Z [m]'); plt.title(title_string, size = 18)
 			plt.xlim(self.Rmin, self.Rmax); plt.ylim(self.Zmin, self.Zmax)
 			#C = plt.colorbar(cs, pad = 0.01, extend = 'neither', format = '%.2g')
@@ -425,9 +425,12 @@ class xpand_class:
 		else:
 			data = np.loadtxt(filename)
 			NRNZ = len(data[data[:,1] == data[0,1],1])
-			self.NZ = len(data[data[0:NRNZ,2] == data[0,2],2])
+			NRNP = len(data[data[:,2] == data[0,2],2])
+			NPNZ = len(data[data[:,0] == data[0,0],0])
+			self.NZ = int(round((NRNZ * NPNZ / float(NRNP))**0.5))
 			self.NR = NRNZ/self.NZ
-			self.Np = len(data[:,1])/NRNZ
+			self.Np = NPNZ/self.NZ
+			print 'NR =', self.NR, ', Nphi =', self.Np, ', NZ =', self.NZ
 
 			R = data[:,0].reshape(self.Np, self.NZ, self.NR)
 			v = data[:,1].reshape(self.Np, self.NZ, self.NR)
@@ -499,13 +502,25 @@ class xpand_class:
 		Computes the vacuum magnetic field BR, Bphi, BZ at R, phi, Z location(s).
 		Assumes R,Z are flat arrays or scalar, and phi is scalar
 		"""
-		if not hasattr(self, 'BRvac_func'): _init_vacuumBfield()
+		if not hasattr(self, 'BRvac_func'): self._init_vacuumBfield()
 		dphi = 2*np.pi / self.mgridNp
 		k = int(round(phi/dphi)) % self.mgridNp	# nearest neighbor approximation
 		BR = self.BRvac_func[k].ev(R,Z)
 		Bphi = self.Bphivac_func[k].ev(R,Z)
 		BZ = self.BZvac_func[k].ev(R,Z)
 		return BR, Bphi, BZ
+		
+		
+	def vacuumB(self):
+		"""Computes vacuum B-field for the entire grid"""
+		BRvac, Bpvac, BZvac = np.zeros(self.R.shape), np.zeros(self.R.shape), np.zeros(self.R.shape)
+		for k in xrange(self.Np):
+			br, bp, bz = self.get_vacuumB(self.R[k,:,:].flatten(),self.phi[k,0,0],self.Z[k,:,:].flatten())
+			BRvac[k,:,:] = br.reshape(self.NZ, self.NR)
+			Bpvac[k,:,:] = bp.reshape(self.NZ, self.NR)
+			BZvac[k,:,:] = bz.reshape(self.NZ, self.NR)
+		return BRvac, Bpvac, BZvac
+
 	
 	
 # ----------------------------------------------------------------------------------------
@@ -530,7 +545,7 @@ def openNETCDF(Filename):
 						DATA[n].append(''.join(data.variables[n][i,:]).strip())
 		else:																# single variable
 			if(data.variables[n].dtype == 'float'):							# float
-				DATA[n] = float64(data.variables[n][:])
+				DATA[n] = np.float64(data.variables[n][:])
 			elif(data.variables[n].dtype == 'int32'):						# int
 				DATA[n] = int(data.variables[n][:])
 			elif(data.variables[n].dtype == 'S1'):							# char
