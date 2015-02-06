@@ -106,22 +106,24 @@ int limit = 1000;
 int degree = 10;
 bool use_GK = true;	 // true: use adaptive Gauss-Kronrod integration;   false: use adaptive Simpson integration
 LA_STRING mgrid_file = "None";
+LA_STRING points_file = "points.dat";
 
 // Command line input parsing
 opterr = 0;
-while ((c = getopt(argc, argv, "ha:r:i:m:SM:")) != -1)
+while ((c = getopt(argc, argv, "hP:a:r:i:m:SM:")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> xpand_mpi [-h] [-a epsabs] [-r epsrel] [-i limit] [-m degree] [-S] [-M mgrid] wout [tag]" << endl << endl;
+		cout << "usage: mpirun -n <cores> xpand_mpi [-h] [-P pts] [-a epsabs] [-r epsrel] [-i limit] [-m degree] [-S] [-M mgrid] wout [tag]" << endl << endl;
 		cout << "Calculate magnetic field outside of VMEC boundary." << endl << endl;
 		cout << "positional arguments:" << endl;
 		cout << "  wout          VMEC wout-file name" << endl;
 		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 		cout << endl << "optional arguments:" << endl;
 		cout << "  -h            show this help message and exit" << endl;
+		cout << "  -P            use Points-File pts; default: 'points.dat' in the current working dir" << endl;
 		cout << "  -a            set absolute tolerance; default 1e-6" << endl;
 		cout << "  -r            set relative tolerance; default 1e-4" << endl;
 		cout << "  -i            set maximum refinement limit; default 1000" << endl;
@@ -130,11 +132,14 @@ case 'h':
 		cout << "  -M            use Mgrid-File mgrid; default: 'mgrid_file' from wout" << endl;
 		cout << endl << "Examples:" << endl;
 		cout << "  mpirun -n 4 xpand_mpi wout.nc" << endl;
-		cout << "  mpirun -n 12 xpand_mpi -a 1e-8 wout.nc test" << endl;
+		cout << "  mpirun -n 12 xpand_mpi -i 1500 -P ./here/my_points.dat wout.nc test" << endl;
 		cout << "  mpirun -n 12 xpand_mpi -r 1e-8 -S -M /home/shared/mgrid_d3d.nc wout.nc test2" << endl;
 	}
 	MPI::Finalize();
 	return 0;
+case 'P':
+	points_file = optarg;
+	break;
 case 'a':
 	epsabs = atof(optarg);
 	break;
@@ -184,7 +189,7 @@ INSIDE_VMEC inside(wout);
 // read input
 Array<double,2> points;
 if(mpi_rank < 1) cout << "Read points..." << endl;
-readfile("points.dat", 3, points);
+readfile(points_file, 3, points);
 N = points.rows();
 double phi_old = points(1,2);
 
