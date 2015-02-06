@@ -105,16 +105,17 @@ double epsrel = 1e-4;
 int limit = 1000;
 int degree = 10;
 bool use_GK = true;	 // true: use adaptive Gauss-Kronrod integration;   false: use adaptive Simpson integration
+LA_STRING mgrid_file = "None";
 
 // Command line input parsing
 opterr = 0;
-while ((c = getopt(argc, argv, "ha:r:i:m:S")) != -1)
+while ((c = getopt(argc, argv, "ha:r:i:m:SM:")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> xpand_mpi [-h] [-a epsabs] [-r epsrel] wout [tag]" << endl << endl;
+		cout << "usage: mpirun -n <cores> xpand_mpi [-h] [-a epsabs] [-r epsrel] [-i limit] [-m degree] [-S] [-M mgrid] wout [tag]" << endl << endl;
 		cout << "Calculate magnetic field outside of VMEC boundary." << endl << endl;
 		cout << "positional arguments:" << endl;
 		cout << "  wout          VMEC wout-file name" << endl;
@@ -123,13 +124,14 @@ case 'h':
 		cout << "  -h            show this help message and exit" << endl;
 		cout << "  -a            set absolute tolerance; default 1e-6" << endl;
 		cout << "  -r            set relative tolerance; default 1e-4" << endl;
-		cout << "  -i            set maximum refinement level; default 1000" << endl;
+		cout << "  -i            set maximum refinement limit; default 1000" << endl;
 		cout << "  -m            set Gauss-Legendre degree (2*m+1); default 10" << endl;
 		cout << "  -S            use adaptive Simpson instead of Gauss-Kronrod" << endl;
+		cout << "  -M            use Mgrid-File mgrid; default: 'mgrid_file' from wout" << endl;
 		cout << endl << "Examples:" << endl;
 		cout << "  mpirun -n 4 xpand_mpi wout.nc" << endl;
 		cout << "  mpirun -n 12 xpand_mpi -a 1e-8 wout.nc test" << endl;
-		cout << "  mpirun -n 12 xpand_mpi -a 1e-8 -r 1e-6 wout.nc test2" << endl;
+		cout << "  mpirun -n 12 xpand_mpi -r 1e-8 -S -M /home/shared/mgrid_d3d.nc wout.nc test2" << endl;
 	}
 	MPI::Finalize();
 	return 0;
@@ -147,6 +149,9 @@ case 'm':
 	break;
 case 'S':
 	use_GK = false;
+	break;
+case 'M':
+	mgrid_file = optarg;
 	break;
 case '?':
 	if(mpi_rank < 1)
@@ -173,9 +178,7 @@ if(mpi_rank < 1) cout << "Initialize..." << endl;
 AdaptiveGK GKx(limit, degree, 3);
 AdaptiveGK GKy(limit, degree, 3);
 VMEC wout(wout_name);
-//if(not wout.lpot) {if(mpi_rank < 1) cout << "wout-file does not contain the scalar potential data -> Abort!" << endl; EXIT;}
-//POTENTIAL Pot(wout, epsabs, epsrel, 14);
-BFIELDVC bvc(wout, epsabs, epsrel, 14);
+BFIELDVC bvc(wout, epsabs, epsrel, 14, mgrid_file);
 INSIDE_VMEC inside(wout);
 
 // read input
@@ -528,7 +531,13 @@ double error;
 bvc.R = Rin; bvc.phi = phiin; bvc.Z = Zin; 		// load into member variables
 FUNCTIONy fBR(B_u, GKx, bvc, epsabs, epsrel);
 GKy.qag(fBR, 0, pi2, epsabs, epsrel, integ, error);
-integ /= -4*pi;	// mu0/4pi and mu0*H = B; because K = n x H originally
+integ /= -4*pi;	// mu0/4pi and mu0*H = B; because K = n x H originally; integ is the B-field in carthesian coordinates!!!
+
+// transform back to cylindrical
+double Bx, By;
+Bx = integ(0); By = integ(1);
+integ(0) =  Bx*cos(phiin) + By*sin(phiin);
+integ(1) = -Bx*sin(phiin) + By*cos(phiin);
 return integ;
 }
 

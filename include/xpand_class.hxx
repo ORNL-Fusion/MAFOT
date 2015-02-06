@@ -183,7 +183,7 @@ extcur.reference(cur);
 
 // open file
 chk = nc_open(mgrid_file, NC_NOWRITE, &ncid);
-if(chk != 0) {cout << "Unable to open file " << mgrid_file << endl; EXIT;}
+if(chk != 0) {cout << "MGRID: Unable to open file " << mgrid_file << endl; EXIT;}
 
 // read grid data
 chk = nc_inq_varid(ncid, "ir", &varid);	// get variable id
@@ -393,14 +393,14 @@ public:
 	// Constructors
 	BFIELDVC();							// Default Constructor
 	BFIELDVC(const BFIELDVC& bvc);		// Copy Constructor
-	BFIELDVC(VMEC woutin);				// Standard Constructor, uses defaults
-	BFIELDVC(VMEC woutin, double epsabsin, double epsrelin, int maxRecDepthin); // set all Constructor
+	BFIELDVC(VMEC woutin, LA_STRING mgrid_file = "None");				// Standard Constructor, uses defaults
+	BFIELDVC(VMEC woutin, double epsabsin, double epsrelin, int maxRecDepthin, LA_STRING mgrid_file = "None"); // set all Constructor
 
 	// Member-Operators
 	BFIELDVC& operator =(const BFIELDVC& bvc);	// Operator =
 
 	// Member-Functions
-	void init(VMEC woutin);												// load mgrid and prepare all interpolations
+	void init(VMEC woutin, LA_STRING mgrid_file = "None");				// load mgrid and prepare all interpolations
 	void setup_accuracy(double epsabsin = 1e-6, double epsrelin = 1e-4, int maxRecDepthin = 14);	// set control parameter for adaptive integration
 	Array<double,1> ev(double R, double phi, double Z);					// evaluate magentic field by virtual casing, uses adaptive Simpson integration
 	Array<double,1> get_vacuumB(double Rs, double v, double Zs);		// returns vacuum B-field Bvac = Bmgrid = (BR,Bphi,BZ)
@@ -427,23 +427,23 @@ BFIELDVC::BFIELDVC(const BFIELDVC& bvc)
 }
 
 // Standard Constructor
-BFIELDVC::BFIELDVC(VMEC woutin)
+BFIELDVC::BFIELDVC(VMEC woutin, LA_STRING mgrid_file)
 {
 R = 0;
 phi = 0;
 Z = 0;
 setup_accuracy();	// default values
-init(woutin);
+init(woutin, mgrid_file);
 }
 
 // set all Constructor
-BFIELDVC::BFIELDVC(VMEC woutin, double epsabsin, double epsrelin, int maxRecDepthin)
+BFIELDVC::BFIELDVC(VMEC woutin, double epsabsin, double epsrelin, int maxRecDepthin, LA_STRING mgrid_file)
 {
 R = 0;
 phi = 0;
 Z = 0;
 setup_accuracy(epsabsin, epsrelin, maxRecDepthin);
-init(woutin);
+init(woutin, mgrid_file);
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -477,10 +477,11 @@ return(*this);
 //-------------------------------------------------------------------------------------------------------------------------
 
 // --- read ---------------------------------------------------------------------------------------------------------------
-void BFIELDVC::init(VMEC woutin)
+void BFIELDVC::init(VMEC woutin, LA_STRING mgrid_file)
 {
 wout = woutin;
-mgrid.read(wout.mgrid_file, wout.nextcur, wout.extcur);
+if(strcmp(mgrid_file,"None") == 0) mgrid_file = wout.mgrid_file;
+mgrid.read(mgrid_file, wout.nextcur, wout.extcur);
 mgrid.prep_interpolation();
 
 // get s = 1 surface and prepare interpolation
