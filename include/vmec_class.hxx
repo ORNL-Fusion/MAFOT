@@ -34,7 +34,6 @@ class VMEC_SPECTRAL
 {
 private:
 	// Member Variables
-	double ds;		// s array step size
 	Array<double,2> d2ymns;	// d^2/ds^2 ymns(s), output of spline and input of splint
 	Array<double,2> d2ymnc;	// d^2/ds^2 ymnc(s), output of spline and input of splint
 
@@ -91,7 +90,6 @@ parity = 0;
 VMEC_SPECTRAL& VMEC_SPECTRAL::operator =(const VMEC_SPECTRAL& spec)
 {
 if (this == &spec) return(*this);	    // if: x=x
-ds = spec.ds;
 d2ymns.reference(spec.d2ymns);
 d2ymnc.reference(spec.d2ymnc);
 
@@ -124,7 +122,6 @@ mnmax = mnmax0;
 xn.reference(xn0);
 xm.reference(xm0);
 S.reference(S0);
-ds = (S(ns) - S(1)) / (ns - 1);
 }
 
 //---------------------------- spline -------------------------------------------------------------------------------------
@@ -135,6 +132,8 @@ int i;
 double d1,dn;
 Array<double,1> slice, d2slice;
 Range all = Range::all();
+const double ds1 = (S(7) - S(1))/6.0;		// is S is equidistant, then ds1 = dsn = ds = S(i) - S(i-1) for any i
+const double dsn = (S(ns) - S(ns-6))/6.0;	// if not, then this is an average, which makes d1 and dn somewhat more inaccurate
 
 TinyVector <int,2> index2(1,0);	// Array ranges
 
@@ -144,8 +143,8 @@ if(parity >= 0)
 	d2ymnc.resize(ns,mnmax);	d2ymnc.reindexSelf(index2);
 	for(i=0;i<mnmax;i++)
 	{
-		d1 = (-49/20.0*ymnc(1,i) + 6*ymnc(2,i) - 15/2.0*ymnc(3,i) + 20/3.0*ymnc(4,i) - 15/4.0*ymnc(5,i) + 6/5.0*ymnc(6,i) - 1/6.0*ymnc(7,i)) / ds;
-		dn = (49/20.0*ymnc(ns,i) - 6*ymnc(ns-1,i) + 15/2.0*ymnc(ns-2,i) - 20/3.0*ymnc(ns-3,i) + 15/4.0*ymnc(ns-4,i) - 6/5.0*ymnc(ns-5,i) + 1/6.0*ymnc(ns-6,i)) / ds;
+		d1 = (-49/20.0*ymnc(1,i) + 6*ymnc(2,i) - 15/2.0*ymnc(3,i) + 20/3.0*ymnc(4,i) - 15/4.0*ymnc(5,i) + 6/5.0*ymnc(6,i) - 1/6.0*ymnc(7,i)) / ds1;
+		dn = (49/20.0*ymnc(ns,i) - 6*ymnc(ns-1,i) + 15/2.0*ymnc(ns-2,i) - 20/3.0*ymnc(ns-3,i) + 15/4.0*ymnc(ns-4,i) - 6/5.0*ymnc(ns-5,i) + 1/6.0*ymnc(ns-6,i)) / dsn;
 		slice.reference(ymnc(all,i));
 		d2slice.reference(d2ymnc(all,i));
 		spline(S, slice, ns, d1, dn, d2slice);
@@ -158,8 +157,8 @@ if(parity <= 0)
 	d2ymns.resize(ns,mnmax);	d2ymns.reindexSelf(index2);
 	for(i=0;i<mnmax;i++)
 	{
-		d1 = (-49/20.0*ymns(1,i) + 6*ymns(2,i) - 15/2.0*ymns(3,i) + 20/3.0*ymns(4,i) - 15/4.0*ymns(5,i) + 6/5.0*ymns(6,i) - 1/6.0*ymns(7,i)) / ds;
-		dn = (49/20.0*ymns(ns,i) - 6*ymns(ns-1,i) + 15/2.0*ymns(ns-2,i) - 20/3.0*ymns(ns-3,i) + 15/4.0*ymns(ns-4,i) - 6/5.0*ymns(ns-5,i) + 1/6.0*ymns(ns-6,i)) / ds;
+		d1 = (-49/20.0*ymns(1,i) + 6*ymns(2,i) - 15/2.0*ymns(3,i) + 20/3.0*ymns(4,i) - 15/4.0*ymns(5,i) + 6/5.0*ymns(6,i) - 1/6.0*ymns(7,i)) / ds1;
+		dn = (49/20.0*ymns(ns,i) - 6*ymns(ns-1,i) + 15/2.0*ymns(ns-2,i) - 20/3.0*ymns(ns-3,i) + 15/4.0*ymns(ns-4,i) - 6/5.0*ymns(ns-5,i) + 1/6.0*ymns(ns-6,i)) / dsn;
 		slice.reference(ymns(all,i));
 		d2slice.reference(d2ymns(all,i));
 		spline(S, slice, ns, d1, dn, d2slice);
@@ -453,7 +452,6 @@ class VMEC_PROFILE
 {
 private:
 	// Member Variables
-	double ds;				// s array step size
 	Array<double,1> d2y;	// d^2/ds^2 y(s), output of spline and input of splint
 
 public:
@@ -483,7 +481,6 @@ public:
 VMEC_PROFILE::VMEC_PROFILE()
 {
 ns = 0;
-ds = 0;
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -491,7 +488,6 @@ ds = 0;
 VMEC_PROFILE& VMEC_PROFILE::operator =(const VMEC_PROFILE& prof)
 {
 if (this == &prof) return(*this);	    // if: x=x
-ds = prof.ds;
 d2y.reference(prof.d2y);
 S.reference(prof.S);
 y.reference(prof.y);
@@ -525,7 +521,6 @@ void VMEC_PROFILE::set(int ns0, Array<double,1>& S0)
 {
 ns = ns0;
 S.reference(S0);
-ds = (S(ns) - S(1)) / (ns - 1);
 }
 
 //---------------------------- spline -------------------------------------------------------------------------------------
@@ -533,11 +528,13 @@ ds = (S(ns) - S(1)) / (ns - 1);
 void VMEC_PROFILE::Vspline()
 {
 double d1,dn;
+const double ds1 = (S(7) - S(1))/6.0;		// is S is equidistant, then ds1 = dsn = ds = S(i) - S(i-1) for any i
+const double dsn = (S(ns) - S(ns-6))/6.0;	// if not, then this is an average, which makes d1 and dn somewhat more inaccurate
 TinyVector <int,1> index(1);	// Array range
 
 d2y.resize(ns);	d2y.reindexSelf(index);
-d1 = (-49/20.0*y(1) + 6*y(2) - 15/2.0*y(3) + 20/3.0*y(4) - 15/4.0*y(5) + 6/5.0*y(6) - 1/6.0*y(7)) / ds;
-dn = (49/20.0*y(ns) - 6*y(ns-1) + 15/2.0*y(ns-2) - 20/3.0*y(ns-3) + 15/4.0*y(ns-4) - 6/5.0*y(ns-5) + 1/6.0*y(ns-6)) / ds;
+d1 = (-49/20.0*y(1) + 6*y(2) - 15/2.0*y(3) + 20/3.0*y(4) - 15/4.0*y(5) + 6/5.0*y(6) - 1/6.0*y(7)) / ds1;
+dn = (49/20.0*y(ns) - 6*y(ns-1) + 15/2.0*y(ns-2) - 20/3.0*y(ns-3) + 15/4.0*y(ns-4) - 6/5.0*y(ns-5) + 1/6.0*y(ns-6)) / dsn;
 spline(S, y, ns, d1, dn, d2y);
 }
 
@@ -595,13 +592,20 @@ public:
 	Array<double,1> Shalf;
 	Array<double,1> extcur;
 
+	// 2-D spectral data
 	VMEC_SPECTRAL rmn;
 	VMEC_SPECTRAL zmn;
 	VMEC_SPECTRAL gmn;
 	VMEC_SPECTRAL bsupumn;
 	VMEC_SPECTRAL bsupvmn;
 
+	// 1-D profiles s -mesh
 	VMEC_PROFILE presf;
+	VMEC_PROFILE iotaf;
+	VMEC_PROFILE jdotb;
+
+	// 1-D profiles s-ds/2 -mesh
+	VMEC_PROFILE bvco;
 
 // Constructors
 	VMEC();								// Default Constructor
@@ -614,6 +618,7 @@ public:
 // Member-Functions
 	void read(LA_STRING filename);			// read in wout file from VMEC
 	void get_axis(double v, double& Raxis, double& Zaxis);	// get magnetic axis
+	double get_jpar(double s);	// get parallel current density in [10^6 A / m^2]
 	void get_B2D(double s, double u, double v, double& BR, double& Bphi, double& BZ);	// get B-field at (s,u,v)
 	double pot(double u, double v);			// magnetic scalar potental on s = 1 surface
 	double pot(double u, double v, double& dpdu, double& dpdv, double& dpdudv);	// ...with 1st and mixed derivatives
@@ -697,6 +702,10 @@ bsupumn = V.bsupumn;
 bsupvmn = V.bsupvmn;
 
 presf = V.presf;
+iotaf = V.iotaf;
+jdotb = V.jdotb;
+
+bvco = V.bvco;
 
 raxis_cc.reference(V.raxis_cc);
 raxis_cs.reference(V.raxis_cs);
@@ -714,6 +723,7 @@ return(*this);
 
 //---------------------------- read ---------------------------------------------------------------------------------------
 // read VMEC wout.nc file and set member variables
+// To see contents of file beforehand, use in the Linux shell:   ncdump -h wout.nc
 void VMEC::read(LA_STRING filename)
 {
 // Variables
@@ -724,29 +734,29 @@ Range all = Range::all();
 //---- Read VMEC file ----------------------
 // Input
 chk = nc_open(filename, NC_NOWRITE, &ncid);
-if(chk != 0) {cout << "Unable to open file " << filename << endl; EXIT;}
+if(chk != 0) {cout << "VMEC: Unable to open file " << filename << endl; EXIT;}
 
 // Read the dimensions
-chk = nc_inq_varid(ncid, "ns", &varid);		// get variable id
+chk = nc_inq_varid(ncid, "ns", &varid); if(chk!=0) {cout << "VMEC: ns not found" << endl; EXIT;}	// get variable id
 chk = nc_get_var_int(ncid, varid, &ns);		// read
-chk = nc_inq_varid(ncid, "ntor", &varid);	// get variable id
+chk = nc_inq_varid(ncid, "ntor", &varid); if(chk!=0) {cout << "VMEC: ntor not found" << endl; EXIT;}	// get variable id
 chk = nc_get_var_int(ncid, varid, &ntor);	// read
-chk = nc_inq_varid(ncid, "mnmax", &varid);	// get variable id
+chk = nc_inq_varid(ncid, "mnmax", &varid); if(chk!=0) {cout << "VMEC: mnmax not found" << endl; EXIT;}	// get variable id
 chk = nc_get_var_int(ncid, varid, &mnmax);	// read
 nshalf = ns;
 
 // read lasym
 int lasym_in;
-chk = nc_inq_varid(ncid, "lasym__logical__", &varid);		// get variable id
+chk = nc_inq_varid(ncid, "lasym__logical__", &varid); if(chk!=0) {cout << "VMEC: lasym__logical__ not found" << endl; EXIT;}		// get variable id
 chk = nc_get_var_int(ncid, varid, &lasym_in);	// read
 lasym = bool(lasym_in);
 
 // read xn & xm
 xn.resize(mnmax);
-chk = nc_inq_varid(ncid, "xn", &varid);
+chk = nc_inq_varid(ncid, "xn", &varid); if(chk!=0) {cout << "VMEC: xn not found" << endl; EXIT;}
 chk = nc_get_var_int(ncid, varid, xn.data());
 xm.resize(mnmax);
-chk = nc_inq_varid(ncid, "xm", &varid);
+chk = nc_inq_varid(ncid, "xm", &varid); if(chk!=0) {cout << "VMEC: xm not found" << endl; EXIT;}
 chk = nc_get_var_int(ncid, varid, xm.data());
 
 // set sign array for s < 0 entry in half-grid spectral variables
@@ -764,33 +774,33 @@ input.resize(ns, mnmax);
 
 if(lasym)
 {
-	chk = nc_inq_varid(ncid, "rmns", &varid);			// get variable id
+	chk = nc_inq_varid(ncid, "rmns", &varid); if(chk!=0) {cout << "VMEC: rmns not found" << endl; EXIT;}			// get variable id
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	rmn.ymns.resize(ns, mnmax); 						// set size
 	rmn.ymns.reindexSelf(index2);						// set indices
 	rmn.ymns = input.copy();							// move into place
 
-	chk = nc_inq_varid(ncid, "zmnc", &varid);			// get variable id
+	chk = nc_inq_varid(ncid, "zmnc", &varid); if(chk!=0) {cout << "VMEC: zmnc not found" << endl; EXIT;}			// get variable id
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	zmn.ymnc.resize(ns, mnmax); 						// set size
 	zmn.ymnc.reindexSelf(index2);						// set indices
 	zmn.ymnc = input.copy();							// move into place
 
-	chk = nc_inq_varid(ncid, "gmns", &varid);			// get variable id
+	chk = nc_inq_varid(ncid, "gmns", &varid); if(chk!=0) {cout << "VMEC: gmns not found" << endl; EXIT;}			// get variable id
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	gmn.ymns.resize(nshalf, mnmax); 						// set size
 	gmn.ymns.reindexSelf(index2);							// set indices
 	gmn.ymns = input.copy();							// move into place
 	gmn.ymns(1,all) = gmn.ymns(2,all) * signhalf;	// expand beyond magnetic axis: Shalf(1) = -Shalf(2) => Amn(-s)*sin(mu-nv) = Amn(s)*sin(m(u+pi)-nv) = (-1)^m * Amn(s)*sin(mu-nv); same for cos
 
-	chk = nc_inq_varid(ncid, "bsupumns", &varid);			// get variable id
+	chk = nc_inq_varid(ncid, "bsupumns", &varid); if(chk!=0) {cout << "VMEC: bsupumns not found" << endl; EXIT;}			// get variable id
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	bsupumn.ymns.resize(nshalf, mnmax); 						// set size
 	bsupumn.ymns.reindexSelf(index2);							// set indices^n
 	bsupumn.ymns = input.copy();							// move into place
 	bsupumn.ymns(1,all) = bsupumn.ymns(2,all) * signhalf;
 
-	chk = nc_inq_varid(ncid, "bsupvmns", &varid);			// get variable id
+	chk = nc_inq_varid(ncid, "bsupvmns", &varid); if(chk!=0) {cout << "VMEC: bsupvmns not found" << endl; EXIT;}			// get variable id
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	bsupvmn.ymns.resize(nshalf, mnmax); 						// set size
 	bsupvmn.ymns.reindexSelf(index2);							// set indices
@@ -798,33 +808,33 @@ if(lasym)
 	bsupvmn.ymns(1,all) = bsupvmn.ymns(2,all) * signhalf;
 }
 
-chk = nc_inq_varid(ncid, "rmnc", &varid);			// get variable id
+chk = nc_inq_varid(ncid, "rmnc", &varid); if(chk!=0) {cout << "VMEC: rmnc not found" << endl; EXIT;}			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 rmn.ymnc.resize(ns, mnmax); 						// set size
 rmn.ymnc.reindexSelf(index2);							// set indices
 rmn.ymnc = input.copy();								// move into place
 
-chk = nc_inq_varid(ncid, "zmns", &varid);			// get variable id
+chk = nc_inq_varid(ncid, "zmns", &varid); if(chk!=0) {cout << "VMEC: zmns not found" << endl; EXIT;}			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 zmn.ymns.resize(ns, mnmax); 						// set size
 zmn.ymns.reindexSelf(index2);							// set indices
 zmn.ymns = input.copy();								// move into place
 
-chk = nc_inq_varid(ncid, "gmnc", &varid);			// get variable id
+chk = nc_inq_varid(ncid, "gmnc", &varid); if(chk!=0) {cout << "VMEC: gmnc not found" << endl; EXIT;}			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 gmn.ymnc.resize(nshalf, mnmax); 						// set size
 gmn.ymnc.reindexSelf(index2);							// set indices
 gmn.ymnc = input.copy();							// move into place
 gmn.ymnc(1,all) = gmn.ymnc(2,all) * signhalf;
 
-chk = nc_inq_varid(ncid, "bsupumnc", &varid);			// get variable id
+chk = nc_inq_varid(ncid, "bsupumnc", &varid); if(chk!=0) {cout << "VMEC: bsupumnc not found" << endl; EXIT;}			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 bsupumn.ymnc.resize(nshalf, mnmax); 						// set size
 bsupumn.ymnc.reindexSelf(index2);							// set indices
 bsupumn.ymnc = input.copy();							// move into place
 bsupumn.ymnc(1,all) = bsupumn.ymnc(2,all) * signhalf;
 
-chk = nc_inq_varid(ncid, "bsupvmnc", &varid);			// get variable id
+chk = nc_inq_varid(ncid, "bsupvmnc", &varid); if(chk!=0) {cout << "VMEC: bsupvmnc not found" << endl; EXIT;}			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 bsupvmn.ymnc.resize(nshalf, mnmax); 						// set size
 bsupvmn.ymnc.reindexSelf(index2);							// set indices
@@ -835,82 +845,96 @@ bsupvmn.ymnc(1,all) = bsupvmn.ymnc(2,all) * signhalf;
 if(lasym)
 {
 	raxis_cs.resize(ntor+1);
-	chk = nc_inq_varid(ncid, "raxis_cs", &varid);
+	chk = nc_inq_varid(ncid, "raxis_cs", &varid); if(chk!=0) {cout << "VMEC: raxis_cs not found" << endl; EXIT;}
 	chk = nc_get_var_double(ncid, varid, raxis_cs.data());
 	zaxis_cc.resize(ntor+1);
-	chk = nc_inq_varid(ncid, "zaxis_cc", &varid);
+	chk = nc_inq_varid(ncid, "zaxis_cc", &varid); if(chk!=0) {cout << "VMEC: zaxis_cc not found" << endl; EXIT;}
 	chk = nc_get_var_double(ncid, varid, zaxis_cc.data());
 	zaxis_cs.resize(ntor+1);
-	chk = nc_inq_varid(ncid, "zaxis_cs", &varid);
+	chk = nc_inq_varid(ncid, "zaxis_cs", &varid); if(chk!=0) {cout << "VMEC: zaxis_cs not found" << endl; EXIT;}
 	chk = nc_get_var_double(ncid, varid, zaxis_cs.data());
 }
 raxis_cc.resize(ntor+1);
-chk = nc_inq_varid(ncid, "raxis_cc", &varid);
+chk = nc_inq_varid(ncid, "raxis_cc", &varid); if(chk!=0) {cout << "VMEC: raxis_cc not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, raxis_cc.data());
 
 // read parameter
-chk = nc_inq_varid(ncid, "wb", &varid);
+chk = nc_inq_varid(ncid, "wb", &varid); if(chk!=0) {cout << "VMEC: wb not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, &wb);
-chk = nc_inq_varid(ncid, "ctor", &varid);
+chk = nc_inq_varid(ncid, "ctor", &varid); if(chk!=0) {cout << "VMEC: ctor not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, &ctor);
-chk = nc_inq_varid(ncid, "nextcur", &varid);
+chk = nc_inq_varid(ncid, "nextcur", &varid); if(chk!=0) {cout << "VMEC: nextcur not found" << endl; EXIT;}
 chk = nc_get_var_int(ncid, varid, &nextcur);
-chk = nc_inq_varid(ncid, "mnmaxpot", &varid);
+chk = nc_inq_varid(ncid, "mnmaxpot", &varid); if(chk!=0) {cout << "VMEC: mnmaxpot not found" << endl; EXIT;}
 if(chk == 0) lpot = true;
 else lpot = false;
 if(lpot) chk = nc_get_var_int(ncid, varid, &mnmaxpot);
 
 // read names
 char text[500];
-chk = nc_inq_varid(ncid, "input_extension", &varid);
+chk = nc_inq_varid(ncid, "input_extension", &varid); if(chk!=0) {cout << "VMEC: input_extension not found" << endl; EXIT;}
 chk = nc_get_var_text(ncid, varid, &text[0]);
 input_extension = text; input_extension = input_extension.strip();
 text[0] = 0;
-chk = nc_inq_varid(ncid, "mgrid_file", &varid);
+chk = nc_inq_varid(ncid, "mgrid_file", &varid); if(chk!=0) {cout << "VMEC: mgrid_file not found" << endl; EXIT;}
 chk = nc_get_var_text(ncid, varid, &text[0]);
 mgrid_file = text; mgrid_file = mgrid_file.left(mgrid_file.indexOf(".nc") + 2);
 
-// read 1D-profiles
+// read 1D-profiles s -mesh
 TinyVector <int,1> index1(1);
 
 presf.y.resize(ns); presf.y.reindexSelf(index1);
-chk = nc_inq_varid(ncid, "presf", &varid);
+chk = nc_inq_varid(ncid, "presf", &varid); if(chk!=0) {cout << "VMEC: presf not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, presf.y.data());
+
+iotaf.y.resize(ns); iotaf.y.reindexSelf(index1);
+chk = nc_inq_varid(ncid, "iotaf", &varid); if(chk!=0) {cout << "VMEC: iotaf not found" << endl; EXIT;}
+chk = nc_get_var_double(ncid, varid, iotaf.y.data());
+
+jdotb.y.resize(ns); jdotb.y.reindexSelf(index1);
+chk = nc_inq_varid(ncid, "jdotb", &varid); if(chk!=0) {cout << "VMEC: jdotb not found" << endl; EXIT;}
+chk = nc_get_var_double(ncid, varid, jdotb.y.data());
+
+// read 1D-profiles s-ds/2 -mesh
+bvco.y.resize(ns); bvco.y.reindexSelf(index1);
+chk = nc_inq_varid(ncid, "bvco", &varid); if(chk!=0) {cout << "VMEC: bvco not found" << endl; EXIT;}
+chk = nc_get_var_double(ncid, varid, bvco.y.data());
+bvco.y(1) = bvco.y(2);	// expand beyond magnetic axis: 1-D profiles axisymmetric => y(-s) = y(s)
 
 // read other 1D-arrays
 extcur.resize(nextcur); extcur.reindexSelf(index1);
-chk = nc_inq_varid(ncid, "extcur", &varid);
+chk = nc_inq_varid(ncid, "extcur", &varid); if(chk!=0) {cout << "VMEC: extcur not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, extcur.data());
 
 if(lpot)
 {
 	xnpot.resize(mnmaxpot);
-	chk = nc_inq_varid(ncid, "xnpot", &varid);
+	chk = nc_inq_varid(ncid, "xnpot", &varid); if(chk!=0) {cout << "VMEC: xnpot not found" << endl; EXIT;}
 	chk = nc_get_var_int(ncid, varid, xnpot.data());
 	xmpot.resize(mnmaxpot);
-	chk = nc_inq_varid(ncid, "xmpot", &varid);
+	chk = nc_inq_varid(ncid, "xmpot", &varid); if(chk!=0) {cout << "VMEC: xmpot not found" << endl; EXIT;}
 	chk = nc_get_var_int(ncid, varid, xmpot.data());
 	potsin.resize(mnmaxpot);
-	chk = nc_inq_varid(ncid, "potsin", &varid);
+	chk = nc_inq_varid(ncid, "potsin", &varid); if(chk!=0) {cout << "VMEC: potsin not found" << endl; EXIT;}
 	chk = nc_get_var_double(ncid, varid, potsin.data());
 	potcos.resize(mnmaxpot);
-	chk = nc_inq_varid(ncid, "potcos", &varid);
+	chk = nc_inq_varid(ncid, "potcos", &varid); if(chk!=0) {cout << "VMEC: potcos not found" << endl; EXIT;}
 	chk = nc_get_var_double(ncid, varid, potcos.data());
 }
+
+// set S arrays
+S.resize(ns); 			S.reindexSelf(index1);
+Shalf.resize(nshalf);	Shalf.reindexSelf(index1);
+chk = nc_inq_varid(ncid, "phi", &varid); if(chk!=0) {cout << "VMEC: phi not found" << endl; EXIT;}
+chk = nc_get_var_double(ncid, varid, S.data());
+S /= S(ns);	// normalize
+for(i=2;i<=nshalf;i++) Shalf(i) = 0.5*(S(i) + S(i-1));	// Shalf(i) is center of each [S(i-1), S(i)] intervall
+Shalf(1) = -Shalf(2); // Shalf(1) < 0
 
 // close file
 chk = nc_close(ncid);
 
 //---- prepare stuff ----------------------
-
-// set S arrays
-TinyVector <int,1> index(1);	// Array range
-S.resize(ns); 			S.reindexSelf(index);
-Shalf.resize(nshalf);	Shalf.reindexSelf(index);
-double ds = 1.0 / (ns - 1);
-for(i=1;i<=ns;i++) S(i) = (i-1)*ds;
-for(i=1;i<=nshalf;i++) Shalf(i) = S(i) - ds/2;	// Shalf(1) < 0; Shalf(1) = -Shalf(2)
-
 prepare_splines();
 }
 
@@ -935,6 +959,13 @@ for(n=0;n<=ntor;n++)
 		Zaxis += zaxis_cs(n) * sinnv + zaxis_cc(n) * cosnv;
 	}
 }
+}
+
+//------------------------ get_jpar ---------------------------------------------------------------------------------------
+// evaluate the parallel current density in 10^6 A / m^2
+double VMEC::get_jpar(double s)
+{
+return raxis_cc(0) * jdotb.ev(s) / bvco.ev(s) / 1e+6;
 }
 
 //------------------------ get_B2D ----------------------------------------------------------------------------------------
@@ -1082,8 +1113,11 @@ bsupumn.Vspline();
 bsupvmn.Vspline();
 
 // 1-D profiles
-presf.set(ns, S);
-presf.Vspline();
+presf.set(ns, S); presf.Vspline();
+iotaf.set(ns, S); iotaf.Vspline();
+jdotb.set(ns, S); jdotb.Vspline();
+
+bvco.set(nshalf, Shalf); bvco.Vspline();
 }
 
 //------------------------ newton2D ----------------------------------------------------------------------------------------
