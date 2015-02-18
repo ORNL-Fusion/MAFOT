@@ -352,6 +352,8 @@ def gridSize(data):
 # ----------------------------------------------------------------------------------------
 # --- Launch main() ----------------------------------------------------------------------
 if __name__ == '__main__':
+	# this is the more modern way
+	"""
 	import argparse
 	import textwrap
 	parser = argparse.ArgumentParser(description = 'Plot MAFOT output', 
@@ -372,18 +374,102 @@ if __name__ == '__main__':
 	parser.add_argument('-N', help = 'Number of color levels in plot, default = 60', type = int, default = 60)
 	parser.add_argument('-T','--Title', help = 'Figure title, default = None', type = str, default = None)	
 	parser.add_argument('-i','--imshow', help = 'Use imshow instead of contourf (default)', action = 'store_true', default = False)
-	parser.add_argument('-fw','--figwidth', help = 'Force width of figure from default to value', type = int, default = None)
-	parser.add_argument('-fh','--figheight', help = 'Force height of figure from default to value', type = int, default = None)
+	parser.add_argument('-W','--figwidth', help = 'Force width of figure from default to value', type = int, default = None)
+	parser.add_argument('-H','--figheight', help = 'Force height of figure from default to value', type = int, default = None)
 	
 	args = parser.parse_args()
-	
-	
 	if args.imshow: toP = 'imshow'
 	else: toP = 'contourf'
-	
 	d3dplot(args.pathname, printme = args.printme, coordinates = args.coordinates, what = args.what, machine = args.machine, 
 			tag = args.tag, graphic = args.graphic, physical = args.physical, b = None, N = args.N, Title = args.Title,
 			typeOfPlot = toP, xlimit = None, ylimit = None, figwidth = args.figwidth, figheight = args.figheight)
+	"""	
+
+	# this is the classic way, used here for backwards compatibility with basic python installs
+	coordinates = 'psi'
+	what = 'psimin'
+	machine = 'd3d'
+	printme = False
+	graphic = 'png'
+	tag = None
+	physical = 1
+	N = 60
+	Title = None
+	toP = 'contourf'
+	figwidth = None
+	figheight = None
+
+	import sys, getopt
+	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:T:iW:H:", ["help", "coord=", "what=", 
+																 "machine=", "printme", "graphic=", 
+																 "tag=", "physical=", "Title=", "imshow", 	 
+																 "figwidth=", "figheight="])
+	for o, a in opts:
+		if o in ("-h", "--help"):
+			print "usage: d3dplot.py [-h] [-c COORDINATES] [-w WHAT] [-m MACHINE] [-p]"
+			print "                  [-g GRAPHIC] [-t TAG] [-P PHYSICAL] [-N N] [-T TITLE] [-i]"
+			print "                  [-W FIGWIDTH] [-H FIGHEIGHT]"
+			print "                  pathname"
+			print ""
+			print "Plot MAFOT output"
+			print ""
+			print "positional arguments:"
+			print "  pathname              file name or (full or rel.) pathname"
+			print ""
+			print "optional arguments:"
+			print "  -h, --help            show this help message and exit"
+			print "  -c, --coord <Arg>     Coordinate sytem for plot. <Arg> = "
+			print "                        RZ, psi(default), phi, pest"
+			print "  -w, --what <Arg>      Data to plot. <Arg> = "
+			print "                        Lc, psimin (default), psimax, psiav"
+			print "  -m, --machine <Arg>   Machine. <Arg> = d3d (default), iter"
+			print "  -p, --printme         Save to File"
+			print "  -g, --graphic <Arg>   Graphic extension. <Arg> = "
+			print "                        png (default), eps, pdf"
+			print "  -t, --tag <Arg>       Arbitary string, attached to the file name of"
+			print "                        the saved figure"
+			print "  -P, --physical <Arg>  Type of y-Axis in fooprint. <Arg> = "
+			print "                        0: native, 1: RZ(default), 2: t in cm"
+			print "  -N <Arg>              Number of color levels in plot, default = 60"
+			print "  -T, --Title <Arg>     Figure title, default = None"
+			print "  -i, --imshow          Use imshow instead of contourf (default)"
+			print "  -W, --figwidth <Arg>  Force width of figure from default to <Arg>"
+			print "  -H, --figheight <Arg> Force height of figure from default to <Arg>"
+			print ""
+			print "Examples: d3dplot.py foot_in_test.dat"
+			print "          d3dplot.py /path/to/gfile/foot_in_test.dat -p -c RZ"
+			print "          d3dplot.py lam_psi_nopr.dat -w Lc"
+			sys.exit()
+		elif o in ("-c", "--coordinates"):
+			coordinates = a
+		elif o in ("-w", "--what"):
+			what = a
+		elif o in ("-m", "--machine"):
+			machine = a
+		elif o in ("-p", "--printme"):
+			printme = True
+		elif o in ("-g", "--graphic"):
+			graphic = a
+		elif o in ("-t", "--tag"):
+			tag = a
+		elif o in ("-P", "--physical"):
+			physical = int(a)
+		elif o in ("-N",):
+			N = int(a)
+		elif o in ("-T", "--Title"):
+			Title = a
+		elif o in ("-i", "--imshow"):
+			toP = 'imshow'
+		elif o in ("-W", "--figwidth"):
+			figwidth = float(a)
+		elif o in ("-H", "--figheight"):
+			figheight = float(a)
+		else:
+			raise AssertionError("unknown option")
+		
+	d3dplot(args[0], printme = printme, coordinates = coordinates, what = what, machine = machine, 
+			tag = tag, graphic = graphic, physical = physical, b = None, N = N, Title = Title,
+			typeOfPlot = toP, xlimit = None, ylimit = None, figwidth = figwidth, figheight = figheight)
 
 	plt.show()
 
