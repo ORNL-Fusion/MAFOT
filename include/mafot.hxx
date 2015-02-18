@@ -18,8 +18,8 @@
 	#include <siesta_class_interpolation.hxx>			// includes the SIESTA interface
 	//#include <siesta_class_evaluation.hxx>
 #endif
-#ifdef USE_DIAGNO
-	#include <diagno_class.hxx>			// includes the DIAGNO interface
+#ifdef USE_XFIELD
+	#include <xfield_class.hxx>			// includes the XFIELD interface
 	#include <vmec_class.hxx>			// includes the VMEC interface
 #endif
 #include <particle_class.hxx>		// includes all particle/fieldline parameters and Runge-Kutta Integrator
@@ -170,7 +170,7 @@ if(j>Ra.rows() || j<1 || k>Za.rows() || k<1)	{ofs2 << "Point outside of grid" <<
 Array<double,1> y_sq(Range(1,4)),y1_sq(Range(1,4)),y2_sq(Range(1,4)),y12_sq(Range(1,4));
 bcuderiv_square(field,j,k,dR,dZ,y1_sq,y2_sq,y12_sq);
 
-// Get the c’s.
+// Get the cï¿½s.
 y_sq(1) = field(j,k); y_sq(2) = field(j+1,k); y_sq(3) = field(j+1,k+1); y_sq(4) = field(j,k+1);
 bcucof(y_sq,y1_sq,y2_sq,y12_sq,dR,dZ,c);
 

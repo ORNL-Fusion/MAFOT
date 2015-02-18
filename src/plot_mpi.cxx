@@ -1,9 +1,9 @@
-// Program calculates PoincarŽ Plot for particle-drift with time dependent perturbations
+// Program calculates Poincarï¿½ Plot for particle-drift with time dependent perturbations
 // Fortran subroutines for Perturbation are used
 // A.Wingen						7.6.11
 
 // Input: 1: Parameterfile	2: praefix(optional)
-// Output:	Poincaré particle drift data file
+// Output:	Poincarï¿½ particle drift data file
 //			log-file
 
 // uses Parallel computation by open-mpi and openmp
@@ -118,7 +118,7 @@ ofs2 << "Read Parameterfile " << parfilename << endl;
 IO PAR(EQD,parfilename,10,mpi_rank);
 
 // Read EFIT-data
-#ifdef USE_DIAGNO
+#ifdef USE_XFIELD
 if(PAR.response_field == -3)
 {
 	VMEC vmec;
@@ -335,7 +335,7 @@ if(mpi_rank < 1)
 				Nmin_slave = N_values((tag-1)*N_slave+1);
 				Nmax_slave = N_values(tag*N_slave);
 
-				// Get PoincarŽ section
+				// Get Poincarï¿½ section
 				ofs2 << "Start Tracer for " << N_slave << " points ... " << endl;
 				for(n=Nmin_slave;n<=Nmax_slave;n++)
 				{
@@ -445,7 +445,7 @@ if(mpi_rank > 0)
 
 		ofs2 << "Start Tracer for " << N_slave << " points ... " << endl;
 
-		// Get PoincarŽ section
+		// Get Poincarï¿½ section
 		for(n=Nmin_slave;n<=Nmax_slave;n++)
 		{
 			// Set initial values in FLT

@@ -37,7 +37,7 @@ ifdef VMEC
 ifeq ($(VMEC),True)
    LIBS += $(NETCDFLIBS)
    INCLUDE += $(NETCDFINCLUDE)
-   D3DDEFS += -DUSE_DIAGNO
+   D3DDEFS += -DUSE_XFIELD
 endif
 endif
 

@@ -1,11 +1,11 @@
-// Class provides B-field from VMEC (inside s = 1) and Diagno (outside s = 1)
-// A.Wingen						10.10.14
+// Class provides B-field from VMEC (inside s = 1) and XPAND (outside s = 1)
+// A.Wingen						10.2.15
 
 
 // Define
 //--------
-#ifndef DIAGNO_CLASS_INCLUDED
-#define DIAGNO_CLASS_INCLUDED
+#ifndef XFIELD_CLASS_INCLUDED
+#define XFIELD_CLASS_INCLUDED
 
 // Include
 //--------
@@ -26,8 +26,8 @@ using namespace blitz;
 extern ofstream ofs2;
 
 
-//--------- Begin Class DIAGNO -------------------------------------------------------------------------------------------
-class DIAGNO
+//--------- Begin Class XFIELD -------------------------------------------------------------------------------------------
+class XFIELD
 {
 private:
 	// Member Variables
@@ -52,23 +52,23 @@ public:
 	Array<double,3> BZ;
 
 	// Constructors
-	DIAGNO();								// Default Constructor
+	XFIELD();								// Default Constructor
 
 	// Member-Operators
-	DIAGNO& operator =(const DIAGNO& spec);	// Operator =
+	XFIELD& operator =(const XFIELD& spec);	// Operator =
 
 	// Member-Functions
-	void read(LA_STRING filename);			// read file with B-field on 3-D grid (R,phi,Z)
+	void read(LA_STRING filename, int make_periodic = 1);	// read file with B-field on 3-D grid (R,phi,Z); make_periodic = 1: phi = 2pi plane is missing; make_periodic = -1: phi = 0 plane is missing
 	void get_B(double R, double phi, double Z, double& br, double& bphi, double& bz);		// evaluate B at any location (R,phi,Z)
 
 }; //end of class
 
-//------------------------ End of Class DIAGNO ----------------------------------------------------------------------------
+//------------------------ End of Class XFIELD ----------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
 //--------- Constructors --------------------------------------------------------------------------------------------------
 // Default Constructor
-DIAGNO::DIAGNO()
+XFIELD::XFIELD()
 {
 TinyVector <int,1> index(1);
 TinyVector <int,3> index3(1,1,1);
@@ -111,7 +111,7 @@ CaBZ.resize(NR-1,NZ-1,Np,4,4);	CaBZ.reindexSelf(index5);
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
 // arrays are just referenced; use A.reference(class.A.copy()) for true copy
-DIAGNO& DIAGNO::operator =(const DIAGNO& dia)
+XFIELD& XFIELD::operator =(const XFIELD& dia)
 {
 if (this == &dia) return(*this);	    // if: x=x
 
@@ -157,32 +157,29 @@ return(*this);
 
 //---------------------------- read ---------------------------------------------------------------------------------------
 // read B-field file and set member variables
-void DIAGNO::read(LA_STRING filename)
+// make_periodic = 1: phi = 2pi plane is missing, uses first (phi = 0) plane to make periodic
+// make_periodic = -1: phi = 0 plane is missing, uses last (phi = 2pi) plane to make periodic
+void XFIELD::read(LA_STRING filename, int make_periodic)
 {
 // Variables
 int i,j,k;
-string stdummy;
-double dummy;
+Array<double,2> data;
 Range all = Range::all();
-LA_STRING line;
 
 // Input
-ifstream in;
-in.open(filename);
-if(in.fail()==1) {cout << "Unable to open file " << filename << endl; EXIT;}
+readfile(filename, 7, data);
 
-// skip first line
-in >> line;
+// Get the dimensions
+Array<TinyVector<int,1>,1> indices;
+find(indices, data(all,2) == data(1,2));	int NRNZ = indices.size();
+find(indices, data(all,3) == data(1,3));	int NRNP = indices.size();
+find(indices, data(all,1) == data(1,1));	int NPNZ = indices.size();
 
-// Read the dimensions, 3 integers
-in >> stdummy;
-in >> NR;
-in >> Np;
-in >> NZ;
+NZ = int(round(sqrt(NRNZ * NPNZ / double(NRNP))));
+NR = NRNZ / NZ;
+Np = NPNZ / NZ;
+ofs2 << "XFIELD dimensions: NR = " << NR << "\t Nphi = " << Np << "\t NZ = " << NZ << endl;
 Np += 1;	// increase Np by 1 to make periodic
-
-// skip third line
-in >> line;
 
 // resize data: (1 -> Np, 1 -> NZ, 1 -> NR)
 Array<double,3> R(Range(1,NR), Range(1,NZ), Range(1,Np));
@@ -193,30 +190,45 @@ BPHI.resize(NR, NZ, Np);
 BZ.resize(NR, NZ, Np);
 
 // Read data
-for(i=2;i<=Np;i++)	// start at 2, since Np is one larger; first point = last point with first point missing
+int iStart;
+if(make_periodic == 1) iStart = 1; // start at 1 to Np-1, since Np is one larger; first point = last point with last point missing
+else if(make_periodic == -1) iStart = 2; // start at 2 to Np, since Np is one larger; first point = last point with first point missing
+else {cout << "XFIELD: Unkown option" << endl; EXIT;}
+
+int n = 1;
+for(i=iStart;i<=iStart + Np - 2;i++)
 {
 	for(j=1;j<=NZ;j++)
 	{
 		for(k=1;k<=NR;k++)
 		{
-			in >> R(k,j,i);
-			in >> dummy;	// phi, but not necessary
-			in >> Z(k,j,i);
-			in >> BR(k,j,i);
-			in >> BPHI(k,j,i);
-			in >> BZ(k,j,i);
-			in >> dummy;	// Pressure
+			R(k,j,i) = data(n,1);
+			Z(k,j,i) = data(n,3);
+			BR(k,j,i) = data(n,4);
+			BPHI(k,j,i) = data(n,5);
+			BZ(k,j,i) = data(n,6);
+			n++;
 		}
 	}
 }
-in.close();
 
 // make periodic
+if(make_periodic == 1)
+{
+R(all,all,Np) = R(all,all,1);
+Z(all,all,Np) = Z(all,all,1);
+BR(all,all,Np) = BR(all,all,1);
+BPHI(all,all,Np) = BPHI(all,all,1);
+BZ(all,all,Np) = BZ(all,all,1);
+}
+else if(make_periodic == -1)
+{
 R(all,all,1) = R(all,all,Np);
 Z(all,all,1) = Z(all,all,Np);
 BR(all,all,1) = BR(all,all,Np);
 BPHI(all,all,1) = BPHI(all,all,Np);
 BZ(all,all,1) = BZ(all,all,Np);
+}
 
 // set grid parameters
 Rmin = min(R);
@@ -240,7 +252,7 @@ prep_interpolation();
 
 //-------------------------------- get_B ----------------------------------------------------------------------------------
 // evaluate br, bphi, bz at any arbitrary location (R, phi, Z)
-void DIAGNO::get_B(double R, double phi, double Z, double& br, double& bphi, double& bz)
+void XFIELD::get_B(double R, double phi, double Z, double& br, double& bphi, double& bz)
 {
 int k;
 double t;
@@ -270,7 +282,7 @@ if(t > 0)	// not exactly in the phi-plane (k-1)*dp
 
 //--------------------- prep_interpolation --------------------------------------------------------------------------------
 // get the C coefficients for the interpolation
-void DIAGNO::prep_interpolation(void)
+void XFIELD::prep_interpolation(void)
 {
 int i,j,k;
 Array<double,2> slice, slicedR, slicedZ, sliced2;
@@ -350,7 +362,7 @@ for(i=1;i<NR;i++)
 
 //------------------------- interpolate_B ---------------------------------------------------------------------------------
 // gets br(R,Z), bphi(R,Z), bz(R,Z) in the phi-plane (k-1)*dp through bicubic spline interpolation
-void DIAGNO::interpolate_B(double R, double Z, int k, double& br, double& bphi, double& bz)
+void XFIELD::interpolate_B(double R, double Z, int k, double& br, double& bphi, double& bz)
 {
 double dummy;
 Array<double,4> slice;
@@ -371,6 +383,6 @@ bcuint(Ra,Za,slice,dR,dZ,R,Z,bz,dummy,dummy);
 
 
 
-#endif //  DIAGNO_CLASS_INCLUDED
+#endif //  XFIELD_CLASS_INCLUDED
 //----------------------- End of File -------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------

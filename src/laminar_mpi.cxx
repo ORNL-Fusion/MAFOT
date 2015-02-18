@@ -125,7 +125,7 @@ IO PAR(EQD,parfilename,11,mpi_rank);
 ofs2 << "ok" << endl;
 
 // Read EFIT-data
-#ifdef USE_DIAGNO
+#ifdef USE_XFIELD
 if(PAR.response_field == -3)
 {
 	VMEC vmec;

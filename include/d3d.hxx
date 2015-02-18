@@ -75,8 +75,8 @@ Array<double,4> field;	// default constructed
 #ifdef USE_SIESTA
 	SIESTA SIES;
 #endif
-#ifdef USE_DIAGNO
-	DIAGNO dia;
+#ifdef USE_XFIELD
+	XFIELD XPND;
 #endif
 
 // ------------------ log file --------------------------------------------------------------------------------------------
@@ -263,9 +263,9 @@ Y = R*sinp;
 
 switch(PAR.response_field)
 {
-#ifdef USE_DIAGNO
+#ifdef USE_XFIELD
 case -3:
-	dia.get_B(R, phi, Z, B_R, B_phi, B_Z);
+	XPND.get_B(R, phi, Z, B_R, B_phi, B_Z);
 	break;
 #endif
 #ifdef USE_SIESTA
@@ -343,13 +343,13 @@ ifstream in;
 	}
 #endif
 
-// Prepare DIAGNO
-#ifdef USE_DIAGNO
+// Prepare XFIELD
+#ifdef USE_XFIELD
 	if(PAR.response_field == -3)
 	{
-		if(mpi_rank < 1) cout << "Read DIAGNO file" << endl;
-		ofs2 << "Read DIAGNO file" << endl;
-		dia.read("diagno.dat");
+		if(mpi_rank < 1) cout << "Read XFIELD file" << endl;
+		ofs2 << "Read XFIELD file" << endl;
+		XPND.read("xpand.dat");
 	}
 #endif
 

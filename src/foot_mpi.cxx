@@ -156,7 +156,7 @@ if(mpi_rank < 1) outputtest(filenameout);
 MPI::COMM_WORLD.Barrier();	// All Nodes wait for Master
 
 // Read EFIT-data
-#ifdef USE_DIAGNO
+#ifdef USE_XFIELD
 if(PAR.response_field == -3)
 {
 	VMEC vmec;
@@ -259,7 +259,7 @@ if(mpi_rank < 1)
 
 			cout << "Target: " << PAR.which_target_plate << endl;
 			cout << "Start Tracer for " << N << " points ... " << endl;
-			//ofs2 << "Target (0=vertical, 1=45°, 2=horizontal, 3=shelf): " << which_target_plate << endl;
+			//ofs2 << "Target (0=vertical, 1=45ï¿½, 2=horizontal, 3=shelf): " << which_target_plate << endl;
 			ofs3 << "Start Tracer for " << N << " points ... " << endl;
 
 			// Send initial Package to Slaves 
