@@ -46,12 +46,17 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.41
+MAFOT 3.5
 GUI 1.15
 
 Version Notes: 
 ----------------
-MAFOT 3.41 -- Feb 2014
+MAFOT 3.5 -- Feb 2015
+- Include the support for external fields from xpand_mpi. This replaces Diagno.
+  code looks for file "xpand.dat" ("diagno.dat" no longer recognized, 
+  "xpand.dat" can come from the DIAGNO code)
+
+MAFOT 3.41 -- Feb 2015
 - BUG fixes in M3DC1 multimode capability for all machines:
     Equilibrium only used from first modefile, not from all
     <machine>sup.in file no longer required, if m3dc1sup.in is used
