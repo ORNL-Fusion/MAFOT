@@ -1,16 +1,10 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy.interpolate as inter
 from matplotlib.colors import LogNorm
 from matplotlib.colors import LinearSegmentedColormap
 
-import Misc.readfile as rf
-import Misc.sfc_class as sfc_class
-import myColorMaps; reload(myColorMaps)
-
 HOME = os.getenv('HOME')
-
 
 def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', machine = 'd3d', 
 			tag = None, graphic = 'png', physical = 1, b = None, N = 60, Title = None,
@@ -69,8 +63,8 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		time = int(head[-1])
 		
 	# --- read data -------------------
-	data = rf.readfile(path + filename)
-	Nth, Npsi = rf.gridSize(data)
+	data = readfile(path + filename)
+	Nth, Npsi = gridSize(data)
 	if(coordinates == 'RZ') | (coordinates == 'phi'): Nth, Npsi = Npsi, Nth
 	x = data[:,0].reshape(Nth,Npsi)
 	y = data[:,1].reshape(Nth,Npsi)
@@ -176,10 +170,6 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		z = z[:,::-1]		# reverse x-axis
 		if(target== 'in') & (physical == 1):
 			z = z[::-1,:]	# reverse y-axis
-			if(typeOfPlot == 'imshow'):
-				x0, y0 = np.meshgrid(np.linspace(x.min(), x.max(), Npsi), np.linspace(y.min(), y.max(), Nth))
-				z = inter.griddata((x.flatten(),y.flatten()), z.flatten(), (x0,y0), method = 'linear')
-				x, y = x0, y0
 		
 	# correct orientation in RZ plot and footprint
 	if(coordinates == 'RZ') | (coordinates == 'phi'): x, y, z = x.T, y.T, z.T
@@ -189,11 +179,16 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 	# --- Pest theta ------------------
 	if(coordinates == 'pest'):
-		sfc = sfc_class.straight_field_line_coordinates(shot, time)
-		xp = sfc.ev(x,y)
-		for i in xrange(Npsi):
-			spline = inter.UnivariateSpline(xp[:,i], z[:,i], s = 0)
-			z[:,i] = spline(x[:,i])
+		try:
+			import scipy.interpolate as inter
+			import Misc.sfc_class as sfc_class
+			sfc = sfc_class.straight_field_line_coordinates(shot, time)
+			xp = sfc.ev(x,y)
+			for i in xrange(Npsi):
+				spline = inter.UnivariateSpline(xp[:,i], z[:,i], s = 0)
+				z[:,i] = spline(x[:,i])
+		except:
+			raise ImportError('Pest coordinates not available. Choose other coordinates')
 
 	# --- layout ----------------------
 	#rcParams['text.latex.preamble'] = [r'\usepackage{times}']#\usepackage{amsmath}
@@ -316,11 +311,79 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		else: F.savefig(path + filename[0:-4] + '_' + tag + '.' + graphic, dpi = (300), bbox_inches = 'tight')
 
 
+# --- data = readfile(name) ---
+# reads in ascii data file
+def readfile(name):
+	with open(name, 'r') as f:
+		# Skip header, comment char is '#'
+		head = f.readline().split()
+		while head[0][0] == '#':
+			head = f.readline().split()
+		
+		# last head line is already first data line
+		data = [[float(x) for x in head]]	# data is a 2D array <- double brackets
+		
+		# read data to end of file
+		for line in f:
+			line = line.split()			
+			data.append([float(x) for x in line])
+			
+	# cast data into numpy array and return
+	data = np.array(data)
+	return data
+	
+	
+# --- Nx, Ny = get_gridSize(data) ---
+# determines 2D grid sizes
+# data = output from readfile
+# assumes that the first two columns of data are the flattend mashgrid of x and y respectively
+def gridSize(data):
+	x = data[:,0]
+	Ny = len(x[x == x[0]])	# number of dublicates == number of grid points on other axis
+	y = data[:,1]
+	Nx = len(y[y == y[0]])
+	
+	if not (len(x) == Nx*Ny):
+		raise RuntimeError('Grid size could not be determined')
+		
+	return Nx, Ny
 
 
+# ----------------------------------------------------------------------------------------
+# --- Launch main() ----------------------------------------------------------------------
+if __name__ == '__main__':
+	import argparse
+	import textwrap
+	parser = argparse.ArgumentParser(description = 'Plot MAFOT output', 
+				formatter_class = argparse.RawDescriptionHelpFormatter,
+				epilog = textwrap.dedent('''\
+                Examples: d3dplot.py foot_in_test.dat
+                          d3dplot.py /path/to/gfile/foot_in_test.dat -p -c RZ
+                          d3dplot.py lam_psi_nopr.dat -w Lc'''))
 
+	parser.add_argument('pathname', help = 'file name or (full or rel.) pathname', type = str)
+	parser.add_argument('-c','--coordinates', help = 'Coordinate sytem for plot, options are: RZ, psi (default), phi, pest', type = str, default = 'psi')
+	parser.add_argument('-w','--what', help = 'Data to plot, options are: Lc, psimin (default), psimax, psiav', type = str, default = 'psimin')
+	parser.add_argument('-m','--machine', help = 'Machine, options are: d3d (default), iter', type = str, default = 'd3d')
+	parser.add_argument('-p','--printme', help = 'Save to File', action = 'store_true', default = False)
+	parser.add_argument('-g','--graphic', help = 'Graphic extension, options are: png (default), eps, pdf', type = str, default = 'png')
+	parser.add_argument('-t','--tag', help = 'Arbitary string, attached to the file name of the saved figure', type = str, default = None)
+	parser.add_argument('-P','--physical', help = 'Type of y-Axis in fooprint. 0: native, 1: RZ (default), 2: t in cm', type = int, default = 1)
+	parser.add_argument('-N', help = 'Number of color levels in plot, default = 60', type = int, default = 60)
+	parser.add_argument('-T','--Title', help = 'Figure title, default = None', type = str, default = None)	
+	parser.add_argument('-i','--imshow', help = 'Use imshow instead of contourf (default)', action = 'store_true', default = False)
+	parser.add_argument('-fw','--figwidth', help = 'Force width of figure from default to value', type = int, default = None)
+	parser.add_argument('-fh','--figheight', help = 'Force height of figure from default to value', type = int, default = None)
+	
+	args = parser.parse_args()
+	
+	
+	if args.imshow: toP = 'imshow'
+	else: toP = 'contourf'
+	
+	d3dplot(args.pathname, printme = args.printme, coordinates = args.coordinates, what = args.what, machine = args.machine, 
+			tag = args.tag, graphic = args.graphic, physical = args.physical, b = None, N = args.N, Title = args.Title,
+			typeOfPlot = toP, xlimit = None, ylimit = None, figwidth = args.figwidth, figheight = args.figheight)
 
-
-
-
+	plt.show()
 
