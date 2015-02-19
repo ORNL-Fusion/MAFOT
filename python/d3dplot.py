@@ -1,14 +1,16 @@
-import os
+import os, sys, socket
+import getopt
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from matplotlib.colors import LinearSegmentedColormap
 
 HOME = os.getenv('HOME')
+HOST = socket.gethostname()
 
 def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', machine = 'd3d', 
 			tag = None, graphic = 'png', physical = 1, b = None, N = 60, Title = None,
-			typeOfPlot = 'contourf', xlimit = None, ylimit = None, figwidth = None, figheight = None):
+			typeOfPlot = 'contourf', xlimit = None, ylimit = None, figwidth = None, figheight = None, latex = True):
 	"""
 	plot MAFOT results
 	--- user input ------------------
@@ -25,6 +27,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	Title       string, Figure title
 	typeOfPlot  'contourf', 'imshow'
 	x-,ylimit   tuple (min,max) for the respective axis limits, None: defaults are used
+	latex		True: create labels with LaTeX, False: use unicode chars (on systems that do not support LaTeX)
 	---------------------------------
 	"""
 
@@ -80,20 +83,30 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		yLabel = 'Z [m]'
 
 	elif(coordinates == 'psi'):
-		xLabel = '$\\theta$ $\\mathrm{[rad]}$'
-		yLabel = '$\\psi$'
+		if not latex:
+			xLabel = u'\u03B8' + ' [rad]'
+			yLabel = u'\u03c8'
+		else:
+			xLabel = '$\\theta$ $\\mathrm{[rad]}$'
+			yLabel = '$\\psi$'
 	
 	elif(coordinates == 'pest'):
-		xLabel = '$\\theta_p$ $\\mathrm{[rad]}$'
-		yLabel = '$\\psi$'
+		if not latex:
+			xLabel = u'\u03B8' + '$_p$ [rad]'
+			yLabel = u'\u03c8'
+		else:
+			xLabel = '$\\theta_p$ $\\mathrm{[rad]}$'
+			yLabel = '$\\psi$'
 
 	elif(coordinates == 'phi'):
 		if(machine == 'd3d'):
-			xLabel = '$\\varphi$ $\\mathrm{[rad]}$'
+			if not latex: xLabel = u'\u03C6' + ' [rad]'
+			else: xLabel = '$\\varphi$ $\\mathrm{[rad]}$'
 			yLabel = 't'
 			if(physical > 0):
 				x = (360 - x*180.0/np.pi)[:,::-1]	# reverse x
-				xLabel = '$\\phi$ $\\mathrm{[deg]}$'
+				if not latex: xLabel = u'\u03C6' + ' [deg]'
+				else: xLabel = '$\\phi$ $\\mathrm{[deg]}$'
 				yLabel = 'R [m]'
 				if(target== 'in'):
 					if(physical == 1):
@@ -108,11 +121,14 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 				elif(target == 'out'): y = 1.153 + y*0.219
 				elif(target == 'shelf'): y = 1.372 + y*0.219
 		elif(machine == 'iter'):
-			xLabel = '$\\varphi$ $\\mathrm{[rad]}$'
+			if not latex: xLabel = u'\u03C6' + ' [rad]'
+			else: xLabel = '$\\varphi$ $\\mathrm{[rad]}$'
 			yLabel = 't [cm]'
 			if(physical > 0):
 				x = x*180.0/np.pi
-				xLabel = '$\\phi$ $\\mathrm{[deg]}$'			
+				if not latex: xLabel = u'\u03C6' + ' [deg]'
+				else: xLabel = '$\\phi$ $\\mathrm{[deg]}$'
+								
 	else:
 		print 'coordinates: Unknown input'
 		return
@@ -123,28 +139,32 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			if(machine == 'd3d'): b = np.linspace(0.075,0.4,N)
 			elif(machine == 'iter'): b = np.linspace(0.22,1.8,N)
 		z = Lc
-		C_label = '$L_{c}$ $\\mathrm{[km]}$'
+		if not latex: C_label = '$L_{c}$ [km]'
+		else: C_label = '$L_{c}$ $\\mathrm{[km]}$'
 		#usecolormap = cm.jet	#  'myjet', 'jet' or cm.jet, cm.jet_r
 		cdict = plt.cm.jet._segmentdata
 		
 	elif(what == 'psimin'):
 		if(b == None): b = np.linspace(0.88,1.02,N)
 		z = psimin
-		C_label = '$\\psi_{Min}$'
+		if not latex: C_label = u'\u03c8' + '$_{Min}$'
+		else: C_label = '$\\psi_{Min}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
 		cdict = plt.cm.jet_r._segmentdata
 
 	elif(what == 'psimax'):
 		if(b == None): b = np.linspace(0.88,1.02,N)
 		z = psimax
-		C_label = '$\\psi_{Max}$'
+		if not latex: C_label = u'\u03c8' + '$_{Max}$'
+		else: C_label = '$\\psi_{Max}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
 		cdict = plt.cm.jet_r._segmentdata
 		
 	elif(what == 'psiav'):
 		if(b == None): b = np.linspace(0.88,1.02,N)
 		z = psiav
-		C_label = '$\\psi_{av}$'
+		if not latex: C_label = u'\u03c8' + '$_{av}$'
+		else: C_label = '$\\psi_{av}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
 		cdict = plt.cm.jet_r._segmentdata
 		
@@ -198,7 +218,8 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			'weight' : 'normal', # normal
 			'size'   : 22} #18
 	plt.matplotlib.rc('font', **font)
-	latexFontSize = 24
+	if not latex: latexFontSize = font['size']
+	else: latexFontSize = 24
 
 	if(coordinates == 'RZ'): 
 		width = 9
@@ -221,17 +242,28 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	# --- make plot -------------------
 	F = plt.figure(figsize = (figwidth,figheight))
 	if(typeOfPlot == 'contourf'):
+		plt.contour(x, y, z, b, cmap = usecolormap, extend = 'both')
 		cs = plt.contourf(x, y, z, b, cmap = usecolormap, extend = 'both')
 	else:
 		cs = plt.imshow(z.T, extent = [x.min(), x.max(), y.min(), y.max()], cmap = usecolormap, origin = 'lower', vmin = b.min(), vmax = b.max(), aspect = 'auto', interpolation = 'bilinear')
+
+	# --- additional plots ------------
+	if(coordinates == 'RZ'): # plot wall
+		wall = get_wall(machine)
+		plt.plot(wall[:,0], wall[:,1], 'k--', linewidth = 2)
+		
+	if(coordinates == 'phi') & (target== 'in'):	# plot tile limit
+		if(physical == 1) & (machine == 'd3d'): plt.plot([x.min(), x.max()], [-1.223, -1.223], 'k--', linewidth = 1.5)
+		else: plt.plot([x.min(), x.max()], [0, 0], 'k--', linewidth = 1.5)
 
 	# --- Axes  -----------------------
 	if(coordinates == 'RZ'): 
 		plt.axes().set_aspect('equal')
 		plt.xlim(x.min(),x.max())
 		plt.ylim(y.min(),y.max())
-		plt.locator_params(axis = 'x', nbins = 5)
-	elif(coordinates == 'phi'): 
+		try: plt.locator_params(axis = 'x', nbins = 5)
+		except: pass
+	elif(coordinates == 'phi') | (coordinates == 'psi'): 
 		plt.xlim(x.min(),x.max())
 		plt.ylim(y.min(),y.max())
 	elif(coordinates == 'pest'): 
@@ -282,24 +314,11 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	
 	# add SOL label in RZ plot and footprint
 	if(coordinates == 'RZ') | (coordinates == 'phi'): 
-		myticklabels = [item.get_text() for item in C.ax.get_yticklabels()]
+		myticklabels = [str(item) for item in myticks]
 		if(what == 'psimin'): myticklabels[-1] = 'SOL'
 		else: myticklabels[0] = 'SOL'
 		C.ax.set_yticklabels(myticklabels)
-				
-	# --- additional plots ------------
-	if(coordinates == 'RZ'): # plot wall
-		if(machine == 'd3d'): 
-			wall = np.loadtxt(HOME + '/c++/d3d/wall.dat')
-			plt.plot(wall[:,2], wall[:,3], 'k--', linewidth = 2)
-		elif(machine == 'iter'): 
-			wall = np.loadtxt(HOME + '/c++/iter/wall.dat')
-			plt.plot(wall[:,0], wall[:,1], 'k--', linewidth = 2)
-		
-	if(coordinates == 'phi') & (target== 'in'):	# plot tile limit
-		if(physical == 1) & (machine == 'd3d'): plt.plot([x.min(), x.max()], [-1.223, -1.223], 'k--', linewidth = 1.5)
-		else: plt.plot([x.min(), x.max()], [0, 0], 'k--', linewidth = 1.5)
-		
+						
 	# --- Title -----------------------
 	if(Title == True): plt.title(str(shot) + ',  ' + str(time) + 'ms', size = 18)
 	elif not (Title == None): plt.title(Title, size = 18)
@@ -347,6 +366,50 @@ def gridSize(data):
 		raise RuntimeError('Grid size could not be determined')
 		
 	return Nx, Ny
+
+
+def get_wall(machine):
+	if machine == 'd3d':
+		wall = [[1.41903,	1.34783],[1.28008,	1.34773],[1.27999,	1.33104],
+				[1.24803,	1.2539],[1.22784,	1.22143],[1.20913,	1.20165],
+				[1.19011,	1.18772],[1.16185,	1.1759],[1.11593,	1.16606],
+				[1.04209,	1.16223],[1.02923,	1.21657],[1.00088,	1.21721],
+				[1.01777,	1.13839],[1.01779,	1.00132],[1.01619,	1.00132],
+				[1.01627,	-1.21079],[1.01608,	-1.22884],[1.15285,	-1.3664],
+				[1.19734,	-1.3664],[1.24185,	-1.3664],[1.28635,	-1.3664],
+				[1.33085,	-1.3664],[1.37535,	-1.3664],[1.41985,	-1.3664],
+				[1.41985,	-1.329],[1.372,	-1.329],[1.372,-1.25],
+				[1.372,	-1.25],[1.57,	-1.25],[1.76801,	-1.25],
+				[1.76801,	-1.21104],[1.78603,	-1.17428],[2.13401,	-0.973024],
+				[2.37704,	-0.389023],[2.35342,	-0.400247],[2.35116,	-0.337078],
+				[2.354,	0],[2.35082,	0.204946],[2.3523,	0.400178],
+				[2.37704,	0.389023],[2.1282,	0.993424],[2.0699,	1.03975],
+				[1.78499,	1.07688],[1.647,	1.07675],[1.60799,	1.09525],
+				[1.37198,	1.29208],[1.3721,	1.30954],[1.41897,	1.31017]]
+	elif machine == 'iter':
+		wall = [[4.05460000,   -2.50630000],[4.05460000,   -1.50000000],[4.05460000,   -0.48360000],
+				[4.05460000,   0.53280000],[4.05460000,   1.54920000],[4.05460000,   2.56560000],
+				[4.05460000,   3.58200000],[4.32000000,   4.32400000],[4.91280000,   4.71150000],
+				[5.76290000,   4.53230000],[6.59610000,   3.89340000],[7.47630000,   3.08330000],
+				[7.94290000,   2.40240000],[8.27940000,   1.68140000],[8.40350000,   0.63290000],
+				[8.31540000,   -0.42150000],[7.90780000,   -1.34170000],[7.29200000,   -2.25700000],
+				[6.27560000,   -3.04610000],[6.16250000,   -3.23970000],[5.97380000,   -3.28690000],
+				[5.80690000,   -3.38700000],[5.67620000,   -3.53110000],[5.59300000,   -3.70700000],
+				[5.56640000,   -3.89850000],[5.56440000,   -3.99970000],[5.55740000,   -4.09980000],
+				[5.55740000,   -4.42530000],[5.55740000,   -4.42810000],[5.55736000,   -4.55894000],
+				[5.54940000,   -4.55070000],[5.45480000,   -4.45610000],[5.36020000,   -4.38150000],
+				[5.26550000,   -4.28680000],[5.24580000,   -3.98890000],[5.14250000,   -3.84210000],
+				[4.99140000,   -3.74540000],[4.81490000,   -3.71300000],[4.63930000,   -3.75000000],
+				[4.48570000,   -3.91300000],[4.38470000,   -3.90500000],[4.28380000,   -3.89710000],
+				[4.18280000,   -3.88910000],[4.17395000,   -3.88824000],[4.22630000,   -3.77750000],
+				[4.29550000,   -3.63990000],[4.37140000,   -3.48420000],[4.40040000,   -3.40880000],
+				[4.44610000,   -3.28470000],[4.50950000,   -3.11880000],[4.50020000,   -2.94610000],
+				[4.43480000,   -2.78610000],[4.31980000,   -2.65690000],[4.16650000,   -2.57300000],
+				[4.05460000,   -2.50630000]]
+	else:
+		raise AssertionError('unkown machine')
+	return np.array(wall)
+	
 
 
 # ----------------------------------------------------------------------------------------
@@ -398,17 +461,23 @@ if __name__ == '__main__':
 	toP = 'contourf'
 	figwidth = None
 	figheight = None
+	if(HOST == 'head.cluster'): latex = False	# Drop does not support LaTeX
+	else: latex = True
+	b = None;		set_color = False
+	xlim = None
+	ylim = None
 
-	import sys, getopt
-	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:T:iW:H:", ["help", "coord=", "what=", 
+	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:T:iW:H:Ub:x:y:", ["help", "coord=", "what=", 
 																 "machine=", "printme", "graphic=", 
 																 "tag=", "physical=", "Title=", "imshow", 	 
-																 "figwidth=", "figheight="])
+																 "figwidth=", "figheight=", "unicode",
+																 "range", "xlim", "ylim"])
 	for o, a in opts:
 		if o in ("-h", "--help"):
 			print "usage: d3dplot.py [-h] [-c COORDINATES] [-w WHAT] [-m MACHINE] [-p]"
 			print "                  [-g GRAPHIC] [-t TAG] [-P PHYSICAL] [-N N] [-T TITLE] [-i]"
-			print "                  [-W FIGWIDTH] [-H FIGHEIGHT]"
+			print "                  [-W FIGWIDTH] [-H FIGHEIGHT] [-U] [-b MIN,MAX]"
+			print "                  [-x MIN,MAX] [-y MIN,MAX]"
 			print "                  pathname"
 			print ""
 			print "Plot MAFOT output"
@@ -435,6 +504,11 @@ if __name__ == '__main__':
 			print "  -i, --imshow          Use imshow instead of contourf (default)"
 			print "  -W, --figwidth <Arg>  Force width of figure from default to <Arg>"
 			print "  -H, --figheight <Arg> Force height of figure from default to <Arg>"
+			print "  -U, --unicode         Use Unicode instead of LaTeX (default) in labels"
+			print "                        Note: Drop Cluster uses Unicode by default"
+			print "  -b, --range <Arg>     ColorBar range: Min,Max (no spaces)"
+			print "  -x, --xlim <Arg>      X-Axis range: Min,Max (no spaces)"
+			print "  -y, --ylim <Arg>      Y-Axis range: Min,Max (no spaces)"
 			print ""
 			print "Examples: d3dplot.py foot_in_test.dat"
 			print "          d3dplot.py /path/to/gfile/foot_in_test.dat -p -c RZ"
@@ -464,12 +538,27 @@ if __name__ == '__main__':
 			figwidth = float(a)
 		elif o in ("-H", "--figheight"):
 			figheight = float(a)
+		elif o in ("-U", "--unicode"):
+			latex = False
+		elif o in ("-b", "--range"):
+			range = a.split(',')
+			cmin, cmax = float(range[0]), float(range[1])
+			set_color = True
+		elif o in ("-x", "--xlim"):
+			range = a.split(',')
+			xlim = (float(range[0]), float(range[1]))
+		elif o in ("-y", "--ylim"):
+			range = a.split(',')
+			ylim = (float(range[0]), float(range[1]))
 		else:
 			raise AssertionError("unknown option")
-		
+			
+	if set_color: b = np.linspace(cmin,cmax,N)
+	
 	d3dplot(args[0], printme = printme, coordinates = coordinates, what = what, machine = machine, 
-			tag = tag, graphic = graphic, physical = physical, b = None, N = N, Title = Title,
-			typeOfPlot = toP, xlimit = None, ylimit = None, figwidth = figwidth, figheight = figheight)
+			tag = tag, graphic = graphic, physical = physical, b = b, N = N, Title = Title,
+			typeOfPlot = toP, xlimit = xlim, ylimit = ylim, figwidth = figwidth, figheight = figheight,
+			latex = latex)
 
 	plt.show()
 

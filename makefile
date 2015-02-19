@@ -68,7 +68,7 @@ FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 
 
 # ---- Common Targets ----
-all : $(DIRS) d3d iter nstx mast gui xpand
+all : $(DIRS) d3d iter nstx mast gui xpand d3dplot
 
 .PHONY : d3d
 d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi
@@ -93,6 +93,11 @@ endif
 
 .PHONY : xpand
 xpand : $(DIRS) xpand_mpi
+
+.PHONY : d3dplot
+d3dplot : $(MAFOT_DIR)/python/d3dplot.py
+	rm -f $(BIN_DIR)/d3dplot.py
+	ln $(MAFOT_DIR)/python/d3dplot.py $(BIN_DIR)/d3dplot.py
 
 libtrip3d.a : $(DIRS) $(FOBJS) 
 	$(ARCH) $(LIB_DIR)/$@ $(FOBJS)
