@@ -116,6 +116,7 @@ MPI::COMM_WORLD.Barrier();	// All Nodes wait for Master
 if(mpi_rank < 1) cout << "Read Parameterfile " << parfilename << endl;
 ofs2 << "Read Parameterfile " << parfilename << endl;
 IO PAR(EQD,parfilename,10,mpi_rank);
+if (PAR.NZ > 0) PAR.N = PAR.NR*PAR.NZ;	// fix grid issue for NZ > 1
 
 // Read EFIT-data
 #ifdef USE_XFIELD

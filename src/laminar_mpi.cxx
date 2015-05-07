@@ -62,7 +62,7 @@
 
 // Switches
 //----------
-const int spare_interior = 1;	// 0: all points are calculated		1: inside psi = psi_interior_limit results are set to fixed values (code runs faster)
+const int spare_interior = 0;	// 0: all points are calculated		1: inside psi = psi_interior_limit results are set to fixed values (code runs faster)
 
 // Golbal Parameters 
 //------------------
@@ -340,8 +340,23 @@ if(mpi_rank < 1)
 					if(PAR.create_flag == 3)	// creates regular grid from theta and psi
 					{
 						FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave,2);	// here Rmin = psimin and Zmin = thetamin; max respectively
+#ifdef USE_SIESTA
+						if(PAR.response_field == -2)
+						{
+							double s,u;
+							SIES.get_su(FLT.R, FLT.phi/rTOd, FLT.Z, s, u);
+							results_all(tag,1,i) = u;
+							results_all(tag,2,i) = s;
+						}
+						else
+						{
+							results_all(tag,1,i) = FLT.theta;
+							results_all(tag,2,i) = FLT.psi;
+						}
+#else
 						results_all(tag,1,i) = FLT.theta;
 						results_all(tag,2,i) = FLT.psi;
+#endif
 					}
 					else						// creates regular grid from R and Z
 					{
@@ -444,6 +459,23 @@ if(mpi_rank > 0)
 				FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave,2);	// here Rmin = psimin and Zmin = thetamin; max respectively
 				results(1,i) = FLT.theta;
 				results(2,i) = FLT.psi;
+#ifdef USE_SIESTA
+				if(PAR.response_field == -2)
+				{
+					double s,u;
+					SIES.get_su(FLT.R, FLT.phi/rTOd, FLT.Z, s, u);
+					results(1,i) = u;
+					results(2,i) = s;
+				}
+				else
+				{
+					results(1,i) = FLT.theta;
+					results(2,i) = FLT.psi;
+				}
+#else
+				results(1,i) = FLT.theta;
+				results(2,i) = FLT.psi;
+#endif
 			}
 			else						// creates regular grid from R and Z
 			{

@@ -222,6 +222,10 @@ useFilament = int(vec[12]);
 useTprofile = int(vec[13]);
 sigma = int(vec[14]);
 Zq = int(vec[15]);
+
+// M3D-C1 parameter
+response = int(vec[18]);
+response_field = int(vec[19]);
 }
 
 // ------------------- writeiodata ----------------------------------------------------------------------------------------
@@ -233,6 +237,10 @@ out << "#-------------------------------------------------" << endl;
 out << "### Parameterfile: " << filename << endl;
 out << "# Shot: " << EQDr.Shot << endl;
 out << "# Time: " << EQDr.Time << endl;
+out << "#-------------------------------------------------" << endl;
+out << "### M3D-C1:" << endl;
+out << "# Plasma response (0=no, 1=yes): " << response << endl;
+out << "# Field (-1=M3D-C1 off, 0=Eq, 1=I-coil, 2=both): " << response_field << endl;
 out << "#-------------------------------------------------" << endl;
 out << "### Switches:" << endl;
 out << "# EC-coil active (0=no, 1=yes): " << useIcoil << endl;

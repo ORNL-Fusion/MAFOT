@@ -46,11 +46,17 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.5
-GUI 1.15
+MAFOT 3.51
+GUI 1.2
 
 Version Notes: 
 ----------------
+GUI 1.2 -- May 2015
+- All NSTX tools added
+
+MAFOT 3.51 -- May 2015
+- Bug fix for NSTX: M3DC1 settings now enabled
+
 MAFOT 3.5 -- Feb 2015
 - Include the support for external fields from xpand_mpi. This replaces Diagno.
   code looks for file "xpand.dat" ("diagno.dat" no longer recognized, 

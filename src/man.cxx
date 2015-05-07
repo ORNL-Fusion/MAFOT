@@ -109,7 +109,6 @@ LA_STRING name = startname + ".dat";
 
 // Read parameter file
 cout << "Read Parameterfile " << parfilename << endl;
-ofs2 << "Read Parameterfile " << parfilename << endl;
 IO PAR(EQD,parfilename,10);
 
 // Set starting parameters
@@ -134,6 +133,7 @@ var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "psi";  var[3] = "theta[rad]";  var
 
 // log file
 ofs2.open("log_" + LA_STRING(program_name) + type + dir + praefix + ".dat");
+ofs2 << "Read Parameterfile " << parfilename << endl;
 
 // Read EFIT-data
 EQD.ReadData(EQD.Shot,EQD.Time);
