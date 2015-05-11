@@ -204,7 +204,7 @@ for(i=0;i<=imax;i++)
 {
 	FLT.phi = phistart;
 	chk = mapit_J(FLT,J,periode);
-	if(chk<0){ofs2 << "No convergency " << chk << endl; return -1;}
+	if(chk<0){ofs2 << "No convergence " << chk << endl; return -1;}
 	
 	fr = FLT.R - R;
 	ft = FLT.Z - Z;
@@ -226,7 +226,7 @@ for(i=0;i<=imax;i++)
 	FLT.Z = Z;
 }
 
-ofs2 << "No convergency " <<  R << "\t" << Z << "\t" << dr << "\t" << dt << "\t" << length << endl;
+ofs2 << "No convergence " <<  R << "\t" << Z << "\t" << dr << "\t" << dt << "\t" << length << endl;
 return -1;
 }
 

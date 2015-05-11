@@ -25,7 +25,7 @@
 //void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var);	// declared in IO class, defined here
 
 bool outofBndy(double x, double y, EFIT& EQD);
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
+int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
 					 EFIT& EQD, IO& PAR, PARTICLE& FLT);
@@ -327,7 +327,7 @@ return false;
 }
 
 //---------------- getBfield ----------------------------------------------------------------------------------------------
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
+int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
 {
 int i,chk;
 double psi,dpsidr,dpsidz;
@@ -352,7 +352,7 @@ switch(PAR.response_field)
 case -1: case 1:	// Vacuum equilibrium field from g file
 	// get normalized poloidal Flux psi (should be chi in formulas!)
 	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
-	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return;}	// integration of this point terminates
+	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
 
 	// Equilibrium field
 	F = EQD.get_Fpol(psi);
@@ -368,7 +368,7 @@ case 0: case 2: 	// M3D-C1: equilibrium field or total field
 		if(chk != 0) // field eval failed, probably outside of M3DC1 domain -> fall back to g-file equilibrium
 		{
 			chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
-			if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return;}	// integration of this point terminates
+			if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
 
 			// Equilibrium field
 			F = EQD.get_Fpol(psi);
@@ -444,6 +444,7 @@ B_Z += bz;
 // Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
 B_R += B_X*cosp + B_Y*sinp;
 B_phi += -B_X*sinp + B_Y*cosp;
+return 0;
 }
 
 //---------- prep_perturbation --------------------------------------------------------------------------------------------

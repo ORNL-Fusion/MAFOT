@@ -13,7 +13,7 @@
 //void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var);	// declared in IO class, defined here
 
 bool outofBndy(double x, double y, EFIT& EQD);
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
+int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0);
 int get_target(EFIT& EQD, IO& PAR);
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
@@ -261,7 +261,7 @@ return false;
 }
 
 //---------------- getBfield ----------------------------------------------------------------------------------------------
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
+int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
 {
 int chk;
 double psi,dpsidr,dpsidz;
@@ -278,7 +278,7 @@ Y = R*sinp;
 
 // get normalized poloidal Flux psi (should be chi in formulas!)
 chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
-if(chk==-1) {ofs2 << "getBfield: Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return;}	// integration of this point terminates 
+if(chk==-1) {ofs2 << "getBfield: Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
 
 // Equilibrium field
 F = EQD.get_Fpol(psi);
@@ -319,6 +319,7 @@ if(PAR.useFilament>0)
 // Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
 B_R += B_X*cosp + B_Y*sinp;
 B_phi += -B_X*sinp + B_Y*cosp;
+return 0;
 }
 
 //---------- prep_perturbation --------------------------------------------------------------------------------------------

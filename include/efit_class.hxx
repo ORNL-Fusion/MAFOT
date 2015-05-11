@@ -28,7 +28,7 @@ void splint_2D(Array<double,1>& x1a, Array<double,1>& x2a, Array<double,2>& ya, 
 void bcuderiv(Array<double,2>& y, double d1, double d2, Array<double,2>& y1, Array<double,2>& y2, Array<double,2>& y12);
 void bcucof(Array<double,1>& y, Array<double,1>& y1, Array<double,1>& y2, Array<double,1>& y12, double d1, double d2, 
 			Array<double,2>& c);
-void bcuint(Array<double,1>& Ra, Array<double,1>& Za, Array<double,4>& Ca, double dR, double dZ,
+int bcuint(Array<double,1>& Ra, Array<double,1>& Za, Array<double,4>& Ca, double dR, double dZ,
 			double R, double Z, double& y, double& y1, double& y2);
 
 // Golbal Parameters 
@@ -483,11 +483,13 @@ return;
 //-------------- get_psi -------------------------------------------------------------------------------------------------
 int EFIT::get_psi(const double x1, const double x2, double& y, double& dy1, double& dy2, int flag, bool norm)
 {
+int chk = 0;
 if(x1>R(NR) || x1<R(1) || x2>Z(NZ) || x2<Z(1))	{return -1;}
 
 // get normalized poloidal Flux psi (should be chi in formulas!)
 if(flag==0) splint_2D(R,Z,psiRZ,d2psi,NR,NZ,x1,x2,y,dy1,dy2);
-else bcuint(R,Z,Ca,dR,dZ,x1,x2,y,dy1,dy2);
+else chk = bcuint(R,Z,Ca,dR,dZ,x1,x2,y,dy1,dy2);
+if(chk == -1) {return -1;}
 
 // normalize psi
 if(norm==true) y = (y-psiAxis) / (psiSep-psiAxis);
@@ -591,7 +593,7 @@ for (k=n-1;k>=1;k--)  y2(k)=y2(k)*y2(k+1)+u(k);
 }
 
 //--------------------- splint (mit Blitz-Arrays) ---------------------------------------------------------------------------
-// Given the arrays xa[1..n] and ya[1..n], which tabulate a function (with the xai’s in order),
+// Given the arrays xa[1..n] and ya[1..n], which tabulate a function (with the xaiï¿½s in order),
 // and given the array y2a[1..n], which is the output from spline above, and given a value of
 // x, this routine returns a cubic-spline interpolated value y(x) and dy/dx(x)
 void splint(Array<double,1>& xa, Array<double,1>& ya, Array<double,1>& y2a, int n, double x, double& y, double& yx)
@@ -610,7 +612,7 @@ while (khi-klo>1)
 } //klo and khi now bracket the input value of x.
 
 h=xa(khi)-xa(klo);
-if (h==0.0) cout << "Bad xa input to routine splint" << endl; //The xa’s must be distinct.
+if (h==0.0) cout << "Bad xa input to routine splint" << endl; //The xaï¿½s must be distinct.
 a=(xa(khi)-x)/h;
 b=(x-xa(klo))/h; //Cubic spline polynomial is now evaluated.
 
@@ -779,7 +781,7 @@ for (i=1;i<=4;i++)
 //R and Z are the coordinates of the desired point for
 //the interpolation. The interpolated function value is returned as y, and the interpolated
 //gradient values as y1 and y2. This routine calls bcucof.
-void bcuint(Array<double,1>& Ra, Array<double,1>& Za, Array<double,4>& Ca, double dR, double dZ,
+int bcuint(Array<double,1>& Ra, Array<double,1>& Za, Array<double,4>& Ca, double dR, double dZ,
 			double R, double Z, double& y, double& y1, double& y2)
 {
 int i,j,k;
@@ -795,9 +797,9 @@ j = int((R-Ra(1))/dR) + 1;
 k = int((Z-Za(1))/dZ) + 1;
 if(j == NR) j -= 1;	// exception: add outermost right boundary to square one to the left
 if(k == NZ) k -= 1;	// exception: add outermost top boundary to square one down
-if(j>NR || j<1 || k>NZ || k<1)	{cout << "Point outside of grid" << endl; exit(0);}
+if(j>NR || j<1 || k>NZ || k<1)	{cout << "bcuint: Point outside of grid" << endl; return -1;}
 
-// Get the c’s.
+// Get the cï¿½s.
 c.reference(Ca(j,k,all,all));
 
 // Interpolate
@@ -814,6 +816,7 @@ for (i=4;i>=1;i--)
 
 y1 /= dR;
 y2 /= dZ;
+return 0;
 }
 
 #endif //  EFIT_CLASS_INCLUDED

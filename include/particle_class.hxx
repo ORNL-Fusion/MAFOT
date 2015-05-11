@@ -23,7 +23,7 @@
 using namespace blitz;
 
 // extern Prototypes, defined in Machine-specific header
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
+int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 bool outofBndy(double x, double y, EFIT& EQD);	
 
 // Prototypes  
@@ -58,9 +58,9 @@ private:
 	int steps;		// total number of integration steps along trajectory
 
 // Member-Functions
-	void dgls(double x, Array<double,1> y, Array<double,1>& dydx);
+	int dgls(double x, Array<double,1> y, Array<double,1>& dydx);
 	int rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x);
-	void rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout);
+	int rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout);
 
 public: 
 // Member Variables
@@ -565,12 +565,14 @@ void PARTICLE::convertRZ(double theta, double r)
 //---------------- dgls ---------------------------------------------------------------------------------------------------
 // Type the differential equations (dgls) as they are written, while x is the independent variable
 // Here: x = phi, y(0) = R, y(1) = Z, dydx(0) = dR/dphi, dydx(1) = dZ/dphi
-void PARTICLE::dgls(double x, Array<double,1> y, Array<double,1>& dydx)
+int PARTICLE::dgls(double x, Array<double,1> y, Array<double,1>& dydx)
 {
+int chk;
 double B_R,B_Z,B_phi;
 double S;
 
-getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
+chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
+if (chk == -1) return -1;
 
 dydx(0) = y(0)*B_R/B_phi;
 dydx(1) = y(0)*B_Z/B_phi;
@@ -578,10 +580,11 @@ dydx(1) = y(0)*B_Z/B_phi;
 if(sigma != 0)
 {
 	S = eps0*(GAMMA*GAMMA-1)-2*EQDr.R0*Ix/y(0);
-	if(S<0) {ofs2 << "dgls: Sqrt argument negative => Abort" << endl; EXIT;}	// Error -> Abort program
+	if(S<0) {ofs2 << "dgls: Sqrt argument negative => Abort" << endl; return -1;}	// Error -> Abort program
 	S = sqrt(S);
 	dydx(1) += -sigma/double(Zq)*(y(0)*S + EQDr.R0*Ix/S);	// sign corrected: sigma = +1 is indeed co-passing
 }
+return 0;
 }
 
 //----------------- rkint -------------------------------------------------------------------------------------------------
@@ -590,7 +593,7 @@ if(sigma != 0)
 //evaluates derivatives. Results after nstep Steps are stored in y[0..nvar-1]
 int PARTICLE::rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x)
 {
-int k;
+int k, chk;
 double x1 = x;	//Store first value (helps reduce Error in x)
 double dummy;
 double Lmfp;
@@ -599,8 +602,10 @@ Array<double,1> yout(nvar),dydx(nvar);
 //Take nstep steps
 for (k=1;k<=nstep;k++) 
 { 
-	dgls(x,y,dydx);
-	rungekutta4(y,dydx,nvar,x,dx,yout);
+	chk = dgls(x,y,dydx);
+	if (chk == -1) return -1;
+	chk = rungekutta4(y,dydx,nvar,x,dx,yout);
+	if (chk == -1) return -1;
 	x = x1 + k*dx; // Better than x+=dx
 
 	// Integration terminates outside of boundary box
@@ -610,9 +615,14 @@ for (k=1;k<=nstep;k++)
 	Lc += sqrt((yout(0)-y(0))*(yout(0)-y(0)) + (yout(1)-y(1))*(yout(1)-y(1)) + 0.25*(yout(0)+y(0))*(yout(0)+y(0))*dx*dx);
 #ifdef USE_SIESTA
 	if(PARr.response_field == -2) SIES.get_su(yout(0),x,yout(1),psi,theta);
-	else EQDr.get_psi(yout(0),yout(1),psi,dummy,dummy);
+	else
+	{
+		chk = EQDr.get_psi(yout(0),yout(1),psi,dummy,dummy);
+		if (chk == -1) return -1;
+	}
 #else
-	EQDr.get_psi(yout(0),yout(1),psi,dummy,dummy);
+	chk = EQDr.get_psi(yout(0),yout(1),psi,dummy,dummy);
+	if (chk == -1) return -1;
 #endif
 	if(psi < psimin) psimin = psi;
 	if(psi > psimax) psimax = psi;
@@ -637,9 +647,9 @@ return 0;
 //fourth-order Runge-Kutta method to advance the solution over an interval h and return the
 //incremented variables as yout[0..n-1], which need not be a distinct array from y. The user
 //supplies the routine dgl(x,y,dydx), which returns derivatives dydx at x.
-void PARTICLE::rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout)
+int PARTICLE::rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout)
 {
-int i;
+int i, chk;
 double xh,hh,h6;
 Array<double,1> dym(n),dyt(n),yt(n);
 
@@ -651,11 +661,13 @@ xh=x+hh;
 for (i=0;i<n;i++) yt(i)=y(i)+hh*dydx(i); 
 
 //Second step
-dgls(xh,yt,dyt); 
+chk = dgls(xh,yt,dyt);
+if (chk == -1) return -1;
 for (i=0;i<n;i++) yt(i)=y(i)+hh*dyt(i);
 
 //Third step
-dgls(xh,yt,dym); 
+chk = dgls(xh,yt,dym);
+if (chk == -1) return -1;
 for (i=0;i<n;i++) 
 {
 	yt(i)=y(i)+h*dym(i);
@@ -663,9 +675,11 @@ for (i=0;i<n;i++)
 }
 
 //Fourth step
-dgls(x+h,yt,dyt); 
+chk = dgls(x+h,yt,dyt);
+if (chk == -1) return -1;
 for (i=0;i<n;i++) yout(i)=y(i)+h6*(dydx(i)+dyt(i)+2.0*dym(i)); //Accumulate increments with proper weights
- 
+
+return 0;
 }
 
 //----------------------- End of Member Functions -------------------------------------------------------------------------
