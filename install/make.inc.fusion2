@@ -1,0 +1,41 @@
+# ---- Folder ----
+MAFOT_DIR = /home/wwj/src/MAFOT
+BIN_DIR = /home/wwj/bin
+LIB_DIR = /home/wwj/lib64
+
+# ---- Support codes ----
+# True or False
+M3DC1 = False
+VMEC = True
+SIESTA = True
+
+# ---- Compiler ----
+CXX = g++
+CFLAGS = -O3 -fPIC
+OMPFLAGS = -fopenmp -w
+
+F90 = gfortran
+F90FLAGS = -O3 -fPIC
+
+# ---- Linker ----
+ARCH = ar crus
+
+LDD = g++ --shared
+LDFLAGS =
+
+# ---- external Libraries ---- 
+BLITZLIBS = -L/home/wwj/lib64/blitz/lib -lblitz
+FLIBS = -L/usr/lib64 -lgfortran -lpthread
+OMPLIBS = -L/usr/lib64/openmpi/lib -lmpi -lmpi_cxx
+M3DC1LIBS = -L/home/jjl/m3dc1/install/lib/_X86_64 -lfusionio -lm3dc1
+HDF5LIBS = -L/usr/lib64 -lhdf5 -lz -Wl,-rpath,/usr/lib64 -lstdc++
+NETCDFLIBS = -L/usr/lib64 -lnetcdf
+
+# ---- external Includes ----
+BLITZINCLUDE = -I/home/wwj/lib64/blitz/include
+OMPINCLUDE = -I/usr/include/openmpi-x86_64 -I/usr/include/openmpi-x86_64/openmpi
+M3DC1INCLUDE = -I/home/jjl/m3dc1/install/include
+NETCDFINCLUDE = -I/usr/include
+
+# ---- build GUI with python (optional) ----
+PYINSTALLER =
