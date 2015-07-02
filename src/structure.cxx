@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 // Variables
 int i,j,k,chk;
 int usePointfile;
-double dummy;
+//double dummy;
 EFIT EQD;
 
 // Use system time as seed(=idum) for random numbers
@@ -176,7 +176,7 @@ for(i=1;i<=PAR.N;i++)
 	FLT.R = initial(i,1);
 	FLT.Z = initial(i,2);
 	FLT.phi = PAR.phistart;
-	EQD.get_psi(FLT.R,FLT.Z,FLT.psi,dummy,dummy);
+	FLT.get_psi(FLT.R,FLT.Z,FLT.psi);
 	if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin);}
 
 	// negative direction
@@ -197,7 +197,7 @@ for(i=1;i<=PAR.N;i++)
 	FLT.R = initial(i,1);	
 	FLT.Z = initial(i,2);	
 	FLT.phi = PAR.phistart;
-	EQD.get_psi(FLT.R,FLT.Z,FLT.psi,dummy,dummy);
+	FLT.get_psi(FLT.R,FLT.Z,FLT.psi);
 	if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin);}
 	out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << endl;
 

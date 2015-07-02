@@ -46,11 +46,14 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.51
+MAFOT 3.52
 GUI 1.2
 
 Version Notes: 
 ----------------
+MAFOT 3.52 -- July 2015
+- Bug fix for M3DC1: psi_n is now calculated correctly from M3DC1 equilibrium
+
 GUI 1.2 -- May 2015
 - All NSTX tools added
 

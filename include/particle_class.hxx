@@ -20,6 +20,10 @@
 #include <sstream>
 #include <blitz/array.h>
 #include <blitz/tinyvec-et.h>
+#if defined(m3dc1)
+	#include <fusion_io_defs.h>
+	#include <fusion_io_c.h>
+#endif
 using namespace blitz;
 
 // extern Prototypes, defined in Machine-specific header
@@ -29,8 +33,6 @@ bool outofBndy(double x, double y, EFIT& EQD);
 // Prototypes  
 void get_Energy(double psi, double& Enorm, double& dEnorm);
 double get_Lmfp(double Ekin);
-void getRZ(double x, double y, double& R, double &Z, EFIT& EQD);
-double bisec(double psi, double theta, double a, double b, EFIT& EQD, int flag);
 
 // Integrator Parameters
 const int nvar = 2;				// Number of Variables
@@ -39,6 +41,11 @@ const double dpinit = 1.0;		// step size of phi in [deg]
 
 // Golbal Parameters 
 extern ofstream ofs2;
+#if defined(m3dc1)
+	extern bool m3dc1_nonlinear;
+	extern int m3dc1_ia;
+	extern double m3dc1_psi_axis, m3dc1_psi_lcfs;
+#endif
 #ifdef USE_SIESTA
 	extern SIESTA SIES;
 #endif
@@ -61,6 +68,7 @@ private:
 	int dgls(double x, Array<double,1> y, Array<double,1>& dydx);
 	int rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x);
 	int rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout);
+	double bisec(double p, double th, double a, double b, int flag);
 
 public: 
 // Member Variables
@@ -91,6 +99,7 @@ PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 // Member-Functions
 	double get_r();
 	double get_theta();
+	int get_psi(const double x1, const double x2, double& y);
 	void set_Energy();
 	int mapit(const int itt,int MapDirection=1);
 	int mapstep(int MapDirection=1, int nstep=ilt);
@@ -100,6 +109,7 @@ PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 	void set(int i, int N, double Rmin, double Rmax, double Zmin, double Zmax, int N_Z=1, int flag=0);
 	void create(long& idum, double Rmin, double Rmax, double Zmin, double Zmax, int flag=0);
 	void convertRZ(double theta, double r);
+	void getRZ(double x, double y, double& r, double &z);
 
 }; //end of class
 
@@ -253,6 +263,43 @@ if(Rm<0) theta += pi;
 if(Rm>=0 && Zm<0) theta += pi2;
 
 return theta;
+}
+
+//-------------- get_psi -------------------------------------------------------------------------------------------------
+int PARTICLE::get_psi(const double x1, const double x2, double& y)
+{
+int i,chk;
+double p,dummy;
+double coord[3], A_field[3];
+coord[0] = x1; coord[1] = 0; coord[2] = x2;
+
+if((PARr.response_field == 0) || (PARr.response_field == 2))
+{
+	#if defined(m3dc1)
+		if(m3dc1_nonlinear)	// in a non-linear run one has to evaluate the vector-potential at several toroidal locations and average it to get an (almost) axisymmetric psi
+		{
+			p = 0;
+			for(i=0;i<12;i++)	// use 12, beacuse it is dividable by 1,2,3 and 4
+			{
+				coord[1] = i*pi/6;
+				chk = fio_eval_field(m3dc1_ia, coord, A_field);
+				p+ = (A_field[1] * x1 - m3dc1_psi_axis) / (m3dc1_psi_lcfs - m3dc1_psi_axis);
+			}
+			y = p/12.0
+		}
+		else	// vector-potential taken from equilibrium_only setup
+		{
+			chk = fio_eval_field(m3dc1_ia, coord, A_field);
+			y = A_field[1] * x1;
+			y = (y - m3dc1_psi_axis) / (m3dc1_psi_lcfs - m3dc1_psi_axis);
+		}
+	#else
+		chk = EQDr.get_psi(x1,x2,y,dummy,dummy);
+	#endif
+}
+else chk = EQDr.get_psi(x1,x2,y,dummy,dummy);
+
+return chk;
 }
 
 //---------------- set_Energy ---------------------------------------------------------------------------------------------
@@ -435,7 +482,7 @@ return 0;
 // R is varied first, Z second
 void PARTICLE::set(int i, int N, double Rmin, double Rmax, double Zmin, double Zmax, int N_Z, int flag)
 {
-double dZ,dR,dummy;
+double dZ,dR;
 double x,y;
 int i_Z=0,i_R=0;
 int N_R;
@@ -468,9 +515,9 @@ switch(flag)
 case 2:		// get R, Z from x = psi and y = theta
 #ifdef USE_SIESTA
 	if(PARr.response_field == -2) SIES.get_RZ(x, y, phi/rTOd, R, Z);	// x = s and y = u
-	else getRZ(x, y, R, Z, EQDr);
+	else getRZ(x, y, R, Z);
 #else
-	getRZ(x, y, R, Z, EQDr);
+	getRZ(x, y, R, Z);
 #endif
 	psi = x;
 	theta = y;
@@ -478,12 +525,12 @@ case 2:		// get R, Z from x = psi and y = theta
 case 1:		// get R, Z from r and theta
 	R = x*cos(y) + EQDr.RmAxis;
 	Z = x*sin(y) + EQDr.ZmAxis;
-	EQDr.get_psi(R,Z,psi,dummy,dummy);
+	get_psi(R,Z,psi);
 	break;
 default:
 	R = x;
 	Z = y;
-	EQDr.get_psi(R,Z,psi,dummy,dummy);
+	get_psi(R,Z,psi);
 	break;
 }
 
@@ -504,7 +551,7 @@ void PARTICLE::create(long& idum, double Rmin, double Rmax, double Zmin, double 
 {
 const double dR=Rmax-Rmin;
 const double dZ=Zmax-Zmin;
-double v,dummy;
+double v;
 double x,y;
 
 v=ran0(idum);
@@ -520,9 +567,9 @@ switch(flag)
 case 2:		// get R, Z from psi and theta
 #ifdef USE_SIESTA
 	if(PARr.response_field == -2) SIES.get_RZ(x, y, phi/rTOd, R, Z);	// x = s and y = u
-	else getRZ(x, y, R, Z, EQDr);
+	else getRZ(x, y, R, Z);
 #else
-	getRZ(x, y, R, Z, EQDr);
+	getRZ(x, y, R, Z);
 #endif
 	psi = x;
 	theta = y;
@@ -530,12 +577,12 @@ case 2:		// get R, Z from psi and theta
 case 1:		// get R, Z from r and theta
 	R = x*cos(y) + EQDr.RmAxis;
 	Z = x*sin(y) + EQDr.ZmAxis;
-	EQDr.get_psi(R,Z,psi,dummy,dummy);
+	get_psi(R,Z,psi);
 	break;
 default:
 	R = x;
 	Z = y;
-	EQDr.get_psi(R,Z,psi,dummy,dummy);
+	get_psi(R,Z,psi);
 	break;
 }
 
@@ -556,11 +603,108 @@ void PARTICLE::convertRZ(double theta, double r)
 	Z = r*sin(theta) + EQDr.ZmAxis;
 }
 
+//--------- getRZ ------------------------------------------------------------------------------------------------------------
+// calculate (R,Z) from (theta,psi), x = psi, y = theta
+// exclude the private flux region <--> two points (R,Z) with the same psi exist
+// optimized for lower single null discharges
+// wall(Range(1,toEnd,2)) are all R coordinates of wall, same with lcfs
+// wall(Range(2,toEnd,2)) are all Z coordiantes of wall, same with lcfs
+void PARTICLE::getRZ(double x, double y, double& r, double &z)
+{
+if(y < pi/4 || y > 7*pi/4)
+{
+	// z = z(r,theta)
+	if(x <= 1) r = bisec(x, y, EQDr.RmAxis, max(EQDr.lcfs(Range(1,toEnd,2)))+EQDr.dR, 0);
+	else r = bisec(x, y, EQDr.RmAxis, max(EQDr.wall(Range(1,toEnd,2))), 0);
+	z = (r - EQDr.RmAxis)*tan(y) + EQDr.ZmAxis;
+}
+if(y > 3*pi/4 && y < 5*pi/4)
+{
+	// z = z(r,theta)
+	if(x <= 1) r = bisec(x, y, min(EQDr.lcfs(Range(1,toEnd,2)))-EQDr.dR, EQDr.RmAxis, 0);
+	else r = bisec(x, y, min(EQDr.wall(Range(1,toEnd,2))), EQDr.RmAxis, 0);
+	z = (r - EQDr.RmAxis)*tan(y) + EQDr.ZmAxis;
+}
+if(y >= pi/4 && y <= 3*pi/4)
+{
+	// r = r(z,theta)
+	if(x <= 1) z = bisec(x, y, EQDr.ZmAxis, max(EQDr.lcfs(Range(2,toEnd,2)))+EQDr.dZ, 1);
+	else z = bisec(x, y, EQDr.ZmAxis, max(EQDr.wall(Range(2,toEnd,2))), 1);
+	r = (z - EQDr.ZmAxis)/tan(y) + EQDr.RmAxis;
+}
+if(y >= 5*pi/4 && y <= 7*pi/4)
+{
+	// r = r(z,theta)
+	if(x <= 1) z = bisec(x, y, min(EQDr.lcfs(Range(2,toEnd,2))), EQDr.ZmAxis, 1);
+	else z = bisec(x, y, min(EQDr.wall(Range(2,toEnd,2))), EQDr.ZmAxis, 1);
+	r = (z - EQDr.ZmAxis)/tan(y) + EQDr.RmAxis;
+}
+}
+
 //----------------------- End of Public Member Functions ------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
 //----------------------- Private Member Functions ------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+//--------- bisec ---------------------------------------------------------------------------------------------------------
+// called by getRZ
+double PARTICLE::bisec(double p, double th, double a, double b, int flag)
+{
+double xo,xu,x;
+double r,z;
+double f;
+const double eps = 1e-14;
+
+x = a;
+if (flag == 0)	// z = z(r,th)
+{
+	z = (x - EQDr.RmAxis)*tan(th) + EQDr.ZmAxis;
+	if(outofBndy(x, z, EQDr)) f = 1.2;
+	else get_psi(x, z, f);
+	f -= p;
+}
+else			// r = r(z,th)
+{
+	r = (x - EQDr.ZmAxis)/tan(th) + EQDr.RmAxis;
+	if(outofBndy(r, x, EQDr)) f = 1.2;
+	else get_psi(r, x, f);
+	f -= p;
+}
+
+if(f > 0)
+{
+	xo = a;
+	xu = b;
+}
+else
+{
+	xo = b;
+	xu = a;
+}
+
+while(fabs(xo-xu) > eps)
+{
+	x = (xo + xu)/2;
+	if (flag == 0)	// z = z(r,th)
+	{
+		z = (x - EQDr.RmAxis)*tan(th) + EQDr.ZmAxis;
+		if(outofBndy(x, z, EQDr)) f = 1.2;
+		else get_psi(x, z, f);
+		f -= p;
+	}
+	else			// r = r(z,th)
+	{
+		r = (x - EQDr.ZmAxis)/tan(th) + EQDr.RmAxis;
+		if(outofBndy(r, x, EQDr)) f = 1.2;
+		else get_psi(r, x, f);
+		f -= p;
+	}
+	if(f > 0) xo = x;
+	else xu = x;
+}
+
+return x;
+}
 
 //---------------- dgls ---------------------------------------------------------------------------------------------------
 // Type the differential equations (dgls) as they are written, while x is the independent variable
@@ -595,7 +739,6 @@ int PARTICLE::rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& 
 {
 int k, chk;
 double x1 = x;	//Store first value (helps reduce Error in x)
-double dummy;
 double Lmfp;
 Array<double,1> yout(nvar),dydx(nvar);
 
@@ -617,11 +760,11 @@ for (k=1;k<=nstep;k++)
 	if(PARr.response_field == -2) SIES.get_su(yout(0),x,yout(1),psi,theta);
 	else
 	{
-		chk = EQDr.get_psi(yout(0),yout(1),psi,dummy,dummy);
+		chk = get_psi(yout(0),yout(1),psi);
 		if (chk == -1) return -1;
 	}
 #else
-	chk = EQDr.get_psi(yout(0),yout(1),psi,dummy,dummy);
+	chk = get_psi(yout(0),yout(1),psi);
 	if (chk == -1) return -1;
 #endif
 	if(psi < psimin) psimin = psi;
@@ -701,103 +844,6 @@ double get_Lmfp(double Ekin)
 const double L_Debye = sqrt(Ekin*1000)*7.43e-7;			// Debye length [m], density 1e14 cm^-3, Ekin in [keV], needed in [eV]
 const double Lambda_Coulomb = 4*pi*1e20*pow(L_Debye,3);	// density set to constant 1e20 m^-3 = 1e14 cm^-3
 return 64*pi*L_Debye*Lambda_Coulomb/log(Lambda_Coulomb);
-}
-
-//--------- getRZ ----------------------------------------------------
-// calculate (R,Z) from (theta,psi), x = psi, y = theta
-// exclude the private flux region <--> two points (R,Z) with the same psi exist
-// optimized for lower single null discharges
-// wall(Range(1,toEnd,2)) are all R coordinates of wall, same with lcfs
-// wall(Range(2,toEnd,2)) are all Z coordiantes of wall, same with lcfs
-void getRZ(double x, double y, double& R, double &Z, EFIT& EQD)
-{
-if(y < pi/4 || y > 7*pi/4)
-{
-	// Z = Z(R,theta)
-	if(x <= 1) R = bisec(x, y, EQD.RmAxis, max(EQD.lcfs(Range(1,toEnd,2)))+EQD.dR, EQD, 0);
-	else R = bisec(x, y, EQD.RmAxis, max(EQD.wall(Range(1,toEnd,2))), EQD, 0);
-	Z = (R - EQD.RmAxis)*tan(y) + EQD.ZmAxis;
-}
-if(y > 3*pi/4 && y < 5*pi/4)
-{
-	// Z = Z(R,theta)
-	if(x <= 1) R = bisec(x, y, min(EQD.lcfs(Range(1,toEnd,2)))-EQD.dR, EQD.RmAxis, EQD, 0);
-	else R = bisec(x, y, min(EQD.wall(Range(1,toEnd,2))), EQD.RmAxis, EQD, 0);
-	Z = (R - EQD.RmAxis)*tan(y) + EQD.ZmAxis;
-}
-if(y >= pi/4 && y <= 3*pi/4)
-{
-	// R = R(Z,theta)
-	if(x <= 1) Z = bisec(x, y, EQD.ZmAxis, max(EQD.lcfs(Range(2,toEnd,2)))+EQD.dZ, EQD, 1);
-	else Z = bisec(x, y, EQD.ZmAxis, max(EQD.wall(Range(2,toEnd,2))), EQD, 1);
-	R = (Z - EQD.ZmAxis)/tan(y) + EQD.RmAxis;
-}
-if(y >= 5*pi/4 && y <= 7*pi/4)
-{
-	// R = R(Z,theta)
-	if(x <= 1) Z = bisec(x, y, min(EQD.lcfs(Range(2,toEnd,2))), EQD.ZmAxis, EQD, 1);
-	else Z = bisec(x, y, min(EQD.wall(Range(2,toEnd,2))), EQD.ZmAxis, EQD, 1);
-	R = (Z - EQD.ZmAxis)/tan(y) + EQD.RmAxis;
-}
-}
-
-//--------- bisec ----------------------------------------------------
-double bisec(double psi, double theta, double a, double b, EFIT& EQD, int flag)
-{
-double xo,xu,x;
-double R,Z;
-double f,dummy;
-const double eps = 1e-14;
-
-x = a;
-if (flag == 0)	// Z = Z(R,theta)
-{
-	Z = (x - EQD.RmAxis)*tan(theta) + EQD.ZmAxis;
-	if(outofBndy(x, Z, EQD)) f = 1.2;
-	else EQD.get_psi(x, Z, f, dummy, dummy);
-	f -= psi;
-}
-else			// R = R(Z,theta)
-{
-	R = (x - EQD.ZmAxis)/tan(theta) + EQD.RmAxis;
-	if(outofBndy(R, x, EQD)) f = 1.2;
-	else EQD.get_psi(R, x, f, dummy, dummy);
-	f -= psi;
-}
-
-if(f > 0)
-{
-	xo = a;
-	xu = b;
-}
-else
-{
-	xo = b;
-	xu = a;
-}
-
-while(fabs(xo-xu) > eps)
-{
-	x = (xo + xu)/2;
-	if (flag == 0)	// Z = Z(R,theta)
-	{
-		Z = (x - EQD.RmAxis)*tan(theta) + EQD.ZmAxis;
-		if(outofBndy(x, Z, EQD)) f = 1.2;
-		else EQD.get_psi(x, Z, f, dummy, dummy);
-		f -= psi;
-	}
-	else			// R = R(Z,theta)
-	{
-		R = (x - EQD.ZmAxis)/tan(theta) + EQD.RmAxis;
-		if(outofBndy(R, x, EQD)) f = 1.2;
-		else EQD.get_psi(R, x, f, dummy, dummy);
-		f -= psi;
-	}
-	if(f > 0) xo = x;
-	else xu = x;
-}
-
-return x;
 }
 
 #endif //  PARTICLE_CLASS_INCLUDED

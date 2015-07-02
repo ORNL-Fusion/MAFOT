@@ -480,7 +480,6 @@ int i_phi=0;
 int N=Np*Nphi;
 int target;
 double dp,dphi,t;
-double dummy;
 Array<double,1> p1(Range(1,2)),p2(Range(1,2)),p(Range(1,2)),d(Range(1,2));
 
 // Magnetic Axis
@@ -546,7 +545,7 @@ p = p1 + t*d;
 FLT.R = p(1);
 FLT.Z = p(2);
 FLT.phi = (phimin + dphi*i_phi)*rTOd;	// phi in deg
-EQD.get_psi(p(1),p(2),FLT.psi,dummy,dummy);
+FLT.get_psi(p(1),p(2),FLT.psi);
 
 FLT.Lc = 0;
 FLT.psimin = 10;

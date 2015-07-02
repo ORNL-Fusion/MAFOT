@@ -101,11 +101,39 @@ ofstream ofs2;
 const int m3dc1_nfiles_max = 10;	// max number of files = 10
 int m3dc1_nfiles = 1;				// default: use one file only
 int m3dc1_isrc[m3dc1_nfiles_max], m3dc1_imag[m3dc1_nfiles_max];
+int m3dc1_ia;	// Handle for the vector potential
+double m3dc1_psi_axis, m3dc1_psi_lcfs;
+bool m3dc1_nonlinear;
+
+// ----------------- m3dc1_psi ---------------------------------------------------------------------------------------------
+int m3dc1_psi(void)
+{
+int ierr, ierr2;
+int ipsi_axis, ipsi_lcfs;
+
+// Set options appropriate to this source
+ierr2 = fio_get_options(m3dc1_isrc[0]);
+//ierr2 += fio_set_int_option(FIO_PART, FIO_EQUILIBRIUM_ONLY);	// works only in a linear run, where equilibrium and perturbation are separable; in a non-linear run one has to evaluate the vector-potential at several toroidal locations and average it to get an (almost) axisymmetric psi
+m3dc1_nonlinear = true;
+
+// set field handle
+ierr2 += fio_get_field(m3dc1_isrc[0], FIO_VECTOR_POTENTIAL, &m3dc1_ia);
+
+// get psi_axis and psi_sep
+ierr = fio_get_series(m3dc1_isrc[0], FIO_MAGAXIS_PSI, &ipsi_axis);
+ierr += fio_get_series(m3dc1_isrc[0], FIO_LCFS_PSI, &ipsi_lcfs);
+ierr += fio_eval_series(ipsi_axis, 0., &m3dc1_psi_axis);
+ierr += fio_eval_series(ipsi_lcfs, 0., &m3dc1_psi_lcfs);
+ierr += fio_close_series(ipsi_axis);
+ierr += fio_close_series(ipsi_lcfs);
+
+return ierr+ierr2;
+}
 
 // ----------------- m3dc1_load ---------------------------------------------------------------------------------------------
 int m3dc1_load(int response, int response_field, double scale[], LA_STRING m3dc1_filenames[])
 {
-int i, ierr, ierr2;
+int i, ierr, ierr2, ierr3;
 
 // open file(s)
 ierr =  fio_open_source(FIO_M3DC1_SOURCE, m3dc1_filenames[0], &(m3dc1_isrc[0]));
@@ -151,13 +179,18 @@ for(i=1;i<m3dc1_nfiles;i++)
     // set field handle
     ierr2 += fio_get_field(m3dc1_isrc[i], FIO_MAGNETIC_FIELD, &(m3dc1_imag[i]));
 }
-return ierr+ierr2;
+
+// prepare psi eval
+ierr3 = m3dc1_psi();
+
+return ierr+ierr2+ierr3;
 }
 
 // ----------------- m3dc1_unload -------------------------------------------------------------------------------------------
 void m3dc1_unload_file_(void)	// WARNING: name could become ambigous, when linked with library m3dc1_fortran.a (not the case so far)
 {
 int i, ierr;
+ierr = fio_close_field(m3dc1_ia);
 for(i=0;i<m3dc1_nfiles;i++)
 {
 	ierr = fio_close_field(m3dc1_imag[i]);
@@ -702,7 +735,6 @@ int i_phi=0;
 int N=Np*Nphi;
 int target;
 double dp,dphi,t;
-double dummy;
 Array<double,1> p1(Range(1,2)),p2(Range(1,2)),p(Range(1,2)),d(Range(1,2));
 
 // Magnetic Axis
@@ -768,7 +800,7 @@ p = p1 + t*d;
 FLT.R = p(1);
 FLT.Z = p(2);
 FLT.phi = (phimin + dphi*i_phi)*rTOd;	// phi in deg
-EQD.get_psi(p(1),p(2),FLT.psi,dummy,dummy);
+FLT.get_psi(p(1),p(2),FLT.psi);
 
 FLT.Lc = 0;
 FLT.psimin = 10;
