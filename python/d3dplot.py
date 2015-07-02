@@ -212,10 +212,12 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 	# --- layout ----------------------
 	#rcParams['text.latex.preamble'] = [r'\usepackage{times}']#\usepackage{amsmath}
-	#plt.rcParams['font.sans-serif'] = ['Arial', 'Helvetica', 'Bitstream Vera Sans']	# enthought
-	#plt.rcParams['font.serif'] = ['Times', 'Times New Roman', 'Bitstream Vera Serif']	# enthought
-	plt.rcParams['font.sans-serif'] = 'Arial'	# anaconda
-	plt.rcParams['font.serif'] = 'Times'	# anaconda
+	if 'Anaconda' in sys.version:
+		plt.rcParams['font.sans-serif'] = 'Arial'	# anaconda
+		plt.rcParams['font.serif'] = 'Times'	# anaconda
+	else:
+		plt.rcParams['font.sans-serif'] = ['Arial', 'Helvetica', 'Bitstream Vera Sans']	# enthought
+		plt.rcParams['font.serif'] = ['Times', 'Times New Roman', 'Bitstream Vera Serif']	# enthought
 	font = {'family' : 'sans-serif',
 			'weight' : 'normal', # normal
 			'size'   : 22} #18
@@ -312,8 +314,8 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 	# show colorbar
 	C = plt.colorbar(cs, pad = 0.01, extend = 'both', format = '%.3g', ticks = myticks)
-	#C.set_label(C_label, rotation = 270, size = C_label_size)	# enthought
-	C.set_label(C_label, rotation = 270, size = C_label_size, va = 'bottom')	# anaconda
+	if 'Anaconda' in sys.version: C.set_label(C_label, rotation = 270, size = C_label_size, va = 'bottom')	# anaconda
+	else: C.set_label(C_label, rotation = 270, size = C_label_size)	# enthought
 	
 	# add SOL label in RZ plot and footprint
 	if(coordinates == 'RZ') | (coordinates == 'phi'): 
