@@ -46,11 +46,14 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.52
+MAFOT 3.6
 GUI 1.2
 
 Version Notes: 
 ----------------
+MAFOT 3.6 -- July 2015
+- M3DC1 interface is now a separate class
+
 MAFOT 3.52 -- July 2015
 - Bug fix for M3DC1: psi_n is now calculated correctly from M3DC1 equilibrium
 
