@@ -21,8 +21,7 @@
 #include <blitz/array.h>
 #include <blitz/tinyvec-et.h>
 #if defined(m3dc1)
-	#include <fusion_io_defs.h>
-	#include <fusion_io_c.h>
+	#include <m3dc1_class.hxx>
 #endif
 using namespace blitz;
 
@@ -42,9 +41,7 @@ const double dpinit = 1.0;		// step size of phi in [deg]
 // Golbal Parameters 
 extern ofstream ofs2;
 #if defined(m3dc1)
-	extern bool m3dc1_nonlinear;
-	extern int m3dc1_ia;
-	extern double m3dc1_psi_axis, m3dc1_psi_lcfs;
+	extern M3DC1 M3D;
 #endif
 #ifdef USE_SIESTA
 	extern SIESTA SIES;
@@ -276,22 +273,21 @@ coord[0] = x1; coord[1] = 0; coord[2] = x2;
 if((PARr.response_field == 0) || (PARr.response_field == 2))
 {
 	#if defined(m3dc1)
-		if(m3dc1_nonlinear)	// in a non-linear run one has to evaluate the vector-potential at several toroidal locations and average it to get an (almost) axisymmetric psi
+		if(M3D.nonlinear)	// in a non-linear run one has to evaluate the vector-potential at several toroidal locations and average it to get an (almost) axisymmetric psi
 		{
 			p = 0;
 			for(i=0;i<12;i++)	// use 12, beacuse it is dividable by 1,2,3 and 4
 			{
 				coord[1] = i*pi/6;
-				chk = fio_eval_field(m3dc1_ia, coord, A_field);
-				p+ = (A_field[1] * x1 - m3dc1_psi_axis) / (m3dc1_psi_lcfs - m3dc1_psi_axis);
+				chk = fio_eval_field(M3D.ia, coord, A_field);
+				p += (A_field[1] * x1 - M3D.psi_axis) / (M3D.psi_lcfs - M3D.psi_axis);
 			}
-			y = p/12.0
+			y = p/12.0;
 		}
 		else	// vector-potential taken from equilibrium_only setup
 		{
-			chk = fio_eval_field(m3dc1_ia, coord, A_field);
-			y = A_field[1] * x1;
-			y = (y - m3dc1_psi_axis) / (m3dc1_psi_lcfs - m3dc1_psi_axis);
+			chk = fio_eval_field(M3D.ia, coord, A_field);
+			y = (A_field[1] * x1 - M3D.psi_axis) / (M3D.psi_lcfs - M3D.psi_axis);
 		}
 	#else
 		chk = EQDr.get_psi(x1,x2,y,dummy,dummy);

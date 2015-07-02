@@ -264,7 +264,7 @@ cout << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 ofs2 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 
 #ifdef m3dc1
-if(PAR.response_field >= 0) m3dc1_unload_file_();
+if(PAR.response_field >= 0) M3D.unload();
 #endif
 
 return 0;

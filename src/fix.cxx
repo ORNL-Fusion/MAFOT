@@ -158,7 +158,7 @@ for(i=0;i<PAR.Nr;i++)	//r
 				cout << "Program terminated normally" << endl;
 				ofs2 << "Program terminated normally" << endl;
 				#ifdef m3dc1
-				if(PAR.response_field >= 0) m3dc1_unload_file_();
+				if(PAR.response_field >= 0) M3D.unload();
 				#endif
 				return 0; 
 			}
@@ -173,7 +173,7 @@ ofs2 << "Program terminated normally" << endl;
 cout << "Program terminated normally" << endl;
 
 #ifdef m3dc1
-if(PAR.response_field >= 0) m3dc1_unload_file_();
+if(PAR.response_field >= 0) M3D.unload();
 #endif
 
 return 0; 
