@@ -18,6 +18,7 @@
 #include <sstream>
 #include <blitz/array.h>
 #include <blitz/tinyvec-et.h>
+#include <efit_class.hxx>
 using namespace blitz;
 
 // Prototypes  
@@ -47,7 +48,7 @@ public:
 	int NZ; double Zmin; double Zmax;			// Z grid (laminar only)
 	int N; int Nr; double rmin; double rmax;	// r grid
 	int Nth; double thmin; double thmax;		// theta grid
-	int which_target_plate;						// 0: center post(above inner target), 1: inner target(45°), 2: outer target(horizontal), 3: shelf (right of outer target)
+	int which_target_plate;						// 0: center post(above inner target), 1: inner target(45deg), 2: outer target(horizontal), 3: shelf (right of outer target)
 	int create_flag;							// 0: fixed grid	1: random numbers	2: Start on target
 	int useIcoil; int useCcoil; int useFcoil;	// Perturbation coils:  0: off, 1: on
 	int useFilament;							// Current filaments: 0: off, >=1: Number of filaments to use

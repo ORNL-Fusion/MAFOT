@@ -20,6 +20,8 @@
 #include <sstream>
 #include <blitz/array.h>
 #include <blitz/tinyvec-et.h>
+#include <efit_class.hxx>
+#include <io_class.hxx>
 #if defined(m3dc1)
 	#include <m3dc1_class.hxx>
 #endif
@@ -275,12 +277,13 @@ if((PARr.response_field == 0) || (PARr.response_field == 2))
 	#if defined(m3dc1)
 		if(M3D.nonlinear)	// in a non-linear run one has to evaluate the vector-potential at several toroidal locations and average it to get an (almost) axisymmetric psi
 		{
-			p = 0;
+			p = 0; chk = 0;
 			for(i=0;i<12;i++)	// use 12, beacuse it is dividable by 1,2,3 and 4
 			{
 				coord[1] = i*pi/6;
-				chk = fio_eval_field(M3D.ia, coord, A_field);
+				chk += fio_eval_field(M3D.ia, coord, A_field);
 				p += (A_field[1] * x1 - M3D.psi_axis) / (M3D.psi_lcfs - M3D.psi_axis);
+				//cout << chk << "\t" << coord[0] << "\t" << coord[1] << "\t" << coord[2] << "\t" << A_field[1] << "\t" << (A_field[1] * x1 - M3D.psi_axis) / (M3D.psi_lcfs - M3D.psi_axis) << endl;
 			}
 			y = p/12.0;
 		}
@@ -289,6 +292,7 @@ if((PARr.response_field == 0) || (PARr.response_field == 2))
 			chk = fio_eval_field(M3D.ia, coord, A_field);
 			y = (A_field[1] * x1 - M3D.psi_axis) / (M3D.psi_lcfs - M3D.psi_axis);
 		}
+		if(chk != 0) {chk = -1;}
 	#else
 		chk = EQDr.get_psi(x1,x2,y,dummy,dummy);
 	#endif
@@ -646,6 +650,7 @@ if(y >= 5*pi/4 && y <= 7*pi/4)
 // called by getRZ
 double PARTICLE::bisec(double p, double th, double a, double b, int flag)
 {
+int chk;
 double xo,xu,x;
 double r,z;
 double f;
@@ -656,14 +661,22 @@ if (flag == 0)	// z = z(r,th)
 {
 	z = (x - EQDr.RmAxis)*tan(th) + EQDr.ZmAxis;
 	if(outofBndy(x, z, EQDr)) f = 1.2;
-	else get_psi(x, z, f);
+	else
+	{
+		chk = get_psi(x, z, f);
+		if(chk != 0) f = 1.2;
+	}
 	f -= p;
 }
 else			// r = r(z,th)
 {
 	r = (x - EQDr.ZmAxis)/tan(th) + EQDr.RmAxis;
 	if(outofBndy(r, x, EQDr)) f = 1.2;
-	else get_psi(r, x, f);
+	else
+	{
+		chk = get_psi(r, x, f);
+		if(chk != 0) f = 1.2;
+	}
 	f -= p;
 }
 
@@ -685,14 +698,22 @@ while(fabs(xo-xu) > eps)
 	{
 		z = (x - EQDr.RmAxis)*tan(th) + EQDr.ZmAxis;
 		if(outofBndy(x, z, EQDr)) f = 1.2;
-		else get_psi(x, z, f);
+		else
+		{
+			chk = get_psi(x, z, f);
+			if(chk != 0) f = 1.2;
+		}
 		f -= p;
 	}
 	else			// r = r(z,th)
 	{
 		r = (x - EQDr.ZmAxis)/tan(th) + EQDr.RmAxis;
 		if(outofBndy(r, x, EQDr)) f = 1.2;
-		else get_psi(r, x, f);
+		else
+		{
+			chk = get_psi(r, x, f);
+			if(chk != 0) f = 1.2;
+		}
 		f -= p;
 	}
 	if(f > 0) xo = x;
