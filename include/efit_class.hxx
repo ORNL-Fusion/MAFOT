@@ -108,6 +108,7 @@ public:
 
 	Array<double,1> lcfs;	// Position of the LCFS in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
 	Array<double,1> wall;	// Position of the Wall in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
+	Array<double,1> lcfs_th;// poloidal angles of lcfs
 
 	// Calculated in ReadData
 	double dR;		// grid distance in R direction
@@ -150,6 +151,7 @@ public:
 	double get_FFprime(const double x);		// Spline interpolates FFprime
 	double get_Pprime(const double x);		// Spline interpolates Pprime
 	double get_q(const double x);		// Spline interpolates qpsi
+	int lcfs_RZ_nn(const double th, double& r, double& z);
 
 }; //end of class
 
@@ -182,6 +184,7 @@ Nlcfs = 90;
 Nwall = 87;
 lcfs.resize(2*Nlcfs);	lcfs.reindexSelf(index);
 wall.resize(2*Nwall);	wall.reindexSelf(index);
+lcfs_th.resize(Nlcfs);	lcfs_th.reindexSelf(index);
 
 R.resize(NR);	R.reindexSelf(index);
 Z.resize(NZ);	Z.reindexSelf(index);
@@ -240,6 +243,7 @@ Nlcfs = EQD.Nlcfs;
 Nwall = EQD.Nwall;
 lcfs.reference(EQD.lcfs.copy());
 wall.reference(EQD.wall.copy());
+lcfs_th.reference(EQD.lcfs_th.copy());
 
 dR = EQD.dR;
 dZ = EQD.dZ;
@@ -477,6 +481,9 @@ if((Ip*Bt0 > 0 && helicity == -1) || (Ip*Bt0 < 0 && helicity == 1))
 //btSign = sign(Bt0)	// +1.0 or -1.0 (real)
 //bpSign = sign(Ip)	// +1.0 or -1.0 (real)
 
+for(i=1;i<=Nlcfs;i++) lcfs_th(i) = polar_phi(lcfs(2*i-1) - RmAxis, lcfs(2*i) - ZmAxis);
+
+
 return;
 }
 
@@ -543,6 +550,26 @@ double y,dy;
 splint(psi,qpsi,d2qpsi,NR,x,y,dy);
 return y;
 }
+
+//-------------- lcfs_RZ_nn -----------------------------------------------------------------------------------------------
+// return nearest neighbor lcfs point to poloidal angle th
+int EFIT::lcfs_RZ_nn(const double th, double& r, double& z)
+{
+double tmp = 10;
+int i,idx;
+for(i=1;i<=Nlcfs;i++)
+{
+	if (fabs(lcfs_th(i) - th) < tmp)
+	{
+		idx = i;
+		tmp = fabs(lcfs_th(i) - th);
+	}
+}
+r = lcfs(2*i-1);
+z = lcfs(2*i);
+return idx;
+}
+
 
 //----------------------- End of Member Functions -------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------

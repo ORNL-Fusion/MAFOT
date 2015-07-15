@@ -38,37 +38,53 @@ class M3DC1
 private:
 	// Parameter
 	static const int nfiles_max = 10;	// max number of files = 10
+	static const int Nphi = 360;		// number of toroidal angles to evaluate; use 1 deg steps
 
 	// Member Variables
 	int isrc[nfiles_max];				// handle for sources
 	LA_STRING filenames[nfiles_max];	// M3DC1 files
 	double scale[nfiles_max];			// scaling factor for linear runs
+	double RX[Nphi];					// R array of X-point at various phi
+	double ZX[Nphi];					// Z array of X-point at various phi
+	double RmAxis_a[Nphi];				// R array of magnetic axis at various phi
+	double ZmAxis_a[Nphi];				// Z array of magnetic axis at various phi
 
 	// Member-Functions
+	void chk_linear(void);
+	int make_A(void);
 	int make_psi(void);
+	int axis0(void);
+	int axis(void);
+	int Xpoint(double RX0 = 1.3, double ZX0 = -1.2);
+	int newton2D(double& R, double phi, double& Z);
+	int get_dA(double R, double phi, double Z, double& a, double& dadr, double& dadz, Array<double,1>& J);
 
 public:
 	// Member Variables
-	int nfiles;				// actual number of files
-	bool nonlinear;			// flag if run is linear or not
-	int imag[nfiles_max];	// handle for magnetic fields
-	int ia;					// handle for the vector potential
-	double psi_axis;		// poloidal flux on axis
-	double psi_lcfs;		// poloidal flux at lscf
+	int Np;						// public counterpart of Nphi
+	int nfiles;					// actual number of files
+	bool nonlinear;				// flag if run is linear or not
+	int imag[nfiles_max];		// handle for magnetic fields
+	int ia;						// handle for the vector potential
+	double RmAxis;				// average R of magnetic axis
+	double ZmAxis;				// average Z of magnetic axis
+	double psi_axis_a[Nphi];	// array of poloidal flux on axis for various toroidal angles
+	double psi_lcfs_a[Nphi];	// array of poloidal flux on lcfs for various toroidal angles
+
+	static const double deltaRa = 0.015;
+	static const double deltaZa = 0.0;//0.00326;
 
 	// Constructors
 	M3DC1();								// Default Constructor
 
 	// Member-Functions
-	int read_m3dc1sup(LA_STRING supPath);
-	void scale_from_coils(double currents[], int loops, int turns, double adj = 1);
-	int open_source(int response, int response_field);
-	void load(IO& PAR, int mpi_rank);
-	void unload(void);
-
 	int getB(double R, double phi, double Z, double& Br, double& Bp, double& Bz);
 	int getA(double R, double phi, double Z, double& Ar, double& Ap, double& Az);
-
+	int read_m3dc1sup(LA_STRING supPath="./");
+	void scale_from_coils(double currents[], int loops, int turns, double adj = 1);
+	void load(IO& PAR, int mpi_rank);
+	void unload(void);
+	int open_source(int response, int response_field, int flag = 0);
 
 }; //end of class
 
@@ -81,6 +97,9 @@ M3DC1::M3DC1()
 {
 nfiles = 1;				// default: at least one file
 nonlinear = true;		// to be on the safe side
+Np = Nphi;
+RmAxis = 0;
+ZmAxis = 0;
 }
 
 //--------------------- Public Member Functions ---------------------------------------------------------------------------
@@ -129,6 +148,7 @@ if(in.fail()==1) // no m3dc1 control file found -> use default: scale by coils a
 {
 	nfiles = 1;
 	filenames[0] = "C1.h5";
+	scale[0] = 1;
 	in.close();
 	return -1;
 }
@@ -204,7 +224,7 @@ for(i=0;i<nfiles;i++)
 }
 
 // ----------------- open_source ------------------------------------------------------------------------------------------
-int M3DC1::open_source(int response, int response_field)
+int M3DC1::open_source(int response, int response_field, int flag)
 {
 int i, ierr, ierr2, ierr3;
 
@@ -212,6 +232,7 @@ int i, ierr, ierr2, ierr3;
 ierr =  fio_open_source(FIO_M3DC1_SOURCE, filenames[0], &(isrc[0]));
 
 // Set options appropriate to this source
+chk_linear();
 ierr2 = fio_get_options(isrc[0]);
 ierr2 += fio_set_int_option(FIO_TIMESLICE, response);	// response = 1: plasma response solution; response = 0: vacuum field;
 
@@ -253,37 +274,225 @@ for(i=1;i<nfiles;i++)
     ierr2 += fio_get_field(isrc[i], FIO_MAGNETIC_FIELD, &(imag[i]));
 }
 
+// prepare vector potential
+ierr3 = make_A();
+
+// get magnetic axis
+if(RmAxis == 0 || not nonlinear) ierr3 += axis();
+//ofs2 << endl << "Axis locations:" << endl;
+//for(i=0;i<Nphi;i++) ofs2 << i*pi2/Nphi << "\t" << RmAxis_a[i] << "\t" << ZmAxis_a[i] << endl;
+
+// get X-point location
+if(flag == 0 && nonlinear) ierr3 += Xpoint();
+//ofs2 << endl << "X-point locations:" << endl;
+//for(i=0;i<Nphi;i++) ofs2 << i*pi2/Nphi << "\t" << RX[i] << "\t" << ZX[i] << endl;
+
 // prepare psi eval
-ierr3 = make_psi();
+if(flag == 0) ierr3 += make_psi();
 
 return ierr+ierr2+ierr3;
 }
 
 //--------------------- Private Member Functions --------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+
+// ----------------- chk_linear -------------------------------------------------------------------------------------------
+void M3DC1::chk_linear(void)
+{
+	nonlinear = true;
+}
+
+// ----------------- make_A -----------------------------------------------------------------------------------------------
+int M3DC1::make_A(void)
+{
+int ierr;
+
+// Set options appropriate to this source
+ierr = fio_get_options(isrc[0]);
+//if(not nonlinear) ierr += fio_set_int_option(FIO_PART, FIO_EQUILIBRIUM_ONLY);	// works only in a linear run, where equilibrium and perturbation are separable; in a non-linear run one has to evaluate the vector-potential at several toroidal locations and average it to get an (almost) axisymmetric psi
+
+// set field handle
+ierr += fio_get_field(isrc[0], FIO_VECTOR_POTENTIAL, &ia);
+
+return ierr;
+}
+
 // ----------------- make_psi ---------------------------------------------------------------------------------------------
 int M3DC1::make_psi(void)
 {
-int ierr, ierr2;
+int ierr,i;
 int ipsi_axis, ipsi_lcfs;
-
-// Set options appropriate to this source
-ierr2 = fio_get_options(isrc[0]);
-//ierr2 += fio_set_int_option(FIO_PART, FIO_EQUILIBRIUM_ONLY);	// works only in a linear run, where equilibrium and perturbation are separable; in a non-linear run one has to evaluate the vector-potential at several toroidal locations and average it to get an (almost) axisymmetric psi
-nonlinear = false;
-
-// set field handle
-ierr2 += fio_get_field(isrc[0], FIO_VECTOR_POTENTIAL, &ia);
+double a, dummy, phi;
 
 // get psi_axis and psi_sep
-ierr = fio_get_series(isrc[0], FIO_MAGAXIS_PSI, &ipsi_axis);
-ierr += fio_get_series(isrc[0], FIO_LCFS_PSI, &ipsi_lcfs);
-ierr += fio_eval_series(ipsi_axis, 0., &psi_axis);
-ierr += fio_eval_series(ipsi_lcfs, 0., &psi_lcfs);
-ierr += fio_close_series(ipsi_axis);
-ierr += fio_close_series(ipsi_lcfs);
+if(nonlinear)
+{
+	ierr = 0;
+	for(i=0;i<Nphi;i++)
+	{
+		phi = i*pi2/Nphi;
+		ierr += getA(RmAxis_a[i],phi,ZmAxis_a[i],dummy,a,dummy);
+		psi_axis_a[i] = a*RmAxis_a[i];
 
-return ierr+ierr2;
+		ierr += getA(RX[i],phi,ZX[i],dummy,a,dummy);
+		psi_lcfs_a[i] = a*RX[i];
+	}
+}
+else
+{
+	ierr = fio_get_series(isrc[0], FIO_MAGAXIS_PSI, &ipsi_axis);
+	ierr += fio_get_series(isrc[0], FIO_LCFS_PSI, &ipsi_lcfs);
+	ierr += fio_eval_series(ipsi_axis, 0., &psi_axis_a[0]);
+	ierr += fio_eval_series(ipsi_lcfs, 0., &psi_lcfs_a[0]);
+	ierr += fio_close_series(ipsi_axis);
+	ierr += fio_close_series(ipsi_lcfs);
+}
+return ierr;
+}
+
+// ----------------- axis0 ------------------------------------------------------------------------------------------------
+int M3DC1::axis0(void)
+{
+int ir0, iz0, ierr;
+
+ierr = fio_get_series(isrc[0], FIO_MAGAXIS_R, &ir0);
+ierr += fio_get_series(isrc[0], FIO_MAGAXIS_Z, &iz0);
+
+ierr += fio_eval_series(ir0, 0., &RmAxis_a[0]);
+ierr += fio_eval_series(iz0, 0., &ZmAxis_a[0]);
+
+ierr += fio_close_series(ir0);
+ierr += fio_close_series(iz0);
+return ierr;
+}
+
+// ----------------- axis -------------------------------------------------------------------------------------------------
+int M3DC1::axis(void)
+{
+int chk,i;
+double phi;
+chk = axis0();
+
+if(nonlinear)
+{
+	RmAxis = RmAxis_a[0]; ZmAxis = ZmAxis_a[0];
+	for(i=1;i<Nphi;i++)
+	{
+		RmAxis_a[i] = RmAxis_a[0];
+		ZmAxis_a[i] = ZmAxis_a[0];
+		phi = i*pi2/Nphi;
+		chk += newton2D(RmAxis_a[i],phi,ZmAxis_a[i]);
+		RmAxis += RmAxis_a[i];
+		ZmAxis += ZmAxis_a[i];
+	}
+	RmAxis /= Nphi;
+	ZmAxis /= Nphi;
+}
+else
+{
+	RmAxis = RmAxis_a[0];
+	ZmAxis = ZmAxis_a[0];
+}
+RmAxis += deltaRa;
+ZmAxis += deltaZa;
+return chk;
+}
+
+// ----------------- Xpoint -----------------------------------------------------------------------------------------------
+int M3DC1::Xpoint(double RX0, double ZX0)
+{
+int i, chk;
+double phi;
+RX[0] = RX0;
+ZX[0] = ZX0;
+chk = newton2D(RX[0],0,ZX[0]);
+
+for(i=1;i<Nphi;i++)
+{
+	RX[i] = RX[i-1];
+	ZX[i] = ZX[i-1];
+	phi = i*pi2/Nphi;
+	chk += newton2D(RX[i],phi,ZX[i]);
+}
+return chk;
+}
+
+// ----------- newton2D ---------------------------------------------------------------------------------------------------
+// J(1) = d2A/dR^2,  J(2) = d2A/dRdZ = J(3),  J(4) = d2A/dZ^2
+int M3DC1::newton2D(double& R, double phi, double& Z)	//0: ok		-1: Fehler
+{
+double dr,dz,det,length;
+double a, dadr, dadz, fr, fz;
+int i,chk;
+
+const int imax = 100;
+const double delta = 1e-10;
+
+// Vectors
+Array<double,1> J(Range(1,4));
+Array<double,1> dda(Range(1,4));
+
+// Search
+for(i=0;i<=imax;i++)
+{
+	chk = get_dA(R,phi,Z,a,dadr,dadz,dda);
+	if(chk != 0){ofs2 << "No convergence " << chk << endl; return -1;}
+
+	fr = a + R*dadr;
+	fz = R*dadz;
+
+	J(1) = 2*dadr + R*dda(1);
+	J(4) = R*dda(4);
+	J(2) = dadz + R*dda(2);
+	J(3) = J(2);
+
+	det = J(1)*J(4) - J(2)*J(3);
+	dr = (J(4)*fr - J(2)*fz)/det;
+	dz = (J(1)*fz - J(3)*fr)/det;
+
+	length = sqrt(dr*dr + dz*dz);
+	//if(i%20==0){cout << dr << "\t" << dt << "\t" << length <<  endl;	getchar();}
+	if(length < delta)
+	{
+		return 0;	// convergence
+	}
+
+	R -= dr;
+	Z -= dz;
+}
+
+ofs2 << "No convergence " <<  R << "\t" << Z << "\t" << dr << "\t" << dz << "\t" << length << endl;
+return -1;
+}
+
+// J(1) = d2A/dR^2,  J(2) = d2A/dRdZ = J(3),  J(4) = d2A/dZ^2
+int M3DC1::get_dA(double R, double phi, double Z, double& a, double& dadr, double& dadz, Array<double,1>& J)
+{
+const double h = 0.0001;
+int chk;
+double apdr,amdr,apdz,amdz;
+double apdrpdz,amdrpdz,apdrmdz,amdrmdz;
+double dummy;
+
+chk  = getA(R,phi,Z,dummy,a,dummy);
+chk += getA(R+h,phi,Z,dummy,apdr,dummy);
+chk += getA(R-h,phi,Z,dummy,amdr,dummy);
+chk += getA(R,phi,Z+h,dummy,apdz,dummy);
+chk += getA(R,phi,Z-h,dummy,amdz,dummy);
+chk += getA(R+h,phi,Z+h,dummy,apdrpdz,dummy);
+chk += getA(R-h,phi,Z+h,dummy,amdrpdz,dummy);
+chk += getA(R+h,phi,Z-h,dummy,apdrmdz,dummy);
+chk += getA(R-h,phi,Z-h,dummy,amdrmdz,dummy);
+if(chk != 0) return chk;
+
+dadr = 0.5*(apdr - amdr)/h;
+dadz = 0.5*(apdz - amdz)/h;
+
+J(1) = (apdr - 2*a + amdr)/h/h;	// d2A/dR^2
+J(4) = (apdz - 2*a + amdz)/h/h;	// d2A/dZ^2
+J(2) = 0.25*(apdrpdz - amdrpdz - apdrmdz + amdrmdz)/h/h;	// d2A/dRdZ
+J(3) = J(2);
+return 0;
 }
 
 //------------------------ End of Class M3DC1 -----------------------------------------------------------------------------

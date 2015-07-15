@@ -156,15 +156,15 @@ if(mpi_rank < 1) outputtest(filenameout);
 MPI::COMM_WORLD.Barrier();	// All Nodes wait for Master
 
 // Read EFIT-data
+double Raxis = 0, Zaxis = 0;
 #ifdef USE_XFIELD
 if(PAR.response_field == -3)
 {
 	VMEC vmec;
-	double Raxis,Zaxis,Raxisv,Zaxisv,v;
+	double Raxisv,Zaxisv,v;
 	if(mpi_rank < 1) cout << "Read VMEC file" << endl;
 	ofs2 << "Read VMEC file" << endl;
 	vmec.read("wout.nc");
-	Raxis = 0; Zaxis = 0;
 	for(i=0;i<40;i++)
 	{
 		v = i*pi2/40.0;
@@ -172,12 +172,24 @@ if(PAR.response_field == -3)
 		Raxis += Raxisv;
 		Zaxis += Zaxisv;
 	}
-	EQD.ReadData(EQD.Shot,EQD.Time,Raxis/40.0,Zaxis/40.0);
+	Raxis /= 40.0;
+	Zaxis /= 40.0;
 }
-else EQD.ReadData(EQD.Shot,EQD.Time);
-#else
-EQD.ReadData(EQD.Shot,EQD.Time);
 #endif
+
+#ifdef m3dc1
+if(PAR.response_field == 0 || PAR.response_field == 2)
+{
+	M3D.read_m3dc1sup();
+	M3D.open_source(PAR.response, PAR.response_field, -1);
+	Raxis = M3D.RmAxis;
+	Zaxis = M3D.ZmAxis;
+	//if(mpi_rank < 1) cout << Raxis << "\t" << Zaxis << endl;
+	M3D.unload();
+}
+#endif
+
+EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
 if(mpi_rank < 1) cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 

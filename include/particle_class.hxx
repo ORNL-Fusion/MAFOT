@@ -98,7 +98,7 @@ PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 // Member-Functions
 	double get_r();
 	double get_theta();
-	int get_psi(const double x1, const double x2, double& y);
+	int get_psi(const double x1, const double x2, double& y, double p = 0);
 	void set_Energy();
 	int mapit(const int itt,int MapDirection=1);
 	int mapstep(int MapDirection=1, int nstep=ilt);
@@ -265,34 +265,33 @@ return theta;
 }
 
 //-------------- get_psi -------------------------------------------------------------------------------------------------
-int PARTICLE::get_psi(const double x1, const double x2, double& y)
+// p is the toroidal angle in radiants
+int PARTICLE::get_psi(const double x1, const double x2, double& y, double p)
 {
 int i,chk;
-double p,dummy;
+double dummy;
 double coord[3], A_field[3];
 coord[0] = x1; coord[1] = 0; coord[2] = x2;
 
 if((PARr.response_field == 0) || (PARr.response_field == 2))
 {
 	#if defined(m3dc1)
-		if(M3D.nonlinear)	// in a non-linear run one has to evaluate the vector-potential at several toroidal locations and average it to get an (almost) axisymmetric psi
+		if(M3D.nonlinear)	// in a non-linear run one has to evaluate the vector-potential at each toroidal location
 		{
-			p = 0; chk = 0;
-			for(i=0;i<12;i++)	// use 12, beacuse it is dividable by 1,2,3 and 4
-			{
-				coord[1] = i*pi/6;
-				chk += fio_eval_field(M3D.ia, coord, A_field);
-				p += (A_field[1] * x1 - M3D.psi_axis) / (M3D.psi_lcfs - M3D.psi_axis);
-				//cout << chk << "\t" << coord[0] << "\t" << coord[1] << "\t" << coord[2] << "\t" << A_field[1] << "\t" << (A_field[1] * x1 - M3D.psi_axis) / (M3D.psi_lcfs - M3D.psi_axis) << endl;
-			}
-			y = p/12.0;
+			coord[0] += M3D.deltaRa;
+			coord[1] = modulo2pi(p);
+			coord[2] += M3D.deltaZa;
+			i = int(coord[1]*rTOd + 0.5)%360;
+			chk = fio_eval_field(M3D.ia, coord, A_field);
+			y = (A_field[1] * (x1 + M3D.deltaRa) - M3D.psi_axis_a[i]) / (M3D.psi_lcfs_a[i] - M3D.psi_axis_a[i]);
+			//if(y < 0 || y > 1.2) cout << chk << "\t" << x1 << "\t" << x2 << "\t" << p*rTOd << "\t" << coord[1]*rTOd << "\t" << i << "\t" << y << endl;
 		}
 		else	// vector-potential taken from equilibrium_only setup
 		{
 			chk = fio_eval_field(M3D.ia, coord, A_field);
-			y = (A_field[1] * x1 - M3D.psi_axis) / (M3D.psi_lcfs - M3D.psi_axis);
+			y = (A_field[1] * x1 - M3D.psi_axis_a[0]) / (M3D.psi_lcfs_a[0] - M3D.psi_axis_a[0]);
 		}
-		if(chk != 0) {chk = -1;}
+		if(chk != 0) {y = 1.2; chk = -1;}
 	#else
 		chk = EQDr.get_psi(x1,x2,y,dummy,dummy);
 	#endif
@@ -611,28 +610,27 @@ void PARTICLE::convertRZ(double theta, double r)
 // wall(Range(2,toEnd,2)) are all Z coordiantes of wall, same with lcfs
 void PARTICLE::getRZ(double x, double y, double& r, double &z)
 {
-if(y < pi/4 || y > 7*pi/4)
+if(y < pi/4 || y > 7*pi/4)	// LFS
 {
 	// z = z(r,theta)
 	if(x <= 1) r = bisec(x, y, EQDr.RmAxis, max(EQDr.lcfs(Range(1,toEnd,2)))+EQDr.dR, 0);
 	else r = bisec(x, y, EQDr.RmAxis, max(EQDr.wall(Range(1,toEnd,2))), 0);
 	z = (r - EQDr.RmAxis)*tan(y) + EQDr.ZmAxis;
 }
-if(y > 3*pi/4 && y < 5*pi/4)
+if(y > 3*pi/4 && y < 5*pi/4)	// HFS, lcfs and wall are close together anyway, so here no distinction necessary
 {
 	// z = z(r,theta)
-	if(x <= 1) r = bisec(x, y, min(EQDr.lcfs(Range(1,toEnd,2)))-EQDr.dR, EQDr.RmAxis, 0);
-	else r = bisec(x, y, min(EQDr.wall(Range(1,toEnd,2))), EQDr.RmAxis, 0);
+	r = bisec(x, y, min(EQDr.wall(Range(1,toEnd,2))), EQDr.RmAxis, 0);
 	z = (r - EQDr.RmAxis)*tan(y) + EQDr.ZmAxis;
 }
-if(y >= pi/4 && y <= 3*pi/4)
+if(y >= pi/4 && y <= 3*pi/4)	// top
 {
 	// r = r(z,theta)
 	if(x <= 1) z = bisec(x, y, EQDr.ZmAxis, max(EQDr.lcfs(Range(2,toEnd,2)))+EQDr.dZ, 1);
 	else z = bisec(x, y, EQDr.ZmAxis, max(EQDr.wall(Range(2,toEnd,2))), 1);
 	r = (z - EQDr.ZmAxis)/tan(y) + EQDr.RmAxis;
 }
-if(y >= 5*pi/4 && y <= 7*pi/4)
+if(y >= 5*pi/4 && y <= 7*pi/4)	// bottom
 {
 	// r = r(z,theta)
 	if(x <= 1) z = bisec(x, y, min(EQDr.lcfs(Range(2,toEnd,2))), EQDr.ZmAxis, 1);
@@ -654,6 +652,7 @@ int chk;
 double xo,xu,x;
 double r,z;
 double f;
+double dummy;
 const double eps = 1e-14;
 
 x = a;
@@ -777,11 +776,11 @@ for (k=1;k<=nstep;k++)
 	if(PARr.response_field == -2) SIES.get_su(yout(0),x,yout(1),psi,theta);
 	else
 	{
-		chk = get_psi(yout(0),yout(1),psi);
+		chk = get_psi(yout(0),yout(1),psi,x);
 		if (chk == -1) return -1;
 	}
 #else
-	chk = get_psi(yout(0),yout(1),psi);
+	chk = get_psi(yout(0),yout(1),psi,x);
 	if (chk == -1) return -1;
 #endif
 	if(psi < psimin) psimin = psi;
