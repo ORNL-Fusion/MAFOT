@@ -51,7 +51,7 @@ private:
 
 	// Member-Functions
 	void chk_linear(void);
-	int make_A(void);
+	int make_A(int response);
 	int make_psi(void);
 	int axis0(void);
 	int axis(void);
@@ -70,9 +70,6 @@ public:
 	double ZmAxis;				// average Z of magnetic axis
 	double psi_axis_a[Nphi];	// array of poloidal flux on axis for various toroidal angles
 	double psi_lcfs_a[Nphi];	// array of poloidal flux on lcfs for various toroidal angles
-
-	static const double deltaRa = 0.015;
-	static const double deltaZa = 0.0;//0.00326;
 
 	// Constructors
 	M3DC1();								// Default Constructor
@@ -275,7 +272,7 @@ for(i=1;i<nfiles;i++)
 }
 
 // prepare vector potential
-ierr3 = make_A();
+ierr3 = make_A(response);
 
 // get magnetic axis
 if(RmAxis == 0 || not nonlinear) ierr3 += axis();
@@ -299,17 +296,18 @@ return ierr+ierr2+ierr3;
 // ----------------- chk_linear -------------------------------------------------------------------------------------------
 void M3DC1::chk_linear(void)
 {
-	nonlinear = true;
+	nonlinear = false;
 }
 
 // ----------------- make_A -----------------------------------------------------------------------------------------------
-int M3DC1::make_A(void)
+int M3DC1::make_A(int response)
 {
 int ierr;
 
 // Set options appropriate to this source
 ierr = fio_get_options(isrc[0]);
-//if(not nonlinear) ierr += fio_set_int_option(FIO_PART, FIO_EQUILIBRIUM_ONLY);	// works only in a linear run, where equilibrium and perturbation are separable; in a non-linear run one has to evaluate the vector-potential at several toroidal locations and average it to get an (almost) axisymmetric psi
+ierr += fio_set_int_option(FIO_TIMESLICE, response);
+if(not nonlinear) ierr += fio_set_int_option(FIO_PART, FIO_EQUILIBRIUM_ONLY);	// works only in a linear run, where equilibrium and perturbation are separable; in a non-linear run one has to evaluate the vector-potential at several toroidal locations and average it to get an (almost) axisymmetric psi
 
 // set field handle
 ierr += fio_get_field(isrc[0], FIO_VECTOR_POTENTIAL, &ia);
@@ -393,8 +391,6 @@ else
 	RmAxis = RmAxis_a[0];
 	ZmAxis = ZmAxis_a[0];
 }
-RmAxis += deltaRa;
-ZmAxis += deltaZa;
 return chk;
 }
 

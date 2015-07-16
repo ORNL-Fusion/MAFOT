@@ -270,7 +270,7 @@ return false;
 //---------------- getBfield ----------------------------------------------------------------------------------------------
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
 {
-int i, chk;
+int i, chk, chk2;
 double psi,dpsidr,dpsidz;
 double F;
 double X,Y,bx,by,bz;
@@ -318,8 +318,8 @@ case 0: case 2: 	// M3D-C1: equilibrium field or total field
 		chk = fio_eval_field(M3D.imag[i], coord, b_field);
 		if(chk != 0) // field eval failed, probably outside of M3DC1 domain -> fall back to g-file equilibrium
 		{
-			chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
-			if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
+			chk2 = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
+			if(chk2 == -1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
 
 			// Equilibrium field
 			F = EQD.get_Fpol(psi);

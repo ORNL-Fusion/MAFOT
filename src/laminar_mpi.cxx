@@ -122,8 +122,6 @@ if(mpi_rank < 1) cout << "Read Parameterfile " << parfilename << endl;
 ofs2 << "Read Parameterfile " << parfilename << endl;
 IO PAR(EQD,parfilename,11,mpi_rank);
 
-ofs2 << "ok" << endl;
-
 // Read EFIT-data
 double Raxis = 0, Zaxis = 0;
 #ifdef USE_XFIELD

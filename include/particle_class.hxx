@@ -278,13 +278,10 @@ if((PARr.response_field == 0) || (PARr.response_field == 2))
 	#if defined(m3dc1)
 		if(M3D.nonlinear)	// in a non-linear run one has to evaluate the vector-potential at each toroidal location
 		{
-			coord[0] += M3D.deltaRa;
 			coord[1] = modulo2pi(p);
-			coord[2] += M3D.deltaZa;
 			i = int(coord[1]*rTOd + 0.5)%360;
 			chk = fio_eval_field(M3D.ia, coord, A_field);
-			y = (A_field[1] * (x1 + M3D.deltaRa) - M3D.psi_axis_a[i]) / (M3D.psi_lcfs_a[i] - M3D.psi_axis_a[i]);
-			//if(y < 0 || y > 1.2) cout << chk << "\t" << x1 << "\t" << x2 << "\t" << p*rTOd << "\t" << coord[1]*rTOd << "\t" << i << "\t" << y << endl;
+			y = (A_field[1] * x1 - M3D.psi_axis_a[i]) / (M3D.psi_lcfs_a[i] - M3D.psi_axis_a[i]);
 		}
 		else	// vector-potential taken from equilibrium_only setup
 		{
