@@ -6658,7 +6658,7 @@ def main():
 		LD_LIBRARY_PATH = os.environ['LD_LIBRARY_PATH']
 		LD_LIBRARY_PATH += ':/opt/intel/composerxe-2011.0.084/compiler/lib/intel64:/opt/intel/composerxe-2011.0.084/mpirt/lib/intel64'
 		LD_LIBRARY_PATH += ':/opt/intel/composerxe-2011.0.084/mkl/lib/intel64'
-		LD_LIBRARY_PATH += ':/home/wingen/lib/64/blitz/lib:/home/wingen/lib/64:/home/wingen/lib/64/hdf5/lib'
+		LD_LIBRARY_PATH += ':/home/wingen/lib/64/blitz/lib:/home/wingen/lib/64:/home/wingen/lib/64/hdf5/lib:/home/wingen/lib/64/m3dc1/lib'
 		os.environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
 		if not os.path.exists(HOME + '/work'):
 			os.makedirs(HOME + '/work')

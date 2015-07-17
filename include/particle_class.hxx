@@ -265,7 +265,7 @@ return theta;
 }
 
 //-------------- get_psi -------------------------------------------------------------------------------------------------
-// p is the toroidal angle in radiants
+// p is the toroidal angle in radiants - IGNORED for now
 int PARTICLE::get_psi(const double x1, const double x2, double& y, double p)
 {
 int i,chk;
@@ -276,12 +276,18 @@ coord[0] = x1; coord[1] = 0; coord[2] = x2;
 if((PARr.response_field == 0) || (PARr.response_field == 2))
 {
 	#if defined(m3dc1)
-		if(M3D.nonlinear)	// in a non-linear run one has to evaluate the vector-potential at each toroidal location
+		if(M3D.nonlinear)	// in a non-linear run one has to evaluate the vector-potential at various toroidal locations and average
 		{
-			coord[1] = modulo2pi(p);
-			i = int(coord[1]*rTOd + 0.5)%360;
-			chk = fio_eval_field(M3D.ia, coord, A_field);
-			y = (A_field[1] * x1 - M3D.psi_axis_a[i]) / (M3D.psi_lcfs_a[i] - M3D.psi_axis_a[i]);
+			//coord[1] = modulo2pi(p);
+			//i = int(coord[1]*rTOd + 0.5)%360;
+			chk = 0; y = 0;
+			for(i=0;i<M3D.Np;i++)
+			{
+				coord[1] = i*pi2/M3D.Np;
+				chk += fio_eval_field(M3D.ia, coord, A_field);
+				y += (A_field[1] * x1 - M3D.psi_axis_a[i]) / (M3D.psi_lcfs_a[i] - M3D.psi_axis_a[i]);
+			}
+			y /= M3D.Np;
 		}
 		else	// vector-potential taken from equilibrium_only setup
 		{

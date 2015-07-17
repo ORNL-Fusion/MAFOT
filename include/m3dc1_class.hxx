@@ -38,7 +38,7 @@ class M3DC1
 private:
 	// Parameter
 	static const int nfiles_max = 10;	// max number of files = 10
-	static const int Nphi = 360;		// number of toroidal angles to evaluate; use 1 deg steps
+	static const int Nphi = 12;			// number of toroidal angles to evaluate
 
 	// Member Variables
 	int isrc[nfiles_max];				// handle for sources
@@ -296,7 +296,7 @@ return ierr+ierr2+ierr3;
 // ----------------- chk_linear -------------------------------------------------------------------------------------------
 void M3DC1::chk_linear(void)
 {
-	nonlinear = false;
+	nonlinear = true;
 }
 
 // ----------------- make_A -----------------------------------------------------------------------------------------------
