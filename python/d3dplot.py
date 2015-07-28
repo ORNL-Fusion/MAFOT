@@ -301,6 +301,10 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			myticks[-1] = b.max()
 		else:
 			myticks[0] = b.min()
+			
+	if 'Anaconda' in sys.version:
+		if(what == 'psimin'): 
+			myticks = myticks[myticks <= b.max()]
 	
 	myticks[np.abs(myticks) < 1e-10] = 0
 	
