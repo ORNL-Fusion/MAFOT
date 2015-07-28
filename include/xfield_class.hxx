@@ -58,7 +58,7 @@ public:
 	XFIELD& operator =(const XFIELD& spec);	// Operator =
 
 	// Member-Functions
-	void read(LA_STRING filename, int make_periodic = 1);	// read file with B-field on 3-D grid (R,phi,Z); make_periodic = 1: phi = 2pi plane is missing; make_periodic = -1: phi = 0 plane is missing
+	void read(LA_STRING filename, int make_periodic = 0);	// read file with B-field on 3-D grid (R,phi,Z); make_periodic = 1: phi = 2pi plane is missing; make_periodic = -1: phi = 0 plane is missing;  0: auto-detect
 	void get_B(double R, double phi, double Z, double& br, double& bphi, double& bz);		// evaluate B at any location (R,phi,Z)
 
 }; //end of class
@@ -189,11 +189,19 @@ BR.resize(NR, NZ, Np);
 BPHI.resize(NR, NZ, Np);
 BZ.resize(NR, NZ, Np);
 
+// try to auto-detect missing phi plane
+int N = data.rows();
+if(make_periodic == 0)
+{
+	if((data(1,2) > 0) && (fabs(data(N,2) - pi2) < 1e-12)) make_periodic = -1;
+	if((data(1,2) == 0) && (data(N,2) < pi2 - 1e-12)) make_periodic = 1;
+}
+
 // Read data
 int iStart;
 if(make_periodic == 1) iStart = 1; // start at 1 to Np-1, since Np is one larger; first point = last point with last point missing
 else if(make_periodic == -1) iStart = 2; // start at 2 to Np, since Np is one larger; first point = last point with first point missing
-else {cout << "XFIELD: Unkown option" << endl; EXIT;}
+else {cout << "XFIELD: toroidal field periodicity cannot be determined" << endl; EXIT;}
 
 int n = 1;
 for(i=iStart;i<=iStart + Np - 2;i++)
