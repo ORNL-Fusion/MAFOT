@@ -705,7 +705,6 @@ class dtplot_gui:
 
 	# --- Function, executed when Button is pressed ---
 	def run_funct(self):
-		"""
 		if(self.Shot.get() == '') | (self.Time.get() == ''):
 			print 'You must enter a Shot # and a Time'
 			return
@@ -731,8 +730,7 @@ class dtplot_gui:
 			call(MPIRUN + ' -n ' + str(int(self.nproc.get())) + ' dtplot_mpi _plot.dat ' + self.tag.get() + ' &', shell = True)
 			#call('dtplot _plot.dat ' + self.tag.get() + ' &', shell = True)		
 		if chk: os.chdir(cwd)
-		"""
-		print 'response =', self.response.get()
+
 
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, nproc, tag):
