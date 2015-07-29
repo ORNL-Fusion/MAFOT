@@ -46,11 +46,19 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.6
-GUI 1.2
+MAFOT 3.61
+GUI 1.3
 
 Version Notes: 
 ----------------
+MAFOT 3.61 -- July 2015
+- readfile now counts rows and allocates total array at once
+	-> XFIELD read in works now with very large files
+- M3DC1 response > 1 now possible -> reads proper time_xxx.h5
+
+GUI 1.3 -- July 2015
+- new entry field added for M3DC1 response_time > 1
+
 MAFOT 3.6 -- July 2015
 - M3DC1 interface is now a separate class
 

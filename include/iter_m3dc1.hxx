@@ -208,7 +208,7 @@ Zq = int(vec[15]);
 response = int(vec[18]);
 response_field = int(vec[19]);
 
-if(vec[18]>1) {cout << "Plasma Response Parameters are missing in file -> Abort!" << endl; EXIT;}
+//if(vec[18]>1) {cout << "Plasma Response Parameters are missing in file -> Abort!" << endl; EXIT;}
 
 }
 
@@ -223,7 +223,7 @@ out << "# Shot: " << EQDr.Shot << endl;
 out << "# Time: " << EQDr.Time << endl;
 out << "#-------------------------------------------------" << endl;
 out << "### M3D-C1:" << endl;
-out << "# Plasma response (0=no, 1=yes): " << response << endl;
+out << "# Plasma response (0=no, >1=yes): " << response << endl;
 out << "# Field (-1=M3D-C1 off, 0=Eq, 1=I-coil, 2=both): " << response_field << endl;
 out << "#-------------------------------------------------" << endl;
 out << "### Switches:" << endl;

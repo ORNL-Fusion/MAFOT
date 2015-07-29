@@ -422,6 +422,8 @@ class Common_gui:
 # --- dtplot --------------------------------------------------------------------------------------------------
 class dtplot_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M
 		self.Shot = M.Shot
@@ -562,13 +564,20 @@ class dtplot_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -673,6 +682,16 @@ class dtplot_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[9]))
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.sigma.set(int(data[16]))
 		self.charge.set(int(data[17]))
 		self.Ekin.set(repr(data[18]))
@@ -686,6 +705,7 @@ class dtplot_gui:
 
 	# --- Function, executed when Button is pressed ---
 	def run_funct(self):
+		"""
 		if(self.Shot.get() == '') | (self.Time.get() == ''):
 			print 'You must enter a Shot # and a Time'
 			return
@@ -711,7 +731,8 @@ class dtplot_gui:
 			call(MPIRUN + ' -n ' + str(int(self.nproc.get())) + ' dtplot_mpi _plot.dat ' + self.tag.get() + ' &', shell = True)
 			#call('dtplot _plot.dat ' + self.tag.get() + ' &', shell = True)		
 		if chk: os.chdir(cwd)
-
+		"""
+		print 'response =', self.response.get()
 
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, nproc, tag):
@@ -771,6 +792,8 @@ class dtplot_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 #  			self.response_R1.configure(state=tk.DISABLED)
 #  			self.response_R2.configure(state=tk.DISABLED)
 # 			self.response_label.configure(state=tk.DISABLED)
@@ -788,6 +811,8 @@ class dtplot_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
 # 			self.response_R1.configure(state=tk.NORMAL)
 # 			self.response_R2.configure(state=tk.NORMAL)
 # 			self.response_label.configure(state=tk.NORMAL)
@@ -807,6 +832,53 @@ class dtplot_gui:
 			self.create_R2.configure(text = 'psi_n')
 			self.create_R3.configure(state=tk.NORMAL)
 			
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
 	def show_particle_params(self):
@@ -864,7 +936,7 @@ class dtplot_gui:
 
 			f.write('phistart(deg)=\t' + self.phistart.get() + '\n')
 			f.write('MapDirection=\t' + str(self.MapDirection.get()) + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t0\n')
 			
@@ -888,6 +960,8 @@ class dtplot_gui:
 # --- dtfix ---------------------------------------------------------------------------------------------------
 class dtfix_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M	
 		self.Shot = M.Shot
@@ -1025,13 +1099,20 @@ class dtfix_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -1118,6 +1199,16 @@ class dtfix_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[9])); 
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.sigma.set(int(data[16])); 
 		self.charge.set(int(data[17])); 
 		self.Ekin.set(repr(data[18])); 
@@ -1211,6 +1302,8 @@ class dtfix_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 		else:
 			row = self.row_M3DC1
 			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
@@ -1221,7 +1314,56 @@ class dtfix_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
 
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
 	def show_particle_params(self):
@@ -1261,7 +1403,7 @@ class dtfix_gui:
 			f.write('N=\t' + str(N) + '\n')
 			f.write('phistart(deg)=\t' + self.phistart.get() + '\n')
 			f.write('MapDirection=\t' + str(self.MapDirection) + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t0\n')			
 			f.write('createPoints(0=setr,3=setpsi,5=setR)=\t0\n')			
@@ -1281,6 +1423,8 @@ class dtfix_gui:
 # --- dtman ---------------------------------------------------------------------------------------------------
 class dtman_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M
 		self.Shot = M.Shot
@@ -1402,13 +1546,20 @@ class dtman_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -1503,6 +1654,16 @@ class dtman_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[9])); 
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.sigma.set(int(data[16])); 
 		self.charge.set(int(data[17])); 
 		self.Ekin.set(repr(data[18])); 
@@ -1596,6 +1757,8 @@ class dtman_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 		else:
 			row = self.row_M3DC1
 			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
@@ -1606,7 +1769,56 @@ class dtman_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
 
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
 	def show_particle_params(self):
@@ -1646,7 +1858,7 @@ class dtman_gui:
 			f.write('N=\t' + str(self.N) + '\n')
 			f.write('phistart(deg)=\t' + self.phistart.get() + '\n')
 			f.write('MapDirection=\t' + str(self.MapDirection.get()) + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t0\n')			
 			f.write('createPoints(0=setr,3=setpsi,5=setR)=\t0\n')			
@@ -1666,6 +1878,8 @@ class dtman_gui:
 # --- dtfoot --------------------------------------------------------------------------------------------------
 class dtfoot_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M
 		self.Shot = M.Shot
@@ -1802,13 +2016,20 @@ class dtfoot_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -1917,6 +2138,16 @@ class dtfoot_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[9]))
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.sigma.set(int(data[16]))
 		self.charge.set(int(data[17]))
 		self.Ekin.set(repr(data[18]))
@@ -2001,6 +2232,8 @@ class dtfoot_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 		else:
 			row = self.row_M3DC1
 			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
@@ -2011,6 +2244,58 @@ class dtfoot_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
+
+
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -2050,7 +2335,7 @@ class dtfoot_gui:
 			f.write('Nt=\t' + self.Ny.get() + '\n')
 			f.write('phistart(deg)=\t0\n')
 			f.write('MapDirection=\t' + str(self.MapDirection.get()) + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t' + str(self.TargetFlag.get()) + '\n')			
 			f.write('createPoints(2=target)=\t2\n')	
@@ -2070,6 +2355,8 @@ class dtfoot_gui:
 # --- dtlam ---------------------------------------------------------------------------------------------------
 class dtlam_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M
 		self.Shot = M.Shot
@@ -2208,13 +2495,20 @@ class dtlam_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -2320,6 +2614,16 @@ class dtlam_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[9])); 
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.sigma.set(int(data[16])); 
 		self.charge.set(int(data[17])); 
 		self.Ekin.set(repr(data[18])); 
@@ -2437,6 +2741,8 @@ class dtlam_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 		else:
 			row = self.row_M3DC1
 			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
@@ -2447,6 +2753,8 @@ class dtlam_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
 		if(self.selectField.get() == -2):
 			self.createFlag.set('psi')
 			self.refresh_grid_labels()
@@ -2456,6 +2764,56 @@ class dtlam_gui:
 			self.refresh_grid_labels()
 			self.create_R1.configure(state=tk.NORMAL)
 			self.create_R2.configure(text = 'psi_n')
+
+
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -2507,7 +2865,7 @@ class dtlam_gui:
 
 			f.write('phistart(deg)=\t' + self.phistart.get() + '\n')
 			f.write('MapDirection=\t' + str(self.MapDirection.get()) + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t0\n')
 			
@@ -2531,6 +2889,8 @@ class dtlam_gui:
 # --- iterplot ------------------------------------------------------------------------------------------------
 class iterplot_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M
 		self.Shot = M.Shot
@@ -2661,13 +3021,20 @@ class iterplot_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -2770,6 +3137,16 @@ class iterplot_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[18]))
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.sigma.set(int(data[14]))
 		self.charge.set(int(data[15]))
 		self.Ekin.set(repr(data[16]))
@@ -2854,6 +3231,8 @@ class iterplot_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 		else:
 			row = self.row_M3DC1
 			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
@@ -2864,6 +3243,8 @@ class iterplot_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
 		if(self.selectField.get() == -2):
 			self.createFlag.set('psi')
 			self.refresh_grid_labels()
@@ -2875,6 +3256,55 @@ class iterplot_gui:
 			self.create_R1.configure(state=tk.NORMAL)
 			self.create_R2.configure(text = 'psi_n')
 			self.create_R3.configure(state=tk.NORMAL)
+
+
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -2946,7 +3376,7 @@ class iterplot_gui:
 			f.write('PartileCharge(-1=electrons,>=1=ions)=\t' + str(self.charge.get()) + '\n')
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
@@ -2956,6 +3386,8 @@ class iterplot_gui:
 # --- iterfix -------------------------------------------------------------------------------------------------
 class iterfix_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M	
 		self.Shot = M.Shot
@@ -3083,13 +3515,20 @@ class iterfix_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -3174,7 +3613,16 @@ class iterfix_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[18]))
-		self.sigma.set(int(data[14]))
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.charge.set(int(data[15]))
 		self.Ekin.set(repr(data[16]))
 		self.Lambda.set(repr(data[17]))
@@ -3267,6 +3715,8 @@ class iterfix_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 		else:
 			row = self.row_M3DC1
 			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
@@ -3277,6 +3727,57 @@ class iterfix_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
+
+
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -3326,7 +3827,7 @@ class iterfix_gui:
 			f.write('PartileCharge(-1=electrons,>=1=ions)=\t' + str(self.charge.get()) + '\n')
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
@@ -3336,6 +3837,8 @@ class iterfix_gui:
 # --- iterman -------------------------------------------------------------------------------------------------
 class iterman_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M
 		self.Shot = M.Shot
@@ -3447,13 +3950,20 @@ class iterman_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -3546,6 +4056,16 @@ class iterman_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[18]))
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.sigma.set(int(data[14]))
 		self.charge.set(int(data[15]))
 		self.Ekin.set(repr(data[16]))
@@ -3639,6 +4159,8 @@ class iterman_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 		else:
 			row = self.row_M3DC1
 			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
@@ -3649,6 +4171,57 @@ class iterman_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
+
+
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -3698,7 +4271,7 @@ class iterman_gui:
 			f.write('PartileCharge(-1=electrons,>=1=ions)=\t' + str(self.charge.get()) + '\n')
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
@@ -3708,6 +4281,8 @@ class iterman_gui:
 # --- iterfoot ------------------------------------------------------------------------------------------------
 class iterfoot_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M
 		self.Shot = M.Shot
@@ -3832,13 +4407,20 @@ class iterfoot_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -3939,6 +4521,16 @@ class iterfoot_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[18]))
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.sigma.set(int(data[14]))
 		self.charge.set(int(data[15]))
 		self.Ekin.set(repr(data[16]))
@@ -4014,6 +4606,8 @@ class iterfoot_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 		else:
 			row = self.row_M3DC1
 			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
@@ -4024,6 +4618,57 @@ class iterfoot_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
+
+
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -4072,7 +4717,7 @@ class iterfoot_gui:
 			f.write('PartileCharge(-1=electrons,>=1=ions)=\t' + str(self.charge.get()) + '\n')
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
@@ -4082,6 +4727,8 @@ class iterfoot_gui:
 # --- iterlam -------------------------------------------------------------------------------------------------
 class iterlam_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M
 		self.Shot = M.Shot
@@ -4210,13 +4857,20 @@ class iterlam_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -4320,6 +4974,16 @@ class iterlam_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[18]))
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.sigma.set(int(data[14]))
 		self.charge.set(int(data[15]))
 		self.Ekin.set(repr(data[16]))
@@ -4437,6 +5101,8 @@ class iterlam_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 		else:
 			row = self.row_M3DC1
 			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
@@ -4447,6 +5113,8 @@ class iterlam_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
 		if(self.selectField.get() == -2):
 			self.createFlag.set('psi')
 			self.refresh_grid_labels()
@@ -4456,6 +5124,55 @@ class iterlam_gui:
 			self.refresh_grid_labels()
 			self.create_R1.configure(state=tk.NORMAL)
 			self.create_R2.configure(text = 'psi_n')
+
+
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -4519,7 +5236,7 @@ class iterlam_gui:
 			f.write('PartileCharge(-1=electrons,>=1=ions)=\t' + str(self.charge.get()) + '\n')
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
@@ -4530,6 +5247,8 @@ class iterlam_gui:
 # --- nstxplot --------------------------------------------------------------------------------------------------
 class nstxplot_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M
 		self.Shot = M.Shot
@@ -4660,13 +5379,20 @@ class nstxplot_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -4769,6 +5495,16 @@ class nstxplot_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[18]))
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.sigma.set(int(data[14]))
 		self.charge.set(int(data[15]))
 		self.Ekin.set(repr(data[16]))
@@ -4867,6 +5603,8 @@ class nstxplot_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 #  			self.response_R1.configure(state=tk.DISABLED)
 #  			self.response_R2.configure(state=tk.DISABLED)
 # 			self.response_label.configure(state=tk.DISABLED)
@@ -4884,6 +5622,8 @@ class nstxplot_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
 # 			self.response_R1.configure(state=tk.NORMAL)
 # 			self.response_R2.configure(state=tk.NORMAL)
 # 			self.response_label.configure(state=tk.NORMAL)
@@ -4903,6 +5643,55 @@ class nstxplot_gui:
 			self.create_R2.configure(text = 'psi_n')
 			self.create_R3.configure(state=tk.NORMAL)
 			
+
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
+
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
 	def show_particle_params(self):
@@ -4973,7 +5762,7 @@ class nstxplot_gui:
 			f.write('PartileCharge(-1=electrons,>=1=ions)=\t' + str(self.charge.get()) + '\n')
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
@@ -4983,6 +5772,8 @@ class nstxplot_gui:
 # --- nstxfix ---------------------------------------------------------------------------------------------------
 class nstxfix_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M	
 		self.Shot = M.Shot
@@ -5110,13 +5901,20 @@ class nstxfix_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -5201,6 +5999,16 @@ class nstxfix_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[18])); 
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.sigma.set(int(data[14])); 
 		self.charge.set(int(data[15])); 
 		self.Ekin.set(repr(data[16])); 
@@ -5294,6 +6102,8 @@ class nstxfix_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 		else:
 			row = self.row_M3DC1
 			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
@@ -5304,6 +6114,57 @@ class nstxfix_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
+
+
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -5353,7 +6214,7 @@ class nstxfix_gui:
 			f.write('PartileCharge(-1=electrons,>=1=ions)=\t' + str(self.charge.get()) + '\n')
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
@@ -5363,6 +6224,8 @@ class nstxfix_gui:
 # --- nstxman ---------------------------------------------------------------------------------------------------
 class nstxman_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M
 		self.Shot = M.Shot
@@ -5474,13 +6337,20 @@ class nstxman_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -5573,6 +6443,16 @@ class nstxman_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[18])); 
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.sigma.set(int(data[14])); 
 		self.charge.set(int(data[15])); 
 		self.Ekin.set(repr(data[16])); 
@@ -5666,6 +6546,8 @@ class nstxman_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 		else:
 			row = self.row_M3DC1
 			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
@@ -5676,6 +6558,57 @@ class nstxman_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
+
+
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -5725,7 +6658,7 @@ class nstxman_gui:
 			f.write('PartileCharge(-1=electrons,>=1=ions)=\t' + str(self.charge.get()) + '\n')
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
@@ -5735,6 +6668,8 @@ class nstxman_gui:
 # --- nstxfoot ------------------------------------------------------------------------------------------------
 class nstxfoot_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M
 		self.Shot = M.Shot
@@ -5863,13 +6798,20 @@ class nstxfoot_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -5992,6 +6934,16 @@ class nstxfoot_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[18]))
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.sigma.set(int(data[14]))
 		self.charge.set(int(data[15]))
 		self.Ekin.set(repr(data[16]))
@@ -6085,6 +7037,8 @@ class nstxfoot_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 		else:
 			row = self.row_M3DC1
 			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
@@ -6095,6 +7049,57 @@ class nstxfoot_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
+
+
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -6160,7 +7165,7 @@ class nstxfoot_gui:
 			f.write('PartileCharge(-1=electrons,>=1=ions)=\t' + str(self.charge.get()) + '\n')
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
@@ -6170,6 +7175,8 @@ class nstxfoot_gui:
 # --- nstxlam ---------------------------------------------------------------------------------------------------
 class nstxlam_gui:
 	def __init__(self, frame, M):
+		okayCommand = frame.register(self.okay_response)
+		notOkayCommand = frame.register(self.notokay_response)
 		
 		self.M = M
 		self.Shot = M.Shot
@@ -6298,13 +7305,20 @@ class nstxlam_gui:
 		self.useM3DC1_label = tk.Label(frame, text = "use M3DC1")
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.response = tk.IntVar(); row += 1
-		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.response, value = 0)
+		self.resp = tk.IntVar(); self.response = tk.IntVar(); row += 1
+		self.response_R1 = tk.Radiobutton(frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.response, value = 1)
+		self.response_R2 = tk.Radiobutton(frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.response_label = tk.Label(frame, text = "Plasma response")
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.nresp = tk.StringVar(); self.nresp.set('0');
+		self.nresp_entry = tk.Entry(frame, width = 4, textvariable = self.nresp, validate = 'all',
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
+		self.nresp_label = tk.Label(frame, text = "       Time")
+		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 		
 		# --- separator ---
 		row += 1
@@ -6408,6 +7422,16 @@ class nstxlam_gui:
 			self.useM3DC1.set(0)
 			
 		self.response.set(int(data[18])); 
+		if self.response.get() == 0: 
+			self.resp.set(0)
+			self.nresp.set('0')
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+		else:
+			self.resp.set(1)
+			self.nresp.set(str(self.response.get()))
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
 		self.sigma.set(int(data[14])); 
 		self.charge.set(int(data[15])); 
 		self.Ekin.set(repr(data[16])); 
@@ -6525,6 +7549,8 @@ class nstxlam_gui:
 			self.response_R1.grid_forget()
 			self.response_R2.grid_forget()
 			self.response_label.grid_forget()
+			self.nresp_entry.grid_forget()
+			self.nresp_label.grid_forget()
 		else:
 			row = self.row_M3DC1
 			self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
@@ -6535,6 +7561,8 @@ class nstxlam_gui:
 			self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E, padx=5, pady=5)
 			self.response_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_entry.grid(column = 4, row = row, sticky = tk.E, padx=5, pady=5)
+			self.nresp_label.grid(column = 4, row = row, sticky = tk.W, padx=5, pady=5)
 		if(self.selectField.get() == -2):
 			self.createFlag.set('psi')
 			self.refresh_grid_labels()
@@ -6544,6 +7572,55 @@ class nstxlam_gui:
 			self.refresh_grid_labels()
 			self.create_R1.configure(state=tk.NORMAL)
 			self.create_R2.configure(text = 'psi_n')
+
+
+	# --- set response variable ---
+	def make_response(self):
+		if(self.resp.get() == 0):
+			self.nresp_entry.configure(state=tk.DISABLED)
+			self.nresp_label.configure(state=tk.DISABLED)
+			self.response.set(0)
+			self.nresp.set('0')
+		else:
+			self.nresp_entry.configure(state=tk.NORMAL)
+			self.nresp_label.configure(state=tk.NORMAL)
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			nresp = 1
+			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
+				nresp += 1
+				
+			self.nresp.set(str(nresp - 1))
+			self.response.set(int(self.nresp.get()))
+
+	# --- validity check of response ---
+	# returns True if time_xxx.h5 file exists
+	# else returns False
+	def okay_response(self, nresp):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		try: 
+			nresp = int(nresp)
+		except: 
+			if not nresp:
+				return True	# empty string
+			else: 
+				return False
+		
+		if os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5'):
+			if nresp == 0: self.resp.set(0)
+			else: self.resp.set(1)
+			self.response.set(nresp)
+			return True
+		elif nresp == 0: 
+			return True	# not even time_000.h5 exists
+		else: 
+			return False
+
+	# sets response to highest, if okay_response == False
+	def notokay_response(self):
+		print 'invalid Entry: requested time_xxx.h5 file not found'		
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -6607,7 +7684,7 @@ class nstxlam_gui:
 			f.write('PartileCharge(-1=electrons,>=1=ions)=\t' + str(self.charge.get()) + '\n')
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
-			f.write('PlasmaResponse(0=no,1=yes)=\t' + str(self.response.get()) + '\n')
+			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
@@ -6627,8 +7704,8 @@ class info_gui:
 		self.info_text.grid(column = 1, row = row, columnspan = 5, padx=10, pady=10); 
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
-		'MAFOT Version 3.6 \n'
-		'GUI Version 1.2 \n'
+		'MAFOT Version 3.61 \n'
+		'GUI Version 1.3 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'

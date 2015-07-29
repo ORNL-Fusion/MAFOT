@@ -175,7 +175,7 @@ find(indices, data(all,2) == data(1,2));	int NRNZ = indices.size();
 find(indices, data(all,3) == data(1,3));	int NRNP = indices.size();
 find(indices, data(all,1) == data(1,1));	int NPNZ = indices.size();
 
-NZ = int(round(sqrt(NRNZ * NPNZ / double(NRNP))));
+NZ = int(round(sqrt(double(NRNZ) * double(NPNZ) / double(NRNP))));
 NR = NRNZ / NZ;
 Np = NPNZ / NZ;
 ofs2 << "XFIELD dimensions: NR = " << NR << "\t Nphi = " << Np << "\t NZ = " << NZ << endl;
