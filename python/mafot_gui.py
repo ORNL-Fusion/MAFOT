@@ -841,8 +841,7 @@ class dtplot_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -851,11 +850,27 @@ class dtplot_gui:
 			self.response.set(int(self.nresp.get()))
 
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -876,7 +891,7 @@ class dtplot_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
 	def show_particle_params(self):
@@ -1326,8 +1341,7 @@ class dtfix_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -1336,11 +1350,27 @@ class dtfix_gui:
 			self.response.set(int(self.nresp.get()))
 
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -1361,7 +1391,7 @@ class dtfix_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
 	def show_particle_params(self):
@@ -1781,8 +1811,7 @@ class dtman_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -1791,11 +1820,27 @@ class dtman_gui:
 			self.response.set(int(self.nresp.get()))
 
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -1816,7 +1861,7 @@ class dtman_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
 	def show_particle_params(self):
@@ -2257,8 +2302,7 @@ class dtfoot_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -2266,13 +2310,28 @@ class dtfoot_gui:
 			self.nresp.set(str(nresp - 1))
 			self.response.set(int(self.nresp.get()))
 
-
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -2293,7 +2352,7 @@ class dtfoot_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -2775,8 +2834,7 @@ class dtlam_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -2784,13 +2842,28 @@ class dtlam_gui:
 			self.nresp.set(str(nresp - 1))
 			self.response.set(int(self.nresp.get()))
 
-
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -2811,7 +2884,7 @@ class dtlam_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -3267,8 +3340,7 @@ class iterplot_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -3277,11 +3349,27 @@ class iterplot_gui:
 			self.response.set(int(self.nresp.get()))
 
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -3302,7 +3390,7 @@ class iterplot_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -3740,8 +3828,7 @@ class iterfix_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -3750,11 +3837,27 @@ class iterfix_gui:
 			self.response.set(int(self.nresp.get()))
 
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -3775,7 +3878,7 @@ class iterfix_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -4184,8 +4287,7 @@ class iterman_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -4194,11 +4296,27 @@ class iterman_gui:
 			self.response.set(int(self.nresp.get()))
 
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -4219,7 +4337,7 @@ class iterman_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -4631,8 +4749,7 @@ class iterfoot_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -4641,11 +4758,27 @@ class iterfoot_gui:
 			self.response.set(int(self.nresp.get()))
 
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -4666,7 +4799,7 @@ class iterfoot_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -5135,8 +5268,7 @@ class iterlam_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -5145,11 +5277,27 @@ class iterlam_gui:
 			self.response.set(int(self.nresp.get()))
 
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -5170,7 +5318,7 @@ class iterlam_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -5653,8 +5801,7 @@ class nstxplot_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -5663,11 +5810,27 @@ class nstxplot_gui:
 			self.response.set(int(self.nresp.get()))
 
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -5688,7 +5851,7 @@ class nstxplot_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -6127,8 +6290,7 @@ class nstxfix_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -6137,11 +6299,27 @@ class nstxfix_gui:
 			self.response.set(int(self.nresp.get()))
 
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -6162,7 +6340,7 @@ class nstxfix_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -6571,8 +6749,7 @@ class nstxman_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -6581,11 +6758,27 @@ class nstxman_gui:
 			self.response.set(int(self.nresp.get()))
 
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -6606,7 +6799,7 @@ class nstxman_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -7062,8 +7255,7 @@ class nstxfoot_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -7072,11 +7264,27 @@ class nstxfoot_gui:
 			self.response.set(int(self.nresp.get()))
 
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -7097,7 +7305,7 @@ class nstxfoot_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
@@ -7583,8 +7791,7 @@ class nstxlam_gui:
 			self.nresp_entry.configure(state=tk.NORMAL)
 			self.nresp_label.configure(state=tk.NORMAL)
 			
-			path = os.path.abspath(self.path.get())
-			if not (path[-1] == '/'): path += '/'
+			path = self.path_to_m3dc1()
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
@@ -7593,11 +7800,27 @@ class nstxlam_gui:
 			self.response.set(int(self.nresp.get()))
 
 	# --- validity check of response ---
+	def path_to_m3dc1(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if os.path.isfile(path + 'm3dc1sup.in'):
+			with open(path + 'm3dc1sup.in') as f:
+				input = f.readlines()
+			c1 = input[0].strip().split()[0]
+			idx = c1[::-1].find('/')	# returns location of last '/' in c1 or -1 if not found
+			if(idx == -1): 
+				c1path = path
+			else:
+				idx *= -1
+				c1path = c1[0:idx]	# path with a final '/'
+				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
+			return c1path
+		else: return path
+		
 	# returns True if time_xxx.h5 file exists
 	# else returns False
 	def okay_response(self, nresp):
-		path = os.path.abspath(self.path.get())
-		if not (path[-1] == '/'): path += '/'
+		path = self.path_to_m3dc1()
 		try: 
 			nresp = int(nresp)
 		except: 
@@ -7618,7 +7841,7 @@ class nstxlam_gui:
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found'		
+		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
 
 	
 	# --- Show or Hide Particle Options, depending on sigma ---
