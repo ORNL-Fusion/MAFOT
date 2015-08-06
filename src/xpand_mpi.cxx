@@ -83,7 +83,6 @@ int main(int argc, char *argv[])
 MPI::Init(argc, argv);
 int mpi_rank = MPI::COMM_WORLD.Get_rank();
 int mpi_size = MPI::COMM_WORLD.Get_size();
-if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
 
 // Variables
 int i,j, N, idx;
@@ -178,6 +177,9 @@ if(argc==optind+2) praefix = "_" + LA_STRING(argv[optind+1]);
 if(argc>=optind+1) wout_name = LA_STRING(argv[optind]);
 else {if(mpi_rank < 1) cout << "No Input files -> Abort!" << endl; EXIT;}
 
+// check if enough Nodes have been selected
+if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
+
 // Init classes
 if(mpi_rank < 1) cout << "Initialize..." << endl;
 AdaptiveGK GKx(limit, degree, 3);
@@ -218,7 +220,7 @@ if(mpi_rank < 1)
 	out.precision(16);
 	out << "# Xpand results from VMEC file " << wout_name << endl;
 	out << "# " << N << " points" << endl;
-	out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t Pressure[Pa]" << endl;
+	out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t Pressure[Pa] \t BRvac[T]   \t Bphivac[T] \t BZvac[T]" << endl;
 
 	// log file
 	if(use_GK) logfile.open("log_" + LA_STRING(program_name) + praefix + "_GK" + ".dat");
@@ -231,8 +233,8 @@ if(mpi_rank < 1)
 	ofs3 << "No. of Packages = " << NoOfPackages << " Points per Package = " << N_slave << endl << endl;
 
 	// Result array:	 Column Number,  Values
-	Array<double,3> results_all(Range(1,NoOfPackages),Range(1,4),Range(1,N_slave));
-	Array<double,2> recieve(Range(1,4),Range(1,N_slave));
+	Array<double,3> results_all(Range(1,NoOfPackages),Range(1,7),Range(1,N_slave));
+	Array<double,2> recieve(Range(1,7),Range(1,N_slave));
 	Array<double,2> slice;
 	tag = 1;	// first Package
 
@@ -280,7 +282,7 @@ if(mpi_rank < 1)
 			while(workingNodes > 0)	// workingNodes > 0: Slave still working -> MPI:Revc needed		workingNodes == 0: all Slaves recieved termination signal
 			{
 				// Recieve Result
-				MPI::COMM_WORLD.Recv(recieve.dataFirst(),4*N_slave,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
+				MPI::COMM_WORLD.Recv(recieve.dataFirst(),7*N_slave,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
 				sender = status.Get_source();
 				tag = status.Get_tag();
 				ofs3 << "Recieve from Node: " << sender << " Package: " << tag << endl;
@@ -329,7 +331,7 @@ if(mpi_rank < 1)
 					for(j=1;j<=N_slave;j++)
 					{
 						idx = N_values((i-1)*N_slave+j);
-						out << points(idx,1) << "\t" << points(idx,2) << "\t" << points(idx,3) << "\t" << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << endl;
+						out << points(idx,1) << "\t" << points(idx,2) << "\t" << points(idx,3) << "\t" << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << "\t" << results_all(i,7,j) << endl;
 					}
 					write_memory(i) = 2;
 				}
@@ -368,6 +370,8 @@ if(mpi_rank < 1)
 						phi_old = phi;
 					}
 
+					Bvac = bvc.get_vacuumB(R, phi, Z);
+
 					if(inside.check(R,Z))
 					{
 						wout.get_su(R, phi, Z, s, u);
@@ -378,7 +382,6 @@ if(mpi_rank < 1)
 					{
 						if(use_GK) B = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
 						else B = bvc.ev(R, phi, Z);
-						Bvac = bvc.get_vacuumB(R, phi, Z);
 						B += Bvac;
 						Pres = wout.presf.y(wout.ns); // just the value of presf at LCFS; same as: wout.presf.ev(1.0)
 					}
@@ -388,6 +391,9 @@ if(mpi_rank < 1)
 					results_all(tag,2,i) = B(1);
 					results_all(tag,3,i) = B(2);
 					results_all(tag,4,i) = Pres;
+					results_all(tag,5,i) = Bvac(0);
+					results_all(tag,6,i) = Bvac(1);
+					results_all(tag,7,i) = Bvac(2);
 				} // end for
 
 				#pragma omp critical
@@ -409,7 +415,7 @@ if(mpi_rank < 1)
 		for(j=1;j<=N_slave;j++)
 		{
 			idx = N_values((i-1)*N_slave+j);
-			out << points(idx,1) << "\t" << points(idx,2) << "\t" << points(idx,3) << "\t" << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << endl;
+			out << points(idx,1) << "\t" << points(idx,2) << "\t" << points(idx,3) << "\t" << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << "\t" << results_all(i,7,j) << endl;
 		}
 	}
 
@@ -425,6 +431,8 @@ if(mpi_rank < 1)
 			phi_old = phi;
 		}
 
+		Bvac = bvc.get_vacuumB(R, phi, Z);
+
 		if(inside.check(R,Z))
 		{
 			wout.get_su(R, phi, Z, s, u);
@@ -435,7 +443,6 @@ if(mpi_rank < 1)
 		{
 			if(use_GK) B = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
 			else B = bvc.ev(R, phi, Z);
-			Bvac = bvc.get_vacuumB(R, phi, Z);
 			B += Bvac;
 			Pres = wout.presf.y(wout.ns);
 		}
@@ -443,7 +450,7 @@ if(mpi_rank < 1)
 		count -= 1;
 		cout << "\rDone: " << int(10000*double(N-count)/double(N))/100.0 << "%   " << flush;
 		// Output
-		out << R << "\t" << phi << "\t" << Z << "\t" << B(0) << "\t" << B(1) << "\t" << B(2) << "\t" << Pres << endl;
+		out << R << "\t" << phi << "\t" << Z << "\t" << B(0) << "\t" << B(1) << "\t" << B(2) << "\t" << Pres << "\t" << Bvac(0) << "\t" << Bvac(1) << "\t" << Bvac(2) << endl;
 	}
 } // end Master
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -454,7 +461,7 @@ if(mpi_rank < 1)
 if(mpi_rank > 0)
 {
 	// Result array for Slave
-	Array<double,2> results(Range(1,4),Range(1,N_slave));
+	Array<double,2> results(Range(1,7),Range(1,N_slave));
 
 	// Start working...
 	while(1)
@@ -482,6 +489,8 @@ if(mpi_rank > 0)
 				phi_old = phi;
 			}
 
+			Bvac = bvc.get_vacuumB(R, phi, Z);
+
 			if(inside.check(R,Z))
 			{
 				wout.get_su(R, phi, Z, s, u);
@@ -492,7 +501,6 @@ if(mpi_rank > 0)
 			{
 				if(use_GK) B = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
 				else B = bvc.ev(R, phi, Z);
-				Bvac = bvc.get_vacuumB(R, phi, Z);
 				B += Bvac;
 				Pres = wout.presf.y(wout.ns);
 			}
@@ -502,10 +510,13 @@ if(mpi_rank > 0)
 			results(2,i) = B(1);
 			results(3,i) = B(2);
 			results(4,i) = Pres;
+			results(5,i) = Bvac(0);
+			results(6,i) = Bvac(1);
+			results(7,i) = Bvac(2);
 		} // end for
 
 		// Send results to Master
-		MPI::COMM_WORLD.Send(results.dataFirst(),4*N_slave,MPI::DOUBLE,0,tag);
+		MPI::COMM_WORLD.Send(results.dataFirst(),7*N_slave,MPI::DOUBLE,0,tag);
 
 	}// end while
 } // end Slaves
