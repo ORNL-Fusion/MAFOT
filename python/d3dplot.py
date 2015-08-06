@@ -256,9 +256,13 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		wall = get_wall(machine)
 		plt.plot(wall[:,0], wall[:,1], 'k--', linewidth = 2)
 		
-	if(coordinates == 'phi') & (target== 'in'):	# plot tile limit
-		if(physical == 1) & (machine == 'd3d'): plt.plot([x.min(), x.max()], [-1.223, -1.223], 'k--', linewidth = 1.5)
-		else: plt.plot([x.min(), x.max()], [0, 0], 'k--', linewidth = 1.5)
+	if(coordinates == 'phi'):
+		if (target== 'in'):	# plot tile limit
+			if(physical == 1) & (machine == 'd3d'): plt.plot([x.min(), x.max()], [-1.223, -1.223], 'k--', linewidth = 1.5)
+			else: plt.plot([x.min(), x.max()], [0, 0], 'k--', linewidth = 1.5)
+		else:	# plot the pump limit / edge of shelf nose location
+			if(physical == 1) & (machine == 'd3d'): plt.plot([x.min(), x.max()], [1.372, 1.372], 'k--', linewidth = 1.5)
+			else: plt.plot([x.min(), x.max()], [1, 1], 'k--', linewidth = 1.5)
 
 	# --- Axes  -----------------------
 	if(coordinates == 'RZ'): 
