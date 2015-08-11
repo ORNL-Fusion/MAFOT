@@ -6882,7 +6882,11 @@ class nstxfoot_gui:
 			command = self.set_defaults).grid(column = 4, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(frame, text = 'Out-dwn', variable = self.TargetFlag, value = 4, 
 			command = self.set_defaults).grid(column = 5, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "Target").grid(column = 1, row = row, sticky = tk.E )
+		tk.Label(frame, text = "Target").grid(column = 1, row = row, sticky = tk.W + tk.E )
+		
+		self.UpgradeFlag = tk.IntVar(); self.UpgradeFlag.set(0);
+		tk.Checkbutton(frame, text = 'U', variable = self.UpgradeFlag, 
+			command = self.set_defaults).grid(column = 1, row = row, sticky = tk.E)
 		
 		# --- x -> phi ---
 		row += 1
@@ -7069,43 +7073,71 @@ class nstxfoot_gui:
 		# inner up
 		if(self.TargetFlag.get() == 1):
 			self.y_label.configure(text = "Z [m]")
-			self.Info.configure(text = "inner target, upper divertor, Z in [1.1714 <--> 1.578]")
+			if self.UpgradeFlag.get() == 1:
+				self.Info.configure(text = "NSTX-U inner target, upper divertor, Z in [1.05 <--> 1.578]")
+			else:
+				self.Info.configure(text = "inner target, upper divertor, Z in [1.1714 <--> 1.578]")
 			if os.path.isfile(self.path.get() + '_innerup.dat'):
 				_,_,_, data = self.M.readControlFile(self.path.get() + '_innerup.dat')
 				data[8] = 1		# MapDirection is fixed
 			else: # defaults
-				data = [500, 500, 1.1714, 1.578, 0, 6.283185307179586, 400, 0, 1, 1, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-						0, -1, 3.141592653589793, 6.283185307179586]
+				if self.UpgradeFlag.get() == 1:
+					data = [500, 500, 1.05, 1.578, 0, 6.283185307179586, 400, 0, 1, 1, 2, 1, 0, 0, 0, 1, 100, 0.1, 
+							0, -1, 3.141592653589793, 6.283185307179586]
+				else:
+					data = [500, 500, 1.1714, 1.578, 0, 6.283185307179586, 400, 0, 1, 1, 2, 1, 0, 0, 0, 1, 100, 0.1, 
+							0, -1, 3.141592653589793, 6.283185307179586]
 		# outer up
 		elif(self.TargetFlag.get() == 2):
 			self.y_label.configure(text = "R [m]")
-			self.Info.configure(text = "outer target, upper divertor, R in [0.2979 <--> 0.5712]")
+			if self.UpgradeFlag.get() == 1:
+				self.Info.configure(text = "NSTX-U outer target, upper divertor, R in [0.435 <--> 1.0433]")
+			else:
+				self.Info.configure(text = "outer target, upper divertor, R in [0.2979 <--> 1.0433]")
 			if os.path.isfile(self.path.get() + '_outerup.dat'):
 				_,_,_, data = self.M.readControlFile(self.path.get() + '_outerup.dat')
 				data[8] = -1	# MapDirection is fixed
 			else: # defaults
-				data = [500, 500, 0.2979, 0.5712, 0, 6.283185307179586, 400, 0, -1, 2, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-						0, -1, 3.141592653589793, 6.283185307179586]
+				if self.UpgradeFlag.get() == 1:
+					data = [500, 500, 0.435, 1.0433, 0, 6.283185307179586, 400, 0, -1, 2, 2, 1, 0, 0, 0, 1, 100, 0.1, 
+							0, -1, 3.141592653589793, 6.283185307179586]
+				else:
+					data = [500, 500, 0.2979, 1.0433, 0, 6.283185307179586, 400, 0, -1, 2, 2, 1, 0, 0, 0, 1, 100, 0.1, 
+							0, -1, 3.141592653589793, 6.283185307179586]
 		# inner down
 		elif(self.TargetFlag.get() == 3):
 			self.y_label.configure(text = "Z [m]")
-			self.Info.configure(text = "inner target, lower divertor, Z in [-1.578 <--> -1.1714]")
+			if self.UpgradeFlag.get() == 1:
+				self.Info.configure(text = "NSTX-U inner target, lower divertor, Z in [-1.578 <--> -1.05]")
+			else:
+				self.Info.configure(text = "inner target, lower divertor, Z in [-1.578 <--> -1.1714]")
 			if os.path.isfile(self.path.get() + '_innerdwn.dat'):
 				_,_,_, data = self.M.readControlFile(self.path.get() + '_innerdwn.dat')
 				data[8] = -1	# MapDirection is fixed
 			else: # defaults
-				data = [500, 500, -1.578, -1.1714, 0, 6.283185307179586, 400, 0, -1, 3, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-						0, -1, 3.141592653589793, 6.283185307179586]
+				if self.UpgradeFlag.get() == 1:
+					data = [500, 500, -1.578, -1.05, 0, 6.283185307179586, 400, 0, -1, 3, 2, 1, 0, 0, 0, 1, 100, 0.1, 
+							0, -1, 3.141592653589793, 6.283185307179586]
+				else:
+					data = [500, 500, -1.578, -1.1714, 0, 6.283185307179586, 400, 0, -1, 3, 2, 1, 0, 0, 0, 1, 100, 0.1, 
+							0, -1, 3.141592653589793, 6.283185307179586]
 		# outer down
 		elif(self.TargetFlag.get() == 4):
 			self.y_label.configure(text = "R [m]")
-			self.Info.configure(text = "outer target, lower divertor, R in [0.2979 <--> 0.5712]")
+			if self.UpgradeFlag.get() == 1:
+				self.Info.configure(text = "NSTX-U outer target, lower divertor, R in [0.435 <--> 1.0433]")
+			else:
+				self.Info.configure(text = "outer target, lower divertor, R in [0.2979 <--> 1.0433]")
 			if os.path.isfile(self.path.get() + '_outerdwn.dat'):
 				_,_,_, data = self.M.readControlFile(self.path.get() + '_outerdwn.dat')
 				data[8] = 1	# MapDirection is fixed
 			else: # defaults
-				data = [500, 500, 0.2979, 0.5712, 0, 6.283185307179586, 400, 0, 1, 4, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-						0, -1, 3.141592653589793, 6.283185307179586]
+				if self.UpgradeFlag.get() == 1:
+					data = [500, 500, 0.435, 1.0433, 0, 6.283185307179586, 400, 0, 1, 4, 2, 1, 0, 0, 0, 1, 100, 0.1, 
+							0, -1, 3.141592653589793, 6.283185307179586]
+				else:
+					data = [500, 500, 0.2979, 1.0433, 0, 6.283185307179586, 400, 0, 1, 4, 2, 1, 0, 0, 0, 1, 100, 0.1, 
+							0, -1, 3.141592653589793, 6.283185307179586]
 		
 		self.xmin.set(repr(data[4]))
 		self.xmax.set(repr(data[5]))
@@ -7332,6 +7364,8 @@ class nstxfoot_gui:
 	
 	# --- write Control File to current working dir ---
 	def writeControlFile(self, name):
+		target = self.TargetFlag.get()
+		if self.UpgradeFlag.get() == 1: target *= 10
 		with open(name, 'w') as f:
 			f.write('# Parameterfile for NSTX Programs\n')
 			f.write('# Shot: ' + format(int(self.Shot.get()),'06d') + '\tTime: ' + format(int(self.Time.get()),'04d') + 'ms\n')
@@ -7339,18 +7373,30 @@ class nstxfoot_gui:
 			f.write('Nphi=\t' + self.Nx.get() + '\n')
 			f.write('itt=\t' + self.itt.get() + '\n')
 			
-			if(self.TargetFlag.get() == 1):
+			if(target == 1):
 				f.write('Zmin(1.1714)=\t' + self.ymin.get() + '\n')
 				f.write('Zmax(1.578)=\t' + self.ymax.get() + '\n')
-			elif(self.TargetFlag.get() == 2):
+			elif(target == 2):
 				f.write('Rmin(0.2979)=\t' + self.ymin.get() + '\n')
-				f.write('Rmax(0.5712)=\t' + self.ymax.get() + '\n')
-			elif(self.TargetFlag.get() == 3):
+				f.write('Rmax(1.0433)=\t' + self.ymax.get() + '\n')
+			elif(target == 3):
 				f.write('Zmin(-1.578)=\t' + self.ymin.get() + '\n')
 				f.write('Zmax(-1.1714)=\t' + self.ymax.get() + '\n')
-			elif(self.TargetFlag.get() == 4):
+			elif(target == 4):
 				f.write('Rmin(0.2979)=\t' + self.ymin.get() + '\n')
-				f.write('Rmax(0.5712)=\t' + self.ymax.get() + '\n')
+				f.write('Rmax(1.0433)=\t' + self.ymax.get() + '\n')
+			if(target == 10):
+				f.write('Zmin(1.05)=\t' + self.ymin.get() + '\n')
+				f.write('Zmax(1.578)=\t' + self.ymax.get() + '\n')
+			elif(target == 20):
+				f.write('Rmin(0.435)=\t' + self.ymin.get() + '\n')
+				f.write('Rmax(1.0433)=\t' + self.ymax.get() + '\n')
+			elif(target == 30):
+				f.write('Zmin(-1.578)=\t' + self.ymin.get() + '\n')
+				f.write('Zmax(-1.05)=\t' + self.ymax.get() + '\n')
+			elif(target == 40):
+				f.write('Rmin(0.435)=\t' + self.ymin.get() + '\n')
+				f.write('Rmax(1.0433)=\t' + self.ymax.get() + '\n')
 				
 			f.write('phimin=\t' + self.xmin.get() + '\n')
 			f.write('phimax=\t' + self.xmax.get() + '\n')
@@ -7362,7 +7408,10 @@ class nstxfoot_gui:
 				
 			f.write('phistart(deg)=\t0\n')
 			f.write('MapDirection=\t' + str(self.MapDirection.get()) + '\n')
-			f.write('target(1=in-up,2=out-up,3=in-dwn,4=out-dwn)=\t' + str(self.TargetFlag.get()) + '\n')			
+			if self.UpgradeFlag.get() == 1:
+				f.write('target(U;10=in-up,20=out-up,30=in-dwn,40=out-dwn)=\t' + str(target) + '\n')
+			else:
+				f.write('target(1=in-up,2=out-up,3=in-dwn,4=out-dwn)=\t' + str(target) + '\n')
 			f.write('createPoints(2=target)=\t2\n')	
 			f.write('useECcoil(0=no,1=yes)=\t' + str(self.useIcoil.get()) + '\n')
 			f.write('useFilament(0=no)=\t' + self.useFilament.get() + '\n')
@@ -7925,8 +7974,8 @@ class info_gui:
 		self.info_text.grid(column = 1, row = row, columnspan = 5, padx=10, pady=10); 
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
-		'MAFOT Version 3.61 \n'
-		'GUI Version 1.3 \n'
+		'MAFOT Version 3.7 \n'
+		'GUI Version 1.4 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'

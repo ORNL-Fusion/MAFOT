@@ -46,11 +46,17 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.61
-GUI 1.3
+MAFOT 3.7
+GUI 1.4
 
 Version Notes: 
 ----------------
+MAFOT 3.7 -- Aug 2015
+- NSTX-U divertor targets and NSTX outer inclined wall added
+
+GUI 1.4 -- Aug 2015
+- support for new NSTX & NSTX-U walls added
+
 MAFOT 3.61 -- July 2015
 - readfile now counts rows and allocates total array at once
 	-> XFIELD read in works now with very large files

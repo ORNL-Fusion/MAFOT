@@ -382,6 +382,7 @@ double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double
 int i_p = 0;
 int i_phi = 0;
 int N = Np*Nphi;
+int target;
 double dp,dphi,t;
 Array<double,1> p1(Range(1,2)),p2(Range(1,2)),p(Range(1,2)),d(Range(1,2));
 
@@ -409,7 +410,15 @@ t = tmin + i_p*dp;	// t in m
 double R1,Z1;	// (inner,lower) or (outer, left) target Corner
 double R2,Z2;	// (inner,upper) or (outer, right) target Corner
 
-switch(PAR.which_target_plate)
+target = PAR.which_target_plate;
+if(PAR.which_target_plate == 4 && t > 0.5712) target = 5;
+if(PAR.which_target_plate == 2 && t > 0.5712) target = 6;
+if(PAR.which_target_plate == 40 && t > 0.5712) target = 5;
+if(PAR.which_target_plate == 20 && t > 0.5712) target = 6;
+if(PAR.which_target_plate == 10 && t < 1.27) target = 80;
+if(PAR.which_target_plate == 30 && t > -1.27) target = 70;
+
+switch(target)
 {
 case 1:	// upper inner target plate, length 40.66 cm
 	R1 = 0.2794;	Z1 = 1.1714;
@@ -434,6 +443,60 @@ case 4:	// lower outer target plate, length 27.33 cm
 	R2 = 0.5712;	Z2 = -1.6034;
 	if(t < R1 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
 	p(1) = t;	p(2) = Z1;
+	break;
+case 5:	// lower outer inclined wall at R > 0.6 and small horizontal piece before that
+	R1 = 0.617;		Z1 = -1.628;
+	R2 = 1.0433;	Z2 = -1.4603;
+	p(1) = t;
+	if(t < R1) p(2) = Z1;
+	else p(2) = (Z2-Z1)/(R2-R1)*t + (Z1*R2-R1*Z2)/(R2-R1);
+	if(t < 0.5712 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	break;
+case 6:	// upper outer declined wall at R > 0.6
+	R1 = 0.617;		Z1 = 1.628;
+	R2 = 1.0433;	Z2 = 1.4603;
+	p(1) = t;
+	if(t < R1) p(2) = Z1;
+	else p(2) = (Z2-Z1)/(R2-R1)*t + (Z1*R2-R1*Z2)/(R2-R1);
+	if(t < 0.5712 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	break;
+case 10:	// NSTX-U upper inner target plate
+	R1 = 0.4150;	Z1 = 1.27;
+	R2 = 0.4150;	Z2 = 1.578;
+	if(t < Z1 || t > Z2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	p(1) = R1;	p(2) = t;
+	break;
+case 20:	// NSTX-U upper outer target plate
+	R1 = 0.4350;	Z1 = 1.6234;
+	R2 = 0.5712;	Z2 = 1.6234;
+	if(t < R1 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	p(1) = t;	p(2) = Z1;
+	break;
+case 30:	// NSTX-U lower inner target plate
+	R1 = 0.4150;	Z2 = -1.27;
+	R2 = 0.4150;	Z1 = -1.578;
+	if(t < Z1 || t > Z2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	p(1) = R1;	p(2) = t;
+	break;
+case 40:	// NSTX-U lower outer target plate
+	R1 = 0.4350;	Z1 = -1.6234;
+	R2 = 0.5712;	Z2 = -1.6234;
+	if(t < R1 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	p(1) = t;	p(2) = Z1;
+	break;
+case 70:	// NSTX-U lower inner inclined wall at R < 0.4
+	R1 = 0.415;		Z1 = -1.27;
+	R2 = 0.315;		Z2 = -1.05;
+	p(2) = t;
+	p(1) = (R2-R1)/(Z2-Z1)*t + (R1*Z2-Z1*R2)/(Z2-Z1);
+	if(t < Z1 || t > Z2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	break;
+case 80:	// NSTX-U upper inner inclined wall at R < 0.4
+	R1 = 0.415;		Z1 = 1.27;
+	R2 = 0.315;		Z2 = 1.05;
+	p(2) = t;
+	p(1) = (R2-R1)/(Z2-Z1)*t + (R1*Z2-Z1*R2)/(Z2-Z1);
+	if(t < Z2 || t > Z1){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
 	break;
 default:
 	ofs2 << "start_on_target: No target specified" << endl;
