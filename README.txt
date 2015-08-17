@@ -46,11 +46,16 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.7
+MAFOT 3.71
 GUI 1.4
 
 Version Notes: 
 ----------------
+MAFOT 3.71 -- Aug 2015
+- in xpand: enable force axisymmetriy in VMECthrough n0only
+- in xpand: use full VMEC B-field for virtual casing; interpolation error in vacuum field much larger 
+            than any noise from including the vacuum field
+
 MAFOT 3.7 -- Aug 2015
 - NSTX-U divertor targets and NSTX outer inclined wall added
 

@@ -45,6 +45,8 @@ public:
 	int ns;			// number of s points
 	int mnmax;		// number of m,n modes
 
+	bool n0only;	// use n = 0 components only
+
 	Array<int,1> xn;	// all n modes
 	Array<int,1> xm;	// all m modes
 	Array<double,1> S;	// s array
@@ -59,7 +61,8 @@ public:
 	VMEC_SPECTRAL& operator =(const VMEC_SPECTRAL& spec);	// Operator =
 
 	// Member-Functions
-	void set(LA_STRING id0, int parity0, int ns0, int mnmax0, Array<int,1>& xn0, Array<int,1>& xm0, Array<double,1>& S0);	// initialize all public members but spectral data
+	void set(LA_STRING id0, int parity0, int ns0, int mnmax0, Array<int,1>& xn0, Array<int,1>& xm0, Array<double,1>& S0, bool n0only0 = false);	// initialize all public members but spectral data
+	void set(bool n0only0);									// just set n0only
 	void Vspline();											// prepare interpolation in s
 	double Vsplint(double s, int i, int par);				// evaluate spline at s for m,n mode i, and parity par
 	double Vsplint(double s, int i, int par, double& dyds);	// same as above, but with first derivative
@@ -83,6 +86,7 @@ VMEC_SPECTRAL::VMEC_SPECTRAL()
 ns = 0;
 id = "None";
 parity = 0;
+n0only = false;
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -97,6 +101,7 @@ id = spec.id;
 parity = spec.parity;
 ns = spec.ns;
 mnmax = spec.mnmax;
+n0only = spec.n0only;
 
 xn.reference(spec.xn);
 xm.reference(spec.xm);
@@ -113,7 +118,7 @@ return(*this);
 
 //---------------------------- set ----------------------------------------------------------------------------------------
 // initalize all public & private member variables, except the spectral data and its derivative
-void VMEC_SPECTRAL::set(LA_STRING id0, int parity0, int ns0, int mnmax0, Array<int,1>& xn0, Array<int,1>& xm0, Array<double,1>& S0)
+void VMEC_SPECTRAL::set(LA_STRING id0, int parity0, int ns0, int mnmax0, Array<int,1>& xn0, Array<int,1>& xm0, Array<double,1>& S0, bool n0only0)
 {
 id = id0;
 parity = parity0;
@@ -122,6 +127,14 @@ mnmax = mnmax0;
 xn.reference(xn0);
 xm.reference(xm0);
 S.reference(S0);
+n0only = n0only0;
+}
+
+//-----------------------------------------------
+// ... reset just n0only
+void VMEC_SPECTRAL::set(bool n0only0)
+{
+n0only = n0only0;
 }
 
 //---------------------------- spline -------------------------------------------------------------------------------------
@@ -234,6 +247,7 @@ if(parity >= 0)
 {
 	for(i=0;i<mnmax;i++)
 	{
+		if(n0only && xn(i) != 0) continue;	// only n = 0 modes
 		if(s == 0 && xm(i) > 0) continue;	// no m modes on magnetic axis
 		if(use_spline) spl = Vsplint(s, i, 1);
 		else spl = ymnc(j,i);
@@ -246,6 +260,7 @@ if(parity <= 0)
 {
 	for(i=0;i<mnmax;i++)
 	{
+		if(n0only && xn(i) != 0) continue;	// only n = 0 modes
 		if(s == 0 && xm(i) > 0) continue;	// no m modes on magnetic axis
 		if(use_spline) spl = Vsplint(s, i, -1);
 		else spl = ymns(j,i);
@@ -277,6 +292,7 @@ if(parity == 1)
 	{
 		m = xm(i);
 		n = xn(i);
+		if(n0only && xn(i) != 0) continue;	// only n = 0 modes
 		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
 		if(use_spline) spl = Vsplint(s, i, 1, dsplds);
 		else spl = ymnc(j,i);
@@ -294,6 +310,7 @@ if(parity == -1)
 	{
 		m = xm(i);
 		n = xn(i);
+		if(n0only && xn(i) != 0) continue;	// only n = 0 modes
 		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
 		if(use_spline) spl = Vsplint(s, i, -1, dsplds);
 		else spl = ymns(j,i);
@@ -311,6 +328,7 @@ if(parity == 0)
 	{
 		m = xm(i);
 		n = xn(i);
+		if(n0only && xn(i) != 0) continue;	// only n = 0 modes
 		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
 
 		if(use_spline) spl = Vsplint(s, i, 1, dsplds);
@@ -354,6 +372,7 @@ if(parity == 1)
 	{
 		m = xm(i);
 		n = xn(i);
+		if(n0only && xn(i) != 0) continue;	// only n = 0 modes
 		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
 		if(use_spline) spl = Vsplint(s, i, 1, dsplds);
 		else spl = ymnc(j,i);
@@ -372,6 +391,7 @@ if(parity == -1)
 	{
 		m = xm(i);
 		n = xn(i);
+		if(n0only && xn(i) != 0) continue;	// only n = 0 modes
 		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
 		if(use_spline) spl = Vsplint(s, i, -1, dsplds);
 		else spl = ymns(j,i);
@@ -390,6 +410,7 @@ if(parity == 0)
 	{
 		m = xm(i);
 		n = xn(i);
+		if(n0only && xn(i) != 0) continue;	// only n = 0 modes
 		if(s == 0 && m > 0) continue;	// no m modes on magnetic axis
 
 		if(use_spline) spl = Vsplint(s, i, 1, dsplds);
@@ -584,6 +605,7 @@ public:
 
 	bool lasym;
 	bool lpot;		// potential spectral data available or not
+	bool n0only;	// use n = 0 components only
 
 	LA_STRING input_extension;
 	LA_STRING mgrid_file;
@@ -608,15 +630,17 @@ public:
 	VMEC_PROFILE bvco;
 
 // Constructors
-	VMEC();								// Default Constructor
-	VMEC(const VMEC& wout);				// Copy Constructor
-	VMEC(LA_STRING filename);			// Standard Constructor
+	VMEC();									// Default Constructor
+	VMEC(const VMEC& wout);					// Copy Constructor
+	VMEC(LA_STRING filename);				// Standard Constructor
+	VMEC(LA_STRING filename, bool n0only0);	// n0only Constructor
 
 // Member-Operators
 	VMEC& operator =(const VMEC& V);	// Operator =
 
 // Member-Functions
 	void read(LA_STRING filename);			// read in wout file from VMEC
+	void set_n0only(bool n0only0);			// reset n0only for all spectral variables
 	void get_axis(double v, double& Raxis, double& Zaxis);	// get magnetic axis
 	double get_jpar(double s);	// get parallel current density in [10^6 A / m^2]
 	void get_B2D(double s, double u, double v, double& BR, double& Bphi, double& BZ);	// get B-field at (s,u,v)
@@ -648,6 +672,7 @@ ctor = 0;
 
 lasym = false;
 lpot = false;
+n0only = false;
 
 input_extension = "None";
 mgrid_file = "None";
@@ -662,6 +687,14 @@ VMEC::VMEC(const VMEC& wout)
 // Standard Constructor
 VMEC::VMEC(LA_STRING filename)
 {
+n0only = false;
+read(filename);
+}
+
+// n0only Constructor
+VMEC::VMEC(LA_STRING filename, bool n0only0)
+{
+n0only = n0only0;
 read(filename);
 }
 
@@ -682,6 +715,7 @@ ctor = V.ctor;
 
 lasym = V.lasym;
 lpot = V.lpot;
+n0only = V.n0only;
 
 input_extension = V.input_extension;
 mgrid_file = V.mgrid_file;
@@ -938,6 +972,18 @@ chk = nc_close(ncid);
 prepare_splines();
 }
 
+//------------------------ set_n0only -------------------------------------------------------------------------------------
+// reset n0only for all spectral variables
+void VMEC::set_n0only(bool n0only0)
+{
+n0only = n0only0;
+rmn.set(n0only);
+zmn.set(n0only);
+gmn.set(n0only);
+bsupumn.set(n0only);
+bsupvmn.set(n0only);
+}
+
 //------------------------ get_axis ---------------------------------------------------------------------------------------
 // evaluate the Fourier series of the magnetic axis at location v
 void VMEC::get_axis(double v, double& Raxis, double& Zaxis)
@@ -950,6 +996,7 @@ Zaxis = 0;
 
 for(n=0;n<=ntor;n++)
 {
+	if(n0only && n > 0) break;	// only the n = 0 mode
 	cosnv = cos(n*v);
 	Raxis += raxis_cc(n) * cosnv;
 	if(lasym)
@@ -1003,6 +1050,7 @@ if(not lpot) return out;
 
 for(i=0;i<mnmaxpot;i++)
 {
+	if(n0only && xnpot(i) != 0) continue;	// only n = 0 modes
 	mu_nv = xmpot(i)*u - xnpot(i)*v;
 	out += potsin(i) * sin(mu_nv) + potcos(i) * cos(mu_nv);
 }
@@ -1023,6 +1071,7 @@ for(i=0;i<mnmaxpot;i++)
 {
 	m = xmpot(i);
 	n = xnpot(i);
+	if(n0only && n != 0) continue;	// only n = 0 modes
 	mu_nv = m*u - n*v;
 	sinuv = sin(mu_nv);
 	cosuv = cos(mu_nv);
@@ -1091,19 +1140,19 @@ void VMEC::prepare_splines(void)
 // spectral data
 if(lasym)
 {
-	rmn.set("rmn", 0, ns, mnmax, xn, xm, S);
-	zmn.set("zmn", 0, ns, mnmax, xn, xm, S);
-	gmn.set("gmn", 0, nshalf, mnmax, xn, xm, Shalf);
-	bsupumn.set("bsupumn", 0, nshalf, mnmax, xn, xm, Shalf);
-	bsupvmn.set("bsupvmn", 0, nshalf, mnmax, xn, xm, Shalf);
+	rmn.set("rmn", 0, ns, mnmax, xn, xm, S, n0only);
+	zmn.set("zmn", 0, ns, mnmax, xn, xm, S, n0only);
+	gmn.set("gmn", 0, nshalf, mnmax, xn, xm, Shalf, n0only);
+	bsupumn.set("bsupumn", 0, nshalf, mnmax, xn, xm, Shalf, n0only);
+	bsupvmn.set("bsupvmn", 0, nshalf, mnmax, xn, xm, Shalf, n0only);
 }
 else
 {
-	rmn.set("rmnc", 1, ns, mnmax, xn, xm, S);
-	zmn.set("zmns", -1, ns, mnmax, xn, xm, S);
-	gmn.set("gmnc", 1, nshalf, mnmax, xn, xm, Shalf);
-	bsupumn.set("bsupumnc", 1, nshalf, mnmax, xn, xm, Shalf);
-	bsupvmn.set("bsupvmnc", 1, nshalf, mnmax, xn, xm, Shalf);
+	rmn.set("rmnc", 1, ns, mnmax, xn, xm, S, n0only);
+	zmn.set("zmns", -1, ns, mnmax, xn, xm, S, n0only);
+	gmn.set("gmnc", 1, nshalf, mnmax, xn, xm, Shalf, n0only);
+	bsupumn.set("bsupumnc", 1, nshalf, mnmax, xn, xm, Shalf, n0only);
+	bsupvmn.set("bsupvmnc", 1, nshalf, mnmax, xn, xm, Shalf, n0only);
 }
 
 rmn.Vspline();

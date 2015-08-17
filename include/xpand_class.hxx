@@ -403,7 +403,7 @@ public:
 	void init(VMEC woutin, LA_STRING mgrid_file = "None");				// load mgrid and prepare all interpolations
 	void setup_accuracy(double epsabsin = 1e-6, double epsrelin = 1e-4, int maxRecDepthin = 14);	// set control parameter for adaptive integration
 	Array<double,1> ev(double R, double phi, double Z);					// evaluate magentic field by virtual casing, uses adaptive Simpson integration
-	Array<double,1> get_vacuumB(double Rs, double v, double Zs);		// returns vacuum B-field Bvac = Bmgrid = (BR,Bphi,BZ)
+	Array<double,1> get_vacuumB(double Rs, double v, double Zs, bool n0only = false);		// returns vacuum B-field Bvac = Bmgrid = (BR,Bphi,BZ)
 	Array<double,1> integs(double u, double v);							// integrad for all three integrals: BR, Bphi and BZ
 }; //end of class
 
@@ -517,19 +517,53 @@ return integ;
 
 
 // --- get_vacuumB --------------------------------------------------------------------------------------------------------
-Array<double,1> BFIELDVC::get_vacuumB(double Rs, double v, double Zs)
+Array<double,1> BFIELDVC::get_vacuumB(double Rs, double v, double Zs, bool n0only)
 {
-double dphi = pi2 / mgrid.Np;
-int k = (int(round(v/dphi)) % mgrid.Np) + 1;	// nearest neighbor approximation
 Array<double,1> B(3);
-double br, bphi,bz;
+double br, bphi, bz;
+double bru, bphiu, bzu;
+double t, dphi;
+int k,ku;
 
-mgrid.interpolate_B(Rs, Zs, k, br, bphi, bz);
-B(0) = br;
-B(1) = bphi;
-B(2) = bz;
+if(n0only)	// compute B for all k*dphi planes and average
+{
+	B = 0;
+	for(k=1;k<=mgrid.Np;k++)
+	{
+		mgrid.interpolate_B(Rs, Zs, k, br, bphi, bz);
+		B(0) += br;
+		B(1) += bphi;
+		B(2) += bz;
+	}
+	B /= mgrid.Np;
+}
+else	// use linear interpolation between k and k+1 planes
+{
+	v = modulo2pi(v);	// make sure v in [0, 2pi]
+	dphi = pi2 / mgrid.Np;
+	k = int(v/dphi) + 1;	// k*dphi plane
+	//k = (int(round(v/dphi)) % mgrid.Np) + 1;	// nearest neighbor approximation
+	t = v/dphi - k + 1;
+
+	mgrid.interpolate_B(Rs, Zs, k, br, bphi, bz);
+	B(0) = br;
+	B(1) = bphi;
+	B(2) = bz;
+	if(t > 0)	// not exactly in the v-plane (k-1)*dphi
+	{
+		if(k == mgrid.Np) ku = 1;
+		else ku = k+1;
+		mgrid.interpolate_B(Rs, Zs, ku, bru, bphiu, bzu);
+
+		// linear interpolation of B-field in v
+		B(0) += t*(bru - br);
+		B(1) += t*(bphiu - bphi);
+		B(2) += t*(bzu - bz);
+	}
+}
 return B;
 }
+
 
 //--------------------- Private Member Functions --------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
@@ -771,11 +805,12 @@ for(i=1;i<=Nu;i++)
 		B(1) = BR*sinv + Bphi*cosv;	// By
 
 		// Bplasma = Bvmec - Vacuum B-field
-		Bvac = get_vacuumB(Rs(i,j), V(j), Zs(i,j));
-		BR = Bvac(0); Bphi = Bvac(1);
-		Bvac(0) = BR*cosv - Bphi*sinv;	// Bx
-		Bvac(1) = BR*sinv + Bphi*cosv;	// By
-		B -= Bvac;
+		// **** the toroidal interpolation error is much larger than the numerical noise due to including the vacuum field ****
+		//Bvac = get_vacuumB(Rs(i,j), V(j), Zs(i,j));
+		//BR = Bvac(0); Bphi = Bvac(1);
+		//Bvac(0) = BR*cosv - Bphi*sinv;	// Bx
+		//Bvac(1) = BR*sinv + Bphi*cosv;	// By
+		//B -= Bvac;
 
 		// dipole moment
 		nB(i,j) = n(0)*B(0) + n(1)*B(1) + n(2)*B(2);

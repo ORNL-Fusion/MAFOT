@@ -103,19 +103,20 @@ double epsabs = 1e-6;
 double epsrel = 1e-4;
 int limit = 1000;
 int degree = 10;
-bool use_GK = true;	 // true: use adaptive Gauss-Kronrod integration;   false: use adaptive Simpson integration
+bool use_GK = true;			// true: use adaptive Gauss-Kronrod integration;   false: use adaptive Simpson integration
+bool VMEC_n0only = false;	// true: force VMEC to be axisymmetric, false: use as it is
 LA_STRING mgrid_file = "None";
 LA_STRING points_file = "points.dat";
 
 // Command line input parsing
 opterr = 0;
-while ((c = getopt(argc, argv, "hP:a:r:i:m:SM:")) != -1)
+while ((c = getopt(argc, argv, "hP:a:r:i:m:SM:A")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> xpand_mpi [-h] [-P pts] [-a epsabs] [-r epsrel] [-i limit] [-m degree] [-S] [-M mgrid] wout [tag]" << endl << endl;
+		cout << "usage: mpirun -n <cores> xpand_mpi [-h] [-P pts] [-a epsabs] [-r epsrel] [-i limit] [-m degree] [-S] [-M mgrid] [-A] wout [tag]" << endl << endl;
 		cout << "Calculate magnetic field outside of VMEC boundary." << endl << endl;
 		cout << "positional arguments:" << endl;
 		cout << "  wout          VMEC wout-file name" << endl;
@@ -125,10 +126,11 @@ case 'h':
 		cout << "  -P            use Points-File pts; default: 'points.dat' in the current working dir" << endl;
 		cout << "  -a            set absolute tolerance; default 1e-6" << endl;
 		cout << "  -r            set relative tolerance; default 1e-4" << endl;
-		cout << "  -i            set maximum refinement limit; default 1000" << endl;
-		cout << "  -m            set Gauss-Legendre degree (2*m+1); default 10" << endl;
+		cout << "  -i            set maximum refinement limit, GK only; default 1000" << endl;
+		cout << "  -m            set Gauss-Legendre degree (2*m+1), GK only; default m=10" << endl;
 		cout << "  -S            use adaptive Simpson instead of Gauss-Kronrod" << endl;
 		cout << "  -M            use Mgrid-File mgrid; default: 'mgrid_file' from wout" << endl;
+		cout << "  -A            force axisymmetry -> use n=0 only in VMEC & toroidally average vacuum field" << endl;
 		cout << endl << "Examples:" << endl;
 		cout << "  mpirun -n 4 xpand_mpi wout.nc" << endl;
 		cout << "  mpirun -n 12 xpand_mpi -i 1500 -P ./here/my_points.dat wout.nc test" << endl;
@@ -157,6 +159,9 @@ case 'S':
 case 'M':
 	mgrid_file = optarg;
 	break;
+case 'A':
+	VMEC_n0only = true;
+	break;
 case '?':
 	if(mpi_rank < 1)
 	{
@@ -184,7 +189,7 @@ if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use mo
 if(mpi_rank < 1) cout << "Initialize..." << endl;
 AdaptiveGK GKx(limit, degree, 3);
 AdaptiveGK GKy(limit, degree, 3);
-VMEC wout(wout_name);
+VMEC wout(wout_name, VMEC_n0only);
 BFIELDVC bvc(wout, epsabs, epsrel, 14, mgrid_file);
 INSIDE_VMEC inside(wout);
 
@@ -202,6 +207,12 @@ if(mpi_rank < 1) outputtest(filenameout);
 // Set starting parameters
 int N_slave = 10;	// Number of points per package
 int NoOfPackages = int(N/N_slave);
+if(NoOfPackages < mpi_size)
+{
+	N_slave = int(N/mpi_size);	// this is already an integer division !!!
+	if(N_slave < 1) N_slave = 1;
+	NoOfPackages = int(N/N_slave);
+}
 int N_rest = N - NoOfPackages*N_slave;
 
 // Needed for storage of data while calculating
@@ -218,7 +229,8 @@ if(mpi_rank < 1)
 {
 	ofstream out(filenameout);
 	out.precision(16);
-	out << "# Xpand results from VMEC file " << wout_name << endl;
+	if(VMEC_n0only) out << "# Xpand results from axisymmetric VMEC file " << wout_name << endl;
+	else out << "# Xpand results from VMEC file " << wout_name << endl;
 	out << "# " << N << " points" << endl;
 	out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t Pressure[Pa] \t BRvac[T]   \t Bphivac[T] \t BZvac[T]" << endl;
 
@@ -228,6 +240,7 @@ if(mpi_rank < 1)
 	ofs3.precision(16);
 	if(use_GK) ofs3 << "Use Gauss-Kronrod integrator with limit = " << limit << " and degree = " << degree << endl;
 	else ofs3 << "Use adaptive Simpson integrator" << endl;
+	if(VMEC_n0only) ofs3 << "Using VMEC in axisymmetric mode" << endl;
 	ofs3 << "Tolerances are: epsabs = " << epsabs << "\t epsrel = " << epsrel << endl;
 	ofs3 << "Calculate B-field for " << N << " points" << endl;
 	ofs3 << "No. of Packages = " << NoOfPackages << " Points per Package = " << N_slave << endl << endl;
@@ -370,7 +383,7 @@ if(mpi_rank < 1)
 						phi_old = phi;
 					}
 
-					Bvac = bvc.get_vacuumB(R, phi, Z);
+					Bvac = bvc.get_vacuumB(R, phi, Z, VMEC_n0only);
 
 					if(inside.check(R,Z))
 					{
@@ -431,7 +444,7 @@ if(mpi_rank < 1)
 			phi_old = phi;
 		}
 
-		Bvac = bvc.get_vacuumB(R, phi, Z);
+		Bvac = bvc.get_vacuumB(R, phi, Z, VMEC_n0only);
 
 		if(inside.check(R,Z))
 		{
@@ -489,7 +502,7 @@ if(mpi_rank > 0)
 				phi_old = phi;
 			}
 
-			Bvac = bvc.get_vacuumB(R, phi, Z);
+			Bvac = bvc.get_vacuumB(R, phi, Z, VMEC_n0only);
 
 			if(inside.check(R,Z))
 			{
