@@ -1002,7 +1002,7 @@ class dtfix_gui:
 
 		# --- x -> theta ---
 		row += 1
-		tk.Label(frame, text = "theta [rad]").grid(column = 1, row = row, sticky = tk.E)
+		tk.Label(frame, text = "R [m]").grid(column = 1, row = row, sticky = tk.E)
 		
 		# Min
 		self.xmin = tk.StringVar(); 
@@ -1022,14 +1022,14 @@ class dtfix_gui:
 		self.Nx_entry.grid(column = 2, row = row, columnspan = 2)
 		tk.Label(frame, text = "     #").grid(column = 2, row = row, sticky = tk.W )
 		
-		self.pi_text = tk.Text(frame, height= 1, width = 30, bd  = 0, takefocus = 0, bg = frame.cget('bg'), relief = tk.FLAT)
-		self.pi_text.grid(column = 4, row = row, columnspan = 2); self.pi_row = row
-		self.pi_text.insert(1.0, 'pi = 3.141593 2pi = 6.283185')
-		self.pi_text.configure(state = "disabled")
+		#self.pi_text = tk.Text(frame, height= 1, width = 30, bd  = 0, takefocus = 0, bg = frame.cget('bg'), relief = tk.FLAT)
+		#self.pi_text.grid(column = 4, row = row, columnspan = 2); self.pi_row = row
+		#self.pi_text.insert(1.0, 'pi = 3.141593 2pi = 6.283185')
+		#self.pi_text.configure(state = "disabled")
 		
 		# --- y -> r ---
 		row += 1
-		tk.Label(frame, text = "r [m]").grid(column = 1, row = row, sticky = tk.E )
+		tk.Label(frame, text = "Z [m]").grid(column = 1, row = row, sticky = tk.E )
 		
 		# Min
 		self.ymin = tk.StringVar(); 
@@ -1188,16 +1188,16 @@ class dtfix_gui:
 		if os.path.isfile(self.path.get() + '_fix.dat'):
 			_,_,_, data = self.M.readControlFile(self.path.get() + '_fix.dat')
 		else: # defaults
-			data = [1e-4, 0, 1, 1.3, 4.1, 4.6, 900, 0, 1, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
+			data = [1e-4, 0, 1.1, 1.6, -1.45, -0.8, 900, 0, 1, 0, -1, 1, 5, 1, 1, 1, 0, 1, 
 					100, 0.1, 0, 3.141592653589793, 6.283185307179586]
 					
 		self.shift = data[0]
 		self.MapDirection = int(data[8]); 		
-		self.xmin.set(repr(data[4]))
-		self.xmax.set(repr(data[5]))
+		self.ymin.set(repr(data[4]))
+		self.ymax.set(repr(data[5]))
 		self.Nx.set(str(int(data[6]**0.5)))
-		self.ymin.set(repr(data[2]))
-		self.ymax.set(repr(data[3]))
+		self.xmin.set(repr(data[2]))
+		self.xmax.set(repr(data[3]))
 		self.Ny.set(str(int(data[6]**0.5)))
 		self.phistart.set(repr(data[7]));
 		self.useFcoil.set(int(data[13])); 
@@ -1278,14 +1278,14 @@ class dtfix_gui:
 		if(abs(self.HypRPt.get()) == 1):
 			self.period_entry.configure(state=tk.DISABLED)
 			if(self.HypRPt.get() == 1): # lower X-point
-				self.xmin.set(str(4.1))
-				self.xmax.set(str(4.6))
+				self.ymin.set(str(-1.45))
+				self.ymax.set(str(-0.8))
 			elif(self.HypRPt.get() == -1): # upper X-point
-				self.xmin.set(str(1.8))
-				self.xmax.set(str(2.2))
+				self.ymin.set(str(0.8))
+				self.ymax.set(str(1.45))
 			self.Nx.set(str(30))
-			self.ymin.set(str(1))
-			self.ymax.set(str(1.3))
+			self.xmin.set(str(1.1))
+			self.xmax.set(str(1.6))
 			self.Ny.set(str(30))
 			self.HypPt.set(str(1))
 			self.xmin_entry.configure(state=tk.DISABLED)
@@ -1424,17 +1424,17 @@ class dtfix_gui:
 			f.write('# Path: ' + self.gPath.get() + '\n')
 			f.write('shift=\t' + repr(self.shift) + '\n')
 			f.write('itt=\t0\n')			
-			f.write('rmin=\t' + self.ymin.get() + '\n')
-			f.write('rmax=\t' + self.ymax.get() + '\n')
-			f.write('thmin=\t' + self.xmin.get() + '\n')
-			f.write('thmax=\t' + self.xmax.get() + '\n')
+			f.write('Rmin=\t' + self.xmin.get() + '\n')
+			f.write('Rmax=\t' + self.xmax.get() + '\n')
+			f.write('Zmin=\t' + self.ymin.get() + '\n')
+			f.write('Zmax=\t' + self.ymax.get() + '\n')
 			f.write('N=\t' + str(N) + '\n')
 			f.write('phistart(deg)=\t' + self.phistart.get() + '\n')
 			f.write('MapDirection=\t' + str(self.MapDirection) + '\n')
 			f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
 			f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t0\n')			
-			f.write('createPoints(0=setr,3=setpsi,5=setR)=\t0\n')			
+			f.write('createPoints(0=setr,3=setpsi,5=setR)=\t5\n')			
 			f.write('useFcoil(0=no,1=yes)=\t' + str(self.useFcoil.get()) + '\n')
 			f.write('useCcoil(0=no,1=yes)=\t' + str(self.useCcoil.get()) + '\n')
 			f.write('useIcoil(0=no,1=yes)=\t' + str(self.useIcoil.get()) + '\n')
@@ -5962,7 +5962,7 @@ class nstxfix_gui:
 
 		# --- x -> theta ---
 		row += 1
-		tk.Label(frame, text = "theta [rad]").grid(column = 1, row = row, sticky = tk.E)
+		tk.Label(frame, text = "R [m]").grid(column = 1, row = row, sticky = tk.E)
 		
 		# Min
 		self.xmin = tk.StringVar(); 
@@ -5982,14 +5982,14 @@ class nstxfix_gui:
 		self.Nx_entry.grid(column = 2, row = row, columnspan = 2)
 		tk.Label(frame, text = "     #").grid(column = 2, row = row, sticky = tk.W )
 		
-		self.pi_text = tk.Text(frame, height= 1, width = 30, bd  = 0, takefocus = 0, bg = frame.cget('bg'), relief = tk.FLAT)
-		self.pi_text.grid(column = 4, row = row, columnspan = 2); self.pi_row = row
-		self.pi_text.insert(1.0, 'pi = 3.141593 2pi = 6.283185')
-		self.pi_text.configure(state = "disabled")
+		#self.pi_text = tk.Text(frame, height= 1, width = 30, bd  = 0, takefocus = 0, bg = frame.cget('bg'), relief = tk.FLAT)
+		#self.pi_text.grid(column = 4, row = row, columnspan = 2); self.pi_row = row
+		#self.pi_text.insert(1.0, 'pi = 3.141593 2pi = 6.283185')
+		#self.pi_text.configure(state = "disabled")
 		
 		# --- y -> r ---
 		row += 1
-		tk.Label(frame, text = "r [m]").grid(column = 1, row = row, sticky = tk.E )
+		tk.Label(frame, text = "Z [m]").grid(column = 1, row = row, sticky = tk.E )
 		
 		# Min
 		self.ymin = tk.StringVar(); 
@@ -6138,16 +6138,16 @@ class nstxfix_gui:
 		if os.path.isfile(self.path.get() + '_fix.dat'):
 			_,_,_, data = self.M.readControlFile(self.path.get() + '_fix.dat')
 		else: # defaults
-			data = [1e-4, 0, 1.4, 1.6, 4.3, 4.5, 900, 0, 1, 1, 0, 1, 0, 0, 0, 1, 
+			data = [1e-4, 0, 0.25, 0.55, -1.5, -1, 900, 0, 1, 1, 5, 1, 0, 0, 0, 1, 
 					100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
 					
 		self.shift = data[0]
 		self.MapDirection = int(data[8]); 		
-		self.xmin.set(repr(data[4]))
-		self.xmax.set(repr(data[5]))
+		self.ymin.set(repr(data[4]))
+		self.ymax.set(repr(data[5]))
 		self.Nx.set(str(int(data[6]**0.5)))
-		self.ymin.set(repr(data[2]))
-		self.ymax.set(repr(data[3]))
+		self.xmin.set(repr(data[2]))
+		self.xmax.set(repr(data[3]))
 		self.Ny.set(str(int(data[6]**0.5)))
 		self.phistart.set(repr(data[7]));
 		self.useIcoil.set(int(data[11])); 
@@ -6226,14 +6226,14 @@ class nstxfix_gui:
 		if(abs(self.HypRPt.get()) == 1):
 			self.period_entry.configure(state=tk.DISABLED)
 			if(self.HypRPt.get() == 1): # lower X-point
-				self.xmin.set(str(4.3))
-				self.xmax.set(str(4.5))
+				self.ymin.set(str(-1.5))
+				self.ymax.set(str(-1))
 			elif(self.HypRPt.get() == -1): # upper X-point
-				self.xmin.set(str(1.8))
-				self.xmax.set(str(2.0))
+				self.ymin.set(str(1))
+				self.ymax.set(str(1.5))
 			self.Nx.set(str(30))
-			self.ymin.set(str(1.4))
-			self.ymax.set(str(1.6))
+			self.xmin.set(str(0.25))
+			self.xmax.set(str(0.55))
 			self.Ny.set(str(30))
 			self.HypPt.set(str(1))
 			self.xmin_entry.configure(state=tk.DISABLED)
@@ -6374,15 +6374,15 @@ class nstxfix_gui:
 			f.write('# Path: ' + self.gPath.get() + '\n')
 			f.write('shift=\t' + repr(self.shift) + '\n')
 			f.write('itt=\t0\n')			
-			f.write('rmin=\t' + self.ymin.get() + '\n')
-			f.write('rmax=\t' + self.ymax.get() + '\n')
-			f.write('thmin=\t' + self.xmin.get() + '\n')
-			f.write('thmax=\t' + self.xmax.get() + '\n')
+			f.write('Rmin=\t' + self.xmin.get() + '\n')
+			f.write('Rmax=\t' + self.xmax.get() + '\n')
+			f.write('Zmin=\t' + self.ymin.get() + '\n')
+			f.write('Zmax=\t' + self.ymax.get() + '\n')
 			f.write('N=\t' + str(N) + '\n')
 			f.write('phistart(deg)=\t' + self.phistart.get() + '\n')
 			f.write('MapDirection=\t' + str(self.MapDirection) + '\n')
 			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t0\n')			
-			f.write('createPoints(0=setr,3=setpsi,5=setR)=\t0\n')			
+			f.write('createPoints(0=setr,3=setpsi,5=setR)=\t5\n')			
 			f.write('useECcoil(0=no,1=yes)=\t' + str(self.useIcoil.get()) + '\n')
 			f.write('useFilament(0=no)=\t' + self.useFilament.get() + '\n')
 			f.write('useTprofile(0=no,1=yes)= 0\n')
@@ -7974,8 +7974,8 @@ class info_gui:
 		self.info_text.grid(column = 1, row = row, columnspan = 5, padx=10, pady=10); 
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
-		'MAFOT Version 3.7 \n'
-		'GUI Version 1.4 \n'
+		'MAFOT Version 3.72 \n'
+		'GUI Version 1.41 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'

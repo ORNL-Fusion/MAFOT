@@ -52,8 +52,9 @@
 
 // Prototypes  
 //-----------
+bool inside(PARTICLE& FLT, IO& PAR);
 int newton2D(PARTICLE& FLT, double phistart, int periode);
-int mapit_J(PARTICLE& FLT, Array<double,1>& J, int itt, int Map=1);
+int mapit_J(PARTICLE& FLT,  double J[], int itt, int Map=1);
 
 // Switches
 //----------
@@ -67,7 +68,8 @@ int main(int argc, char *argv[])
 {
 // Variables
 int i,j,chk;
-double r,theta;
+double x,y;
+double dx,dy,xmin,ymin;
 EFIT EQD;
 
 // Period of fixed point
@@ -100,20 +102,44 @@ ofs2 << "Read Parameterfile " << parfilename << endl;
 IO PAR(EQD,parfilename,10);
 
 // additional parameters for IO
-PAR.pv[0].name = "r-grid";			PAR.pv[0].wert = PAR.Nr;
-PAR.pv[1].name = "theta-grid";		PAR.pv[1].wert = PAR.Nth;
-PAR.pv[2].name = "rmin";			PAR.pv[2].wert = PAR.rmin;
-PAR.pv[3].name = "rmax";			PAR.pv[3].wert = PAR.rmax;
-PAR.pv[4].name = "thmin";			PAR.pv[4].wert = PAR.thmin;
-PAR.pv[5].name = "thmax";			PAR.pv[5].wert = PAR.thmax;
 PAR.pv[6].name = "phistart";		PAR.pv[6].wert = PAR.phistart;
 PAR.pv[7].name = "MapDirection";	PAR.pv[7].wert = PAR.MapDirection;
 PAR.pv[8].name = "Ekin";			PAR.pv[8].wert = PAR.Ekin;
 PAR.pv[9].name = "energy ratio lambda";	PAR.pv[9].wert = PAR.lambda;
 
-const double dth = (PAR.thmax-PAR.thmin)/double(PAR.Nth-1);
-const double dr = (PAR.rmax-PAR.rmin)/double(PAR.Nr-1);
-
+// set search grid
+const int Nx = PAR.Nr;	// always use Nr = sqrt(N), because NR or NZ or others are given by separate positions in the _fix.dat file
+const int Ny = PAR.Nth;	// same here
+switch(PAR.create_flag)
+{
+case 0:
+	PAR.pv[0].name = "r-grid";			PAR.pv[0].wert = Nx;
+	PAR.pv[1].name = "theta-grid";		PAR.pv[1].wert = Ny;
+	PAR.pv[2].name = "rmin";			PAR.pv[2].wert = PAR.rmin;
+	PAR.pv[3].name = "rmax";			PAR.pv[3].wert = PAR.rmax;
+	PAR.pv[4].name = "thmin";			PAR.pv[4].wert = PAR.thmin;
+	PAR.pv[5].name = "thmax";			PAR.pv[5].wert = PAR.thmax;
+	dx = (PAR.rmax-PAR.rmin)/double(Nx-1);
+	dy = (PAR.thmax-PAR.thmin)/double(Ny-1);
+	xmin = PAR.rmin;
+	ymin = PAR.thmin;
+	break;
+case 5:
+	PAR.pv[0].name = "R-grid";			PAR.pv[0].wert = Nx;
+	PAR.pv[1].name = "Z-grid";			PAR.pv[1].wert = Ny;
+	PAR.pv[2].name = "Rmin";			PAR.pv[2].wert = PAR.Rmin;
+	PAR.pv[3].name = "Rmax";			PAR.pv[3].wert = PAR.Rmax;
+	PAR.pv[4].name = "Zmin";			PAR.pv[4].wert = PAR.Zmin;
+	PAR.pv[5].name = "Zmax";			PAR.pv[5].wert = PAR.Zmax;
+	dx = (PAR.Rmax-PAR.Rmin)/double(Nx-1);
+	dy = (PAR.Zmax-PAR.Zmin)/double(Ny-1);
+	xmin = PAR.Rmin;
+	ymin = PAR.Zmin;
+	break;
+default:
+	cout << "Unknown create points option" << endl;
+	EXIT;
+}
 
 // Read EFIT-data
 EQD.ReadData(EQD.Shot,EQD.Time);
@@ -138,21 +164,30 @@ vector<LA_STRING> var(6);
 var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "period";  var[3] = "psi";  var[4] = "theta[rad]";  var[5] = "r[m]";
 PAR.writeiodata(out,bndy,var);
 
-ofs2 << PAR.Nr << " rows, done:" << endl;
-for(i=0;i<PAR.Nr;i++)	//r
+ofs2 << Nx << " rows, done:" << endl;
+for(i=0;i<Nx;i++)	//r or R
 {
-	r = PAR.rmin + i*dr;
-	for(j=0;j<PAR.Nth;j++)	//theta
+	x = xmin + i*dx;
+	for(j=0;j<Ny;j++)	//theta or Z
 	{
-		theta = PAR.thmin + j*dth;
-		FLT.convertRZ(theta,r);
+		y = ymin + j*dy;
+		switch(PAR.create_flag)
+		{
+		case 0:
+			FLT.convertRZ(y,x);
+			break;
+		case 5:
+			FLT.R = x;
+			FLT.Z = y;
+			break;
+		}
 
 		chk = newton2D(FLT,PAR.phistart,periode);
 		if(chk==-1) continue;
 
 		if(periode==1)
 		{
-			if(FLT.get_r()>1)
+			if(inside(FLT,PAR))
 			{
 				out << FLT.R << "\t" << FLT.Z << "\t" << periode << "\t" << FLT.psi << "\t" << FLT.get_theta() << "\t" << FLT.get_r() << endl;
 				cout << "Program terminated normally" << endl;
@@ -182,6 +217,24 @@ return 0;
 //------------------------ End of Main ------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
+//----------- inside ----------------------------------------------------
+// checks if current FLT point is inside the search grid
+bool inside(PARTICLE& FLT, IO& PAR)
+{
+double r,th;
+switch(PAR.create_flag)
+{
+case 0:
+	r = FLT.get_r();
+	th = FLT.get_theta();
+	if(r >= PAR.rmin && r <= PAR.rmax && th >= PAR.thmin && th <= PAR.thmax) return true;
+	else return false;
+case 5:
+	if(FLT.R >= PAR.Rmin && FLT.R <= PAR.Rmax && FLT.Z >= PAR.Zmin && FLT.Z <= PAR.Zmax) return true;
+	else return false;
+}
+}
+
 //----------- newton2dim ------------------------------------------------
 // all variables with 'r' represent R and all with 't' represent Z!!!
 // J(1) = dR(i+1)/dR(i),  J(2) = dR(i+1)/dZ(i),  J(3) = dZ(i+1)/dR(i),  J(4) = dZ(i+1)/dZ(i)
@@ -194,7 +247,8 @@ const int imax = 100;
 const double delta = 1e-12;
 
 // Vectors
-Array<double,1> J(Range(1,4));		
+//Array<double,1> J(Range(1,4));
+double J[4];
 
 // Search
 double R = FLT.R;
@@ -209,9 +263,9 @@ for(i=0;i<=imax;i++)
 	fr = FLT.R - R;
 	ft = FLT.Z - Z;
 
-	det = (J(1)-1)*(J(4)-1) - J(2)*J(3);
-	dr = ((J(4)-1)*fr-J(2)*ft)/det;
-	dt = ((J(1)-1)*ft-J(3)*fr)/det;
+	det = (J[0]-1)*(J[3]-1) - J[1]*J[2];
+	dr = ((J[3]-1)*fr-J[1]*ft)/det;
+	dt = ((J[0]-1)*ft-J[2]*fr)/det;
 
 	length = sqrt(dr*dr + dt*dt);
 	//if(i%20==0){cout << dr << "\t" << dt << "\t" << length <<  endl;	getchar();}
@@ -231,13 +285,13 @@ return -1;
 }
 
 //--------- mapit_J -----------------------------------------------------------------
-int mapit_J(PARTICLE& FLT, Array<double,1>& J, int itt, int Map)
+int mapit_J(PARTICLE& FLT, double J[], int itt, int Map)
 {
 int chk;
 double Ralt,Zalt,phialt;
 const double dr = 0.00001;
 
-Array<double,1> R_stencil(Range(1,4)),Z_stencil(Range(1,4));	// 1:R+dr 2:R-dr 3:Z+dr 4:Z-dr
+double R_stencil[4],Z_stencil[4];	// 0:R+dr 1:R-dr 2:Z+dr 3:Z-dr
 
 Ralt = FLT.R;
 Zalt = FLT.Z;
@@ -248,10 +302,11 @@ FLT.R = Ralt + dr;
 FLT.Z = Zalt;
 FLT.phi = phialt;
 
+// no Array and it dies here
 chk = FLT.mapit(itt,Map);
 if(chk<0) return -1;
-R_stencil(1) = FLT.R;
-Z_stencil(1) = FLT.Z;
+R_stencil[0] = FLT.R;
+Z_stencil[0] = FLT.Z;
 
 //left: R-dr
 FLT.R = Ralt - dr;
@@ -260,8 +315,8 @@ FLT.phi = phialt;
 
 chk = FLT.mapit(itt,Map);
 if(chk<0) return -1;
-R_stencil(2) = FLT.R;
-Z_stencil(2) = FLT.Z;
+R_stencil[1] = FLT.R;
+Z_stencil[1] = FLT.Z;
 
 //up: Z+dr
 FLT.R = Ralt;
@@ -270,8 +325,8 @@ FLT.phi = phialt;
 
 chk = FLT.mapit(itt,Map);
 if(chk<0) return -1;
-R_stencil(3) = FLT.R;
-Z_stencil(3) = FLT.Z;
+R_stencil[2] = FLT.R;
+Z_stencil[2] = FLT.Z;
 
 //down: Z-dr
 FLT.R = Ralt;
@@ -280,15 +335,15 @@ FLT.phi = phialt;
 
 chk = FLT.mapit(itt,Map);
 if(chk<0) return -1;
-R_stencil(4) = FLT.R;
-Z_stencil(4) = FLT.Z;
+R_stencil[3] = FLT.R;
+Z_stencil[3] = FLT.Z;
 
 // derivatives
-// J(1)=dR(i+1)/dR(i) J(2)=dR(i+1)/dZ(i) J(3)=dZ(i+1)/dR(i) J(4)=dZ(i+1)/dZ(i)
-J(1) = 0.5*(R_stencil(1)-R_stencil(2))/dr;
-J(2) = 0.5*(R_stencil(3)-R_stencil(4))/dr;
-J(3) = 0.5*(Z_stencil(1)-Z_stencil(2))/dr;
-J(4) = 0.5*(Z_stencil(3)-Z_stencil(4))/dr;
+// J[0]=dR(i+1)/dR(i) J[1]=dR(i+1)/dZ(i) J[2]=dZ(i+1)/dR(i) J[3]=dZ(i+1)/dZ(i)
+J[0] = 0.5*(R_stencil[0]-R_stencil[1])/dr;
+J[1] = 0.5*(R_stencil[2]-R_stencil[3])/dr;
+J[2] = 0.5*(Z_stencil[0]-Z_stencil[1])/dr;
+J[3] = 0.5*(Z_stencil[2]-Z_stencil[3])/dr;
 
 // center
 FLT.R = Ralt;

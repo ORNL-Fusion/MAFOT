@@ -46,11 +46,18 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.71
-GUI 1.4
+MAFOT 3.72
+GUI 1.41
 
 Version Notes: 
 ----------------
+MAFOT 3.72 -- Aug 2015
+- Bug fix in EFIT_class
+- fix now searches on RZ grid as well; for period = 1: only first result within grid is returned
+
+GUI 1.41 -- Aug 2015
+- changed fix to use RZ grid in D3D and NSTX
+
 MAFOT 3.71 -- Aug 2015
 - in xpand: enable force axisymmetriy in VMECthrough n0only
 - in xpand: use full VMEC B-field for virtual casing; interpolation error in vacuum field much larger 

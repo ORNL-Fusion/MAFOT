@@ -178,7 +178,7 @@ out << "# EC-coil active (0=no, 1=yes): " << useIcoil << endl;
 out << "# No. of current filaments (0=none): " << useFilament << endl;
 out << "# Use Temperature Profile (0=off, 1=on): " << useTprofile << endl;
 out << "# Target (1=inner up, 2=outer up, 3=inner down, 4=outer down): " << which_target_plate << endl;
-out << "# Create Points (0=grid, 1=random, 2=target): " << create_flag << endl;
+out << "# Create Points (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-random, 5=RZ-grid): " << create_flag << endl;
 out << "# Direction of particles (1=co-pass, -1=count-pass, 0=field lines): " << sigma << endl;
 out << "# Charge number of particles (=-1:electrons, >=1:ions): " << Zq << endl;
 out << "# Boundary (0=Wall, 1=Box): " << simpleBndy << endl;

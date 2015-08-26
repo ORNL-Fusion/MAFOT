@@ -481,6 +481,7 @@ if((Ip*Bt0 > 0 && helicity == -1) || (Ip*Bt0 < 0 && helicity == 1))
 //btSign = sign(Bt0)	// +1.0 or -1.0 (real)
 //bpSign = sign(Ip)	// +1.0 or -1.0 (real)
 
+lcfs_th.resize(Nlcfs);
 for(i=1;i<=Nlcfs;i++) lcfs_th(i) = polar_phi(lcfs(2*i-1) - RmAxis, lcfs(2*i) - ZmAxis);
 
 

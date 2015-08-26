@@ -167,7 +167,7 @@ out << "# EC-coil active (0=no, 1=yes): " << useIcoil << endl;
 out << "# No. of current filaments (0=none): " << useFilament << endl;
 out << "# Use Temperature Profile (0=off, 1=on): " << useTprofile << endl;
 out << "# Target (1=inner up, 2=outer up, 3=inner down, 4=outer down): " << which_target_plate << endl;
-out << "# Create Points (0=grid, 1=random, 2=target): " << create_flag << endl;
+out << "# Create Points (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-random, 5=RZ-grid): " << create_flag << endl;
 out << "# Direction of particles (1=co-pass, -1=count-pass, 0=field lines): " << sigma << endl;
 out << "# Charge number of particles (=-1:electrons, >=1:ions): " << Zq << endl;
 out << "# Boundary (0=Wall, 1=Box): " << simpleBndy << endl;
@@ -300,17 +300,20 @@ consts_.dtr = 1.0/consts_.rtd;
 
 // Read itersup.in file
 ifstream in;
-in.open(supPath + "nstxsup.in");
-if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open nstxsup.in file " << endl; EXIT;}
+if(PAR.useIcoil == 1)
+{
+	in.open(supPath + "nstxsup.in");
+	if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open nstxsup.in file " << endl; EXIT;}
 
-for(i=1;i<=5;i++) {in >> line;} // Skip 5 lines
-for(i=0;i<mxbands;i++) {for(j=0;j<mxloops;j++) in >> currents_.ECcur[i][j];}		// Read coil currents
+	for(i=1;i<=5;i++) {in >> line;} // Skip 5 lines
+	for(i=0;i<mxbands;i++) {for(j=0;j<mxloops;j++) in >> currents_.ECcur[i][j];}		// Read coil currents
 
-in >> line;	// Skip line
-for(i=0;i<mxbands;i++) {for(j=0;j<3;j++) in >> currents_.ECadj[i][j];}		// Read coil adjustments
+	in >> line;	// Skip line
+	for(i=0;i<mxbands;i++) {for(j=0;j<3;j++) in >> currents_.ECadj[i][j];}		// Read coil adjustments
 
-in.close();	// close file
-in.clear();	// reset ifstream for next use
+	in.close();	// close file
+	in.clear();	// reset ifstream for next use
+}
 
 // Write Currents to log files (Check if corretly read in)
 ofs2 << "Currents:" << endl;
