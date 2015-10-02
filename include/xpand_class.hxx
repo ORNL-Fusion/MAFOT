@@ -776,6 +776,10 @@ dv = pi2/(Nv-1);
 for(i=1;i<=Nu;i++) U(i) = (i-1)*du;
 for(j=1;j<=Nv;j++) V(j) = (j-1)*dv;
 
+//ofstream out("virtual_current.dat");
+//out.precision(16);
+//out << "# u" << "\t" << "v" << "\t" << "Kx" << "\t" << "Ky" << "\t" << "Kz" << "\t" << "n.B" << endl;
+
 //#pragma omp parallel for private(i,j) collapse(2)
 for(i=1;i<=Nu;i++)
 	for(j=1;j<=Nv;j++)
@@ -819,6 +823,8 @@ for(i=1;i<=Nu;i++)
 		KR(i,j) = n(1)*B(2) - n(2)*B(1);
 		Kp(i,j) = n(2)*B(0) - n(0)*B(2);
 		KZ(i,j) = n(0)*B(1) - n(1)*B(0);
+
+		//out << U(i) << "\t" << V(j) << "\t" << KR(i,j) << "\t" << Kp(i,j) << "\t" << KZ(i,j) << "\t" << nB(i,j) << endl;
 	}
 
 // get the derivatives
