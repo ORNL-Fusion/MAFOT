@@ -73,9 +73,18 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	y = data[:,1].reshape(Nth,Npsi)
 	Lc = data[:,3].reshape(Nth,Npsi)
 	psimin = data[:,4].reshape(Nth,Npsi)
-	if ((coordinates == 'psi') | (coordinates == 'pest')) & (machine == 'd3d'):
+	try:
 		psimax = data[:,5].reshape(Nth,Npsi)
 		psiav = data[:,6].reshape(Nth,Npsi)
+		use_psimaxav = True
+	except:
+		use_psimaxav = False
+	try:
+		pitch = data[:,7].reshape(Nth,Npsi)
+		yaw = data[:,8].reshape(Nth,Npsi)
+		use_pitch_yaw = True
+	except:
+		use_pitch_yaw = False
 
 	# --- set xy data -----------------
 	if(coordinates == 'RZ'):
@@ -153,6 +162,9 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		cdict = plt.cm.jet_r._segmentdata
 
 	elif(what == 'psimax'):
+		if not use_psimaxav:
+			print "psimax data is not available in this file"
+			return
 		if(b == None): b = np.linspace(0.88,1.02,N)
 		z = psimax
 		if not latex: C_label = u'\u03c8' + '$_{Max}$'
@@ -161,12 +173,37 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		cdict = plt.cm.jet_r._segmentdata
 		
 	elif(what == 'psiav'):
+		if not use_psimaxav:
+			print "psiav data is not available in this file"
+			return
 		if(b == None): b = np.linspace(0.88,1.02,N)
 		z = psiav
 		if not latex: C_label = u'\u03c8' + '$_{av}$'
 		else: C_label = '$\\psi_{av}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
 		cdict = plt.cm.jet_r._segmentdata
+
+	elif(what == 'pitch'):
+		if not use_pitch_yaw:
+			print "pitch angle data is not available in this file"
+			return
+		if(b == None): b = np.linspace(-5,20,N)
+		z = pitch/np.pi*180
+		if not latex: C_label = u'\u03b1' + '$_{p}$ [deg]'
+		else: C_label = '$\\alpha_{p}$ [deg]'
+		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
+		cdict = plt.cm.jet._segmentdata
+
+	elif(what == 'yaw'):
+		if not use_pitch_yaw:
+			print "yaw angle data is not available in this file"
+			return
+		if(b == None): b = np.linspace(-10,10,N)
+		z = yaw/np.pi*180
+		if not latex: C_label = u'\u03b1' + '$_{r}$  [deg]'
+		else: C_label = '$\\alpha_{r}$  [deg]'
+		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
+		cdict = plt.cm.jet._segmentdata
 		
 	else: 
 		print 'what: Unknown input'
@@ -179,11 +216,11 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	elif(machine == 'iter'): Lcmin = 0.22
 	
 	if(coordinates == 'RZ') | (coordinates == 'phi'): 
-		if not (what == 'Lc'):
+		if('psi' in what):
 			z[Lc < Lcmin] = 1.01*b.max()
 	elif not (coordinates == 'phi'): 
 		if(what == 'Lc'): z[(y >= 1) & (z >= 4)] = b.min()
-		else: z[z < 0.5] = b.max()
+		elif('psi' in what): z[z < 0.5] = b.max()
 	
 	# reverse axes for footprint
 	if(coordinates == 'phi') & (physical > 0):
@@ -263,6 +300,9 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		else:	# plot the pump limit / edge of shelf nose location
 			if(physical == 1) & (machine == 'd3d'): plt.plot([x.min(), x.max()], [1.372, 1.372], 'k--', linewidth = 1.5)
 			else: plt.plot([x.min(), x.max()], [1, 1], 'k--', linewidth = 1.5)
+			
+	if(coordinates == 'RZ') & (what in ['pitch', 'yaw']): # plot plasma boundary
+		plt.contour(x, y, Lc.T, [Lcmin], colors = 'k', linewidths = 2)
 
 	# --- Axes  -----------------------
 	if(coordinates == 'RZ'): 
@@ -300,14 +340,14 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	bmin = int(np.ceil(b.min()/factor))*factor
 	myticks = np.arange(bmin, b.max()+steps, steps)
 	if(coordinates == 'RZ') | (coordinates == 'phi'): 
-		if(what == 'psimin'): 
+		if('psi' in what): 
 			myticks = myticks[myticks <= b.max()]
 			myticks[-1] = b.max()
 		else:
 			myticks[0] = b.min()
 			
 	if 'Anaconda' in sys.version:
-		if(what == 'psimin'): 
+		if('psi' in what): 
 			myticks = myticks[myticks <= b.max()]
 	
 	myticks[np.abs(myticks) < 1e-10] = 0
@@ -317,8 +357,8 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	# once the colorbar is called after the reset.
 	if(typeOfPlot == 'contourf'): cs.set_clim(b.min(),b.max())
 	if(coordinates == 'RZ') | (coordinates == 'phi'): 
-		if(what == 'psimin'): cs.cmap.set_over('w')
-		else: cs.cmap.set_under('w')
+		if('psi' in what): cs.cmap.set_over('w')
+		elif(what == 'Lc'): cs.cmap.set_under('w')
 
 	# show colorbar
 	C = plt.colorbar(cs, pad = 0.01, extend = 'both', format = '%.3g', ticks = myticks)
@@ -328,8 +368,8 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	# add SOL label in RZ plot and footprint
 	if(coordinates == 'RZ') | (coordinates == 'phi'): 
 		myticklabels = [str(item) for item in myticks]
-		if(what == 'psimin'): myticklabels[-1] = 'SOL'
-		else: myticklabels[0] = 'SOL'
+		if('psi' in what): myticklabels[-1] = 'SOL'
+		elif(what == 'Lc'): myticklabels[0] = 'SOL'
 		C.ax.set_yticklabels(myticklabels)
 						
 	# --- Title -----------------------
