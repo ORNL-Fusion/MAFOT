@@ -108,7 +108,7 @@ case 'h':
 	if(mpi_rank < 1)
 	{
 		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-s] [-l limit] file [tag]" << endl << endl;
-		cout << "Calculate magnetic field outside of VMEC boundary." << endl << endl;
+		cout << "Calculate field line connection length and penetration depth in a poloidal cross-section." << endl << endl;
 		cout << "positional arguments:" << endl;
 		cout << "  file          Contol file (starts with '_')" << endl;
 		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;

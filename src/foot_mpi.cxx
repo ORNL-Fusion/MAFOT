@@ -56,6 +56,7 @@
 	#endif
 #endif
 #include <omp.h>
+#include <unistd.h>
 
 // Prototypes  
 //-----------
@@ -74,7 +75,6 @@ int main(int argc, char *argv[])
 MPI::Init(argc, argv);
 int mpi_rank = MPI::COMM_WORLD.Get_rank();
 int mpi_size = MPI::COMM_WORLD.Get_size();
-if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
 
 // Variables
 int i,j;
@@ -91,11 +91,48 @@ MPI::Status status;
 // Use system time as seed(=idum) for random numbers
 double now = zeit();
 
+// defaults
+
+// Command line input parsing
+int c;
+opterr = 0;
+while ((c = getopt(argc, argv, "h")) != -1)
+switch (c)
+{
+case 'h':
+	if(mpi_rank < 1)
+	{
+		cout << "usage: mpirun -n <cores> dtfoot_mpi [-h] file [tag]" << endl << endl;
+		cout << "Calculate field line connection length and penetration depth on the vessel wall." << endl << endl;
+		cout << "positional arguments:" << endl;
+		cout << "  file          Contol file (starts with '_')" << endl;
+		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
+		cout << endl << "optional arguments:" << endl;
+		cout << "  -h            show this help message and exit" << endl;
+		cout << endl << "Examples:" << endl;
+		cout << "  mpirun -n 4 dtfoot_mpi _inner.dat blabla" << endl;
+	}
+	MPI::Finalize();
+	return 0;
+case '?':
+	if(mpi_rank < 1)
+	{
+		if (optopt == 'c')
+			fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+		else if (isprint (optopt))
+			fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+		else
+			fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
+	}
+	EXIT;
+default:
+	EXIT;
+}
 // Input file names
 LA_STRING basename;
 LA_STRING praefix = "";
-if(argc==3) praefix = "_" + LA_STRING(argv[2]);
-if(argc>=2) basename = LA_STRING(argv[1]);
+if(argc==optind+2) praefix = "_" + LA_STRING(argv[optind+1]);
+if(argc>=optind+1) basename = LA_STRING(argv[optind]);
 else	// No Input: Abort
 {
 	if(mpi_rank < 1) cout << "No Input files -> Abort!" << endl;
@@ -103,6 +140,7 @@ else	// No Input: Abort
 }
 basename = checkparfilename(basename);
 LA_STRING parfilename = "_" + basename + ".dat";
+if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
 
 // Read Parameterfile
 if(mpi_rank < 1) cout << "Read Parameterfile " << parfilename << endl;

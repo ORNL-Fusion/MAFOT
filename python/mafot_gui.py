@@ -129,8 +129,9 @@ class Common_gui:
 	# returns True if tag is alphanumeric or has _ + - as special chars
 	# else returns False
 	def isOkay(self, tag):
+		tag = tag.translate(None, '_+- ')
 		if(len(tag) == 0): return True
-		else: return tag.translate(None, '_+-').isalnum()
+		else: return tag.isalnum()
 		
 	# prints error Message, if isOkay == False
 	def isNotOkay(self):

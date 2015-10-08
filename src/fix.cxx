@@ -49,6 +49,7 @@
 		#include <d3d.hxx>
 	#endif
 #endif
+#include <unistd.h>
 
 // Prototypes  
 //-----------
@@ -75,14 +76,45 @@ EFIT EQD;
 // Period of fixed point
 int periode;
 
-// Input filenames
+// defaults
+
+// Command line input parsing
+int c;
+opterr = 0;
+while ((c = getopt(argc, argv, "h")) != -1)
+switch (c)
+{
+case 'h':
+	cout << "usage: dtfix [-h] file period [tag]" << endl << endl;
+	cout << "Calculate the position of periodic points, like x-points and o-points." << endl << endl;
+	cout << "positional arguments:" << endl;
+	cout << "  file          Contol file (starts with '_')" << endl;
+	cout << "  period        periodicity of point" << endl;
+	cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
+	cout << endl << "optional arguments:" << endl;
+	cout << "  -h            show this help message and exit" << endl;
+	cout << endl << "Examples:" << endl;
+	cout << "  dtfix _fix.dat 1 blabla" << endl;
+	return 0;
+case '?':
+	if (optopt == 'c')
+		fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+	else if (isprint (optopt))
+		fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+	else
+		fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
+	exit(0);
+default:
+	exit(0);
+}
+// Input file names
 LA_STRING basename;
 LA_STRING praefix = "";
-if(argc==4) praefix = "_" + LA_STRING(argv[3]);
-if(argc>=3) 
+if(argc==optind+3) praefix = "_" + LA_STRING(argv[optind+2]);
+if(argc>=optind+2)
 {
-	periode = atoi(argv[2]);
-	basename = LA_STRING(argv[1]); 
+	periode = atoi(argv[optind+1]);
+	basename = LA_STRING(argv[optind]);
 }
 else	// No Input: Abort
 {
