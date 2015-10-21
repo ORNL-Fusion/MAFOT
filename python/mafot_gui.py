@@ -736,7 +736,7 @@ class dtplot_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, nproc, tag):
 		with open('run_mpijob', 'w') as f:
-			f.write('#$ -N P' + tag + '\n')
+			f.write('#$ -N P' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
@@ -1264,7 +1264,7 @@ class dtfix_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, period, tag):
 		with open('run_job', 'w') as f:
-			f.write('#$ -N fix' + tag + '\n')
+			f.write('#$ -N fix' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
@@ -1750,7 +1750,7 @@ class dtman_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, fixfile, tag):
 		with open('run_job', 'w') as f:
-			f.write('#$ -N M' + tag + '\n')
+			f.write('#$ -N M' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
@@ -2248,7 +2248,7 @@ class dtfoot_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, nproc, tag, type):
 		with open('run_mpijob', 'w') as f:
-			f.write('#$ -N F' + tag + '\n')
+			f.write('#$ -N F' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
@@ -2731,7 +2731,7 @@ class dtlam_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, nproc, tag, type = 'RZ'):
 		with open('run_mpijob', 'w') as f:
-			f.write('#$ -N L' + tag + '\n')
+			f.write('#$ -N L' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
@@ -3260,7 +3260,7 @@ class iterplot_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, nproc, tag):
 		with open('run_mpijob', 'w') as f:
-			f.write('#$ -N P' + tag + '\n')
+			f.write('#$ -N P' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
@@ -3750,7 +3750,7 @@ class iterfix_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, period, tag):
 		with open('run_job', 'w') as f:
-			f.write('#$ -N fix' + tag + '\n')
+			f.write('#$ -N fix' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
@@ -4225,7 +4225,7 @@ class iterman_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, fixfile, tag):
 		with open('run_job', 'w') as f:
-			f.write('#$ -N M' + tag + '\n')
+			f.write('#$ -N M' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
@@ -4697,7 +4697,7 @@ class iterfoot_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, nproc, tag, type):
 		with open('run_mpijob', 'w') as f:
-			f.write('#$ -N F' + tag + '\n')
+			f.write('#$ -N F' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
@@ -5165,7 +5165,7 @@ class iterlam_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, nproc, tag, type = 'RZ'):
 		with open('run_mpijob', 'w') as f:
-			f.write('#$ -N L' + tag + '\n')
+			f.write('#$ -N L' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
@@ -5695,7 +5695,7 @@ class nstxplot_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, nproc, tag):
 		with open('run_mpijob', 'w') as f:
-			f.write('#$ -N P' + tag + '\n')
+			f.write('#$ -N P' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
@@ -6212,7 +6212,7 @@ class nstxfix_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, period, tag):
 		with open('run_job', 'w') as f:
-			f.write('#$ -N fix' + tag + '\n')
+			f.write('#$ -N fix' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
@@ -6687,7 +6687,7 @@ class nstxman_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, fixfile, tag):
 		with open('run_job', 'w') as f:
-			f.write('#$ -N M' + tag + '\n')
+			f.write('#$ -N M' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
@@ -7231,7 +7231,7 @@ class nstxfoot_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, nproc, tag, type):
 		with open('run_mpijob', 'w') as f:
-			f.write('#$ -N F' + tag + '\n')
+			f.write('#$ -N F' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
@@ -7737,7 +7737,7 @@ class nstxlam_gui:
 	# --- Write qsub File on Drop Cluster ---
 	def write_qsub_file(self, nproc, tag, type = 'RZ'):
 		with open('run_mpijob', 'w') as f:
-			f.write('#$ -N L' + tag + '\n')
+			f.write('#$ -N L' + tag.translate(None, '_+- ') + '\n')
 			f.write('#$ -cwd \n')
 			f.write('#$ -o ' + HOME + '/work/batch.out \n')
 			f.write('#$ -e ' + HOME + '/work/batch.err \n')
