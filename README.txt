@@ -46,11 +46,17 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.72
-GUI 1.41
+MAFOT 3.73
+GUI 1.42
 
 Version Notes: 
 ----------------
+MAFOT 3.73 -- Oct 2015
+- shell command line flags enabled in all tools, use -h for details
+
+GUI 1.42 -- Oct 2015
+- shell command flags can be entered through the "File Tag" input now
+
 MAFOT 3.72 -- Aug 2015
 - Bug fix in EFIT_class
 - fix now searches on RZ grid as well; for period = 1: only first result within grid is returned
