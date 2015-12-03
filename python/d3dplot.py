@@ -246,6 +246,15 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 				z[:,i] = spline(x[:,i])
 		except:
 			raise ImportError('Pest coordinates not available. Choose other coordinates')
+			
+	# --- xlimit for periodic x-axis --
+	if (not (coordinates == 'RZ')) and (not (xlimit == None)):
+		y = np.vstack((y,y,y))
+		z = np.vstack((z,z,z))
+		if (coordinates == 'phi') and (physical > 0):
+			x = np.vstack((x - 360, x, x + 360))
+		else:
+			x = np.vstack((x - 2*np.pi, x, x + 2*np.pi))
 
 	# --- layout ----------------------
 	#rcParams['text.latex.preamble'] = [r'\usepackage{times}']#\usepackage{amsmath}
