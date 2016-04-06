@@ -16,7 +16,7 @@
 #include <blitz/tinyvec-et.h>
 #include <netcdf.h>
 #include <andi.hxx>
-#include <efit_class.hxx>
+#include <splines.hxx>
 #include <vmec_class.hxx>
 using namespace blitz;
 
@@ -506,7 +506,7 @@ double args[1];
 R = Rin; phi = phiin; Z = Zin; 		// load into member variables
 
 integ = adaptiveSimpson(4, args, 0, pi2, epsabs, epsrel, maxRecDepth);
-integ /= -4*pi;	// mu0/4pi and mu0*H = B; because K = n x H originally
+integ /= -4*pi;	// mu0/4pi and mu0*H = B; because K = n x H originally, so unit of K is actually mu0*current;   the negative sign is because VC returns the negative plasma response field
 
 double Bx, By;
 Bx = integ(0); By = integ(1);
@@ -776,9 +776,26 @@ dv = pi2/(Nv-1);
 for(i=1;i<=Nu;i++) U(i) = (i-1)*du;
 for(j=1;j<=Nv;j++) V(j) = (j-1)*dv;
 
-//ofstream out("virtual_current.dat");
-//out.precision(16);
-//out << "# u" << "\t" << "v" << "\t" << "Kx" << "\t" << "Ky" << "\t" << "Kz" << "\t" << "n.B" << endl;
+ofstream out("virtual_current.dat");
+out.precision(16);
+out << "# u" << "\t" << "v" << "\t" << "Kx" << "\t" << "Ky" << "\t" << "Kz" << "\t" << "n.B" << endl;
+
+//**********************************************************************
+bool USE_CORRECTION = false;
+
+// read in VC B-field at s = 1
+Array<double,2> data;
+if(USE_CORRECTION) readfile("xpand_s1_surface.dat", 10, data);
+
+double Rs1,Zs1,dRdus1,dRdvs1,dZdus1,dZdvs1;
+double bsupu_VCs1;
+double dudZ,dudR,uR,uZ;
+double jphi,jx,jy;
+int idx;
+
+double dR = 0.0001;
+double dZ = 0.0001;
+//**********************************************************************
 
 //#pragma omp parallel for private(i,j) collapse(2)
 for(i=1;i<=Nu;i++)
@@ -820,11 +837,46 @@ for(i=1;i<=Nu;i++)
 		nB(i,j) = n(0)*B(0) + n(1)*B(1) + n(2)*B(2);
 
 		// virtual casing current density on s = 1; K = n x B
-		KR(i,j) = n(1)*B(2) - n(2)*B(1);
-		Kp(i,j) = n(2)*B(0) - n(0)*B(2);
+		KR(i,j) = n(1)*B(2) - n(2)*B(1);	// Kx
+		Kp(i,j) = n(2)*B(0) - n(0)*B(2);	// Ky
 		KZ(i,j) = n(0)*B(1) - n(1)*B(0);
 
-		//out << U(i) << "\t" << V(j) << "\t" << KR(i,j) << "\t" << Kp(i,j) << "\t" << KZ(i,j) << "\t" << nB(i,j) << endl;
+		//**********************************************************************
+		if(USE_CORRECTION)
+		{
+			// s = 1 Surface
+			Rs1 = wout.rmn.ev(1.0, U(i), V(j), dummy, dRdus1, dRdvs1, sinuv, cosuv);
+			Zs1 = wout.zmn.ev(1.0, U(i), V(j), dummy, dZdus1, dZdvs1, sinuv, cosuv);
+
+			// dudR,dudZ derivatives on the s = 1 surface
+			wout.get_su(Rs1+dR, V(j), Zs1, dummy, uR);	// returns uR modulo 2*pi
+			dudR = uR - U(i);
+			if(dudR < 0) dudR = -modulo2pi(-dudR);
+			else dudR = modulo2pi(dudR);
+			dudR /= dR;
+
+			wout.get_su(Rs1, V(j), Zs1+dZ, dummy, uZ);
+			dudZ = uZ - U(i);
+			if(dudZ < 0) dudZ = -modulo2pi(-dudZ);
+			else dudZ = modulo2pi(dudZ);
+			dudZ /= dZ;
+
+			// displacement current
+			idx = (j-1)*Nu + i;
+			bsupu_VCs1 = dudR*data(idx,4) + dudZ*data(idx,6);	// from the VC field not from VMEC
+			jphi = Rs(i,j) * (bsupu_VCs1 - bsupu)/(1.0 - s);		// unit is mu0*current already, same as K
+
+			// make cartesian
+			jx = -jphi*sinv;
+			jy =  jphi*cosv;
+
+			// correct K
+			KR(i,j) += jx;
+			Kp(i,j) += jy;
+		}
+		//**********************************************************************
+
+		out << U(i) << "\t" << V(j) << "\t" << KR(i,j) << "\t" << Kp(i,j) << "\t" << KZ(i,j) << "\t" << nB(i,j) << endl;
 	}
 
 // get the derivatives

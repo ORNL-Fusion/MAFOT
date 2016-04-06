@@ -70,6 +70,8 @@ public:
 
 // Switches
 //----------
+const bool VC_INSIDE = false;	// also run virtual casing inside of VMEC LCFS
+const bool ALLOW_INSIDE = true;	// compute field inside of VMEC LCFS
 
 // Golbal Parameters
 //------------------
@@ -87,7 +89,7 @@ int mpi_size = MPI::COMM_WORLD.Get_size();
 // Variables
 int i,j, N, idx;
 double R, phi, Z, s, u, Pres;
-Array<double,1> B(3), Bvac(3);
+Array<double,1> B(3), Bvac(3), Bvcin(3);
 double now=zeit();
 Range all = Range::all();
 int c;
@@ -186,7 +188,12 @@ else {if(mpi_rank < 1) cout << "No Input files -> Abort!" << endl; EXIT;}
 if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
 
 // Init classes
-if(mpi_rank < 1) cout << "Initialize..." << endl;
+if(mpi_rank < 1)
+{
+	cout << "Initialize..." << endl;
+	if(VC_INSIDE) cout << "Running VC inside s = 1 and correct VMEC field..." << endl;
+	if(not ALLOW_INSIDE) cout << "Forcing inside s = 1 as outside..." << endl;
+}
 AdaptiveGK GKx(limit, degree, 3);
 AdaptiveGK GKy(limit, degree, 3);
 VMEC wout(wout_name, VMEC_n0only);
@@ -195,7 +202,9 @@ INSIDE_VMEC inside(wout);
 
 // read input
 Array<double,2> points;
+vector<LA_STRING> points_header;
 if(mpi_rank < 1) cout << "Read points..." << endl;
+int points_header_lines = readFileHeader(points_file, points_header);
 readfile(points_file, 3, points);
 N = points.rows();
 double phi_old = points(1,2);
@@ -231,7 +240,7 @@ if(mpi_rank < 1)
 	out.precision(16);
 	if(VMEC_n0only) out << "# Xpand results from axisymmetric VMEC file " << wout_name << endl;
 	else out << "# Xpand results from VMEC file " << wout_name << endl;
-	out << "# " << N << " points" << endl;
+	for(i=0;i<points_header_lines;i++) out << points_header[i] << endl;
 	out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t Pressure[Pa] \t BRvac[T]   \t Bphivac[T] \t BZvac[T]" << endl;
 
 	// log file
@@ -385,11 +394,17 @@ if(mpi_rank < 1)
 
 					Bvac = bvc.get_vacuumB(R, phi, Z, VMEC_n0only);
 
-					if(inside.check(R,Z))
+					if(inside.check(R,Z) && ALLOW_INSIDE)
 					{
+						Pres = wout.presf.ev(s);
 						wout.get_su(R, phi, Z, s, u);
 						wout.get_B2D(s, u, phi, B(0), B(1), B(2));
-						Pres = wout.presf.ev(s);
+						if(VC_INSIDE)
+						{
+							if(use_GK) Bvcin = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
+							else Bvcin = bvc.ev(R, phi, Z);
+							B += Bvac + Bvcin;	// Bvcin ~ -Bvac
+						}
 					}
 					else
 					{
@@ -446,11 +461,17 @@ if(mpi_rank < 1)
 
 		Bvac = bvc.get_vacuumB(R, phi, Z, VMEC_n0only);
 
-		if(inside.check(R,Z))
+		if(inside.check(R,Z) && ALLOW_INSIDE)
 		{
+			Pres = wout.presf.ev(s);
 			wout.get_su(R, phi, Z, s, u);
 			wout.get_B2D(s, u, phi, B(0), B(1), B(2));
-			Pres = wout.presf.ev(s);
+			if(VC_INSIDE)
+			{
+				if(use_GK) Bvcin = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
+				else Bvcin = bvc.ev(R, phi, Z);
+				B += Bvac + Bvcin;
+			}
 		}
 		else
 		{
@@ -504,11 +525,17 @@ if(mpi_rank > 0)
 
 			Bvac = bvc.get_vacuumB(R, phi, Z, VMEC_n0only);
 
-			if(inside.check(R,Z))
+			if(inside.check(R,Z) && ALLOW_INSIDE)
 			{
+				Pres = wout.presf.ev(s);
 				wout.get_su(R, phi, Z, s, u);
 				wout.get_B2D(s, u, phi, B(0), B(1), B(2));
-				Pres = wout.presf.ev(s);
+				if(VC_INSIDE)
+				{
+					if(use_GK) Bvcin = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
+					else Bvcin = bvc.ev(R, phi, Z);
+					B += Bvac + Bvcin;
+				}
 			}
 			else
 			{

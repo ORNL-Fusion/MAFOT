@@ -726,7 +726,7 @@ class dtplot_gui:
 		if(HOST == 'head.cluster'):		# Drop Cluster
 			self.write_qsub_file(int(self.nproc.get()), self.tag.get())
 			#self.write_qsub_file(int(self.tag.get())
-			call('qsub run_job', shell = True)
+			call('qsub run_mpijob', shell = True)
 		else:
 			call(MPIRUN + ' -n ' + str(int(self.nproc.get())) + ' dtplot_mpi _plot.dat ' + self.tag.get() + ' &', shell = True)
 			#call('dtplot _plot.dat ' + self.tag.get() + ' &', shell = True)		
@@ -744,8 +744,9 @@ class dtplot_gui:
 			f.write('#$ -V \n')
 			f.write('#$ -q all.q \n')
 			f.write('#$ -pe mpi ' + str(nproc) + ' \n')
+			f.write('source /etc/profile.d/modules.sh\n')
 			f.write('module load openmpi-1.6/gcc \n')
-			f.write('mpirun -n ${NSLOTS} dtplot_mpi _plot.dat ' + tag + '\n')
+			f.write('mpirun -n ' + str(nproc) + ' dtplot_mpi _plot.dat ' + tag + '\n')
 			
 	# --- Write qsub File on Drop Cluster ---
 # 	def write_qsub_file(self, tag):
@@ -2256,13 +2257,14 @@ class dtfoot_gui:
 			f.write('#$ -V \n')
 			f.write('#$ -q all.q \n')
 			f.write('#$ -pe mpi ' + str(nproc) + ' \n')
+			f.write('source /etc/profile.d/modules.sh\n')
 			f.write('module load openmpi-1.6/gcc \n')
 			if(type == 'in'):
-				f.write('mpirun -n ${NSLOTS} dtfoot_mpi _inner.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' dtfoot_mpi _inner.dat ' + tag + '\n')
 			elif(type == 'out'):
-				f.write('mpirun -n ${NSLOTS} dtfoot_mpi _outer.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' dtfoot_mpi _outer.dat ' + tag + '\n')
 			elif(type == 'shelf'):
-				f.write('mpirun -n ${NSLOTS} dtfoot_mpi _shelf.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' dtfoot_mpi _shelf.dat ' + tag + '\n')
 			
 				
 	# --- turn on/off response radiobutton ---
@@ -2739,11 +2741,12 @@ class dtlam_gui:
 			f.write('#$ -V \n')
 			f.write('#$ -q all.q \n')
 			f.write('#$ -pe mpi ' + str(nproc) + ' \n')
+			f.write('source /etc/profile.d/modules.sh\n')
 			f.write('module load openmpi-1.6/gcc \n')
 			if(type == 'psi'):
-				f.write('mpirun -n ${NSLOTS} dtlaminar_mpi _lam_psi.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' dtlaminar_mpi _lam_psi.dat ' + tag + '\n')
 			else:
-				f.write('mpirun -n ${NSLOTS} dtlaminar_mpi _lam.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' dtlaminar_mpi _lam.dat ' + tag + '\n')
 			
 
 	# --- Change Labels on grid variables, depending on createFlag ---
@@ -3251,7 +3254,7 @@ class iterplot_gui:
 		self.writeControlFile('_plot.dat')
 		if(HOST == 'head.cluster'):		# Drop Cluster
 			self.write_qsub_file(int(self.nproc.get()), self.tag.get())
-			call('qsub run_job', shell = True)
+			call('qsub run_mpijob', shell = True)
 		else:
 			call(MPIRUN + ' -n ' + str(int(self.nproc.get())) + ' iterplot_mpi _plot.dat ' + self.tag.get() + ' &', shell = True)
 		if chk: os.chdir(cwd)
@@ -3268,8 +3271,9 @@ class iterplot_gui:
 			f.write('#$ -V \n')
 			f.write('#$ -q all.q \n')
 			f.write('#$ -pe mpi ' + str(nproc) + ' \n')
+			f.write('source /etc/profile.d/modules.sh\n')
 			f.write('module load openmpi-1.6/gcc \n')
-			f.write('mpirun -n ${NSLOTS} iterplot_mpi _plot.dat ' + tag + '\n')
+			f.write('mpirun -n ' + str(nproc) + ' iterplot_mpi _plot.dat ' + tag + '\n')
 			
 
 	# --- Change Labels on grid variables, depending on createFlag ---
@@ -4705,11 +4709,12 @@ class iterfoot_gui:
 			f.write('#$ -V \n')
 			f.write('#$ -q all.q \n')
 			f.write('#$ -pe mpi ' + str(nproc) + ' \n')
+			f.write('source /etc/profile.d/modules.sh\n')
 			f.write('module load openmpi-1.6/gcc \n')
 			if(type == 'in'):
-				f.write('mpirun -n ${NSLOTS} iterfoot_mpi _inner.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' iterfoot_mpi _inner.dat ' + tag + '\n')
 			elif(type == 'out'):
-				f.write('mpirun -n ${NSLOTS} iterfoot_mpi _outer.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' iterfoot_mpi _outer.dat ' + tag + '\n')
 			
 				
 	# --- turn on/off response radiobutton ---
@@ -5173,11 +5178,12 @@ class iterlam_gui:
 			f.write('#$ -V \n')
 			f.write('#$ -q all.q \n')
 			f.write('#$ -pe mpi ' + str(nproc) + ' \n')
+			f.write('source /etc/profile.d/modules.sh\n')
 			f.write('module load openmpi-1.6/gcc \n')
 			if(type == 'psi'):
-				f.write('mpirun -n ${NSLOTS} iterlaminar_mpi _lam_psi.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' iterlaminar_mpi _lam_psi.dat ' + tag + '\n')
 			else:
-				f.write('mpirun -n ${NSLOTS} iterlaminar_mpi _lam.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' iterlaminar_mpi _lam.dat ' + tag + '\n')
 			
 
 	# --- Change Labels on grid variables, depending on createFlag ---
@@ -5685,7 +5691,7 @@ class nstxplot_gui:
 		if(HOST == 'head.cluster'):		# Drop Cluster
 			self.write_qsub_file(int(self.nproc.get()), self.tag.get())
 			#self.write_qsub_file(int(self.tag.get())
-			call('qsub run_job', shell = True)
+			call('qsub run_mpijob', shell = True)
 		else:
 			call(MPIRUN + ' -n ' + str(int(self.nproc.get())) + ' nstxplot_mpi _plot.dat ' + self.tag.get() + ' &', shell = True)
 			#call('nstxplot _plot.dat ' + self.tag.get() + ' &', shell = True)		
@@ -5703,8 +5709,9 @@ class nstxplot_gui:
 			f.write('#$ -V \n')
 			f.write('#$ -q all.q \n')
 			f.write('#$ -pe mpi ' + str(nproc) + ' \n')
+			f.write('source /etc/profile.d/modules.sh\n')
 			f.write('module load openmpi-1.6/gcc \n')
-			f.write('mpirun -n ${NSLOTS} nstxplot_mpi _plot.dat ' + tag + '\n')
+			f.write('mpirun -n ' + str(nproc) + ' nstxplot_mpi _plot.dat ' + tag + '\n')
 			
 	# --- Write qsub File on Drop Cluster ---
 # 	def write_qsub_file(self, tag):
@@ -7239,15 +7246,16 @@ class nstxfoot_gui:
 			f.write('#$ -V \n')
 			f.write('#$ -q all.q \n')
 			f.write('#$ -pe mpi ' + str(nproc) + ' \n')
+			f.write('source /etc/profile.d/modules.sh\n')
 			f.write('module load openmpi-1.6/gcc \n')
 			if(type == 'inup'):
-				f.write('mpirun -n ${NSLOTS} nstxfoot_mpi _innerup.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' nstxfoot_mpi _innerup.dat ' + tag + '\n')
 			elif(type == 'outup'):
-				f.write('mpirun -n ${NSLOTS} nstxfoot_mpi _outerup.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' nstxfoot_mpi _outerup.dat ' + tag + '\n')
 			elif(type == 'indwn'):
-				f.write('mpirun -n ${NSLOTS} nstxfoot_mpi _innerdwn.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' nstxfoot_mpi _innerdwn.dat ' + tag + '\n')
 			elif(type == 'outdwn'):
-				f.write('mpirun -n ${NSLOTS} nstxfoot_mpi _outerdwn.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' nstxfoot_mpi _outerdwn.dat ' + tag + '\n')
 			
 				
 	# --- turn on/off response radiobutton ---
@@ -7745,11 +7753,12 @@ class nstxlam_gui:
 			f.write('#$ -V \n')
 			f.write('#$ -q all.q \n')
 			f.write('#$ -pe mpi ' + str(nproc) + ' \n')
+			f.write('source /etc/profile.d/modules.sh\n')
 			f.write('module load openmpi-1.6/gcc \n')
 			if(type == 'psi'):
-				f.write('mpirun -n ${NSLOTS} nstxlaminar_mpi _lam_psi.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' nstxlaminar_mpi _lam_psi.dat ' + tag + '\n')
 			else:
-				f.write('mpirun -n ${NSLOTS} nstxlaminar_mpi _lam.dat ' + tag + '\n')
+				f.write('mpirun -n ' + str(nproc) + ' nstxlaminar_mpi _lam.dat ' + tag + '\n')
 			
 
 	# --- Change Labels on grid variables, depending on createFlag ---
@@ -7975,8 +7984,8 @@ class info_gui:
 		self.info_text.grid(column = 1, row = row, columnspan = 5, padx=10, pady=10); 
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
-		'MAFOT Version 3.73 \n'
-		'GUI Version 1.42 \n'
+		'MAFOT Version 3.74 \n'
+		'GUI Version 1.43 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'

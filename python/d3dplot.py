@@ -9,7 +9,7 @@ HOME = os.getenv('HOME')
 HOST = socket.gethostname()
 
 def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', machine = 'd3d', 
-			tag = None, graphic = 'png', physical = 1, b = None, N = 60, cmap = 'jet', Title = None,
+			tag = None, graphic = 'png', physical = 1, b = None, N = 60, Title = None,
 			typeOfPlot = 'contourf', xlimit = None, ylimit = None, figwidth = None, figheight = None, latex = True):
 	"""
 	plot MAFOT results
@@ -24,7 +24,6 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	physical    0: t native, 1: t in RZ, 2: t in cm
 	b           array, user defined color range (e.g. use linspace), None: defaults are used
 	N           int, Number of color levels, used only in default color array
-	cmap		string, which set the colormap, like e.g. 'jet' (default)
 	Title       string, Figure title
 	typeOfPlot  'contourf', 'imshow'
 	x-,ylimit   tuple (min,max) for the respective axis limits, None: defaults are used
@@ -144,10 +143,6 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		return
 
 	# --- set z data ------------------
-	# create reversed colomap, based on cmap
-	if '_r' in cmap: cmap_r = cmap[0:-2]
-	else: cmap_r = cmap + '_r'
-
 	if(what == 'Lc'):
 		if(b == None): 
 			if(machine == 'd3d'): b = np.linspace(0.075,0.4,N)
@@ -156,8 +151,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = '$L_{c}$ [km]'
 		else: C_label = '$L_{c}$ $\\mathrm{[km]}$'
 		#usecolormap = cm.jet	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		#cdict = plt.cm.jet._segmentdata
-		cdict = plt.get_cmap(cmap)._segmentdata
+		cdict = plt.cm.jet._segmentdata
 		
 	elif(what == 'psimin'):
 		if(b == None): b = np.linspace(0.88,1.02,N)
@@ -165,8 +159,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03c8' + '$_{Min}$'
 		else: C_label = '$\\psi_{Min}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		#cdict = plt.cm.jet_r._segmentdata
-		cdict = plt.get_cmap(cmap_r)._segmentdata
+		cdict = plt.cm.jet_r._segmentdata
 
 	elif(what == 'psimax'):
 		if not use_psimaxav:
@@ -177,8 +170,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03c8' + '$_{Max}$'
 		else: C_label = '$\\psi_{Max}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		#cdict = plt.cm.jet_r._segmentdata
-		cdict = plt.get_cmap(cmap_r)._segmentdata
+		cdict = plt.cm.jet_r._segmentdata
 		
 	elif(what == 'psiav'):
 		if not use_psimaxav:
@@ -189,8 +181,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03c8' + '$_{av}$'
 		else: C_label = '$\\psi_{av}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		#cdict = plt.cm.jet_r._segmentdata
-		cdict = plt.get_cmap(cmap_r)._segmentdata
+		cdict = plt.cm.jet_r._segmentdata
 
 	elif(what == 'pitch'):
 		if not use_pitch_yaw:
@@ -201,8 +192,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03b1' + '$_{p}$ [deg]'
 		else: C_label = '$\\alpha_{p}$ [deg]'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		#cdict = plt.cm.jet._segmentdata
-		cdict = plt.get_cmap(cmap)._segmentdata
+		cdict = plt.cm.jet._segmentdata
 
 	elif(what == 'yaw'):
 		if not use_pitch_yaw:
@@ -213,8 +203,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03b1' + '$_{r}$  [deg]'
 		else: C_label = '$\\alpha_{r}$  [deg]'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		#cdict = plt.cm.jet._segmentdata
-		cdict = plt.get_cmap(cmap)._segmentdata
+		cdict = plt.cm.jet._segmentdata
 		
 	else: 
 		print 'what: Unknown input'
@@ -257,15 +246,6 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 				z[:,i] = spline(x[:,i])
 		except:
 			raise ImportError('Pest coordinates not available. Choose other coordinates')
-			
-	# --- xlimit for periodic x-axis --
-	if (not (coordinates == 'RZ')) and (not (xlimit == None)):
-		y = np.vstack((y,y,y))
-		z = np.vstack((z,z,z))
-		if (coordinates == 'phi') and (physical > 0):
-			x = np.vstack((x - 360, x, x + 360))
-		else:
-			x = np.vstack((x - 2*np.pi, x, x + 2*np.pi))
 
 	# --- layout ----------------------
 	#rcParams['text.latex.preamble'] = [r'\usepackage{times}']#\usepackage{amsmath}
@@ -383,6 +363,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	# show colorbar
 	C = plt.colorbar(cs, pad = 0.01, extend = 'both', format = '%.3g', ticks = myticks)
 	if 'Anaconda' in sys.version: C.set_label(C_label, rotation = 270, size = C_label_size, va = 'bottom')	# anaconda
+	elif (HOST == 'head.cluster'): C.set_label(C_label, rotation = 270, size = C_label_size, va = 'bottom') # Drop Cluster
 	else: C.set_label(C_label, rotation = 270, size = C_label_size)	# enthought
 	
 	# add SOL label in RZ plot and footprint
@@ -534,24 +515,24 @@ if __name__ == '__main__':
 	toP = 'contourf'
 	figwidth = None
 	figheight = None
-	if(HOST == 'head.cluster'): latex = False	# Drop does not support LaTeX
-	else: latex = True
+	#if(HOST == 'head.cluster'): latex = False	# Drop does not support LaTeX
+	#else: latex = True
+	latex = True		# Drop now supports LaTeX too
 	b = None;		set_color = False
 	xlim = None
 	ylim = None
-	cmap = 'jet'
 
-	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:T:iW:H:Ub:x:y:C:", ["help", "coord=", "what=", 
+	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:T:iW:H:Ub:x:y:", ["help", "coord=", "what=", 
 																 "machine=", "printme", "graphic=", 
 																 "tag=", "physical=", "Title=", "imshow", 	 
 																 "figwidth=", "figheight=", "unicode",
-																 "range=", "xlim=", "ylim=", "cmap="])
+																 "range", "xlim", "ylim"])
 	for o, a in opts:
 		if o in ("-h", "--help"):
 			print "usage: d3dplot.py [-h] [-c COORDINATES] [-w WHAT] [-m MACHINE] [-p]"
 			print "                  [-g GRAPHIC] [-t TAG] [-P PHYSICAL] [-N N] [-T TITLE] [-i]"
 			print "                  [-W FIGWIDTH] [-H FIGHEIGHT] [-U] [-b MIN,MAX]"
-			print "                  [-x MIN,MAX] [-y MIN,MAX] [-C CMAP]"
+			print "                  [-x MIN,MAX] [-y MIN,MAX]"
 			print "                  pathname"
 			print ""
 			print "Plot MAFOT output"
@@ -583,8 +564,6 @@ if __name__ == '__main__':
 			print "  -b, --range <Arg>     ColorBar range: Min,Max (no spaces)"
 			print "  -x, --xlim <Arg>      X-Axis range: Min,Max (no spaces)"
 			print "  -y, --ylim <Arg>      Y-Axis range: Min,Max (no spaces)"
-			print "  -C, --cmap <Arg>      colormap, <Arg> = jet (default)"
-			print "                        Note: adding '_r' reverses the colormap"
 			print ""
 			print "Examples: d3dplot.py foot_in_test.dat"
 			print "          d3dplot.py /path/to/gfile/foot_in_test.dat -p -c RZ"
@@ -626,15 +605,13 @@ if __name__ == '__main__':
 		elif o in ("-y", "--ylim"):
 			range = a.split(',')
 			ylim = (float(range[0]), float(range[1]))
-		elif o in ("-C", "--cmap"):
-			cmap = a
 		else:
 			raise AssertionError("unknown option")
 			
 	if set_color: b = np.linspace(cmin,cmax,N)
 	
 	d3dplot(args[0], printme = printme, coordinates = coordinates, what = what, machine = machine, 
-			tag = tag, graphic = graphic, physical = physical, b = b, N = N, cmap = cmap, Title = Title,
+			tag = tag, graphic = graphic, physical = physical, b = b, N = N, Title = Title,
 			typeOfPlot = toP, xlimit = xlim, ylimit = ylim, figwidth = figwidth, figheight = figheight,
 			latex = latex)
 

@@ -46,11 +46,24 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.73
-GUI 1.42
+MAFOT 3.74
+GUI 1.43
 
 Version Notes: 
 ----------------
+MAFOT 3.74 -- Apr 2016
+- splines separated from EFIT_Class into own header
+- function added to read & store header lines from files
+- bug fix in VMEC class
+- structure tool updated
+- divB correction added to xpand
+- minor fixes in python tools
+
+GUI 1.43 -- Feb 2016
+- bug fix in all plot calls for Drop cluster only where it calls the wrong job file
+- replaced all ${NSLOTS} with str(nproc) in Drop cluster job files
+- add „source /etc/profile.d/modules.sh“ to the mpirun job batch files for Drop as a workaround for the module load bug in bash
+
 MAFOT 3.73 -- Oct 2015
 - shell command line flags enabled in all tools, use -h for details
 

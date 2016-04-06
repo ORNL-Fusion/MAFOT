@@ -54,7 +54,7 @@ MPIOBJS_ITER = $(addprefix $(OBJDIR)/iter/, $(MPIOBJS))
 MPIOBJS_NSTX = $(addprefix $(OBJDIR)/nstx/, $(MPIOBJS))
 MPIOBJS_MAST = $(addprefix $(OBJDIR)/mast/, $(MPIOBJS))
 
-SERSRCS = fix.cxx man.cxx plot.cxx
+SERSRCS = fix.cxx man.cxx plot.cxx structure.cxx
 SEROBJS = $(SERSRCS:.cxx=.o)
 SEROBJS_D3D = $(addprefix $(OBJDIR)/d3d/, $(SEROBJS))
 SEROBJS_ITER = $(addprefix $(OBJDIR)/iter/, $(SEROBJS))
@@ -88,7 +88,11 @@ ifdef PYINSTALLER
 	$(PYINSTALLER) -F --distpath=$(OBJDIR) --specpath=$(OBJDIR)/gui --workpath=$(OBJDIR)/gui $<
 	mv $(OBJDIR)/mafot_gui $(BIN_DIR)
 else
+	@echo "-----------------------------------"
 	@echo "PYINSTALLER not supported"
+	@echo "-----------------------------------"
+	rm -f $(BIN_DIR)/mafot_gui.py
+	ln $(MAFOT_DIR)/python/mafot_gui.py $(BIN_DIR)/mafot_gui.py
 endif
 
 .PHONY : xpand
@@ -118,7 +122,9 @@ ifdef VMEC
 	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) $< -o $(OBJDIR)/xpand_mpi.o
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/xpand_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 else
+	@echo "-----------------------------------"
 	@echo "VMEC not supported"
+	@echo "-----------------------------------"
 endif
 
 
@@ -141,6 +147,8 @@ dtfoot_mpi : $(OBJDIR)/d3d/foot_mpi.o libla_string.a libtrip3d.a
 dtplot_mpi : $(OBJDIR)/d3d/plot_mpi.o libla_string.a libtrip3d.a
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/d3d/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
+dtstructure : $(OBJDIR)/d3d/structure.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/structure.o -o $(BIN_DIR)/$@ $(LIBS)
 
 # ---- ITER Targets ----
 iterplot : $(OBJDIR)/iter/plot.o libla_string.a libtrip3d.a

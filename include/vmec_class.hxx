@@ -18,7 +18,7 @@
 #include <blitz/tinyvec-et.h>
 #include <netcdf.h>
 #include <andi.hxx>
-#include <efit_class.hxx>
+#include <splines.hxx>
 using namespace blitz;
 
 // Prototypes
@@ -760,6 +760,12 @@ return(*this);
 // To see contents of file beforehand, use in the Linux shell:   ncdump -h wout.nc
 void VMEC::read(LA_STRING filename)
 {
+#ifdef USE_MPI
+int mpi_rank = MPI::COMM_WORLD.Get_rank();
+#else
+int mpi_rank = 0;
+#endif
+
 // Variables
 int i;
 int chk, ncid, varid;
@@ -768,29 +774,29 @@ Range all = Range::all();
 //---- Read VMEC file ----------------------
 // Input
 chk = nc_open(filename, NC_NOWRITE, &ncid);
-if(chk != 0) {cout << "VMEC: Unable to open file " << filename << endl; EXIT;}
+if(chk != 0) {if(mpi_rank == 0) cout << "VMEC: Unable to open file " << filename << endl; EXIT;}
 
 // Read the dimensions
-chk = nc_inq_varid(ncid, "ns", &varid); if(chk!=0) {cout << "VMEC: ns not found" << endl; EXIT;}	// get variable id
+chk = nc_inq_varid(ncid, "ns", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: ns not found" << endl; EXIT;}	// get variable id
 chk = nc_get_var_int(ncid, varid, &ns);		// read
-chk = nc_inq_varid(ncid, "ntor", &varid); if(chk!=0) {cout << "VMEC: ntor not found" << endl; EXIT;}	// get variable id
+chk = nc_inq_varid(ncid, "ntor", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: ntor not found" << endl; EXIT;}	// get variable id
 chk = nc_get_var_int(ncid, varid, &ntor);	// read
-chk = nc_inq_varid(ncid, "mnmax", &varid); if(chk!=0) {cout << "VMEC: mnmax not found" << endl; EXIT;}	// get variable id
+chk = nc_inq_varid(ncid, "mnmax", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: mnmax not found" << endl; EXIT;}	// get variable id
 chk = nc_get_var_int(ncid, varid, &mnmax);	// read
 nshalf = ns;
 
 // read lasym
 int lasym_in;
-chk = nc_inq_varid(ncid, "lasym__logical__", &varid); if(chk!=0) {cout << "VMEC: lasym__logical__ not found" << endl; EXIT;}		// get variable id
+chk = nc_inq_varid(ncid, "lasym__logical__", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: lasym__logical__ not found" << endl; EXIT;}		// get variable id
 chk = nc_get_var_int(ncid, varid, &lasym_in);	// read
 lasym = bool(lasym_in);
 
 // read xn & xm
 xn.resize(mnmax);
-chk = nc_inq_varid(ncid, "xn", &varid); if(chk!=0) {cout << "VMEC: xn not found" << endl; EXIT;}
+chk = nc_inq_varid(ncid, "xn", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: xn not found" << endl; EXIT;}
 chk = nc_get_var_int(ncid, varid, xn.data());
 xm.resize(mnmax);
-chk = nc_inq_varid(ncid, "xm", &varid); if(chk!=0) {cout << "VMEC: xm not found" << endl; EXIT;}
+chk = nc_inq_varid(ncid, "xm", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: xm not found" << endl; EXIT;}
 chk = nc_get_var_int(ncid, varid, xm.data());
 
 // set sign array for s < 0 entry in half-grid spectral variables
@@ -808,33 +814,33 @@ input.resize(ns, mnmax);
 
 if(lasym)
 {
-	chk = nc_inq_varid(ncid, "rmns", &varid); if(chk!=0) {cout << "VMEC: rmns not found" << endl; EXIT;}			// get variable id
+	chk = nc_inq_varid(ncid, "rmns", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: rmns not found" << endl; EXIT;}			// get variable id
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	rmn.ymns.resize(ns, mnmax); 						// set size
 	rmn.ymns.reindexSelf(index2);						// set indices
 	rmn.ymns = input.copy();							// move into place
 
-	chk = nc_inq_varid(ncid, "zmnc", &varid); if(chk!=0) {cout << "VMEC: zmnc not found" << endl; EXIT;}			// get variable id
+	chk = nc_inq_varid(ncid, "zmnc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: zmnc not found" << endl; EXIT;}			// get variable id
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	zmn.ymnc.resize(ns, mnmax); 						// set size
 	zmn.ymnc.reindexSelf(index2);						// set indices
 	zmn.ymnc = input.copy();							// move into place
 
-	chk = nc_inq_varid(ncid, "gmns", &varid); if(chk!=0) {cout << "VMEC: gmns not found" << endl; EXIT;}			// get variable id
+	chk = nc_inq_varid(ncid, "gmns", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: gmns not found" << endl; EXIT;}			// get variable id
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	gmn.ymns.resize(nshalf, mnmax); 						// set size
 	gmn.ymns.reindexSelf(index2);							// set indices
 	gmn.ymns = input.copy();							// move into place
 	gmn.ymns(1,all) = gmn.ymns(2,all) * signhalf;	// expand beyond magnetic axis: Shalf(1) = -Shalf(2) => Amn(-s)*sin(mu-nv) = Amn(s)*sin(m(u+pi)-nv) = (-1)^m * Amn(s)*sin(mu-nv); same for cos
 
-	chk = nc_inq_varid(ncid, "bsupumns", &varid); if(chk!=0) {cout << "VMEC: bsupumns not found" << endl; EXIT;}			// get variable id
+	chk = nc_inq_varid(ncid, "bsupumns", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: bsupumns not found" << endl; EXIT;}			// get variable id
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	bsupumn.ymns.resize(nshalf, mnmax); 						// set size
 	bsupumn.ymns.reindexSelf(index2);							// set indices^n
 	bsupumn.ymns = input.copy();							// move into place
 	bsupumn.ymns(1,all) = bsupumn.ymns(2,all) * signhalf;
 
-	chk = nc_inq_varid(ncid, "bsupvmns", &varid); if(chk!=0) {cout << "VMEC: bsupvmns not found" << endl; EXIT;}			// get variable id
+	chk = nc_inq_varid(ncid, "bsupvmns", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: bsupvmns not found" << endl; EXIT;}			// get variable id
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	bsupvmn.ymns.resize(nshalf, mnmax); 						// set size
 	bsupvmn.ymns.reindexSelf(index2);							// set indices
@@ -842,33 +848,33 @@ if(lasym)
 	bsupvmn.ymns(1,all) = bsupvmn.ymns(2,all) * signhalf;
 }
 
-chk = nc_inq_varid(ncid, "rmnc", &varid); if(chk!=0) {cout << "VMEC: rmnc not found" << endl; EXIT;}			// get variable id
+chk = nc_inq_varid(ncid, "rmnc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: rmnc not found" << endl; EXIT;}			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 rmn.ymnc.resize(ns, mnmax); 						// set size
 rmn.ymnc.reindexSelf(index2);							// set indices
 rmn.ymnc = input.copy();								// move into place
 
-chk = nc_inq_varid(ncid, "zmns", &varid); if(chk!=0) {cout << "VMEC: zmns not found" << endl; EXIT;}			// get variable id
+chk = nc_inq_varid(ncid, "zmns", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: zmns not found" << endl; EXIT;}			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 zmn.ymns.resize(ns, mnmax); 						// set size
 zmn.ymns.reindexSelf(index2);							// set indices
 zmn.ymns = input.copy();								// move into place
 
-chk = nc_inq_varid(ncid, "gmnc", &varid); if(chk!=0) {cout << "VMEC: gmnc not found" << endl; EXIT;}			// get variable id
+chk = nc_inq_varid(ncid, "gmnc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: gmnc not found" << endl; EXIT;}			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 gmn.ymnc.resize(nshalf, mnmax); 						// set size
 gmn.ymnc.reindexSelf(index2);							// set indices
 gmn.ymnc = input.copy();							// move into place
 gmn.ymnc(1,all) = gmn.ymnc(2,all) * signhalf;
 
-chk = nc_inq_varid(ncid, "bsupumnc", &varid); if(chk!=0) {cout << "VMEC: bsupumnc not found" << endl; EXIT;}			// get variable id
+chk = nc_inq_varid(ncid, "bsupumnc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: bsupumnc not found" << endl; EXIT;}			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 bsupumn.ymnc.resize(nshalf, mnmax); 						// set size
 bsupumn.ymnc.reindexSelf(index2);							// set indices
 bsupumn.ymnc = input.copy();							// move into place
 bsupumn.ymnc(1,all) = bsupumn.ymnc(2,all) * signhalf;
 
-chk = nc_inq_varid(ncid, "bsupvmnc", &varid); if(chk!=0) {cout << "VMEC: bsupvmnc not found" << endl; EXIT;}			// get variable id
+chk = nc_inq_varid(ncid, "bsupvmnc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: bsupvmnc not found" << endl; EXIT;}			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 bsupvmn.ymnc.resize(nshalf, mnmax); 						// set size
 bsupvmn.ymnc.reindexSelf(index2);							// set indices
@@ -879,38 +885,45 @@ bsupvmn.ymnc(1,all) = bsupvmn.ymnc(2,all) * signhalf;
 if(lasym)
 {
 	raxis_cs.resize(ntor+1);
-	chk = nc_inq_varid(ncid, "raxis_cs", &varid); if(chk!=0) {cout << "VMEC: raxis_cs not found" << endl; EXIT;}
+	chk = nc_inq_varid(ncid, "raxis_cs", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: raxis_cs not found" << endl; EXIT;}
 	chk = nc_get_var_double(ncid, varid, raxis_cs.data());
 	zaxis_cc.resize(ntor+1);
-	chk = nc_inq_varid(ncid, "zaxis_cc", &varid); if(chk!=0) {cout << "VMEC: zaxis_cc not found" << endl; EXIT;}
+	chk = nc_inq_varid(ncid, "zaxis_cc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: zaxis_cc not found" << endl; EXIT;}
 	chk = nc_get_var_double(ncid, varid, zaxis_cc.data());
 	zaxis_cs.resize(ntor+1);
-	chk = nc_inq_varid(ncid, "zaxis_cs", &varid); if(chk!=0) {cout << "VMEC: zaxis_cs not found" << endl; EXIT;}
+	chk = nc_inq_varid(ncid, "zaxis_cs", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: zaxis_cs not found" << endl; EXIT;}
 	chk = nc_get_var_double(ncid, varid, zaxis_cs.data());
 }
 raxis_cc.resize(ntor+1);
-chk = nc_inq_varid(ncid, "raxis_cc", &varid); if(chk!=0) {cout << "VMEC: raxis_cc not found" << endl; EXIT;}
+chk = nc_inq_varid(ncid, "raxis_cc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: raxis_cc not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, raxis_cc.data());
 
 // read parameter
-chk = nc_inq_varid(ncid, "wb", &varid); if(chk!=0) {cout << "VMEC: wb not found" << endl; EXIT;}
+chk = nc_inq_varid(ncid, "wb", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: wb not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, &wb);
-chk = nc_inq_varid(ncid, "ctor", &varid); if(chk!=0) {cout << "VMEC: ctor not found" << endl; EXIT;}
+chk = nc_inq_varid(ncid, "ctor", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: ctor not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, &ctor);
-chk = nc_inq_varid(ncid, "nextcur", &varid); if(chk!=0) {cout << "VMEC: nextcur not found" << endl; EXIT;}
+chk = nc_inq_varid(ncid, "nextcur", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: nextcur not found" << endl; EXIT;}
 chk = nc_get_var_int(ncid, varid, &nextcur);
-chk = nc_inq_varid(ncid, "mnmaxpot", &varid); if(chk!=0) {cout << "VMEC: mnmaxpot not found" << endl; EXIT;}
-if(chk == 0) lpot = true;
-else lpot = false;
+chk = nc_inq_varid(ncid, "mnmaxpot", &varid);
+if(chk!=0)
+{
+	if(mpi_rank == 0) cout << "VMEC: mnmaxpot not found" << endl;
+	lpot = false;
+}
+else lpot = true;
 if(lpot) chk = nc_get_var_int(ncid, varid, &mnmaxpot);
 
 // read names
 char text[500];
-chk = nc_inq_varid(ncid, "input_extension", &varid); if(chk!=0) {cout << "VMEC: input_extension not found" << endl; EXIT;}
+chk = nc_inq_varid(ncid, "input_extension", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: input_extension not found" << endl; EXIT;}
 chk = nc_get_var_text(ncid, varid, &text[0]);
-input_extension = text; input_extension = input_extension.strip();
+input_extension = text;
+chk = input_extension.indexOf(" ");
+if(chk > 1) input_extension = input_extension.left(chk - 1);
+input_extension = input_extension.strip();
 text[0] = 0;
-chk = nc_inq_varid(ncid, "mgrid_file", &varid); if(chk!=0) {cout << "VMEC: mgrid_file not found" << endl; EXIT;}
+chk = nc_inq_varid(ncid, "mgrid_file", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: mgrid_file not found" << endl; EXIT;}
 chk = nc_get_var_text(ncid, varid, &text[0]);
 mgrid_file = text; mgrid_file = mgrid_file.left(mgrid_file.indexOf(".nc") + 2);
 
@@ -918,48 +931,48 @@ mgrid_file = text; mgrid_file = mgrid_file.left(mgrid_file.indexOf(".nc") + 2);
 TinyVector <int,1> index1(1);
 
 presf.y.resize(ns); presf.y.reindexSelf(index1);
-chk = nc_inq_varid(ncid, "presf", &varid); if(chk!=0) {cout << "VMEC: presf not found" << endl; EXIT;}
+chk = nc_inq_varid(ncid, "presf", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: presf not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, presf.y.data());
 
 iotaf.y.resize(ns); iotaf.y.reindexSelf(index1);
-chk = nc_inq_varid(ncid, "iotaf", &varid); if(chk!=0) {cout << "VMEC: iotaf not found" << endl; EXIT;}
+chk = nc_inq_varid(ncid, "iotaf", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: iotaf not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, iotaf.y.data());
 
 jdotb.y.resize(ns); jdotb.y.reindexSelf(index1);
-chk = nc_inq_varid(ncid, "jdotb", &varid); if(chk!=0) {cout << "VMEC: jdotb not found" << endl; EXIT;}
+chk = nc_inq_varid(ncid, "jdotb", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: jdotb not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, jdotb.y.data());
 
 // read 1D-profiles s-ds/2 -mesh
 bvco.y.resize(ns); bvco.y.reindexSelf(index1);
-chk = nc_inq_varid(ncid, "bvco", &varid); if(chk!=0) {cout << "VMEC: bvco not found" << endl; EXIT;}
+chk = nc_inq_varid(ncid, "bvco", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: bvco not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, bvco.y.data());
 bvco.y(1) = bvco.y(2);	// expand beyond magnetic axis: 1-D profiles axisymmetric => y(-s) = y(s)
 
 // read other 1D-arrays
 extcur.resize(nextcur); extcur.reindexSelf(index1);
-chk = nc_inq_varid(ncid, "extcur", &varid); if(chk!=0) {cout << "VMEC: extcur not found" << endl; EXIT;}
+chk = nc_inq_varid(ncid, "extcur", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: extcur not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, extcur.data());
 
 if(lpot)
 {
 	xnpot.resize(mnmaxpot);
-	chk = nc_inq_varid(ncid, "xnpot", &varid); if(chk!=0) {cout << "VMEC: xnpot not found" << endl; EXIT;}
+	chk = nc_inq_varid(ncid, "xnpot", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: xnpot not found" << endl; EXIT;}
 	chk = nc_get_var_int(ncid, varid, xnpot.data());
 	xmpot.resize(mnmaxpot);
-	chk = nc_inq_varid(ncid, "xmpot", &varid); if(chk!=0) {cout << "VMEC: xmpot not found" << endl; EXIT;}
+	chk = nc_inq_varid(ncid, "xmpot", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: xmpot not found" << endl; EXIT;}
 	chk = nc_get_var_int(ncid, varid, xmpot.data());
 	potsin.resize(mnmaxpot);
-	chk = nc_inq_varid(ncid, "potsin", &varid); if(chk!=0) {cout << "VMEC: potsin not found" << endl; EXIT;}
+	chk = nc_inq_varid(ncid, "potsin", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: potsin not found" << endl; EXIT;}
 	chk = nc_get_var_double(ncid, varid, potsin.data());
 	potcos.resize(mnmaxpot);
-	chk = nc_inq_varid(ncid, "potcos", &varid); if(chk!=0) {cout << "VMEC: potcos not found" << endl; EXIT;}
+	chk = nc_inq_varid(ncid, "potcos", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: potcos not found" << endl; EXIT;}
 	chk = nc_get_var_double(ncid, varid, potcos.data());
 }
 
 // set S arrays
 S.resize(ns); 			S.reindexSelf(index1);
 Shalf.resize(nshalf);	Shalf.reindexSelf(index1);
-chk = nc_inq_varid(ncid, "phi", &varid); if(chk!=0) {cout << "VMEC: phi not found" << endl; EXIT;}
+chk = nc_inq_varid(ncid, "phi", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: phi not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, S.data());
 S /= S(ns);	// normalize
 for(i=2;i<=nshalf;i++) Shalf(i) = 0.5*(S(i) + S(i-1));	// Shalf(i) is center of each [S(i-1), S(i)] intervall

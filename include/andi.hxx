@@ -126,6 +126,35 @@ vec.erase(vec.end()-1);
 in.close();
 }
 
+// ------------- readFileHeader ---------------------------------------------------------------------------------------------
+// returns number of header lines N in file "name"; lines start with '#'
+// vec contains the header lines as LA_STRING
+// vec[0,1,...,N-1]
+int readFileHeader(char* name, vector<LA_STRING>& vec)
+{
+// Variables
+LA_STRING line;
+int count = 0;
+
+// Input
+ifstream in;
+in.open(name);
+if(in.fail()==1) {cout << "Unable to open file " << name << endl; exit(0);}
+
+// Read the number of rows starting with #
+while(1)
+{
+	in >> line;
+	if(line[1]=='#')
+	{
+		count+=1;
+		vec.push_back(line);
+	}
+	else break;
+}
+return count;
+}
+
 // ------------- readfile (blitz) ---------------------------------------------------------------------------------------------
 // N specifies numger of columns to read
 // All indices in vec start with 1 

@@ -6,6 +6,7 @@ from netCDF4 import Dataset
 import pylab as plt
 
 import VMEC.Python.wout_class as WC
+from Misc.deriv import deriv5pt
 
 # ----------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------
@@ -298,7 +299,7 @@ class xpand_class:
 			self.view(k, spots, eps, Bmod_only)
 
 
-	def view(self, k, spots = True, eps = 1, Bmod_only = False, BRrange = 0.6, BZrange = 0.8, quiet = True):
+	def view(self, k, spots = True, eps = 1, Bmod_only = False, BRrange = 0.6, BZrange = 0.8, Bthrange = 0.7, quiet = True, BRBZ = False):
 		"""
 		filled contour plots of BR, Bphi & BZ for angle phi[k]; marks bad grid points
 		scan through multiple eps for best results; see self.heal_all() for more info on eps
@@ -312,11 +313,11 @@ class xpand_class:
 			plt.rcParams['font.size'] = 18
 			plt.rcParams['font.family'] = 'Arial'
 			plt.figure(figsize = (7,9)); plt.subplot(111, aspect = 'equal')
-			cs = plt.contourf(self.R[k,:,:], self.Z[k,:,:], self.BR[k,:,:], np.linspace(-BRrange,BRrange,128))
+			cs = plt.contourf(self.R[k,:,:], self.Z[k,:,:], np.sqrt(self.BR[k,:,:]**2 + self.BZ[k,:,:]**2), np.linspace(0,Bthrange,128))
 			plt.xlabel('R [m]'); plt.ylabel('Z [m]'); plt.title(title_string, size = 18)
 			plt.xlim(self.Rmin, self.Rmax); plt.ylim(self.Zmin, self.Zmax)
 			C = plt.colorbar(cs, pad = 0.01, extend = 'neither', format = '%.2g')
-			C.set_label('B$_R$ [T]', rotation = 270)
+			C.set_label('B$_{\\theta}$ [T]', rotation = 270, va = 'bottom')
 			if spots: 
 				for i,j in index: 
 					plt.plot(self.R[k,i,j], self.Z[k,i,j], 'ko', mfc = 'none')
@@ -326,27 +327,40 @@ class xpand_class:
 			plt.xlabel('R [m]'); plt.ylabel('Z [m]'); plt.title(title_string, size = 18)
 			plt.xlim(self.Rmin, self.Rmax); plt.ylim(self.Zmin, self.Zmax)
 			C = plt.colorbar(cs, pad = 0.01, extend = 'neither', format = '%.2g')
-			C.set_label('B$_\\phi$ [T]', rotation = 270)
+			C.set_label('B$_\\phi$ [T]', rotation = 270, va = 'bottom')
 			if spots: 
 				for i,j in index: 
 					plt.plot(self.R[k,i,j], self.Z[k,i,j], 'ko', mfc = 'none')
 		
-			plt.figure(figsize = (7,9)); plt.subplot(111, aspect = 'equal')
-			cs = plt.contourf(self.R[k,:,:], self.Z[k,:,:], self.BZ[k,:,:], np.linspace(-BZrange,BZrange,128))
-			plt.xlabel('R [m]'); plt.ylabel('Z [m]'); plt.title(title_string, size = 18)
-			plt.xlim(self.Rmin, self.Rmax); plt.ylim(self.Zmin, self.Zmax)
-			C = plt.colorbar(cs, pad = 0.01, extend = 'neither', format = '%.2g')
-			C.set_label('B$_Z$ [T]', rotation = 270)
-			if spots: 
-				for i,j in index: 
-					plt.plot(self.R[k,i,j], self.Z[k,i,j], 'ko', mfc = 'none')
+			if BRBZ:
+				plt.rcParams['font.size'] = 18
+				plt.rcParams['font.family'] = 'Arial'
+				plt.figure(figsize = (7,9)); plt.subplot(111, aspect = 'equal')
+				cs = plt.contourf(self.R[k,:,:], self.Z[k,:,:], self.BR[k,:,:], np.linspace(-BRrange,BRrange,128))
+				plt.xlabel('R [m]'); plt.ylabel('Z [m]'); plt.title(title_string, size = 18)
+				plt.xlim(self.Rmin, self.Rmax); plt.ylim(self.Zmin, self.Zmax)
+				C = plt.colorbar(cs, pad = 0.01, extend = 'neither', format = '%.2g')
+				C.set_label('B$_R$ [T]', rotation = 270, va = 'bottom')
+				if spots: 
+					for i,j in index: 
+						plt.plot(self.R[k,i,j], self.Z[k,i,j], 'ko', mfc = 'none')
+
+				plt.figure(figsize = (7,9)); plt.subplot(111, aspect = 'equal')
+				cs = plt.contourf(self.R[k,:,:], self.Z[k,:,:], self.BZ[k,:,:], np.linspace(-BZrange,BZrange,128))
+				plt.xlabel('R [m]'); plt.ylabel('Z [m]'); plt.title(title_string, size = 18)
+				plt.xlim(self.Rmin, self.Rmax); plt.ylim(self.Zmin, self.Zmax)
+				C = plt.colorbar(cs, pad = 0.01, extend = 'neither', format = '%.2g')
+				C.set_label('B$_Z$ [T]', rotation = 270, va = 'bottom')
+				if spots: 
+					for i,j in index: 
+						plt.plot(self.R[k,i,j], self.Z[k,i,j], 'ko', mfc = 'none')
 		else:
 			plt.figure(figsize = (7,9)); plt.subplot(111, aspect = 'equal')
 			cs = plt.contourf(self.R[k,:,:], self.Z[k,:,:], Bmod, np.linspace(0,4,128), cmap = plt.cm.prism)
 			plt.xlabel('R [m]'); plt.ylabel('Z [m]'); plt.title(title_string, size = 18)
 			plt.xlim(self.Rmin, self.Rmax); plt.ylim(self.Zmin, self.Zmax)
 			#C = plt.colorbar(cs, pad = 0.01, extend = 'neither', format = '%.2g')
-			#C.set_label('|B| [T]', rotation = 270)
+			#C.set_label('|B| [T]', rotation = 270, va = 'bottom')
 			if spots: 
 				for i,j in index: 
 					plt.plot(self.R[k,i,j], self.Z[k,i,j], 'ko', mfc = 'none')
@@ -462,6 +476,39 @@ class xpand_class:
 			inside = chk_inside(r,z)
 			self.inside_all.append(inside)
 
+
+	def div(self, fullGrid = False):
+		"""
+		computes the divergence of B in cylindrical coordinates
+		div B = BR/R + dBR/dR + 1/R dBphi/dphi + dBZ/dZ
+		"""
+		Rh = 0.5*(self.R[:,1::,1::] + self.R[:,1::,0:-1])
+		Zh = 0.5*(self.Z[:,1::,1::] + self.Z[:,0:-1,1::])
+		BR_Zh = 0.5*(self.BR[:,1::,:] + self.BR[:,0:-1,:])
+		BZ_Rh = 0.5*(self.BZ[:,:,1::] + self.BZ[:,:,0:-1])
+		dR = (self.Rmax - self.Rmin)/float(self.NR-1)
+		dZ = (self.Zmax - self.Zmin)/float(self.NZ-1)
+		
+		divh = ((self.R[:,1::,1::]*BR_Zh[:,:,1::] - self.R[:,1::,0:-1]*BR_Zh[:,:,0:-1])/Rh/dR 
+				+ (BZ_Rh[:,1::,:] - BZ_Rh[:,0:-1,:])/dZ)
+		
+		if self.R.shape[0] > 1:		# else: only 2D divergence with dBp = 0
+			dphi = (self.phi.max() - self.phi.min())/float(self.Np-1)
+			Bp_half_m1[0,:,:] = 0.25*(self.Bphi[-1,1::,0:-1] + self.Bphi[-1,0:-1,0:-1] + self.Bphi[-1,1::,1::] + self.Bphi[-1,0:-1,1::])
+			Bp_half_m1[1::,:,:] = 0.25*(self.Bphi[0:-1,1::,0:-1] + self.Bphi[0:-1,0:-1,0:-1] + self.Bphi[0:-1,1::,1::] + self.Bphi[0:-1,0:-1,1::])
+			Bp_half_p1[-1,:,:] = 0.25*(self.Bphi[0,1::,0:-1] + self.Bphi[0,0:-1,0:-1] + self.Bphi[0,1::,1::] + self.Bphi[0,0:-1,1::])
+			Bp_half_p1[0:-1,:,:] = 0.25*(self.Bphi[1::,1::,0:-1] + self.Bphi[1::,0:-1,0:-1] + self.Bphi[1::,1::,1::] + self.Bphi[1::,0:-1,1::])
+
+			divh += 0.5*(Bp_half_p1 - Bp_half_m1)/dphi/Rh;
+						
+		if fullGrid:
+			from scipy.interpolate import griddata
+			divB = np.zeros(self.R.shape)
+			for k in xrange(self.Np):
+				divB[k,:,:] = griddata((Rh[k,:,:].flatten(), Zh[k,:,:].flatten()), divh[k,:,:].flatten(), (self.R[0,:,:], self.Z[0,:,:]), method='linear', fill_value = 0)
+			return divB
+		return Rh, Zh, divh
+		
 	
 	def _init_vacuumBfield(self, mgrid = None):
 		""" 
