@@ -69,7 +69,7 @@ public:
 
 	// Member-Functions
 	void read(LA_STRING file);
-	void ev();
+	void ev(int order = 2);
 	void write_xpand(LA_STRING file);
 	void write_div(LA_STRING file);
 
@@ -217,35 +217,67 @@ for(k=1;k<=Np;k++)
 }
 
 //--- ev -------------------------------------------------------------------------------------------------------------------
-void divB::ev()
+void divB::ev(int order)
 {
 int i,j,k;
 double BR_half,BZ_half, R_half, BR_half_plus1,BZ_half_plus1;
 double Bp_half_m1,Bp_half_p1;
 div.resize(Np, NZ-1, NR-1);
 
-for(k=1;k<=Np;k++)
-	for(j=1;j<=NZ-1;j++)
-		for(i=1;i<=NR-1;i++)
-		{
-			BR_half_plus1 = 0.5*(BR(k,j+1,i+1) + BR(k,j,i+1));	// BR(k, j+0.5, i+1)
-			BZ_half_plus1 = 0.5*(BZ(k,j+1,i+1) + BZ(k,j+1,i));	// BZ(k, j+1, i+0.5)
-			BR_half = 0.5*(BR(k,j+1,i) + BR(k,j,i));	// BR(k, j+0.5, i)
-			BZ_half = 0.5*(BZ(k,j,i+1) + BZ(k,j,i));	// BZ(k, j, i+0.5)
-			R_half = 0.5*(R(i+1) + R(i));
-
-			div(k,j,i) = (R(i+1)*BR_half_plus1 - R(i)*BR_half)/dR/R_half + (BZ_half_plus1 - BZ_half)/dZ;
-
-			if(Np > 1)
+switch(order)
+{
+case 2:
+	for(k=1;k<=Np;k++)
+		for(j=1;j<=NZ-1;j++)
+			for(i=1;i<=NR-1;i++)
 			{
-				if(k == 1) Bp_half_m1 = 0.25*(Bphi(Np,j+1,i) + Bphi(Np,j,i) + Bphi(Np,j+1,i+1) + Bphi(Np,j,i+1));
-				else Bp_half_m1 = 0.25*(Bphi(k-1,j+1,i) + Bphi(k-1,j,i) + Bphi(k-1,j+1,i+1) + Bphi(k-1,j,i+1));
-				if(k == Np) Bp_half_p1 = 0.25*(Bphi(1,j+1,i) + Bphi(1,j,i) + Bphi(1,j+1,i+1) + Bphi(1,j,i+1));
-				else Bp_half_p1 = 0.25*(Bphi(k+1,j+1,i) + Bphi(k+1,j,i) + Bphi(k+1,j+1,i+1) + Bphi(k+1,j,i+1));
+				BR_half_plus1 = 0.5*(BR(k,j+1,i+1) + BR(k,j,i+1));	// BR(k, j+0.5, i+1)
+				BZ_half_plus1 = 0.5*(BZ(k,j+1,i+1) + BZ(k,j+1,i));	// BZ(k, j+1, i+0.5)
+				BR_half = 0.5*(BR(k,j+1,i) + BR(k,j,i));	// BR(k, j+0.5, i)
+				BZ_half = 0.5*(BZ(k,j,i+1) + BZ(k,j,i));	// BZ(k, j, i+0.5)
+				R_half = 0.5*(R(i+1) + R(i));
 
-				div(k,j,i) += 0.5*(Bp_half_p1 - Bp_half_m1)/dphi/R_half;
+				div(k,j,i) = (R(i+1)*BR_half_plus1 - R(i)*BR_half)/dR/R_half + (BZ_half_plus1 - BZ_half)/dZ;
 			}
-		}
+	break;
+case 4:
+	double BR_half_plus1half,BR_half_minushalf,BZ_half_plus1half,BZ_half_minushalf;
+	double R_half_plus1, R_half_minus1;
+	div = 0;
+	for(k=1;k<=Np;k++)
+		for(j=2;j<=NZ-2;j++)
+			for(i=2;i<=NR-2;i++)
+			{
+				BR_half_plus1 = 0.5*(BR(k,j+1,i+1) + BR(k,j,i+1));	// BR(k, j+0.5, i+1)
+				BZ_half_plus1 = 0.5*(BZ(k,j+1,i+1) + BZ(k,j+1,i));	// BZ(k, j+1, i+0.5)
+				BR_half = 0.5*(BR(k,j+1,i) + BR(k,j,i));	// BR(k, j+0.5, i)
+				BZ_half = 0.5*(BZ(k,j,i+1) + BZ(k,j,i));	// BZ(k, j, i+0.5)
+				R_half = 0.5*(R(i+1) + R(i));
+				R_half_plus1 = 0.5*(R(i+2) + R(i+1));
+				R_half_minus1 = 0.5*(R(i) + R(i-1));
+				BR_half_plus1half = 0.5*(0.5*(BR(k,j+1,i+2) + BR(k,j,i+2)) + BR_half_plus1);
+				BR_half_minushalf = 0.5*(BR_half + 0.5*(BR(k,j+1,i-1) + BR(k,j,i-1)));
+				BZ_half_plus1half = 0.5*(0.5*(BZ(k,j+2,i+1) + BZ(k,j+2,i)) + BZ_half_plus1);
+				BZ_half_minushalf = 0.5*(BZ_half + 0.5*(BZ(k,j-1,i+1) + BZ(k,j-1,i)));
+
+				div(k,j,i) = (-R_half_plus1*BR_half_plus1half + 8*R(i+1)*BR_half_plus1 - 8*R(i)*BR_half + R_half_minus1*BR_half_minushalf)/(6*dR)/R_half
+							+ (-BZ_half_plus1half + 8*BZ_half_plus1 - 8*BZ_half + BZ_half_minushalf)/(6*dZ);
+			}
+	break;
+default:
+	cout << "Order not implemented. Available options: 2, 4" << endl;
+}
+
+// keep phi derivative at 2nd order, since it is almost zero anyway
+if(Np > 1)
+{
+	if(k == 1) Bp_half_m1 = 0.25*(Bphi(Np,j+1,i) + Bphi(Np,j,i) + Bphi(Np,j+1,i+1) + Bphi(Np,j,i+1));
+	else Bp_half_m1 = 0.25*(Bphi(k-1,j+1,i) + Bphi(k-1,j,i) + Bphi(k-1,j+1,i+1) + Bphi(k-1,j,i+1));
+	if(k == Np) Bp_half_p1 = 0.25*(Bphi(1,j+1,i) + Bphi(1,j,i) + Bphi(1,j+1,i+1) + Bphi(1,j,i+1));
+	else Bp_half_p1 = 0.25*(Bphi(k+1,j+1,i) + Bphi(k+1,j,i) + Bphi(k+1,j+1,i+1) + Bphi(k+1,j,i+1));
+
+	div(k,j,i) += 0.5*(Bp_half_p1 - Bp_half_m1)/dphi/R_half;
+}
 }
 
 //--- write_div ------------------------------------------------------------------------------------------------------------
@@ -323,7 +355,7 @@ public:
 
 	// Member-Functions
 	void laplace(Array<double,3>& phi, Array<double,3>& lap);
-	void update_divB();
+	void update_divB(int order = 2);
 	void iterate(int tmax, double ftol = 1e-12, bool restart = false);
 	void write(LA_STRING file);
 
@@ -507,7 +539,7 @@ for(k=1;k<=DIVB.Np;k++)
 }
 
 // --- update_divB --------------------------------------------------------------------------------------------------------
-void POT::update_divB()
+void POT::update_divB(int order)
 {
 int i,j,k;
 double phi1, phi2, phi1m, phi2m;
@@ -524,7 +556,7 @@ for(k=1;k<=DIVB.Np;k++)
 			DIVB.BR(k,j,i) += (phi1 - phi1m)/DIVB.dR;
 			DIVB.BZ(k,j,i) += (phi2 - phi2m)/DIVB.dZ;
 		}
-DIVB.ev();
+DIVB.ev(order);
 }
 
 // --- iterate --------------------------------------------------------------------------------------------------------

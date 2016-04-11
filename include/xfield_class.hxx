@@ -167,7 +167,8 @@ Array<double,2> data;
 Range all = Range::all();
 
 // Input
-readfile(filename, 7, data);
+int M = count_column(filename);
+readfile(filename, M, data);
 
 // Get the dimensions
 Array<TinyVector<int,1>,1> indices;

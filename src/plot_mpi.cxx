@@ -109,6 +109,14 @@ case 'h':
 		cout << "  -h            show this help message and exit" << endl;
 		cout << endl << "Examples:" << endl;
 		cout << "  mpirun -n 4 dtplot_mpi _plot.dat blabla" << endl;
+		cout << endl << "Infos:" << endl;
+		cout << "  To use B-field from M3DC1, set response_field >= 0, and provide file in cwd:" << endl;
+		cout << "    m3dc1sup.in  ->  location and scale factor for M3DC1 output C1.h5" << endl;
+		cout << "  To use B-field from XPAND, set response_field = -3, and provide files in cwd:" << endl;
+		cout << "    xpand.dat    ->  B-field on 3D grid from XPAND" << endl;
+		cout << "    wout.nc      ->  VMEC output" << endl;
+		cout << "  To use B-field from SIESTA, set response_field = -2, and provide file in cwd:" << endl;
+		cout << "    siesta.dat   ->  B-field on 3D grid" << endl;
 	}
 	MPI::Finalize();
 	return 0;

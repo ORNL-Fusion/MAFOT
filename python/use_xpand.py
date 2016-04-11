@@ -493,6 +493,8 @@ class xpand_class:
 				+ (BZ_Rh[:,1::,:] - BZ_Rh[:,0:-1,:])/dZ)
 		
 		if self.R.shape[0] > 1:		# else: only 2D divergence with dBp = 0
+			Bp_half_m1 = np.zeros(divh.shape)
+			Bp_half_p1 = np.zeros(divh.shape)
 			dphi = (self.phi.max() - self.phi.min())/float(self.Np-1)
 			Bp_half_m1[0,:,:] = 0.25*(self.Bphi[-1,1::,0:-1] + self.Bphi[-1,0:-1,0:-1] + self.Bphi[-1,1::,1::] + self.Bphi[-1,0:-1,1::])
 			Bp_half_m1[1::,:,:] = 0.25*(self.Bphi[0:-1,1::,0:-1] + self.Bphi[0:-1,0:-1,0:-1] + self.Bphi[0:-1,1::,1::] + self.Bphi[0:-1,0:-1,1::])
