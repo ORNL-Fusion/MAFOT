@@ -9,12 +9,12 @@
 // Include
 //--------
 #include <openmpi/ompi/mpi/cxx/mpicxx.h>
+#include <omp.h>
+#include <unistd.h>
 #include <andi.hxx>
 #include <vmec_class.hxx>
 #include <xpand_class.hxx>
 #include <adapt_gauss_kronrod_class.hxx>
-#include <omp.h>
-#include <unistd.h>
 
 // namespaces
 //-----------
@@ -70,7 +70,6 @@ public:
 
 // Switches
 //----------
-const bool VC_INSIDE = false;	// also run virtual casing inside of VMEC LCFS
 const bool ALLOW_INSIDE = true;	// compute field inside of VMEC LCFS
 
 // Golbal Parameters
@@ -87,9 +86,9 @@ int mpi_rank = MPI::COMM_WORLD.Get_rank();
 int mpi_size = MPI::COMM_WORLD.Get_size();
 
 // Variables
-int i,j, N, idx;
+int i,j, N, idx, k;
 double R, phi, Z, s, u, Pres;
-Array<double,1> B(3), Bvac(3), Bvcin(3);
+Array<double,1> B(3), Bvac(3), Bvci(3);
 double now=zeit();
 Range all = Range::all();
 int c;
@@ -110,9 +109,11 @@ bool VMEC_n0only = false;	// true: force VMEC to be axisymmetric, false: use as 
 LA_STRING mgrid_file = "None";
 LA_STRING points_file = "points.dat";
 
+bool VC_INSIDE = false;	// also run virtual casing inside of VMEC LCFS
+
 // Command line input parsing
 opterr = 0;
-while ((c = getopt(argc, argv, "hP:a:r:i:m:SM:A")) != -1)
+while ((c = getopt(argc, argv, "hP:a:r:i:m:SM:AI")) != -1)
 switch (c)
 {
 case 'h':
@@ -133,6 +134,7 @@ case 'h':
 		cout << "  -S            use adaptive Simpson instead of Gauss-Kronrod" << endl;
 		cout << "  -M            use Mgrid-File mgrid; default: 'mgrid_file' from wout" << endl;
 		cout << "  -A            force axisymmetry -> use n=0 only in VMEC & toroidally average vacuum field" << endl;
+		cout << "  -I            also run virtual casing inside of VMEC LCFS" << endl;
 		cout << endl << "Examples:" << endl;
 		cout << "  mpirun -n 4 xpand_mpi wout.nc" << endl;
 		cout << "  mpirun -n 12 xpand_mpi -i 1500 -P ./here/my_points.dat wout.nc test" << endl;
@@ -163,6 +165,9 @@ case 'M':
 	break;
 case 'A':
 	VMEC_n0only = true;
+	break;
+case 'I':
+	VC_INSIDE = true;
 	break;
 case '?':
 	if(mpi_rank < 1)
@@ -223,6 +228,7 @@ if(NoOfPackages < mpi_size)
 	NoOfPackages = int(N/N_slave);
 }
 int N_rest = N - NoOfPackages*N_slave;
+const int N_transmit = 10;
 
 // Needed for storage of data while calculating
 Array<int,1> write_memory(Range(1,NoOfPackages)); //store which data is written to file (0: not calculated yet, 1: calculated, 2: written to file)
@@ -241,7 +247,7 @@ if(mpi_rank < 1)
 	if(VMEC_n0only) out << "# Xpand results from axisymmetric VMEC file " << wout_name << endl;
 	else out << "# Xpand results from VMEC file " << wout_name << endl;
 	for(i=0;i<points_header_lines;i++) out << points_header[i] << endl;
-	out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t Pressure[Pa] \t BRvac[T]   \t Bphivac[T] \t BZvac[T]" << endl;
+	out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t Pressure[Pa] \t BRvac[T]   \t Bphivac[T] \t BZvac[T]   \t BRvci[T]   \t Bphivci[T] \t BZvci[T]" << endl;
 
 	// log file
 	if(use_GK) logfile.open("log_" + LA_STRING(program_name) + praefix + "_GK" + ".dat");
@@ -255,8 +261,8 @@ if(mpi_rank < 1)
 	ofs3 << "No. of Packages = " << NoOfPackages << " Points per Package = " << N_slave << endl << endl;
 
 	// Result array:	 Column Number,  Values
-	Array<double,3> results_all(Range(1,NoOfPackages),Range(1,7),Range(1,N_slave));
-	Array<double,2> recieve(Range(1,7),Range(1,N_slave));
+	Array<double,3> results_all(Range(1,NoOfPackages),Range(1,N_transmit),Range(1,N_slave));
+	Array<double,2> recieve(Range(1,N_transmit),Range(1,N_slave));
 	Array<double,2> slice;
 	tag = 1;	// first Package
 
@@ -304,7 +310,7 @@ if(mpi_rank < 1)
 			while(workingNodes > 0)	// workingNodes > 0: Slave still working -> MPI:Revc needed		workingNodes == 0: all Slaves recieved termination signal
 			{
 				// Recieve Result
-				MPI::COMM_WORLD.Recv(recieve.dataFirst(),7*N_slave,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
+				MPI::COMM_WORLD.Recv(recieve.dataFirst(),N_transmit*N_slave,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
 				sender = status.Get_source();
 				tag = status.Get_tag();
 				ofs3 << "Recieve from Node: " << sender << " Package: " << tag << endl;
@@ -353,7 +359,10 @@ if(mpi_rank < 1)
 					for(j=1;j<=N_slave;j++)
 					{
 						idx = N_values((i-1)*N_slave+j);
-						out << points(idx,1) << "\t" << points(idx,2) << "\t" << points(idx,3) << "\t" << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << "\t" << results_all(i,7,j) << endl;
+						out << points(idx,1) << "\t" << points(idx,2) << "\t" << points(idx,3);
+						if(VC_INSIDE) {for(k=1;k<=N_transmit;k++) out << "\t" << results_all(i,k,j);}
+						else {for(k=1;k<=7;k++) out << "\t" << results_all(i,k,j);}
+						out << endl;
 					}
 					write_memory(i) = 2;
 				}
@@ -393,17 +402,18 @@ if(mpi_rank < 1)
 					}
 
 					Bvac = bvc.get_vacuumB(R, phi, Z, VMEC_n0only);
+					Bvci = 0;
 
 					if(inside.check(R,Z) && ALLOW_INSIDE)
 					{
-						Pres = wout.presf.ev(s);
 						wout.get_su(R, phi, Z, s, u);
+						Pres = wout.presf.ev(s);
 						wout.get_B2D(s, u, phi, B(0), B(1), B(2));
 						if(VC_INSIDE)
 						{
-							if(use_GK) Bvcin = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
-							else Bvcin = bvc.ev(R, phi, Z);
-							B += Bvac + Bvcin;	// Bvcin ~ -Bvac
+							if(use_GK) Bvci = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
+							else Bvci = bvc.ev(R, phi, Z);
+							B += Bvac + Bvci;	// Bvci ~ -Bvac
 						}
 					}
 					else
@@ -422,6 +432,9 @@ if(mpi_rank < 1)
 					results_all(tag,5,i) = Bvac(0);
 					results_all(tag,6,i) = Bvac(1);
 					results_all(tag,7,i) = Bvac(2);
+					results_all(tag,8,i) = Bvci(0);
+					results_all(tag,9,i) = Bvci(1);
+					results_all(tag,10,i) = Bvci(2);
 				} // end for
 
 				#pragma omp critical
@@ -443,7 +456,10 @@ if(mpi_rank < 1)
 		for(j=1;j<=N_slave;j++)
 		{
 			idx = N_values((i-1)*N_slave+j);
-			out << points(idx,1) << "\t" << points(idx,2) << "\t" << points(idx,3) << "\t" << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << "\t" << results_all(i,7,j) << endl;
+			out << points(idx,1) << "\t" << points(idx,2) << "\t" << points(idx,3);
+			if(VC_INSIDE) {for(k=1;k<=N_transmit;k++) out << "\t" << results_all(i,k,j);}
+			else {for(k=1;k<=7;k++) out << "\t" << results_all(i,k,j);}
+			out << endl;
 		}
 	}
 
@@ -460,17 +476,18 @@ if(mpi_rank < 1)
 		}
 
 		Bvac = bvc.get_vacuumB(R, phi, Z, VMEC_n0only);
+		Bvci = 0;
 
 		if(inside.check(R,Z) && ALLOW_INSIDE)
 		{
-			Pres = wout.presf.ev(s);
 			wout.get_su(R, phi, Z, s, u);
+			Pres = wout.presf.ev(s);
 			wout.get_B2D(s, u, phi, B(0), B(1), B(2));
 			if(VC_INSIDE)
 			{
-				if(use_GK) Bvcin = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
-				else Bvcin = bvc.ev(R, phi, Z);
-				B += Bvac + Bvcin;
+				if(use_GK) Bvci = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
+				else Bvci = bvc.ev(R, phi, Z);
+				B += Bvac + Bvci;
 			}
 		}
 		else
@@ -484,7 +501,8 @@ if(mpi_rank < 1)
 		count -= 1;
 		cout << "\rDone: " << int(10000*double(N-count)/double(N))/100.0 << "%   " << flush;
 		// Output
-		out << R << "\t" << phi << "\t" << Z << "\t" << B(0) << "\t" << B(1) << "\t" << B(2) << "\t" << Pres << "\t" << Bvac(0) << "\t" << Bvac(1) << "\t" << Bvac(2) << endl;
+		if(VC_INSIDE) out << R << "\t" << phi << "\t" << Z << "\t" << B(0) << "\t" << B(1) << "\t" << B(2) << "\t" << Pres << "\t" << Bvac(0) << "\t" << Bvac(1) << "\t" << Bvac(2) << "\t" << Bvci(0) << "\t" << Bvci(1) << "\t" << Bvci(2) << endl;
+		else out << R << "\t" << phi << "\t" << Z << "\t" << B(0) << "\t" << B(1) << "\t" << B(2) << "\t" << Pres << "\t" << Bvac(0) << "\t" << Bvac(1) << "\t" << Bvac(2) << endl;
 	}
 } // end Master
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -495,7 +513,7 @@ if(mpi_rank < 1)
 if(mpi_rank > 0)
 {
 	// Result array for Slave
-	Array<double,2> results(Range(1,7),Range(1,N_slave));
+	Array<double,2> results(Range(1,N_transmit),Range(1,N_slave));
 
 	// Start working...
 	while(1)
@@ -524,17 +542,18 @@ if(mpi_rank > 0)
 			}
 
 			Bvac = bvc.get_vacuumB(R, phi, Z, VMEC_n0only);
+			Bvci = 0;
 
 			if(inside.check(R,Z) && ALLOW_INSIDE)
 			{
-				Pres = wout.presf.ev(s);
 				wout.get_su(R, phi, Z, s, u);
+				Pres = wout.presf.ev(s);
 				wout.get_B2D(s, u, phi, B(0), B(1), B(2));
 				if(VC_INSIDE)
 				{
-					if(use_GK) Bvcin = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
-					else Bvcin = bvc.ev(R, phi, Z);
-					B += Bvac + Bvcin;
+					if(use_GK) Bvci = evGK(R, phi, Z, GKx, GKy, bvc, epsabs, epsrel);
+					else Bvci = bvc.ev(R, phi, Z);
+					B += Bvac + Bvci;
 				}
 			}
 			else
@@ -553,10 +572,13 @@ if(mpi_rank > 0)
 			results(5,i) = Bvac(0);
 			results(6,i) = Bvac(1);
 			results(7,i) = Bvac(2);
+			results(8,i) = Bvci(0);
+			results(9,i) = Bvci(1);
+			results(10,i) = Bvci(2);
 		} // end for
 
 		// Send results to Master
-		MPI::COMM_WORLD.Send(results.dataFirst(),7*N_slave,MPI::DOUBLE,0,tag);
+		MPI::COMM_WORLD.Send(results.dataFirst(),N_transmit*N_slave,MPI::DOUBLE,0,tag);
 
 	}// end while
 } // end Slaves

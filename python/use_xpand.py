@@ -288,7 +288,9 @@ class xpand_class:
 		N = len(R)
 		
 		with open(self.cwd + '/' + filename,'w') as f:
-			f.write("# " + str(self.NR) + "x" + str(self.NZ) + "x" + str(self.Np) + " points: " +  str(N) + "\n")
+			f.write("# NR = " + str(self.NR) + "\n")
+			f.write("# Np = " + str(self.Np) + "\n")
+			f.write("# NZ = " + str(self.NZ) + "\n")
 			for i in xrange(N): 
 				f.write(str(R[i]) + "\t" + str(phi[i]) + "\t" + str(Z[i]) + "\n")
 	
@@ -510,6 +512,19 @@ class xpand_class:
 				divB[k,:,:] = griddata((Rh[k,:,:].flatten(), Zh[k,:,:].flatten()), divh[k,:,:].flatten(), (self.R[0,:,:], self.Z[0,:,:]), method='linear', fill_value = 0)
 			return divB
 		return Rh, Zh, divh
+		
+		
+	def plot_div(self, k = 0):
+		title_string = str(k) + ': Angle = ' + str(round(self.phi[k,0,0],3))
+		R,Z,divB = self.div()
+		plt.figure(figsize = (7,9))
+		plt.contourf(R[k,:,:], Z[k,:,:], np.log10(np.abs(divB[k,:,:])), np.linspace(-14,0,128), extend = 'both')
+		plt.axes().set_aspect('equal')
+		C = plt.colorbar(pad = 0.01, extend = 'both', ticks = np.arange(-14,1))
+		C.set_label('$\\log_{10}(|\\nabla\\cdot B|)$', rotation = 270, va = 'bottom')
+		plt.xlabel('R [m]')
+		plt.ylabel('Z [m]')
+		plt.title(title_string, fontsize = 18)
 		
 	
 	def _init_vacuumBfield(self, mgrid = None):

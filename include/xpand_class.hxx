@@ -15,6 +15,7 @@
 #include <blitz/array.h>
 #include <blitz/tinyvec-et.h>
 #include <netcdf.h>
+#include <omp.h>
 #include <andi.hxx>
 #include <splines.hxx>
 #include <vmec_class.hxx>
@@ -39,17 +40,18 @@ private:
 	// Member Variables
 	LA_STRING mgrid_file;		// pathname of MGRID file
 	Array<double,1> extcur;		// coil currents 1->Ncoils
-	int Ncoils;					// number of coils in mgrid
 	double dR, dZ, dp;
 	Array<double,3> dBRdR, dBPHIdR, dBZdR;
 	Array<double,3> dBRdZ, dBPHIdZ, dBZdZ;
 	Array<double,3> d2BR, d2BPHI, d2BZ;
 	Array<double,5> CaBR, CaBPHI, CaBZ;
+	Array<double,4> br, bp, bz;
 
 	// Member-Functions
 
 public:
 	// Member Variables
+	int Ncoils;					// number of coils in mgrid
 	int NR, NZ, Np;
 	Array<double,1> R;
 	Array<double,1> Z;
@@ -64,9 +66,14 @@ public:
 	MGRID& operator =(const MGRID& mgrid);	// Operator =
 
 	// Member-Functions
+	void read(LA_STRING file, int N);
 	void read(LA_STRING file, int N, Array<double,1> cur);
+	void makeB(Array<double,1> cur);
+	void get_nearest(double r, double v, double z, int& ir, int& k, int& iz);
+	void getB(int ir, int k, int iz, int icoil, double& Br, double& Bp, double& Bz);
 	void prep_interpolation(void);	// initiate the interpolations
 	void interpolate_B(double r, double z, int k, double& br, double& bphi, double& bz);	// interpolate all 3 vacuum B-field components on the mgrid grid
+	Array<double,1> get_vacuumB(double Rs, double v, double Zs, bool n0only);
 }; //end of class
 
 //------------------------ Contructors & Operator -------------------------------------------------------------------------
@@ -78,6 +85,7 @@ MGRID::MGRID()
 {
 TinyVector <int,1> index(1);
 TinyVector <int,3> index3(1,1,1);
+TinyVector <int,4> index4(1,1,1,1);
 TinyVector <int,5> index5(1,1,1,1,1);
 
 mgrid_file = "None";
@@ -116,6 +124,10 @@ d2BZ.resize(NR, NZ, Np);	d2BZ.reindexSelf(index3);
 CaBR.resize(NR-1,NZ-1,Np,4,4);	CaBR.reindexSelf(index5);
 CaBPHI.resize(NR-1,NZ-1,Np,4,4);CaBPHI.reindexSelf(index5);
 CaBZ.resize(NR-1,NZ-1,Np,4,4);	CaBZ.reindexSelf(index5);
+
+br.resize(Np, NZ, NR, Ncoils);		br.reindexSelf(index4);
+bp.resize(Np, NZ, NR, Ncoils);		bp.reindexSelf(index4);
+bz.resize(Np, NZ, NR, Ncoils);		bz.reindexSelf(index4);
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -159,6 +171,10 @@ CaBR.reference(mgrid.CaBR);
 CaBPHI.reference(mgrid.CaBPHI);
 CaBZ.reference(mgrid.CaBZ);
 
+br.reference(mgrid.br);
+bp.reference(mgrid.bp);
+bz.reference(mgrid.bz);
+
 return(*this);
 }
 
@@ -166,7 +182,7 @@ return(*this);
 //-------------------------------------------------------------------------------------------------------------------------
 
 // --- read ---------------------------------------------------------------------------------------------------------------
-void MGRID::read(LA_STRING file, int N, Array<double,1> cur)
+void MGRID::read(LA_STRING file, int N)
 {
 // Variables
 int i,chk, ncid, varid;
@@ -174,12 +190,11 @@ int k;
 stringstream ss;
 string s;
 LA_STRING varname;
+Range all = Range::all();
 
 // assign private members
 mgrid_file = file;
 Ncoils = N;
-extcur.resize(Ncoils);
-extcur.reference(cur);
 
 // open file
 chk = nc_open(mgrid_file, NC_NOWRITE, &ncid);
@@ -214,9 +229,9 @@ for(k=1;k<=NZ;k++) Z(k) = zmin + (k-1)*dZ;
 // read B-field data
 Array<double,3> input;
 input.resize(Np, NZ, NR);
-BR.resize(Np, NZ, NR); 		BR = 0;
-BPHI.resize(Np, NZ, NR);	BPHI = 0;
-BZ.resize(Np, NZ, NR);		BZ = 0;
+br.resize(Np, NZ, NR, Ncoils);
+bp.resize(Np, NZ, NR, Ncoils);
+bz.resize(Np, NZ, NR, Ncoils);
 
 for (i=1;i<=Ncoils;i++)
 {
@@ -225,28 +240,77 @@ for (i=1;i<=Ncoils;i++)
 	varname = "br_" + LA_STRING(s.c_str());
 	chk = nc_inq_varid(ncid, varname, &varid);
 	chk = nc_get_var_double(ncid, varid, input.data());
-	BR += extcur(i) * input.copy();
+	br(all,all,all,i) = input.copy();
 
 	varname = "bp_" + LA_STRING(s.c_str());
 	chk = nc_inq_varid(ncid, varname, &varid);
 	chk = nc_get_var_double(ncid, varid, input.data());
-	BPHI += extcur(i) * input.copy();
+	bp(all,all,all,i) = input.copy();
 
 	varname = "bz_" + LA_STRING(s.c_str());
 	chk = nc_inq_varid(ncid, varname, &varid);
 	chk = nc_get_var_double(ncid, varid, input.data());
-	BZ += extcur(i) * input.copy();
+	bz(all,all,all,i) = input.copy();
 
 	// reset stringstream
 	ss.str("");
 	ss.clear();
 }
+}
+
+// ---------------------------------------------------------
+void MGRID::read(LA_STRING file, int N, Array<double,1> cur)
+{
+read(file,N);
+makeB(cur);
+}
+
+// --- makeB --------------------------------------------------------------------------------------------------------------
+void MGRID::makeB(Array<double,1> cur)
+{
+// Variables
+int i;
+Range all = Range::all();
+
+extcur.resize(Ncoils);
+extcur.reference(cur);
+
+BR.resize(Np, NZ, NR); 		BR = 0;
+BPHI.resize(Np, NZ, NR);	BPHI = 0;
+BZ.resize(Np, NZ, NR);		BZ = 0;
+
+for (i=1;i<=Ncoils;i++)
+{
+	BR += extcur(i) * br(all,all,all,i);
+	BPHI += extcur(i) * bp(all,all,all,i);
+	BZ += extcur(i) * bz(all,all,all,i);
+}
+
 // make B-field arrays: (NR, NZ, Np)
 BR.transposeSelf(thirdDim, secondDim, firstDim);
 BPHI.transposeSelf(thirdDim, secondDim, firstDim);
 BZ.transposeSelf(thirdDim, secondDim, firstDim);
 
 //prep_interpolation();
+}
+
+// --- getB ---------------------------------------------------------------------------------------------------------------
+void MGRID::get_nearest(double r, double v, double z, int& ir, int& k, int& iz)
+{
+ir = int((r - R(1))/dR) + 1;
+if (fabs(R(ir+1) - r) < fabs(R(ir) - r)) ir += 1;
+iz = int((z - Z(1))/dZ) + 1;
+if (fabs(Z(iz+1) - z) < fabs(Z(iz) - z)) iz += 1;
+k = int(v/dp) + 1;
+if (fabs(k*dp - v) < fabs((k-1)*dp -v)) k += 1;
+k = ((k-1) % Np) + 1;
+}
+
+void MGRID::getB(int ir, int k, int iz, int icoil, double& Br, double& Bp, double& Bz)
+{
+Br = br(k,iz,ir,icoil);
+Bp = bp(k,iz,ir,icoil);
+Bz = bz(k,iz,ir,icoil);
 }
 
 //--------------------- prep_interpolation --------------------------------------------------------------------------------
@@ -344,6 +408,55 @@ bcuint(R,Z,slice,dR,dZ,r,z,bphi,dummy,dummy);
 
 slice.reference(CaBZ(all,all,k,all,all));
 bcuint(R,Z,slice,dR,dZ,r,z,bz,dummy,dummy);
+}
+
+
+// --- get_vacuumB --------------------------------------------------------------------------------------------------------
+Array<double,1> MGRID::get_vacuumB(double Rs, double v, double Zs, bool n0only)
+{
+Array<double,1> B(3);
+double br, bphi, bz;
+double bru, bphiu, bzu;
+double t, dphi;
+int k,ku;
+
+if(n0only)	// compute B for all k*dphi planes and average
+{
+	B = 0;
+	for(k=1;k<=Np;k++)
+	{
+		interpolate_B(Rs, Zs, k, br, bphi, bz);
+		B(0) += br;
+		B(1) += bphi;
+		B(2) += bz;
+	}
+	B /= Np;
+}
+else	// use linear interpolation between k and k+1 planes
+{
+	v = modulo2pi(v);	// make sure v in [0, 2pi]
+	dphi = pi2 / Np;
+	k = int(v/dphi) + 1;	// k*dphi plane
+	//k = (int(round(v/dphi)) % mgrid.Np) + 1;	// nearest neighbor approximation
+	t = v/dphi - k + 1;
+
+	interpolate_B(Rs, Zs, k, br, bphi, bz);
+	B(0) = br;
+	B(1) = bphi;
+	B(2) = bz;
+	if(t > 0)	// not exactly in the v-plane (k-1)*dphi
+	{
+		if(k == Np) ku = 1;
+		else ku = k+1;
+		interpolate_B(Rs, Zs, ku, bru, bphiu, bzu);
+
+		// linear interpolation of B-field in v
+		B(0) += t*(bru - br);
+		B(1) += t*(bphiu - bphi);
+		B(2) += t*(bzu - bz);
+	}
+}
+return B;
 }
 
 //------------------------ End of Class MGRID -----------------------------------------------------------------------------
@@ -519,49 +632,7 @@ return integ;
 // --- get_vacuumB --------------------------------------------------------------------------------------------------------
 Array<double,1> BFIELDVC::get_vacuumB(double Rs, double v, double Zs, bool n0only)
 {
-Array<double,1> B(3);
-double br, bphi, bz;
-double bru, bphiu, bzu;
-double t, dphi;
-int k,ku;
-
-if(n0only)	// compute B for all k*dphi planes and average
-{
-	B = 0;
-	for(k=1;k<=mgrid.Np;k++)
-	{
-		mgrid.interpolate_B(Rs, Zs, k, br, bphi, bz);
-		B(0) += br;
-		B(1) += bphi;
-		B(2) += bz;
-	}
-	B /= mgrid.Np;
-}
-else	// use linear interpolation between k and k+1 planes
-{
-	v = modulo2pi(v);	// make sure v in [0, 2pi]
-	dphi = pi2 / mgrid.Np;
-	k = int(v/dphi) + 1;	// k*dphi plane
-	//k = (int(round(v/dphi)) % mgrid.Np) + 1;	// nearest neighbor approximation
-	t = v/dphi - k + 1;
-
-	mgrid.interpolate_B(Rs, Zs, k, br, bphi, bz);
-	B(0) = br;
-	B(1) = bphi;
-	B(2) = bz;
-	if(t > 0)	// not exactly in the v-plane (k-1)*dphi
-	{
-		if(k == mgrid.Np) ku = 1;
-		else ku = k+1;
-		mgrid.interpolate_B(Rs, Zs, ku, bru, bphiu, bzu);
-
-		// linear interpolation of B-field in v
-		B(0) += t*(bru - br);
-		B(1) += t*(bphiu - bphi);
-		B(2) += t*(bzu - bz);
-	}
-}
-return B;
+return mgrid.get_vacuumB(Rs, v, Zs, n0only);
 }
 
 
@@ -733,6 +804,7 @@ return adaptiveSimpsonsAux(flag, args, a, b, epsabs, epsrel, S, fa, fb, fc, maxR
 // --- prep_sInterpolation ------------------------------------------------------------------------------------------------
 void BFIELDVC::prep_sInterpolation(int Nu, int Nv)
 {
+
 int i,j;
 double dummy;
 double bsupu,bsupv;
@@ -776,11 +848,12 @@ dv = pi2/(Nv-1);
 for(i=1;i<=Nu;i++) U(i) = (i-1)*du;
 for(j=1;j<=Nv;j++) V(j) = (j-1)*dv;
 
-ofstream out("virtual_current.dat");
-out.precision(16);
-out << "# u" << "\t" << "v" << "\t" << "Kx" << "\t" << "Ky" << "\t" << "Kz" << "\t" << "n.B" << endl;
+//ofstream out("virtual_current.dat");
+//out.precision(16);
+//out << "# u" << "\t" << "v" << "\t" << "Kx" << "\t" << "Ky" << "\t" << "Kz" << "\t" << "n.B" << endl;
 
 //**********************************************************************
+/*
 bool USE_CORRECTION = false;
 
 // read in VC B-field at s = 1
@@ -795,6 +868,7 @@ int idx;
 
 double dR = 0.0001;
 double dZ = 0.0001;
+*/
 //**********************************************************************
 
 //#pragma omp parallel for private(i,j) collapse(2)
@@ -842,6 +916,7 @@ for(i=1;i<=Nu;i++)
 		KZ(i,j) = n(0)*B(1) - n(1)*B(0);
 
 		//**********************************************************************
+		/*
 		if(USE_CORRECTION)
 		{
 			// s = 1 Surface
@@ -874,9 +949,10 @@ for(i=1;i<=Nu;i++)
 			KR(i,j) += jx;
 			Kp(i,j) += jy;
 		}
+		*/
 		//**********************************************************************
 
-		out << U(i) << "\t" << V(j) << "\t" << KR(i,j) << "\t" << Kp(i,j) << "\t" << KZ(i,j) << "\t" << nB(i,j) << endl;
+		//out << U(i) << "\t" << V(j) << "\t" << KR(i,j) << "\t" << Kp(i,j) << "\t" << KZ(i,j) << "\t" << nB(i,j) << endl;
 	}
 
 // get the derivatives
