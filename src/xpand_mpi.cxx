@@ -247,7 +247,8 @@ if(mpi_rank < 1)
 	if(VMEC_n0only) out << "# Xpand results from axisymmetric VMEC file " << wout_name << endl;
 	else out << "# Xpand results from VMEC file " << wout_name << endl;
 	for(i=0;i<points_header_lines;i++) out << points_header[i] << endl;
-	out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t Pressure[Pa] \t BRvac[T]   \t Bphivac[T] \t BZvac[T]   \t BRvci[T]   \t Bphivci[T] \t BZvci[T]" << endl;
+	if(VC_INSIDE) out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t Pressure[Pa] \t BRvac[T]   \t Bphivac[T] \t BZvac[T]   \t BRvci[T]   \t Bphivci[T] \t BZvci[T]" << endl;
+	else out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t Pressure[Pa] \t BRvac[T]   \t Bphivac[T] \t BZvac[T]" << endl;
 
 	// log file
 	if(use_GK) logfile.open("log_" + LA_STRING(program_name) + praefix + "_GK" + ".dat");

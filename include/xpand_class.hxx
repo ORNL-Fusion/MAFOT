@@ -804,8 +804,7 @@ return adaptiveSimpsonsAux(flag, args, a, b, epsabs, epsrel, S, fa, fb, fc, maxR
 // --- prep_sInterpolation ------------------------------------------------------------------------------------------------
 void BFIELDVC::prep_sInterpolation(int Nu, int Nv)
 {
-
-int i,j;
+int i,j,k;
 double dummy;
 double bsupu,bsupv;
 double sinv, cosv, BR, Bphi;
@@ -848,33 +847,25 @@ dv = pi2/(Nv-1);
 for(i=1;i<=Nu;i++) U(i) = (i-1)*du;
 for(j=1;j<=Nv;j++) V(j) = (j-1)*dv;
 
-//ofstream out("virtual_current.dat");
-//out.precision(16);
-//out << "# u" << "\t" << "v" << "\t" << "Kx" << "\t" << "Ky" << "\t" << "Kz" << "\t" << "n.B" << endl;
+// Prepare parallel execution
+int mpi_rank = MPI::COMM_WORLD.Get_rank();
+int mpi_size = MPI::COMM_WORLD.Get_size();
+int mpi_parts = Nu*Nv / mpi_size;
+int kstart = 1 + mpi_rank*mpi_parts;
+int kend = (mpi_rank + 1)*mpi_parts;
+if (mpi_rank == mpi_size - 1) kend = Nu*Nv;
+int istart = int((kstart-1)/Nv) + 1;
+int jstart = (kstart-1)%Nv + 1;
+//cout << "Proc: " << mpi_rank << "\t" << kstart << "\t" << kend << endl;
 
-//**********************************************************************
-/*
-bool USE_CORRECTION = false;
-
-// read in VC B-field at s = 1
-Array<double,2> data;
-if(USE_CORRECTION) readfile("xpand_s1_surface.dat", 10, data);
-
-double Rs1,Zs1,dRdus1,dRdvs1,dZdus1,dZdvs1;
-double bsupu_VCs1;
-double dudZ,dudR,uR,uZ;
-double jphi,jx,jy;
-int idx;
-
-double dR = 0.0001;
-double dZ = 0.0001;
-*/
-//**********************************************************************
-
-//#pragma omp parallel for private(i,j) collapse(2)
-for(i=1;i<=Nu;i++)
-	for(j=1;j<=Nv;j++)
+// Compute virtual current on LCFS
+//for(i=1;i<=Nu;i++)
+	//for(j=1;j<=Nv;j++)
+for(k=kstart;k<=kend;k++)
 	{
+		i = int((k-1)/Nv) + 1;
+		j = (k-1)%Nv + 1;
+
 		wout.get_sincos(U(i), V(j), sinuv, cosuv);
 		sinv = sin(V(j));
 		cosv = cos(V(j));
@@ -914,46 +905,69 @@ for(i=1;i<=Nu;i++)
 		KR(i,j) = n(1)*B(2) - n(2)*B(1);	// Kx
 		Kp(i,j) = n(2)*B(0) - n(0)*B(2);	// Ky
 		KZ(i,j) = n(0)*B(1) - n(1)*B(0);
-
-		//**********************************************************************
-		/*
-		if(USE_CORRECTION)
-		{
-			// s = 1 Surface
-			Rs1 = wout.rmn.ev(1.0, U(i), V(j), dummy, dRdus1, dRdvs1, sinuv, cosuv);
-			Zs1 = wout.zmn.ev(1.0, U(i), V(j), dummy, dZdus1, dZdvs1, sinuv, cosuv);
-
-			// dudR,dudZ derivatives on the s = 1 surface
-			wout.get_su(Rs1+dR, V(j), Zs1, dummy, uR);	// returns uR modulo 2*pi
-			dudR = uR - U(i);
-			if(dudR < 0) dudR = -modulo2pi(-dudR);
-			else dudR = modulo2pi(dudR);
-			dudR /= dR;
-
-			wout.get_su(Rs1, V(j), Zs1+dZ, dummy, uZ);
-			dudZ = uZ - U(i);
-			if(dudZ < 0) dudZ = -modulo2pi(-dudZ);
-			else dudZ = modulo2pi(dudZ);
-			dudZ /= dZ;
-
-			// displacement current
-			idx = (j-1)*Nu + i;
-			bsupu_VCs1 = dudR*data(idx,4) + dudZ*data(idx,6);	// from the VC field not from VMEC
-			jphi = Rs(i,j) * (bsupu_VCs1 - bsupu)/(1.0 - s);		// unit is mu0*current already, same as K
-
-			// make cartesian
-			jx = -jphi*sinv;
-			jy =  jphi*cosv;
-
-			// correct K
-			KR(i,j) += jx;
-			Kp(i,j) += jy;
-		}
-		*/
-		//**********************************************************************
-
-		//out << U(i) << "\t" << V(j) << "\t" << KR(i,j) << "\t" << Kp(i,j) << "\t" << KZ(i,j) << "\t" << nB(i,j) << endl;
 	}
+
+// send results to every node
+double *buffer;
+buffer = Rs.dataZero() + Rs.stride(firstDim)*istart + Rs.stride(secondDim)*jstart;
+MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, Rs.dataFirst(), mpi_parts, MPI::DOUBLE);
+buffer = Zs.dataZero() + Zs.stride(firstDim)*istart + Zs.stride(secondDim)*jstart;
+MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, Zs.dataFirst(), mpi_parts, MPI::DOUBLE);
+buffer = KR.dataZero() + KR.stride(firstDim)*istart + KR.stride(secondDim)*jstart;
+MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, KR.dataFirst(), mpi_parts, MPI::DOUBLE);
+buffer = Kp.dataZero() + Kp.stride(firstDim)*istart + Kp.stride(secondDim)*jstart;
+MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, Kp.dataFirst(), mpi_parts, MPI::DOUBLE);
+buffer = KZ.dataZero() + KZ.stride(firstDim)*istart + KZ.stride(secondDim)*jstart;
+MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, KZ.dataFirst(), mpi_parts, MPI::DOUBLE);
+buffer = nB.dataZero() + nB.stride(firstDim)*istart + nB.stride(secondDim)*jstart;
+MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, nB.dataFirst(), mpi_parts, MPI::DOUBLE);
+buffer = dRdu.dataZero() + dRdu.stride(firstDim)*istart + dRdu.stride(secondDim)*jstart;
+MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, dRdu.dataFirst(), mpi_parts, MPI::DOUBLE);
+buffer = dRdv.dataZero() + dRdv.stride(firstDim)*istart + dRdv.stride(secondDim)*jstart;
+MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, dRdv.dataFirst(), mpi_parts, MPI::DOUBLE);
+buffer = d2R.dataZero() + d2R.stride(firstDim)*istart + d2R.stride(secondDim)*jstart;
+MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, d2R.dataFirst(), mpi_parts, MPI::DOUBLE);
+buffer = dZdu.dataZero() + dZdu.stride(firstDim)*istart + dZdu.stride(secondDim)*jstart;
+MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, dZdu.dataFirst(), mpi_parts, MPI::DOUBLE);
+buffer = dZdv.dataZero() + dZdv.stride(firstDim)*istart + dZdv.stride(secondDim)*jstart;
+MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, dZdv.dataFirst(), mpi_parts, MPI::DOUBLE);
+buffer = d2Z.dataZero() + d2Z.stride(firstDim)*istart + d2Z.stride(secondDim)*jstart;
+MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, d2Z.dataFirst(), mpi_parts, MPI::DOUBLE);
+
+int origin;
+if((mpi_size*mpi_parts) < (Nu*Nv))
+{
+	kstart = mpi_size * mpi_parts + 1;
+	istart = int((kstart-1)/Nv) + 1;
+	jstart = (kstart-1)%Nv + 1;
+	mpi_parts = Nu*Nv - kstart + 1;
+	origin = mpi_size-1;
+
+	buffer = Rs.dataZero() + Rs.stride(firstDim)*istart + Rs.stride(secondDim)*jstart;
+	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	buffer = Zs.dataZero() + Zs.stride(firstDim)*istart + Zs.stride(secondDim)*jstart;
+	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	buffer = KR.dataZero() + KR.stride(firstDim)*istart + KR.stride(secondDim)*jstart;
+	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	buffer = Kp.dataZero() + Kp.stride(firstDim)*istart + Kp.stride(secondDim)*jstart;
+	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	buffer = KZ.dataZero() + KZ.stride(firstDim)*istart + KZ.stride(secondDim)*jstart;
+	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	buffer = nB.dataZero() + nB.stride(firstDim)*istart + nB.stride(secondDim)*jstart;
+	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	buffer = dRdu.dataZero() + dRdu.stride(firstDim)*istart + dRdu.stride(secondDim)*jstart;
+	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	buffer = dRdv.dataZero() + dRdv.stride(firstDim)*istart + dRdv.stride(secondDim)*jstart;
+	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	buffer = d2R.dataZero() + d2R.stride(firstDim)*istart + d2R.stride(secondDim)*jstart;
+	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	buffer = dZdu.dataZero() + dZdu.stride(firstDim)*istart + dZdu.stride(secondDim)*jstart;
+	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	buffer = dZdv.dataZero() + dZdv.stride(firstDim)*istart + dZdv.stride(secondDim)*jstart;
+	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	buffer = d2Z.dataZero() + d2Z.stride(firstDim)*istart + d2Z.stride(secondDim)*jstart;
+	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+}
 
 // get the derivatives
 bcuderiv(KR, du, dv, dKRdu, dKRdv, d2KR);

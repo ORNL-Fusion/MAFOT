@@ -908,7 +908,7 @@ chk = nc_get_var_int(ncid, varid, &nextcur);
 chk = nc_inq_varid(ncid, "mnmaxpot", &varid);
 if(chk!=0)
 {
-	if(mpi_rank == 0) cout << "VMEC: mnmaxpot not found" << endl;
+	//if(mpi_rank == 0) cout << "VMEC: mnmaxpot not found" << endl;
 	lpot = false;
 }
 else lpot = true;
