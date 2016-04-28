@@ -9,6 +9,9 @@
 
 // Include
 //--------
+#ifdef USE_MPI
+	#include <openmpi/ompi/mpi/cxx/mpicxx.h>
+#endif
 #include <la_string.hxx>
 #include <fstream>
 #include <sstream>
@@ -847,6 +850,7 @@ dv = pi2/(Nv-1);
 for(i=1;i<=Nu;i++) U(i) = (i-1)*du;
 for(j=1;j<=Nv;j++) V(j) = (j-1)*dv;
 
+#ifdef USE_MPI
 // Prepare parallel execution
 int mpi_rank = MPI::COMM_WORLD.Get_rank();
 int mpi_size = MPI::COMM_WORLD.Get_size();
@@ -857,6 +861,10 @@ if (mpi_rank == mpi_size - 1) kend = Nu*Nv;
 int istart = int((kstart-1)/Nv) + 1;
 int jstart = (kstart-1)%Nv + 1;
 //cout << "Proc: " << mpi_rank << "\t" << kstart << "\t" << kend << endl;
+#else
+int kstart = 1;
+int kend = Nu*Nv;
+#endif
 
 // Compute virtual current on LCFS
 //for(i=1;i<=Nu;i++)
@@ -907,6 +915,7 @@ for(k=kstart;k<=kend;k++)
 		KZ(i,j) = n(0)*B(1) - n(1)*B(0);
 	}
 
+#ifdef USE_MPI
 // send results to every node
 double *buffer;
 buffer = Rs.dataZero() + Rs.stride(firstDim)*istart + Rs.stride(secondDim)*jstart;
@@ -968,6 +977,7 @@ if((mpi_size*mpi_parts) < (Nu*Nv))
 	buffer = d2Z.dataZero() + d2Z.stride(firstDim)*istart + d2Z.stride(secondDim)*jstart;
 	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
 }
+#endif
 
 // get the derivatives
 bcuderiv(KR, du, dv, dKRdu, dKRdv, d2KR);
