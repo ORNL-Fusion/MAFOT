@@ -271,7 +271,7 @@ void congradNR::iterate(congradFtn_f& func, congradFtn& dfunc, int itmax, double
 int j,its;
 double gg,gam,fp,dgg,fret;
 Array<double,1> g(Range(1,n)), h(Range(1,n));
-const double eps = 1e-10; // eps is a small number to rectify the special case of converging to exactly zero function value
+const double eps = 1e-15; // eps is a small number to rectify the special case of converging to exactly zero function value
 
 // Initializations.
 fp = func(x);
@@ -285,7 +285,7 @@ cout << "Iteration: 0" << "\t" << "Residual = " << fp << endl;
 for (its=1;its<=itmax;its++) // Loop over iterations.
 {
 	fret = dlinmin(func,dfunc); // now: x is the minimum location along xi, xi is the displacement form previous x to new x, fret is the minimum value
-	if (2.0*fabs(fret - fp) <= ftol*(fabs(fret) + fabs(fp) + eps)) // normal return:
+	if (2.0*fabs(fret - fp) <= ftol*(fabs(fret) + fabs(fp) + eps)) // normal return; minimum achieved, when relative change in residual is less than tolerance
 	{
 		cout << "Iteration: " << its << "\t" << "Residual = " << fret << endl;
 		return;
