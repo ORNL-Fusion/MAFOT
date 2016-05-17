@@ -10,7 +10,8 @@ HOST = socket.gethostname()
 
 def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', machine = 'd3d', 
 			tag = None, graphic = 'png', physical = 1, b = None, N = 60, Title = None,
-			typeOfPlot = 'contourf', xlimit = None, ylimit = None, figwidth = None, figheight = None, latex = True):
+			typeOfPlot = 'contourf', xlimit = None, ylimit = None, figwidth = None, figheight = None, 
+			latex = True, cmap = 'jet'):
 	"""
 	plot MAFOT results
 	--- user input ------------------
@@ -28,6 +29,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	typeOfPlot  'contourf', 'imshow'
 	x-,ylimit   tuple (min,max) for the respective axis limits, None: defaults are used
 	latex		True: create labels with LaTeX, False: use unicode chars (on systems that do not support LaTeX)
+	cmap		string, specifying a matplotlib colormap
 	---------------------------------
 	"""
 
@@ -54,6 +56,10 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			print 'cannot identify target'
 			return
 	else: target = None
+	
+	# --- define reversed cmap ---
+	if cmap[-2::] == '_r': cmap_r = cmap[0:-2]
+	else: cmap_r = cmap + '_r'
 		
 	# --- shot and time from file header ---
 	with open(path + filename, 'r') as f:
@@ -151,7 +157,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = '$L_{c}$ [km]'
 		else: C_label = '$L_{c}$ $\\mathrm{[km]}$'
 		#usecolormap = cm.jet	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = plt.cm.jet._segmentdata
+		cdict = plt.cm.get_cmap(cmap)._segmentdata
 		
 	elif(what == 'psimin'):
 		if(b == None): b = np.linspace(0.88,1.02,N)
@@ -159,7 +165,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03c8' + '$_{Min}$'
 		else: C_label = '$\\psi_{Min}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = plt.cm.jet_r._segmentdata
+		cdict = plt.cm.get_cmap(cmap_r)._segmentdata
 
 	elif(what == 'psimax'):
 		if not use_psimaxav:
@@ -170,7 +176,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03c8' + '$_{Max}$'
 		else: C_label = '$\\psi_{Max}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = plt.cm.jet_r._segmentdata
+		cdict = plt.cm.get_cmap(cmap_r)._segmentdata
 		
 	elif(what == 'psiav'):
 		if not use_psimaxav:
@@ -181,7 +187,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03c8' + '$_{av}$'
 		else: C_label = '$\\psi_{av}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = plt.cm.jet_r._segmentdata
+		cdict = plt.cm.get_cmap(cmap_r)._segmentdata
 
 	elif(what == 'pitch'):
 		if not use_pitch_yaw:
@@ -192,7 +198,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03b1' + '$_{p}$ [deg]'
 		else: C_label = '$\\alpha_{p}$ [deg]'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = plt.cm.jet._segmentdata
+		cdict = plt.cm.get_cmap(cmap)._segmentdata
 
 	elif(what == 'yaw'):
 		if not use_pitch_yaw:
@@ -203,7 +209,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03b1' + '$_{r}$  [deg]'
 		else: C_label = '$\\alpha_{r}$  [deg]'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = plt.cm.jet._segmentdata
+		cdict = plt.cm.get_cmap(cmap)._segmentdata
 		
 	else: 
 		print 'what: Unknown input'
@@ -511,6 +517,7 @@ if __name__ == '__main__':
 	tag = None
 	physical = 1
 	N = 60
+	cmap = 'jet'
 	Title = None
 	toP = 'contourf'
 	figwidth = None
@@ -522,17 +529,17 @@ if __name__ == '__main__':
 	xlim = None
 	ylim = None
 
-	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:T:iW:H:Ub:x:y:", ["help", "coord=", "what=", 
+	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:C:T:iW:H:Ub:x:y:", ["help", "coord=", "what=", 
 																 "machine=", "printme", "graphic=", 
-																 "tag=", "physical=", "Title=", "imshow", 	 
+																 "tag=", "physical=", "cmap=", "Title=", "imshow", 	 
 																 "figwidth=", "figheight=", "unicode",
 																 "range", "xlim", "ylim"])
 	for o, a in opts:
 		if o in ("-h", "--help"):
 			print "usage: d3dplot.py [-h] [-c COORDINATES] [-w WHAT] [-m MACHINE] [-p]"
-			print "                  [-g GRAPHIC] [-t TAG] [-P PHYSICAL] [-N N] [-T TITLE] [-i]"
-			print "                  [-W FIGWIDTH] [-H FIGHEIGHT] [-U] [-b MIN,MAX]"
-			print "                  [-x MIN,MAX] [-y MIN,MAX]"
+			print "                  [-g GRAPHIC] [-t TAG] [-P PHYSICAL] [-N N] [-C CMAP]"
+			print "                  [-T TITLE] [-i] [-W FIGWIDTH] [-H FIGHEIGHT] [-U]"
+			print "                  [-b MIN,MAX] [-x MIN,MAX] [-y MIN,MAX]"
 			print "                  pathname"
 			print ""
 			print "Plot MAFOT output"
@@ -555,6 +562,7 @@ if __name__ == '__main__':
 			print "  -P, --physical <Arg>  Type of y-Axis in fooprint. <Arg> = "
 			print "                        0: native, 1: RZ(default), 2: t in cm"
 			print "  -N <Arg>              Number of color levels in plot, default = 60"
+			print "  -C, --cmap <Arg>      colormap, default = jet"
 			print "  -T, --Title <Arg>     Figure title, default = None"
 			print "  -i, --imshow          Use imshow instead of contourf (default)"
 			print "  -W, --figwidth <Arg>  Force width of figure from default to <Arg>"
@@ -585,6 +593,8 @@ if __name__ == '__main__':
 			physical = int(a)
 		elif o in ("-N",):
 			N = int(a)
+		elif o in ("-C", "--cmap"):
+			cmap = a
 		elif o in ("-T", "--Title"):
 			Title = a
 		elif o in ("-i", "--imshow"):
@@ -613,7 +623,7 @@ if __name__ == '__main__':
 	d3dplot(args[0], printme = printme, coordinates = coordinates, what = what, machine = machine, 
 			tag = tag, graphic = graphic, physical = physical, b = b, N = N, Title = Title,
 			typeOfPlot = toP, xlimit = xlim, ylimit = ylim, figwidth = figwidth, figheight = figheight,
-			latex = latex)
+			latex = latex, cmap = cmap)
 
 	plt.show()
 

@@ -18,7 +18,6 @@
 #include <blitz/array.h>
 #include <blitz/tinyvec-et.h>
 #include <netcdf.h>
-#include <omp.h>
 #include <andi.hxx>
 #include <splines.hxx>
 #include <vmec_class.hxx>
@@ -64,6 +63,7 @@ public:
 
 	// Constructors
 	MGRID();								// Default Constructor
+	MGRID(const MGRID& mgrid);				// Copy Constructor
 
 	// Member-Operators
 	MGRID& operator =(const MGRID& mgrid);	// Operator =
@@ -131,6 +131,50 @@ CaBZ.resize(NR-1,NZ-1,Np,4,4);	CaBZ.reindexSelf(index5);
 br.resize(Np, NZ, NR, Ncoils);		br.reindexSelf(index4);
 bp.resize(Np, NZ, NR, Ncoils);		bp.reindexSelf(index4);
 bz.resize(Np, NZ, NR, Ncoils);		bz.reindexSelf(index4);
+}
+
+// Copy Constructor
+// makes a true copy
+MGRID::MGRID(const MGRID& mgrid)
+{
+mgrid_file = mgrid.mgrid_file;
+Ncoils = mgrid.Ncoils;
+extcur.reference(mgrid.extcur.copy());
+
+NR = mgrid.NR;
+NZ = mgrid.NZ;
+Np = mgrid.Np;
+
+dR = mgrid.dR;
+dZ = mgrid.dZ;
+dp = mgrid.dp;
+
+R.reference(mgrid.R.copy());
+Z.reference(mgrid.Z.copy());
+
+BR.reference(mgrid.BR.copy());
+BPHI.reference(mgrid.BPHI.copy());
+BZ.reference(mgrid.BZ.copy());
+
+dBRdR.reference(mgrid.dBRdR.copy());
+dBPHIdR.reference(mgrid.dBPHIdR.copy());
+dBZdR.reference(mgrid.dBZdR.copy());
+
+dBRdZ.reference(mgrid.dBRdZ.copy());
+dBPHIdZ.reference(mgrid.dBPHIdZ.copy());
+dBZdZ.reference(mgrid.dBZdZ.copy());
+
+d2BR.reference(mgrid.d2BR.copy());
+d2BPHI.reference(mgrid.d2BPHI.copy());
+d2BZ.reference(mgrid.d2BZ.copy());
+
+CaBR.reference(mgrid.CaBR.copy());
+CaBPHI.reference(mgrid.CaBPHI.copy());
+CaBZ.reference(mgrid.CaBZ.copy());
+
+br.reference(mgrid.br.copy());
+bp.reference(mgrid.bp.copy());
+bz.reference(mgrid.bz.copy());
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -284,6 +328,7 @@ BZ.resize(Np, NZ, NR);		BZ = 0;
 
 for (i=1;i<=Ncoils;i++)
 {
+	if(extcur(i) == 0) continue;
 	BR += extcur(i) * br(all,all,all,i);
 	BPHI += extcur(i) * bp(all,all,all,i);
 	BZ += extcur(i) * bz(all,all,all,i);

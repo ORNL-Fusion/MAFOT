@@ -1010,13 +1010,14 @@ Zaxis = 0;
 for(n=0;n<=ntor;n++)
 {
 	if(n0only && n > 0) break;	// only the n = 0 mode
+	sinnv = sin(n*v);
 	cosnv = cos(n*v);
 	Raxis += raxis_cc(n) * cosnv;
+	Zaxis += zaxis_cs(n) * sinnv;
 	if(lasym)
 	{
-		sinnv = sin(n*v);
 		Raxis += raxis_cs(n) * sinnv;
-		Zaxis += zaxis_cs(n) * sinnv + zaxis_cc(n) * cosnv;
+		Zaxis += zaxis_cc(n) * cosnv;
 	}
 }
 }
