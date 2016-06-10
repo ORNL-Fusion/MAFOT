@@ -3,9 +3,11 @@ MAFOT_DIR = /home/wingen/src/MAFOT
 BIN_DIR = /home/wingen/bin
 LIB_DIR = /home/wingen/lib/64
 
-# ---- Support M3DC1 ----
+# ---- Support codes ----
 # True or False
 M3DC1 = True
+VMEC = True
+SIESTA = True
 
 # ---- Compiler ----
 CXX = g++
@@ -27,11 +29,13 @@ FLIBS = -L/opt/intel/composerxe-2011.0.084/lib/intel64 -lsvml -lifcore -lirc -ld
 OMPLIBS = -L/act/openmpi-1.6/gcc/lib -lmpi -lmpi_cxx
 M3DC1LIBS = -L/home/ferraro/lib/_drop -lfusionio -lm3dc1
 HDF5LIBS = -L/home/wingen/lib/64/hdf5/lib -lhdf5 -lz -Wl,-rpath,/home/wingen/lib/64/hdf5/lib -lstdc++
+NETCDFLIBS = -L/opt/netcdf-4.1.3-intel/lib -lnetcdf
 
 # ---- external Includes ----
 BLITZINCLUDE = -I/home/wingen/lib/64/blitz/include
 OMPINCLUDE = -I/act/openmpi-1.6/gcc/include -I/act/openmpi-1.6/gcc/include/openmpi
 M3DC1INCLUDE = -I/home/ferraro/include
+NETCDFINCLUDE = -I/opt/netcdf-4.1.3-intel/include
 
 # ---- build GUI with python (optional) ----
 PYINSTALLER =

@@ -16,7 +16,7 @@
 //void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var);	// declared in IO class, defined here
 
 bool outofBndy(double x, double y, EFIT& EQD);
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
+int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
 					   EFIT& EQD, IO& PAR, PARTICLE& FLT);
@@ -167,7 +167,7 @@ out << "# EC-coil active (0=no, 1=yes): " << useIcoil << endl;
 out << "# No. of current filaments (0=none): " << useFilament << endl;
 out << "# Use Temperature Profile (0=off, 1=on): " << useTprofile << endl;
 out << "# Target (1=inner up, 2=outer up, 3=inner down, 4=outer down): " << which_target_plate << endl;
-out << "# Create Points (0=grid, 1=random, 2=target): " << create_flag << endl;
+out << "# Create Points (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-random, 5=RZ-grid): " << create_flag << endl;
 out << "# Direction of particles (1=co-pass, -1=count-pass, 0=field lines): " << sigma << endl;
 out << "# Charge number of particles (=-1:electrons, >=1:ions): " << Zq << endl;
 out << "# Boundary (0=Wall, 1=Box): " << simpleBndy << endl;
@@ -221,7 +221,7 @@ return false;
 
 
 //---------------- getBfield ----------------------------------------------------------------------------------------------
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
+int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
 {
 int chk;
 double psi,dpsidr,dpsidz;
@@ -238,7 +238,7 @@ Y = R*sinp;
 
 // get normalized poloidal Flux psi (should be chi in formulas!)
 chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
-if(chk==-1) {ofs2 << "getBfield: Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return;}	// integration of this point terminates 
+if(chk==-1) {ofs2 << "getBfield: Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
 
 // Equilibrium field
 F = EQD.get_Fpol(psi);
@@ -279,6 +279,7 @@ if(PAR.useFilament>0)
 // Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
 B_R += B_X*cosp + B_Y*sinp;
 B_phi += -B_X*sinp + B_Y*cosp;
+return 0;
 }
 
 //---------- prep_perturbation --------------------------------------------------------------------------------------------
@@ -299,17 +300,20 @@ consts_.dtr = 1.0/consts_.rtd;
 
 // Read itersup.in file
 ifstream in;
-in.open(supPath + "nstxsup.in");
-if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open nstxsup.in file " << endl; EXIT;}
+if(PAR.useIcoil == 1)
+{
+	in.open(supPath + "nstxsup.in");
+	if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open nstxsup.in file " << endl; EXIT;}
 
-for(i=1;i<=5;i++) {in >> line;} // Skip 5 lines
-for(i=0;i<mxbands;i++) {for(j=0;j<mxloops;j++) in >> currents_.ECcur[i][j];}		// Read coil currents
+	for(i=1;i<=5;i++) {in >> line;} // Skip 5 lines
+	for(i=0;i<mxbands;i++) {for(j=0;j<mxloops;j++) in >> currents_.ECcur[i][j];}		// Read coil currents
 
-in >> line;	// Skip line
-for(i=0;i<mxbands;i++) {for(j=0;j<3;j++) in >> currents_.ECadj[i][j];}		// Read coil adjustments
+	in >> line;	// Skip line
+	for(i=0;i<mxbands;i++) {for(j=0;j<3;j++) in >> currents_.ECadj[i][j];}		// Read coil adjustments
 
-in.close();	// close file
-in.clear();	// reset ifstream for next use
+	in.close();	// close file
+	in.clear();	// reset ifstream for next use
+}
 
 // Write Currents to log files (Check if corretly read in)
 ofs2 << "Currents:" << endl;
@@ -381,8 +385,8 @@ double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double
 int i_p = 0;
 int i_phi = 0;
 int N = Np*Nphi;
+int target;
 double dp,dphi,t;
-double dummy;
 Array<double,1> p1(Range(1,2)),p2(Range(1,2)),p(Range(1,2)),d(Range(1,2));
 
 // Grid stepsizes and t
@@ -409,7 +413,15 @@ t = tmin + i_p*dp;	// t in m
 double R1,Z1;	// (inner,lower) or (outer, left) target Corner
 double R2,Z2;	// (inner,upper) or (outer, right) target Corner
 
-switch(PAR.which_target_plate)
+target = PAR.which_target_plate;
+if(PAR.which_target_plate == 4 && t > 0.5712) target = 5;
+if(PAR.which_target_plate == 2 && t > 0.5712) target = 6;
+if(PAR.which_target_plate == 40 && t > 0.5712) target = 5;
+if(PAR.which_target_plate == 20 && t > 0.5712) target = 6;
+if(PAR.which_target_plate == 10 && t < 1.27) target = 80;
+if(PAR.which_target_plate == 30 && t > -1.27) target = 70;
+
+switch(target)
 {
 case 1:	// upper inner target plate, length 40.66 cm
 	R1 = 0.2794;	Z1 = 1.1714;
@@ -435,6 +447,60 @@ case 4:	// lower outer target plate, length 27.33 cm
 	if(t < R1 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
 	p(1) = t;	p(2) = Z1;
 	break;
+case 5:	// lower outer inclined wall at R > 0.6 and small horizontal piece before that
+	R1 = 0.617;		Z1 = -1.628;
+	R2 = 1.0433;	Z2 = -1.4603;
+	p(1) = t;
+	if(t < R1) p(2) = Z1;
+	else p(2) = (Z2-Z1)/(R2-R1)*t + (Z1*R2-R1*Z2)/(R2-R1);
+	if(t < 0.5712 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	break;
+case 6:	// upper outer declined wall at R > 0.6
+	R1 = 0.617;		Z1 = 1.628;
+	R2 = 1.0433;	Z2 = 1.4603;
+	p(1) = t;
+	if(t < R1) p(2) = Z1;
+	else p(2) = (Z2-Z1)/(R2-R1)*t + (Z1*R2-R1*Z2)/(R2-R1);
+	if(t < 0.5712 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	break;
+case 10:	// NSTX-U upper inner target plate
+	R1 = 0.4150;	Z1 = 1.27;
+	R2 = 0.4150;	Z2 = 1.578;
+	if(t < Z1 || t > Z2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	p(1) = R1;	p(2) = t;
+	break;
+case 20:	// NSTX-U upper outer target plate
+	R1 = 0.4350;	Z1 = 1.6234;
+	R2 = 0.5712;	Z2 = 1.6234;
+	if(t < R1 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	p(1) = t;	p(2) = Z1;
+	break;
+case 30:	// NSTX-U lower inner target plate
+	R1 = 0.4150;	Z2 = -1.27;
+	R2 = 0.4150;	Z1 = -1.578;
+	if(t < Z1 || t > Z2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	p(1) = R1;	p(2) = t;
+	break;
+case 40:	// NSTX-U lower outer target plate
+	R1 = 0.4350;	Z1 = -1.6234;
+	R2 = 0.5712;	Z2 = -1.6234;
+	if(t < R1 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	p(1) = t;	p(2) = Z1;
+	break;
+case 70:	// NSTX-U lower inner inclined wall at R < 0.4
+	R1 = 0.415;		Z1 = -1.27;
+	R2 = 0.315;		Z2 = -1.05;
+	p(2) = t;
+	p(1) = (R2-R1)/(Z2-Z1)*t + (R1*Z2-Z1*R2)/(Z2-Z1);
+	if(t < Z1 || t > Z2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	break;
+case 80:	// NSTX-U upper inner inclined wall at R < 0.4
+	R1 = 0.415;		Z1 = 1.27;
+	R2 = 0.315;		Z2 = 1.05;
+	p(2) = t;
+	p(1) = (R2-R1)/(Z2-Z1)*t + (R1*Z2-Z1*R2)/(Z2-Z1);
+	if(t < Z2 || t > Z1){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	break;
 default:
 	ofs2 << "start_on_target: No target specified" << endl;
 	EXIT;
@@ -445,7 +511,7 @@ default:
 FLT.R = p(1);
 FLT.Z = p(2);
 FLT.phi = (phimin + dphi*i_phi)*rTOd;	// phi in deg
-EQD.get_psi(p(1),p(2),FLT.psi,dummy,dummy);
+FLT.get_psi(p(1),p(2),FLT.psi);
 
 FLT.Lc = 0;
 FLT.psimin = 10;

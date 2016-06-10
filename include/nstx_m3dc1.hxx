@@ -10,15 +10,14 @@
 
 // Include
 //--------
-#include <fusion_io_defs.h>
-#include <fusion_io_c.h>
+#include <m3dc1_class.hxx>
 
 // --------------- Prototypes ---------------------------------------------------------------------------------------------
 //void IO::readiodata(char* name, int mpi_rank);								// declared in IO class, defined here
 //void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var);	// declared in IO class, defined here
 
 bool outofBndy(double x, double y, EFIT& EQD);
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
+int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
 					   EFIT& EQD, IO& PAR, PARTICLE& FLT);
@@ -62,62 +61,10 @@ Array<double,4> field;	// default constructed
 int simpleBndy = 0;		// 0: real wall boundary 	1: simple boundary box
 double bndy[4] = {0.185, 1.57, -1.63, 1.63};	// Boundary Box: Rmin, Rmax, Zmin, Zmax	
 
+M3DC1 M3D;
+
 // ------------------ log file --------------------------------------------------------------------------------------------
 ofstream ofs2;
-
-// ---------------------- M3D-C1 functions --------------------------------------------------------------------------------
-// ------------------------------------------------------------------------------------------------------------------------
-// M3D-C1 global Parameter and Variable
-const int m3dc1_nfiles_max = 10;	// max number of files = 10
-int m3dc1_nfiles = 1;				// default: use one file only
-int m3dc1_isrc[m3dc1_nfiles_max], m3dc1_imag[m3dc1_nfiles_max];
-
-// ----------------- m3dc1_load ---------------------------------------------------------------------------------------------
-int m3dc1_load(int response, int response_field, double scale[], LA_STRING m3dc1_filenames[])
-{
-int i, ierr, ierr2;
-for(i=0;i<m3dc1_nfiles;i++)
-{
-	// open file(s)
-	ierr =  fio_open_source(FIO_M3DC1_SOURCE, m3dc1_filenames[i], &(m3dc1_isrc[i]));
-
-    // Set options appropriate to this source
-    ierr2 = fio_get_options(m3dc1_isrc[i]);
-    ierr2 = fio_set_int_option(FIO_TIMESLICE, response);	// response = 1: plasma response solution; response = 0: vacuum field;
-
-    switch(response_field)
-    {
-    case 0: 	// M3D-C1: equilibrium field only
-    	ierr2 = fio_set_int_option(FIO_PART, FIO_EQUILIBRIUM_ONLY);
-    	break;
-
-    case 1:		// M3D-C1: I-coil perturbation field only
-        ierr2 = fio_set_real_option(FIO_LINEAR_SCALE, scale[i]);	// Scale I-coil perturbation in M3D-C1 according to diiidsup.in (current = scale * 1kA)
-    	ierr2 = fio_set_int_option(FIO_PART, FIO_PERTURBED_ONLY);
-    	break;
-
-    case 2:		// M3D-C1: total field
-        ierr2 = fio_set_real_option(FIO_LINEAR_SCALE, scale[i]);	// Scale I-coil perturbation in M3D-C1 according to diiidsup.in (current = scale * 1kA)
-    	ierr2 = fio_set_int_option(FIO_PART, FIO_TOTAL);
-    	break;
-    }
-
-    // set field handle
-    ierr2 = fio_get_field(m3dc1_isrc[i], FIO_MAGNETIC_FIELD, &(m3dc1_imag[i]));
-}
-return ierr;
-}
-
-// ----------------- m3dc1_unload -------------------------------------------------------------------------------------------
-void m3dc1_unload_file_(void)	// WARNING: name could become ambigous, when linked with library m3dc1_fortran.a (not the case so far)
-{
-int i, ierr;
-for(i=0;i<m3dc1_nfiles;i++)
-{
-	ierr = fio_close_field(m3dc1_imag[i]);
-	ierr = fio_close_source(m3dc1_isrc[i]);
-}
-}
 
 // ---------------------- IO Member functions -----------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------------------------------
@@ -206,6 +153,10 @@ useFilament = int(vec[12]);
 useTprofile = int(vec[13]);
 sigma = int(vec[14]);
 Zq = int(vec[15]);
+
+// M3D-C1 parameter
+response = int(vec[18]);
+response_field = int(vec[19]);
 }
 
 // ------------------- writeiodata ----------------------------------------------------------------------------------------
@@ -218,12 +169,16 @@ out << "### Parameterfile: " << filename << endl;
 out << "# Shot: " << EQDr.Shot << endl;
 out << "# Time: " << EQDr.Time << endl;
 out << "#-------------------------------------------------" << endl;
+out << "### M3D-C1:" << endl;
+out << "# Plasma response (0=no, >1=yes): " << response << endl;
+out << "# Field (-1=M3D-C1 off, 0=Eq, 1=I-coil, 2=both): " << response_field << endl;
+out << "#-------------------------------------------------" << endl;
 out << "### Switches:" << endl;
 out << "# EC-coil active (0=no, 1=yes): " << useIcoil << endl;
 out << "# No. of current filaments (0=none): " << useFilament << endl;
 out << "# Use Temperature Profile (0=off, 1=on): " << useTprofile << endl;
 out << "# Target (1=inner up, 2=outer up, 3=inner down, 4=outer down): " << which_target_plate << endl;
-out << "# Create Points (0=grid, 1=random, 2=target): " << create_flag << endl;
+out << "# Create Points (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-random, 5=RZ-grid): " << create_flag << endl;
 out << "# Direction of particles (1=co-pass, -1=count-pass, 0=field lines): " << sigma << endl;
 out << "# Charge number of particles (=-1:electrons, >=1:ions): " << Zq << endl;
 out << "# Boundary (0=Wall, 1=Box): " << simpleBndy << endl;
@@ -261,6 +216,7 @@ out << "#" << endl;
 // simpleBndy = 1: use simple boundary box
 bool outofBndy(double x, double y, EFIT& EQD)
 {
+if(isnan(x) || isnan(y) || isinf(x) || isinf(y)) return false;
 switch(simpleBndy)
 {
 case 0:
@@ -277,7 +233,7 @@ return false;
 
 
 //---------------- getBfield ----------------------------------------------------------------------------------------------
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
+int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
 {
 int i,chk;
 double psi,dpsidr,dpsidz;
@@ -301,7 +257,7 @@ switch(PAR.response_field)
 case -1: case 1:	// Vacuum equilibrium field from g file
 	// get normalized poloidal Flux psi (should be chi in formulas!)
 	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
-	if(chk==-1) {ofs2 << "getBfield: Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return;}	// integration of this point terminates 
+	if(chk==-1) {ofs2 << "getBfield: Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
 
 	// Equilibrium field
 	F = EQD.get_Fpol(psi);
@@ -312,12 +268,27 @@ case -1: case 1:	// Vacuum equilibrium field from g file
 	break;
 
 case 0: case 2: 	// M3D-C1: equilibrium field or total field
-	for(i=0;i<m3dc1_nfiles;i++)
+	for(i=0;i<M3D.nfiles;i++)
 	{
-		chk = fio_eval_field(m3dc1_imag[i], coord, b_field);
-		B_R += b_field[0];
-		B_phi += b_field[1];
-		B_Z += b_field[2];
+		chk = fio_eval_field(M3D.imag[i], coord, b_field);
+		if(chk != 0) // field eval failed, probably outside of M3DC1 domain -> fall back to g-file equilibrium
+		{
+			chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
+			if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
+
+			// Equilibrium field
+			F = EQD.get_Fpol(psi);
+			B_R = dpsidz/R;
+			B_phi = F/R;	//B_phi = EQD.Bt0*EQD.R0/R;
+			B_Z = -dpsidr/R;
+			break;	// break the for loop
+		}
+		else
+		{
+			B_R += b_field[0];
+			B_phi += b_field[1];
+			B_Z += b_field[2];
+		}
 	}
 	break;
 }
@@ -325,9 +296,10 @@ case 0: case 2: 	// M3D-C1: equilibrium field or total field
 // M3D-C1: I-coil perturbation field only, coils are turned off in prep_perturbation
 if(PAR.response_field == 1)
 {
-	for(i=0;i<m3dc1_nfiles;i++)
+	for(i=0;i<M3D.nfiles;i++)
 	{
-		chk = fio_eval_field(m3dc1_imag[i], coord, b_field);
+		chk = fio_eval_field(M3D.imag[i], coord, b_field);
+		if(chk != 0) {b_field[0] = 0; b_field[1] = 0; b_field[2] = 0; break;}
 		B_R += b_field[0];
 		B_phi += b_field[1];
 		B_Z += b_field[2];
@@ -365,6 +337,7 @@ if(PAR.useFilament>0)
 // Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
 B_R += B_X*cosp + B_Y*sinp;
 B_phi += -B_X*sinp + B_Y*cosp;
+return 0;
 }
 
 //---------- prep_perturbation --------------------------------------------------------------------------------------------
@@ -382,8 +355,12 @@ consts_.cir = 360.0;
 consts_.rtd = 360.0/pi2;
 consts_.dtr = 1.0/consts_.rtd;
 
+// Prepare loading M3D-C1
+if(PAR.response_field >= 0) chk = M3D.read_m3dc1sup(supPath);
+else chk = 0;
+
 // Read nstxsub.in file, if coils or M3D-C1 are on
-if(PAR.useIcoil == 1 || PAR.response_field > 0)
+if(PAR.useIcoil == 1 || (PAR.response_field > 0 && chk == -1))
 {
 	in.open(supPath + "nstxsup.in");
 	if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open nstxsup.in file " << endl; EXIT;}
@@ -398,70 +375,16 @@ if(PAR.useIcoil == 1 || PAR.response_field > 0)
 	in.clear();	// reset ifstream for next use
 }
 
-// Prepare loading M3D-C1
-double scale[m3dc1_nfiles_max];
-LA_STRING m3dc1_filenames[m3dc1_nfiles_max];
-string m3dc1_file;
-if(PAR.response_field >= 0)		// use M3D-C1 plasma response output
-{
-	in.open(supPath + "m3dc1sup.in");
-	if(in.fail()==1) // no m3dc1 control file found -> use default
-	{
-		m3dc1_nfiles = 1;
-
-		// Scale I-coil perturbation in M3D-C1 according to mastsup.in (current = scale * 1kA)
-		scale[0] = 0;
-		for(j=0;j<mxloops;j++) scale[0] += fabs(currents_.ECcur[1][j]); // use only the lower band for scaling
-		scale[0] /= 1000.0*mxloops*mxbands;
-		scale[0] *= -sign(currents_.ECcur[1][0]);		// proper phasing
-
-		// set filename
-		m3dc1_filenames[0] = "C1.h5";
-	}
-	else	// m3dc1 control file found
-	{
-		i = 0;
-		while(in.eof()==0) // Last row is read twice --- can't be changed --- -> i-1 is actual number of rows in file
-		{
-			in >> m3dc1_file;
-			in >> scale[i];
-			m3dc1_filenames[i] = m3dc1_file.c_str();
-			i += 1;
-		}
-		m3dc1_nfiles = i - 1;
-	}
-}
-
 // Read C1.h5 file
-if(PAR.response_field >= 0)		// use M3D-C1 plasma response output
+if(PAR.response_field >= 0)
 {
-	if(mpi_rank < 1) cout << "Loading M3D-C1 output file C1.h5" << endl;
-	ofs2 << "Loading M3D-C1 output file C1.h5" << endl;
-
-	chk = m3dc1_load(PAR.response, PAR.response_field, scale, m3dc1_filenames);	// load C1.h5
-	if(chk != 0) {if(mpi_rank < 1) cout << "Error loding C1.h5 file" << endl; EXIT;}
-
-	if(mpi_rank < 1) cout << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
-	ofs2 << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
+	if(chk == -1) M3D.scale_from_coils(currents_.ECcur[0], mxloops, mxloops*mxbands, currents_.ECadj[0][2]);	// no m3dc1sup.in file found -> scale from nstxsup.in file, there is only one band
+	M3D.load(PAR, mpi_rank);
 }
 else
 {
 	if(mpi_rank < 1) cout << "Using g-file!" << endl;
 	ofs2 << "Using g-file!" << endl;
-}
-
-if(PAR.response_field > 0)		// Perturbation already included in M3D-C1 output
-{
-	for(j=0;j<m3dc1_nfiles;j++)
-	{
-		if(mpi_rank < 1) cout << "M3D-C1 file: " << m3dc1_filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << endl;
-		ofs2 << "M3D-C1 file: " << m3dc1_filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << endl;
-	}
-
-	if(mpi_rank < 1) cout << "Coils turned off: Perturbation already included in M3D-C1 output" << endl;
-	ofs2 << "Coils turned off: Perturbation already included in M3D-C1 output" << endl;
-
-	PAR.useIcoil = 0;
 }
 
 if(mpi_rank < 1) cout << "NSTX-coil (0 = off, 1 = on): " << PAR.useIcoil << endl << endl;
@@ -537,8 +460,8 @@ double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double
 int i_p = 0;
 int i_phi = 0;
 int N = Np*Nphi;
+int target;
 double dp,dphi,t;
-double dummy;
 Array<double,1> p1(Range(1,2)),p2(Range(1,2)),p(Range(1,2)),d(Range(1,2));
 
 // Grid stepsizes and t
@@ -565,7 +488,15 @@ t = tmin + i_p*dp;	// t in m
 double R1,Z1;	// (inner,lower) or (outer, left) target Corner
 double R2,Z2;	// (inner,upper) or (outer, right) target Corner
 
-switch(PAR.which_target_plate)
+target = PAR.which_target_plate;
+if(PAR.which_target_plate == 4 && t > 0.5712) target = 5;
+if(PAR.which_target_plate == 2 && t > 0.5712) target = 6;
+if(PAR.which_target_plate == 40 && t > 0.5712) target = 5;
+if(PAR.which_target_plate == 20 && t > 0.5712) target = 6;
+if(PAR.which_target_plate == 10 && t < 1.27) target = 80;
+if(PAR.which_target_plate == 30 && t > -1.27) target = 70;
+
+switch(target)
 {
 case 1:	// upper inner target plate, length 40.66 cm
 	R1 = 0.2794;	Z1 = 1.1714;
@@ -591,6 +522,60 @@ case 4:	// lower outer target plate, length 27.33 cm
 	if(t < R1 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
 	p(1) = t;	p(2) = Z1;
 	break;
+case 5:	// lower outer inclined wall at R > 0.6 and small horizontal piece before that
+	R1 = 0.617;		Z1 = -1.628;
+	R2 = 1.0433;	Z2 = -1.4603;
+	p(1) = t;
+	if(t < R1) p(2) = Z1;
+	else p(2) = (Z2-Z1)/(R2-R1)*t + (Z1*R2-R1*Z2)/(R2-R1);
+	if(t < 0.5712 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	break;
+case 6:	// upper outer declined wall at R > 0.6
+	R1 = 0.617;		Z1 = 1.628;
+	R2 = 1.0433;	Z2 = 1.4603;
+	p(1) = t;
+	if(t < R1) p(2) = Z1;
+	else p(2) = (Z2-Z1)/(R2-R1)*t + (Z1*R2-R1*Z2)/(R2-R1);
+	if(t < 0.5712 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	break;
+case 10:	// NSTX-U upper inner target plate
+	R1 = 0.4150;	Z1 = 1.27;
+	R2 = 0.4150;	Z2 = 1.578;
+	if(t < Z1 || t > Z2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	p(1) = R1;	p(2) = t;
+	break;
+case 20:	// NSTX-U upper outer target plate
+	R1 = 0.4350;	Z1 = 1.6234;
+	R2 = 0.5712;	Z2 = 1.6234;
+	if(t < R1 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	p(1) = t;	p(2) = Z1;
+	break;
+case 30:	// NSTX-U lower inner target plate
+	R1 = 0.4150;	Z2 = -1.27;
+	R2 = 0.4150;	Z1 = -1.578;
+	if(t < Z1 || t > Z2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	p(1) = R1;	p(2) = t;
+	break;
+case 40:	// NSTX-U lower outer target plate
+	R1 = 0.4350;	Z1 = -1.6234;
+	R2 = 0.5712;	Z2 = -1.6234;
+	if(t < R1 || t > R2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	p(1) = t;	p(2) = Z1;
+	break;
+case 70:	// NSTX-U lower inner inclined wall at R < 0.4
+	R1 = 0.415;		Z1 = -1.27;
+	R2 = 0.315;		Z2 = -1.05;
+	p(2) = t;
+	p(1) = (R2-R1)/(Z2-Z1)*t + (R1*Z2-Z1*R2)/(Z2-Z1);
+	if(t < Z1 || t > Z2){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	break;
+case 80:	// NSTX-U upper inner inclined wall at R < 0.4
+	R1 = 0.415;		Z1 = 1.27;
+	R2 = 0.315;		Z2 = 1.05;
+	p(2) = t;
+	p(1) = (R2-R1)/(Z2-Z1)*t + (R1*Z2-Z1*R2)/(Z2-Z1);
+	if(t < Z2 || t > Z1){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	break;
 default:
 	ofs2 << "start_on_target: No target specified" << endl;
 	EXIT;
@@ -601,7 +586,7 @@ default:
 FLT.R = p(1);
 FLT.Z = p(2);
 FLT.phi = (phimin + dphi*i_phi)*rTOd;	// phi in deg
-EQD.get_psi(p(1),p(2),FLT.psi,dummy,dummy);
+FLT.get_psi(p(1),p(2),FLT.psi);
 
 FLT.Lc = 0;
 FLT.psimin = 10;

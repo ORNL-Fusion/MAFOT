@@ -1,6 +1,6 @@
 // Helpfull functions used in all programs
 // a(ll thats) n(eedful) d(irectly) i(mplemented)
-// a(lles) n(ützliche) d(irekt) i(mplementiert)
+// a(lles) n(ï¿½tzliche) d(irekt) i(mplementiert)
 // Last modified 7.6.11
 
 
@@ -97,7 +97,7 @@ ifstream in;
 in.open(name);
 if(in.fail()==1) {cout << "Unable to open file " << name << endl; exit(0);}
 
-// Zählen, wieviele Zeilen mit '#' beginnen, diese werden übersprungen
+// Zï¿½hlen, wieviele Zeilen mit '#' beginnen, diese werden ï¿½bersprungen
 while(1)
 {
 	in >> line;
@@ -107,23 +107,52 @@ while(1)
 }
 in.close();	// wichtig, damit Einlesen vom Anfang der Datei wieder neu beginnt
 
-in.open(name);	// Erneutes Öffnen der Datei
-for(i=1;i<=count;i++)	// Überspringen der IO-Daten Zeilen
+in.open(name);	// Erneutes ï¿½ffnen der Datei
+for(i=1;i<=count;i++)	// ï¿½berspringen der IO-Daten Zeilen
 {
 	in >> line;
 }
 
 // Einlesen der Daten 
-while(in.eof()==0) // Die letzte Zeile wird immer doppelt eingelesen --- leider nicht zu ändern ---
+while(in.eof()==0) // Die letzte Zeile wird immer doppelt eingelesen --- leider nicht zu ï¿½ndern ---
 {
 	in >> parname;
 	in >> wert;
 	vec.push_back(wert);
 }
-// Löschen der letzten Einträge, um doppeltes Einlesen zu kompensieren
+// Lï¿½schen der letzten Eintrï¿½ge, um doppeltes Einlesen zu kompensieren
 vec.erase(vec.end()-1);
 
 in.close();
+}
+
+// ------------- readFileHeader ---------------------------------------------------------------------------------------------
+// returns number of header lines N in file "name"; lines start with '#'
+// vec contains the header lines as LA_STRING
+// vec[0,1,...,N-1]
+int readFileHeader(char* name, vector<LA_STRING>& vec)
+{
+// Variables
+LA_STRING line;
+int count = 0;
+
+// Input
+ifstream in;
+in.open(name);
+if(in.fail()==1) {cout << "Unable to open file " << name << endl; exit(0);}
+
+// Read the number of rows starting with #
+while(1)
+{
+	in >> line;
+	if(line[1]=='#')
+	{
+		count+=1;
+		vec.push_back(line);
+	}
+	else break;
+}
+return count;
 }
 
 // ------------- readfile (blitz) ---------------------------------------------------------------------------------------------
@@ -134,12 +163,10 @@ in.close();
 void readfile(char* name, int N, Array<double,2>& vec)
 {
 // Variables
-int i;
-int count=0;
+int i,k;
 LA_STRING line;
-
-// resize vec (Spalte,Zeile)
-vec.resize(Range(1,100),Range(1,N));
+int count = 0;
+int rows = 0;
 
 // Input
 ifstream in;
@@ -153,7 +180,19 @@ while(1)
 	if(line[1]=='#') {count+=1; continue;}
 	else break;
 }
+
+// count the number of rows with data
+while(in.eof()==0) // Last row is read twice --- can't be changed --- -> rows starts with 0 and is actual number of data rows in file
+{
+	in >> line;
+	rows += 1;
+}
+
 in.close();	// Important to start reading from the beginning of the file
+in.clear(); // Important to clear EOF flag
+
+// resize vec (Spalte,Zeile)
+vec.resize(Range(1,rows),Range(1,N));
 
 in.open(name);	// Open file again
 for(i=1;i<=count;i++)	// Skip IO data rows
@@ -162,17 +201,8 @@ for(i=1;i<=count;i++)	// Skip IO data rows
 }
 
 // Read data
-count=0;
-while(in.eof()==0) // Last row is read twice --- can't be changed --- -> count-1 is actual number of rows in file
-{
-	count+=1;
-	for(i=1;i<=N;i++) in >> vec(count,i);
-	if(count%100==0) vec.resizeAndPreserve(count+100,N);
-}
-
-// Resize to actual size (remove dublicate last row as well)
-count-=1;
-vec.resizeAndPreserve(count,N);
+for(k=1;k<=rows;k++)
+	for(i=1;i<=N;i++) in >> vec(k,i);
 
 in.close();
 }
@@ -206,15 +236,15 @@ for(i=1;i<=count;i++)	// Skip IO data rows
 	in >> line;
 }
 
-// Einlesen der Daten (hier für zwei Spalten)
-while(in.eof()==0) // Die letzte Zeile wird immer doppelt eingelesen --- leider nicht zu ändern ---
+// Einlesen der Daten (hier fï¿½r zwei Spalten)
+while(in.eof()==0) // Die letzte Zeile wird immer doppelt eingelesen --- leider nicht zu ï¿½ndern ---
 {
 	in >> theta;
 	in >> psi;
 	thetavec.push_back(theta);
 	psivec.push_back(psi);
 }
-// Löschen der letzten Einträge, um doppeltes Einlesen zu kompensieren
+// Lï¿½schen der letzten Eintrï¿½ge, um doppeltes Einlesen zu kompensieren
 thetavec.erase(thetavec.end()-1);
 psivec.erase(psivec.end()-1);
 
@@ -250,8 +280,8 @@ for(i=1;i<=count;i++)	// Skip IO data rows
 	in >> line;
 }
 
-// Einlesen der Daten (hier für drei Spalten)
-while(in.eof()==0) // Die letzte Zeile wird immer doppelt eingelesen --- leider nicht zu ändern ---
+// Einlesen der Daten (hier fï¿½r drei Spalten)
+while(in.eof()==0) // Die letzte Zeile wird immer doppelt eingelesen --- leider nicht zu ï¿½ndern ---
 {
 	in >> A;
 	in >> B;
@@ -260,7 +290,7 @@ while(in.eof()==0) // Die letzte Zeile wird immer doppelt eingelesen --- leider 
 	vec2.push_back(B);
 	vec3.push_back(C);
 }
-// Löschen der letzten Einträge, um doppeltes Einlesen zu kompensieren
+// Lï¿½schen der letzten Eintrï¿½ge, um doppeltes Einlesen zu kompensieren
 vec1.erase(vec1.end()-1);
 vec2.erase(vec2.end()-1);
 vec3.erase(vec3.end()-1);
@@ -297,8 +327,8 @@ for(i=1;i<=count;i++)	// Skip IO data rows
 	in >> line;
 }
 
-// Einlesen der Daten (hier für vier Spalten)
-while(in.eof()==0) // Die letzte Zeile wird immer doppelt eingelesen --- leider nicht zu ändern ---
+// Einlesen der Daten (hier fï¿½r vier Spalten)
+while(in.eof()==0) // Die letzte Zeile wird immer doppelt eingelesen --- leider nicht zu ï¿½ndern ---
 {
 	in >> A;
 	in >> B;
@@ -309,7 +339,7 @@ while(in.eof()==0) // Die letzte Zeile wird immer doppelt eingelesen --- leider 
 	vec3.push_back(C);
 	vec4.push_back(D);
 }
-// Löschen der letzten Einträge, um doppeltes Einlesen zu kompensieren
+// Lï¿½schen der letzten Eintrï¿½ge, um doppeltes Einlesen zu kompensieren
 vec1.erase(vec1.end()-1);
 vec2.erase(vec2.end()-1);
 vec3.erase(vec3.end()-1);
@@ -347,8 +377,8 @@ for(i=1;i<=count;i++)	// Skip IO data rows
 	in >> line;
 }
 
-// Einlesen der Daten (hier für fünf Spalten)
-while(in.eof()==0) // Die letzte Zeile wird immer doppelt eingelesen --- leider nicht zu ändern ---
+// Einlesen der Daten (hier fï¿½r fï¿½nf Spalten)
+while(in.eof()==0) // Die letzte Zeile wird immer doppelt eingelesen --- leider nicht zu ï¿½ndern ---
 {
 	in >> A;
 	in >> B;
@@ -361,7 +391,7 @@ while(in.eof()==0) // Die letzte Zeile wird immer doppelt eingelesen --- leider 
 	vec4.push_back(D);
 	vec5.push_back(E);
 }
-// Löschen der letzten Einträge, um doppeltes Einlesen zu kompensieren
+// Lï¿½schen der letzten Eintrï¿½ge, um doppeltes Einlesen zu kompensieren
 vec1.erase(vec1.end()-1);
 vec2.erase(vec2.end()-1);
 vec3.erase(vec3.end()-1);
@@ -424,9 +454,9 @@ else return;
 }
 #endif
 
-// ------------- outputtest mit Rückgabewert -----------------------------------------------------------------------------------
+// ------------- outputtest mit Rï¿½ckgabewert -----------------------------------------------------------------------------------
 // see above
-//int outputtest2(char* name)	// 0: File kann geschrieben werden	1: File existiert und soll nicht überschrieben werden! 
+//int outputtest2(char* name)	// 0: File kann geschrieben werden	1: File existiert und soll nicht ï¿½berschrieben werden! 
 //{
 //int chk;
 //string frage;
@@ -590,7 +620,7 @@ double ans;
 
 idum ^= MASK;	//XORing with MASK allows use of zero and other simple bit patterns for idum.
 k=idum/IQ;
-idum=IA*(idum-k*IQ)-IR*k; //Compute idum=(IA*idum) % IM without overflows by Schrage’s method.
+idum=IA*(idum-k*IQ)-IR*k; //Compute idum=(IA*idum) % IM without overflows by Schrageï¿½s method.
 if(idum < 0) idum += IM; 
 ans=AM*idum;		//Convert idum to a floating result.
 idum ^= MASK;		//Unmask before return.

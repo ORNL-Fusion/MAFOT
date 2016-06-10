@@ -49,11 +49,19 @@
 	#endif
 #endif
 
+// namespaces
+//-----------
+using namespace blitz;
+
 // Prototypes 
+//-----------
+inline double modulo(double x, double y);
 
 // Switches
+//---------
 
 // Golbal Parameters 
+//------------------
 
 // Main Program
 //--------------
@@ -62,7 +70,7 @@ int main(int argc, char *argv[])
 // Variables
 int i,j,k,chk;
 int usePointfile;
-double dummy;
+//double dummy;
 EFIT EQD;
 
 // Use system time as seed(=idum) for random numbers
@@ -107,7 +115,8 @@ ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 // Set starting parameters
 int nstep = 10;					// Number of dpinit steps
 double dphi = nstep*dpinit;		// in deg;  dpinit = 1.0 (default)
-double alpha = PAR.verschieb;	//Scales parabolic deformation of line between start and end point, alpha = 0: no deformation, alpha = 1: max deformation equals distance between points 
+double alpha = PAR.verschieb;	// Scales parabolic deformation of line between start and end point, alpha = 0: no deformation, alpha = 1: max deformation equals distance between points
+bool angleInDeg = true;			// phi angle in output file is in degrees (left-handed machine angle), else in radiants (right-handed angle)
 
 // additional parameters for IO
 PAR.pv[0].name = "Max. Iterations";	PAR.pv[0].wert = PAR.itt;
@@ -126,11 +135,12 @@ Array<double,2> initial;
 double dR,dZ,dN;
 if(usePointfile == 1) 
 {
-	readfile(pointname,2,initial);
+	// points in file are:    R[m]		phi[deg] (left-handed machine angle)	Z[m]
+	readfile(pointname,3,initial);
 	PAR.N = initial.rows();
 	PAR.pv[5].wert = PAR.N;
 }
-else	// or construct initial points from staight line between (Rmin,Zmin) and (Rmax,Zmax)
+else	// or construct initial points from straight line between (Rmin,Zmin) and (Rmax,Zmax) at constant phi angle
 {
 	initial.resize(Range(1,PAR.N),Range(1,2));	// secondIndex = 1: R	secondIndex = 2: Z
 
@@ -141,8 +151,9 @@ else	// or construct initial points from staight line between (Rmin,Zmin) and (R
 
 	for(i=1;i<=PAR.N;i++) 
 	{
-		initial(i,1) = PAR.Rmin + (i-1)*(dR - 4*alpha*((i-1)*dN-1)*dZ);	
-		initial(i,2) = PAR.Zmin + (i-1)*(dZ + 4*alpha*((i-1)*dN-1)*dR);
+		initial(i,1) = PAR.Rmin + (i-1)*(dR - 4*alpha*((i-1)*dN-1)*dZ);
+		initial(i,2) = -PAR.phistart;	// phistart is degrees, but right-handed, so initial is left-handed machine angle
+		initial(i,3) = PAR.Zmin + (i-1)*(dZ + 4*alpha*((i-1)*dN-1)*dR);
 	}
 }
 //cout << initial << endl;
@@ -159,7 +170,8 @@ outputtest(filenameout);
 ofstream out(filenameout);
 out.precision(16);
 vector<LA_STRING> var(5);
-var[0] = "X[m]";  var[1] = "Y[m]";  var[2] = "Z[m]";  var[3] = "R[m]";  var[4] = "phi[rad]";
+var[0] = "X[m]";  var[1] = "Y[m]";  var[2] = "Z[m]";  var[3] = "R[m]";  var[4] = "phi[deg]";
+if(not angleInDeg) var[4] = "phi[rad]";
 PAR.writeiodata(out,bndy,var);
 
 cout << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
@@ -174,9 +186,10 @@ for(i=1;i<=PAR.N;i++)
 {
 	// Set initial conditions
 	FLT.R = initial(i,1);
-	FLT.Z = initial(i,2);
+	PAR.phistart = -initial(i,2);
+	FLT.Z = initial(i,3);
 	FLT.phi = PAR.phistart;
-	EQD.get_psi(FLT.R,FLT.Z,FLT.psi,dummy,dummy);
+	FLT.get_psi(FLT.R,FLT.Z,FLT.psi);
 	if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin);}
 
 	// negative direction
@@ -191,15 +204,18 @@ for(i=1;i<=PAR.N;i++)
 		data(j,1) = FLT.R;	data(j,2) = FLT.Z;	data(j,3) = FLT.phi;
 	}
 	// Write stored values in reverse direction
-	for(k=j-1;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << data(k,3)/rTOd << endl;
+	if(angleInDeg) {for(k=j-1;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << modulo(360.0 - data(k,3), 360.0) << endl;}
+	else {for(k=j-1;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << data(k,3)/rTOd << endl;}
 
 	// Restore start values and write them
-	FLT.R = initial(i,1);	
-	FLT.Z = initial(i,2);	
+	FLT.R = initial(i,1);
+	PAR.phistart = -initial(i,2);
+	FLT.Z = initial(i,3);
 	FLT.phi = PAR.phistart;
-	EQD.get_psi(FLT.R,FLT.Z,FLT.psi,dummy,dummy);
+	FLT.get_psi(FLT.R,FLT.Z,FLT.psi);
 	if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin);}
-	out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << endl;
+	if(angleInDeg) {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << modulo(360.0 - FLT.phi, 360.0) << endl;}
+	else {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << endl;}
 
 	//positive direction
 	for(j=1;j<=size;j++)
@@ -209,7 +225,8 @@ for(i=1;i<=PAR.N;i++)
 		if(fabs(FLT.phi - j*dpinit*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi - j*dpinit*dphi - PAR.phistart) << endl;
 		FLT.phi = j*dpinit*dphi + PAR.phistart;
 
-		out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << endl;
+		if(angleInDeg) {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << modulo(360.0 - FLT.phi, 360.0) << endl;}
+		else {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << endl;}
 	}
 }
 
@@ -257,14 +274,15 @@ data.free();
 readfile(filenameout,5,data);
 
 // Write Data
-for(j=1;j<=data.rows();j++) out << data(j,1) << "\t" << data(j,2) << "\t" << data(j,3) << "\t" << data(j,4) << "\t" << data(j,5) << endl;
+if(angleInDeg) {for(j=1;j<=data.rows();j++) out << data(j,1) << "\t" << data(j,2) << "\t" << data(j,3) << "\t" << data(j,4) << "\t" << (360 - data(j,5))/rTOd << endl;}	// read in angle is in lhs degree, but filament.in wants rhs radiants
+else {for(j=1;j<=data.rows();j++) out << data(j,1) << "\t" << data(j,2) << "\t" << data(j,3) << "\t" << data(j,4) << "\t" << data(j,5) << endl;}
 
 double now2 = zeit();
 cout << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 ofs2 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 
 #ifdef m3dc1
-if(PAR.response_field >= 0) m3dc1_unload_file_();
+if(PAR.response_field >= 0) M3D.unload();
 #endif
 
 return 0;
@@ -273,6 +291,13 @@ return 0;
 
 //------------------------ End of Main ------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+
+inline double modulo(double x, double y)
+{
+double z = fmod(x,y);
+if(z < 0) z += y;
+return z;
+}
 
 //----------------------- End of File -------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------

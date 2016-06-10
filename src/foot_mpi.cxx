@@ -56,6 +56,7 @@
 	#endif
 #endif
 #include <omp.h>
+#include <unistd.h>
 
 // Prototypes  
 //-----------
@@ -74,7 +75,6 @@ int main(int argc, char *argv[])
 MPI::Init(argc, argv);
 int mpi_rank = MPI::COMM_WORLD.Get_rank();
 int mpi_size = MPI::COMM_WORLD.Get_size();
-if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
 
 // Variables
 int i,j;
@@ -91,11 +91,48 @@ MPI::Status status;
 // Use system time as seed(=idum) for random numbers
 double now = zeit();
 
+// defaults
+
+// Command line input parsing
+int c;
+opterr = 0;
+while ((c = getopt(argc, argv, "h")) != -1)
+switch (c)
+{
+case 'h':
+	if(mpi_rank < 1)
+	{
+		cout << "usage: mpirun -n <cores> dtfoot_mpi [-h] file [tag]" << endl << endl;
+		cout << "Calculate field line connection length and penetration depth on the vessel wall." << endl << endl;
+		cout << "positional arguments:" << endl;
+		cout << "  file          Contol file (starts with '_')" << endl;
+		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
+		cout << endl << "optional arguments:" << endl;
+		cout << "  -h            show this help message and exit" << endl;
+		cout << endl << "Examples:" << endl;
+		cout << "  mpirun -n 4 dtfoot_mpi _inner.dat blabla" << endl;
+	}
+	MPI::Finalize();
+	return 0;
+case '?':
+	if(mpi_rank < 1)
+	{
+		if (optopt == 'c')
+			fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+		else if (isprint (optopt))
+			fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+		else
+			fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
+	}
+	EXIT;
+default:
+	EXIT;
+}
 // Input file names
 LA_STRING basename;
 LA_STRING praefix = "";
-if(argc==3) praefix = "_" + LA_STRING(argv[2]);
-if(argc>=2) basename = LA_STRING(argv[1]);
+if(argc==optind+2) praefix = "_" + LA_STRING(argv[optind+1]);
+if(argc>=optind+1) basename = LA_STRING(argv[optind]);
 else	// No Input: Abort
 {
 	if(mpi_rank < 1) cout << "No Input files -> Abort!" << endl;
@@ -103,6 +140,7 @@ else	// No Input: Abort
 }
 basename = checkparfilename(basename);
 LA_STRING parfilename = "_" + basename + ".dat";
+if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
 
 // Read Parameterfile
 if(mpi_rank < 1) cout << "Read Parameterfile " << parfilename << endl;
@@ -156,7 +194,40 @@ if(mpi_rank < 1) outputtest(filenameout);
 MPI::COMM_WORLD.Barrier();	// All Nodes wait for Master
 
 // Read EFIT-data
-EQD.ReadData(EQD.Shot,EQD.Time);
+double Raxis = 0, Zaxis = 0;
+#ifdef USE_XFIELD
+if(PAR.response_field == -3)
+{
+	VMEC vmec;
+	double Raxisv,Zaxisv,v;
+	if(mpi_rank < 1) cout << "Read VMEC file" << endl;
+	ofs2 << "Read VMEC file" << endl;
+	vmec.read("wout.nc");
+	for(i=0;i<40;i++)
+	{
+		v = i*pi2/40.0;
+		vmec.get_axis(v,Raxisv,Zaxisv);
+		Raxis += Raxisv;
+		Zaxis += Zaxisv;
+	}
+	Raxis /= 40.0;
+	Zaxis /= 40.0;
+}
+#endif
+
+#ifdef m3dc1
+if(PAR.response_field == 0 || PAR.response_field == 2)
+{
+	M3D.read_m3dc1sup();
+	M3D.open_source(PAR.response, PAR.response_field, -1);
+	Raxis = M3D.RmAxis;
+	Zaxis = M3D.ZmAxis;
+	//if(mpi_rank < 1) cout << Raxis << "\t" << Zaxis << endl;
+	M3D.unload();
+}
+#endif
+
+EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
 if(mpi_rank < 1) cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 
@@ -233,12 +304,12 @@ if(mpi_rank < 1)
 		{
 		#pragma omp section	//-------- Master Thread: controlles comunication ----------------------------------------------------------------------------------------------------------------------
 		{
-			#pragma omp barrier	// Syncronize with Slave Thread
+			//#pragma omp barrier	// Syncronize with Slave Thread
 			MPI::COMM_WORLD.Barrier();	// Master waits for Slaves
 
 			cout << "Target: " << PAR.which_target_plate << endl;
 			cout << "Start Tracer for " << N << " points ... " << endl;
-			//ofs2 << "Target (0=vertical, 1=45°, 2=horizontal, 3=shelf): " << which_target_plate << endl;
+			//ofs2 << "Target (0=vertical, 1=45ï¿½, 2=horizontal, 3=shelf): " << which_target_plate << endl;
 			ofs3 << "Start Tracer for " << N << " points ... " << endl;
 
 			// Send initial Package to Slaves 
@@ -327,7 +398,7 @@ if(mpi_rank < 1)
 			// Prepare Perturbation
 			prep_perturbation(EQD,PAR,mpi_rank);
 
-			#pragma omp barrier	// Syncronize with Master Thread
+			//#pragma omp barrier	// Syncronize with Master Thread
 
 			ofs2 << "Target: " << PAR.which_target_plate << endl;
 
@@ -449,7 +520,7 @@ if(mpi_rank < 1)
 ofs2 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 
 #ifdef m3dc1
-if(PAR.response_field >= 0) m3dc1_unload_file_();
+if(PAR.response_field >= 0) M3D.unload();
 #endif
 
 // MPI finalize

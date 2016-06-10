@@ -49,6 +49,7 @@
 		#include <d3d.hxx>
 	#endif
 #endif
+#include <unistd.h>
 
 // namespaces
 //-----------
@@ -63,14 +64,9 @@ inline double abstand(Array<double,1>& x1, Array<double,1>& x2);
 
 // Switches
 //----------
-const int trytoskip = 1;			// 0: stop after first wall contact		1: try to continue, may cause errors!!!
-const int skipmax = 3;				// number of skip attempts, if trytoskip == 1 (usually 3)
-const int preventSmallSteps = 0;	// 0: code stops if step size dt < 1e-14	1: code continues with dt = 1e-10 as long as step size controll would reduce dt below 1e-10
 
 // Golbal Parameters
 //------------------
-const double minabs = 0.001;	//0.001
-const double maxabs = 0.005;	//0.005
 
 // Function Definitions
 //---------------------
@@ -88,16 +84,78 @@ Array<double,1> xa(Range(1,2));
 Array<double,1> xsa(Range(1,2));
 Array<double,1> da(Range(1,2));
 
+// defaults
+int trytoskip = 1;			// 0: stop after first wall contact		1: try to continue, may cause errors!!!
+int skipmax = 3;			// number of skip attempts, if trytoskip == 1 (usually 3)
+int preventSmallSteps = 0;	// 0: code stops if step size dt < 1e-14	1: code continues with dt = 1e-10 as long as step size controll would reduce dt below 1e-10
+int bndy_type = 0;			// 0: vessel wall   1: box around vessel wall   2: EFIT grid boundary
+double minabs = 0.001;		//0.001
+double maxabs = 0.005;		//0.005
+
+// Command line input parsing
+int c;
+opterr = 0;
+while ((c = getopt(argc, argv, "hsm:b:N:X:")) != -1)
+switch (c)
+{
+case 'h':
+	cout << "usage: dtman [-h] [-s] [-m max] [-b bndy] [-N MIN] [-X MAX] file fix_file [tag]" << endl << endl;
+	cout << "Calculate stable and unstable manifolds of the given x-point." << endl << endl;
+	cout << "positional arguments:" << endl;
+	cout << "  file          Contol file (starts with '_')" << endl;
+	cout << "  fix_file      Output from dtfix (starts with 'fix')" << endl;
+	cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
+	cout << endl << "optional arguments:" << endl;
+	cout << "  -h            show this help message and exit" << endl;
+	cout << "  -s            stop at first boundary contact, default = No" << endl;
+	cout << "  -m            max number of skip-boundary attempts, default = 3, ignored with -s option" << endl;
+	cout << "  -b            boundary to stop at: " << endl;
+	cout << "                    wall = vacuum vessel wall (default), " << endl;
+	cout << "                    box  = simple rectangular box around vessel wall, " << endl;
+	cout << "                    efit = limit of EFIT grid, forces -s option" << endl;
+	cout << "  -N            Step-Size-Control: min step size, default = 0.001" << endl;
+	cout << "  -X            Step-Size-Control: max step size, default = 0.005" << endl;
+	cout << endl << "Examples:" << endl;
+	cout << "  dtman _fix.dat fix_1_lower.dat blabla" << endl;
+	cout << "  dtman -b efit _fix.dat fix_1_lower.dat testrun" << endl;
+	return 0;
+case 's':
+	trytoskip = 0;
+	break;
+case 'm':
+	skipmax = atoi(optarg);
+	break;
+case 'N':
+	minabs = atof(optarg);
+	break;
+case 'X':
+	maxabs = atof(optarg);
+	break;
+case 'b':
+	if(LA_STRING(optarg) == "box") bndy_type = 1;
+	if(LA_STRING(optarg) == "efit") {bndy_type = 2; trytoskip = 0;}
+	break;
+case '?':
+	if (optopt == 'c')
+		fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+	else if (isprint (optopt))
+		fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+	else
+		fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
+	exit(0);
+default:
+	exit(0);
+}
 // Input file names
 LA_STRING basename,startname;
 LA_STRING praefix = "";
-if(argc==4) praefix = "_" + LA_STRING(argv[3]);
-if(argc>=3) 
+if(argc==optind+3) praefix = "_" + LA_STRING(argv[optind+2]);
+if(argc>=optind+2)
 {
-	basename = LA_STRING(argv[1]);
-	startname = LA_STRING(argv[2]);
+	basename = LA_STRING(argv[optind]);
+	startname = LA_STRING(argv[optind+1]);
 }
-if(argc<=2)
+if(argc<=optind+1)
 {
 	cout << "No Input files -> Abort!" << endl; 
 	exit(0);
@@ -109,13 +167,11 @@ LA_STRING name = startname + ".dat";
 
 // Read parameter file
 cout << "Read Parameterfile " << parfilename << endl;
-ofs2 << "Read Parameterfile " << parfilename << endl;
 IO PAR(EQD,parfilename,10);
 
 // Set starting parameters
 const int kstart = 1;
 const int kend = 30;
-simpleBndy = 1;						// 0: use real wall as boundaries, 1: use simple boundary box
 
 // read fixed points
 Array<double,2> data;
@@ -134,11 +190,29 @@ var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "psi";  var[3] = "theta[rad]";  var
 
 // log file
 ofs2.open("log_" + LA_STRING(program_name) + type + dir + praefix + ".dat");
+ofs2 << "Read Parameterfile " << parfilename << endl;
 
 // Read EFIT-data
 EQD.ReadData(EQD.Shot,EQD.Time);
 cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
+
+// set boundary
+
+if(bndy_type == 0) simpleBndy = 0;   // use real wall as boundary
+else
+{
+	simpleBndy = 1;		// use simple boundary box
+	if(bndy_type == 2) 	// extend boundary to EFIT boundary
+	{
+		bndy[0] = min(EQD.R);
+		bndy[1] = max(EQD.R);
+		bndy[2] = min(EQD.Z);
+		bndy[3] = max(EQD.Z);
+	}
+}
+cout << "Boundary (0 = Wall, 1 = Box, 2 = EFIT): " << bndy_type << endl;
+cout << "Box limits: " << bndy[0] << "\t" << bndy[1] << "\t" << bndy[2] << "\t" << bndy[3] << endl;
 
 // Prepare Perturbation
 prep_perturbation(EQD,PAR);
@@ -186,7 +260,6 @@ for(i=1;i<=data.rows();i++)
 	xa = xsa + da;
 	FLTold.R = xa(1);
 	FLTold.Z = xa(2);
-	//bndy[0] = 0.85;  bndy[1] = 2.5;  bndy[2] = -1.58;  bndy[3] = 1.58;	// Extend Boundary to efit boundary
 	dt = 0.1;
 
 	for(k=kstart;k<=kend;k++)
@@ -256,7 +329,7 @@ ofs2 << "Program terminates normally" << endl;
 cout << "Program terminates normally" << endl;
 
 #ifdef m3dc1
-if(PAR.response_field >= 0) m3dc1_unload_file_();
+if(PAR.response_field >= 0) M3D.unload();
 #endif
 
 return 0;

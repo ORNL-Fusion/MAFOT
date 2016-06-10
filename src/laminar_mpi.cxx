@@ -56,17 +56,17 @@
 	#endif
 #endif
 #include <omp.h>
+#include <unistd.h>
 
 // Prototypes  
 //-----------
+int pitch_angles(double R, double Z, double phi, double& pitch, double& yaw, EFIT& EQD, IO& PAR);
 
 // Switches
 //----------
-const int spare_interior = 1;	// 0: all points are calculated		1: inside psi = psi_interior_limit results are set to fixed values (code runs faster)
 
 // Golbal Parameters 
 //------------------
-const double psi_interior_limit = 0.85;		// psi limit for spare_interior == 1
 
 // Function Definitions
 //---------------------
@@ -76,13 +76,13 @@ int main(int argc, char *argv[])
 MPI::Init(argc, argv);
 int mpi_rank = MPI::COMM_WORLD.Get_rank();
 int mpi_size = MPI::COMM_WORLD.Get_size();
-if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
 
 // Variables
 EFIT EQD;
 int i,j;
 int chk,skip_connect;
 double ntor,length,psimin,psimax,psiav;
+double pitch,yaw;
 Range all = Range::all();
 
 int tag,sender;
@@ -94,18 +94,65 @@ MPI::Status status;
 double now = zeit();
 //long idum = long(now);
 
+// defaults
+int spare_interior = 0;					// 0: all points are calculated		1: inside psi = psi_interior_limit results are set to fixed values (code runs faster)
+double psi_interior_limit = 0.85;		// psi limit for spare_interior == 1
+
+// Command line input parsing
+int c;
+opterr = 0;
+while ((c = getopt(argc, argv, "hsl:")) != -1)
+switch (c)
+{
+case 'h':
+	if(mpi_rank < 1)
+	{
+		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-s] [-l limit] file [tag]" << endl << endl;
+		cout << "Calculate field line connection length and penetration depth in a poloidal cross-section." << endl << endl;
+		cout << "positional arguments:" << endl;
+		cout << "  file          Contol file (starts with '_')" << endl;
+		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
+		cout << endl << "optional arguments:" << endl;
+		cout << "  -h            show this help message and exit" << endl;
+		cout << "  -s            spare calculation of interior, default = No" << endl;
+		cout << "  -l            flux limit for spare interior, default = 0.85" << endl;
+		cout << endl << "Examples:" << endl;
+		cout << "  mpirun -n 4 dtlaminar_mpi _lam.dat blabla" << endl;
+		cout << "  mpirun -n 12 dtlaminar_mpi -s -l 0.7 _lam.dat skip_inside0.7" << endl;
+	}
+	MPI::Finalize();
+	return 0;
+case 's':
+	spare_interior = 1;
+	break;
+case 'l':
+	psi_interior_limit = atof(optarg);
+	break;
+case '?':
+	if(mpi_rank < 1)
+	{
+		if (optopt == 'c')
+			fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+		else if (isprint (optopt))
+			fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+		else
+			fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
+	}
+	EXIT;
+default:
+	EXIT;
+}
 // Input file names
 LA_STRING basename;
 LA_STRING praefix = "";
-if(argc==3) praefix = "_" + LA_STRING(argv[2]);
-if(argc>=2) basename = LA_STRING(argv[1]);
-else	// No Input: Abort
-{
-	if(mpi_rank < 1) cout << "No Input files -> Abort!" << endl;
-	EXIT;
-}
+if(argc==optind+2) praefix = "_" + LA_STRING(argv[optind+1]);
+if(argc>=optind+1) basename = LA_STRING(argv[optind]);
+else {if(mpi_rank < 1) cout << "No Input files -> Abort!" << endl; EXIT;}
 basename = checkparfilename(basename);
 LA_STRING parfilename = "_" + basename + ".dat";
+
+// check if enough Nodes have been selected
+if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
 
 // log file
 ofs2.open("log_" + LA_STRING(program_name) + praefix + "_Node" + LA_STRING(mpi_rank) + ".dat");
@@ -122,14 +169,37 @@ if(mpi_rank < 1) cout << "Read Parameterfile " << parfilename << endl;
 ofs2 << "Read Parameterfile " << parfilename << endl;
 IO PAR(EQD,parfilename,11,mpi_rank);
 
-ofs2 << "ok" << endl;
-
 // Read EFIT-data
-EQD.ReadData(EQD.Shot,EQD.Time);
+double Raxis = 0, Zaxis = 0;
+#ifdef USE_XFIELD
+if(PAR.response_field == -3)
+{
+	VMEC vmec;
+	if(mpi_rank < 1) cout << "Read VMEC file" << endl;
+	ofs2 << "Read VMEC file" << endl;
+	vmec.read("wout.nc");
+	vmec.get_axis(PAR.phistart/rTOd, Raxis, Zaxis);
+}
+#endif
+
+#ifdef m3dc1
+if(PAR.response_field == 0 || PAR.response_field == 2)
+{
+	M3D.read_m3dc1sup();
+	M3D.open_source(PAR.response, PAR.response_field, -1);
+	Raxis = M3D.RmAxis;
+	Zaxis = M3D.ZmAxis;
+	//if(mpi_rank < 1) cout << Raxis << "\t" << Zaxis << endl;
+	M3D.unload();
+}
+#endif
+
+EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
 if(mpi_rank < 1) cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 
 // Set starting parameters
+int N_variables = 9;
 int NZ_slave = 1;
 int N = PAR.NR*PAR.NZ;
 int N_slave = PAR.NR*NZ_slave;
@@ -179,14 +249,15 @@ if(mpi_rank < 1)
 	// Output
 	ofstream out(filenameout);
 	out.precision(16);
-	vector<LA_STRING> var(7);
-	var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";  var[5] = "psimax";  var[6] = "psiav";
+	vector<LA_STRING> var(N_variables);
+	var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";  var[5] = "psimax";  var[6] = "psiav";  var[7] = "FL pitch angle";  var[8] = "FL yaw angle";
 	if(PAR.create_flag == 3) {var[0] = "theta";  var[1] = "psi";}
+	if(PAR.response_field == -2) {var[0] = "u"; var[3] = "s";}
 	PAR.writeiodata(out,bndy,var);
 
 	// Result array:					Package ID,  Column Number,  Values
-	Array<double,3> results_all(Range(1,NoOfPackages),Range(1,7),Range(1,N_slave));
-	Array<double,2> recieve(Range(1,7),Range(1,N_slave));
+	Array<double,3> results_all(Range(1,NoOfPackages),Range(1,N_variables),Range(1,N_slave));
+	Array<double,2> recieve(Range(1,N_variables),Range(1,N_slave));
 	Array<double,2> slice;
 	tag = 1;	// first Package
 
@@ -203,7 +274,7 @@ if(mpi_rank < 1)
 		{
 		#pragma omp section	//-------- Master Thread: controlles comunication ----------------------------------------------------------------------------------------------------------------------
 		{
-			#pragma omp barrier	// Syncronize with Slave Thread
+			//#pragma omp barrier	// Syncronize with Slave Thread
 			MPI::COMM_WORLD.Barrier();	// Master waits for Slaves
 
 			cout << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
@@ -241,7 +312,7 @@ if(mpi_rank < 1)
 			while(workingNodes > 0)	// workingNodes > 0: Slave still working -> MPI:Revc needed		workingNodes == 0: all Slaves recieved termination signal
 			{
 				// Recieve Result
-				MPI::COMM_WORLD.Recv(recieve.dataFirst(),7*N_slave,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
+				MPI::COMM_WORLD.Recv(recieve.dataFirst(),N_variables*N_slave,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
 				sender = status.Get_source();
 				tag = status.Get_tag();
 				ofs3 << "Recieve from Node: " << sender << " Package: " << tag << endl;
@@ -284,7 +355,7 @@ if(mpi_rank < 1)
 				// Write Output to file
 				for(i=write_last+1; i<=write_max; i++)
 				{
-					for(j=1;j<=N_slave;j++)	out << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << "\t" << results_all(i,7,j) << endl;
+					for(j=1;j<=N_slave;j++)	out << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << "\t" << results_all(i,7,j) << "\t" << results_all(i,8,j) << "\t" << results_all(i,9,j) << endl;
 					write_memory(i) = 2;
 				}
 				write_last = write_max;
@@ -297,7 +368,7 @@ if(mpi_rank < 1)
 			// Prepare Perturbation
 			prep_perturbation(EQD,PAR,mpi_rank);
 
-			#pragma omp barrier	// Syncronize with Master Thread
+			//#pragma omp barrier	// Syncronize with Master Thread
 
 			ofs2 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
 
@@ -325,8 +396,23 @@ if(mpi_rank < 1)
 					if(PAR.create_flag == 3)	// creates regular grid from theta and psi
 					{
 						FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave,2);	// here Rmin = psimin and Zmin = thetamin; max respectively
-						results_all(tag,1,i) = FLT.get_theta();
+#ifdef USE_SIESTA
+						if(PAR.response_field == -2)
+						{
+							double s,u;
+							SIES.get_su(FLT.R, FLT.phi/rTOd, FLT.Z, s, u);
+							results_all(tag,1,i) = u;
+							results_all(tag,2,i) = s;
+						}
+						else
+						{
+							results_all(tag,1,i) = FLT.theta;
+							results_all(tag,2,i) = FLT.psi;
+						}
+#else
+						results_all(tag,1,i) = FLT.theta;
 						results_all(tag,2,i) = FLT.psi;
+#endif
 					}
 					else						// creates regular grid from R and Z
 					{
@@ -358,6 +444,9 @@ if(mpi_rank < 1)
 						skip_connect = 1;
 					}
 
+					chk = pitch_angles(FLT.R, FLT.Z, FLT.phi/rTOd, pitch, yaw, EQD, PAR);
+					if(chk == -1) {pitch = 0; yaw = 0;}
+
 					// Follow fieldline to walls
 					if(skip_connect == 0) chk = FLT.connect(ntor,length,psimin,psimax,psiav,PAR.itt,PAR.MapDirection);
 
@@ -367,6 +456,8 @@ if(mpi_rank < 1)
 					results_all(tag,5,i) = psimin;
 					results_all(tag,6,i) = psimax;
 					results_all(tag,7,i) = psiav;
+					results_all(tag,8,i) = pitch;
+					results_all(tag,9,i) = yaw;
 
 					if(i%100==0) ofs2 << "Trax: " << i << endl;
 				} // end for
@@ -386,7 +477,7 @@ if(mpi_rank < 1)
 	// Write remaining Output to file
 	for(i=write_last+1;i<=NoOfPackages;i++)
 	{
-		for(j=1;j<=N_slave;j++)	out << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << "\t" << results_all(i,7,j) << endl;
+		for(j=1;j<=N_slave;j++)	out << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << "\t" << results_all(i,7,j) << "\t" << results_all(i,8,j) << "\t" << results_all(i,9,j) << endl;
 	}
 } // end Master
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -404,7 +495,7 @@ if(mpi_rank > 0)
 	ofs2 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
 
 	// Result array for Slave
-	Array<double,2> results(Range(1,7),Range(1,N_slave));
+	Array<double,2> results(Range(1,N_variables),Range(1,N_slave));
 
 	// Start working...
 	while(1)	
@@ -427,8 +518,25 @@ if(mpi_rank > 0)
 			if(PAR.create_flag == 3)	// creates regular grid from theta and psi
 			{
 				FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave,2);	// here Rmin = psimin and Zmin = thetamin; max respectively
-				results(1,i) = FLT.get_theta();
+				results(1,i) = FLT.theta;
 				results(2,i) = FLT.psi;
+#ifdef USE_SIESTA
+				if(PAR.response_field == -2)
+				{
+					double s,u;
+					SIES.get_su(FLT.R, FLT.phi/rTOd, FLT.Z, s, u);
+					results(1,i) = u;
+					results(2,i) = s;
+				}
+				else
+				{
+					results(1,i) = FLT.theta;
+					results(2,i) = FLT.psi;
+				}
+#else
+				results(1,i) = FLT.theta;
+				results(2,i) = FLT.psi;
+#endif
 			}
 			else						// creates regular grid from R and Z
 			{
@@ -460,6 +568,9 @@ if(mpi_rank > 0)
 				skip_connect = 1;
 			}
 
+			chk = pitch_angles(FLT.R, FLT.Z, FLT.phi/rTOd, pitch, yaw, EQD, PAR);
+			if(chk == -1) {pitch = 0; yaw = 0;}
+
 			// Follow fieldline to walls
 			if(skip_connect == 0) chk = FLT.connect(ntor,length,psimin,psimax,psiav,PAR.itt,PAR.MapDirection);
 
@@ -469,12 +580,14 @@ if(mpi_rank > 0)
 			results(5,i) = psimin;
 			results(6,i) = psimax;
 			results(7,i) = psiav;
+			results(8,i) = pitch;
+			results(9,i) = yaw;
 
 			if(i%100==0) ofs2 << "Trax: " << i << endl;
 		} // end for
 
 		// Send results to Master
-		MPI::COMM_WORLD.Send(results.dataFirst(),7*N_slave,MPI::DOUBLE,0,tag);
+		MPI::COMM_WORLD.Send(results.dataFirst(),N_variables*N_slave,MPI::DOUBLE,0,tag);
 
 	}// end while
 } // end Slaves
@@ -489,7 +602,7 @@ if(mpi_rank < 1)
 ofs2 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 
 #ifdef m3dc1
-if(PAR.response_field >= 0) m3dc1_unload_file_();
+if(PAR.response_field >= 0) M3D.unload();
 #endif
 
 // MPI finalize
@@ -500,6 +613,26 @@ return 0;
 
 //------------------------ End of Main ------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+
+int pitch_angles(double R, double Z, double phi, double& pitch, double& yaw, EFIT& EQD, IO& PAR)
+{
+int chk;
+double B_R,B_Z,B_phi,B_pol,B_r;
+const double theta = polar_phi(R - EQD.RmAxis, Z - EQD.ZmAxis);
+const double sint = sin(theta);
+const double cost = cos(theta);
+
+chk = getBfield(R, Z, phi, B_R, B_Z, B_phi, EQD, PAR);
+if (chk == -1) return -1;
+
+B_r = B_R*cost + B_Z*sint;
+B_pol = -B_R*sint + B_Z*cost;
+
+pitch = atan(B_pol/B_phi);
+yaw = atan(B_r/B_phi);
+
+return 0;
+}
 
 //----------------------- End of File -------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------

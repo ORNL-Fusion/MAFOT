@@ -1,9 +1,9 @@
-// Program calculates Poincaré Plot for particle-drift with time dependent perturbations
+// Program calculates Poincare Plot for particle-drift with time dependent perturbations
 // Fortran subroutines for Perturbation are used
 // A.Wingen						7.6.11
 
 // Input: 1: Parameterfile	2: praefix(optional)
-// Output:	Poincaré particle drift data file
+// Output:	Poincare particle drift data file
 //			log-file
 
 // Define
@@ -131,7 +131,7 @@ ofs2 << endl << "Start Tracer for " << PAR.N << " points ... " << endl;
 
 cout << "Helicity = " << EQD.helicity << endl;
 
-// Get Poincaré section
+// Get Poincare section
 for(n=1;n<=PAR.N;n++)
 {
 	// Set initial values in FLT
@@ -178,7 +178,7 @@ cout << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 ofs2 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 
 #ifdef m3dc1
-if(PAR.response_field >= 0) m3dc1_unload_file_();
+if(PAR.response_field >= 0) M3D.unload();
 #endif
 
 return 0;

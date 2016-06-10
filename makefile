@@ -19,6 +19,29 @@ else
 endif
 
 
+# ---- Defines ----
+D3DDEFS = -DD3D
+
+
+# ---- SIESTA support ----
+ifdef SIESTA
+ifeq ($(SIESTA),True)
+   D3DDEFS += -DUSE_SIESTA
+   VMEC = True
+endif
+endif
+
+
+# ---- VMEC support ----
+ifdef VMEC
+ifeq ($(VMEC),True)
+   LIBS += $(NETCDFLIBS)
+   INCLUDE += $(NETCDFINCLUDE)
+   D3DDEFS += -DUSE_XFIELD
+endif
+endif
+
+
 # ---- Sources ----
 SRCS = la_string.cxx
 OBJS = $(SRCS:.cxx=.o)
@@ -31,7 +54,7 @@ MPIOBJS_ITER = $(addprefix $(OBJDIR)/iter/, $(MPIOBJS))
 MPIOBJS_NSTX = $(addprefix $(OBJDIR)/nstx/, $(MPIOBJS))
 MPIOBJS_MAST = $(addprefix $(OBJDIR)/mast/, $(MPIOBJS))
 
-SERSRCS = fix.cxx man.cxx plot.cxx
+SERSRCS = fix.cxx man.cxx plot.cxx structure.cxx
 SEROBJS = $(SERSRCS:.cxx=.o)
 SEROBJS_D3D = $(addprefix $(OBJDIR)/d3d/, $(SEROBJS))
 SEROBJS_ITER = $(addprefix $(OBJDIR)/iter/, $(SEROBJS))
@@ -45,19 +68,19 @@ FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 
 
 # ---- Common Targets ----
-all : $(DIRS) d3d iter nstx mast
+all : $(DIRS) d3d iter nstx mast gui xpand d3dplot
 
 .PHONY : d3d
-d3d : dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi $(DIRS)
+d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi
 
 .PHONY : iter
-iter : iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi iterplot_mpi $(DIRS)
+iter : $(DIRS) iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi iterplot_mpi 
 
 .PHONY : nstx 
-nstx : nstxplot nstxfix nstxman nstxlaminar_mpi nstxfoot_mpi nstxplot_mpi $(DIRS)
+nstx : $(DIRS) nstxplot nstxfix nstxman nstxlaminar_mpi nstxfoot_mpi nstxplot_mpi 
 
 .PHONY : mast 
-mast : mastplot mastfix mastman mastlaminar_mpi mastfoot_mpi mastplot_mpi $(DIRS)
+mast : $(DIRS) mastplot mastfix mastman mastlaminar_mpi mastfoot_mpi mastplot_mpi 
 
 .PHONY : gui
 gui : $(MAFOT_DIR)/python/mafot_gui.py
@@ -65,13 +88,25 @@ ifdef PYINSTALLER
 	$(PYINSTALLER) -F --distpath=$(OBJDIR) --specpath=$(OBJDIR)/gui --workpath=$(OBJDIR)/gui $<
 	mv $(OBJDIR)/mafot_gui $(BIN_DIR)
 else
-	@echo "PYINSTALLER not defined"
+	@echo "-----------------------------------"
+	@echo "PYINSTALLER not supported"
+	@echo "-----------------------------------"
+	rm -f $(BIN_DIR)/mafot_gui.py
+	ln $(MAFOT_DIR)/python/mafot_gui.py $(BIN_DIR)/mafot_gui.py
 endif
 
-libtrip3d.a : $(FOBJS) $(DIRS)
+.PHONY : xpand
+xpand : $(DIRS) xpand_mpi
+
+.PHONY : d3dplot
+d3dplot : $(MAFOT_DIR)/python/d3dplot.py
+	rm -f $(BIN_DIR)/d3dplot.py
+	ln $(MAFOT_DIR)/python/d3dplot.py $(BIN_DIR)/d3dplot.py
+
+libtrip3d.a : $(DIRS) $(FOBJS) 
 	$(ARCH) $(LIB_DIR)/$@ $(FOBJS)
 
-libla_string.a : $(OBJS) $(DIRS)
+libla_string.a : $(DIRS) $(OBJS) 
 	$(ARCH) $(LIB_DIR)/$@ $(OBJS)
 
 clean :
@@ -79,6 +114,18 @@ clean :
 	
 $(DIRS) : 
 	mkdir -p $@
+
+
+# ---- Targets ----
+xpand_mpi : $(MAFOT_DIR)/src/xpand_mpi.cxx
+ifdef VMEC
+	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) $< -o $(OBJDIR)/xpand_mpi.o
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/xpand_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+else
+	@echo "-----------------------------------"
+	@echo "VMEC not supported"
+	@echo "-----------------------------------"
+endif
 
 
 # ---- D3D Targets ----
@@ -100,6 +147,8 @@ dtfoot_mpi : $(OBJDIR)/d3d/foot_mpi.o libla_string.a libtrip3d.a
 dtplot_mpi : $(OBJDIR)/d3d/plot_mpi.o libla_string.a libtrip3d.a
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/d3d/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
+dtstructure : $(OBJDIR)/d3d/structure.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/structure.o -o $(BIN_DIR)/$@ $(LIBS)
 
 # ---- ITER Targets ----
 iterplot : $(OBJDIR)/iter/plot.o libla_string.a libtrip3d.a
@@ -169,7 +218,7 @@ $(FOBJS) : $(OBJDIR)/%.o : $(MAFOT_DIR)/src/libtrip3d/%.f
 	$(F90) -c $(F90FLAGS) $< -o $@
 
 $(MPIOBJS_D3D) : $(OBJDIR)/d3d/%.o : $(MAFOT_DIR)/src/%.cxx
-	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DD3D $< -o $@
+	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) $(D3DDEFS) $< -o $@
 
 $(MPIOBJS_ITER) : $(OBJDIR)/iter/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DITER $< -o $@
@@ -181,7 +230,7 @@ $(MPIOBJS_NSTX) : $(OBJDIR)/nstx/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DNSTX $< -o $@
 
 $(SEROBJS_D3D) : $(OBJDIR)/d3d/%.o : $(MAFOT_DIR)/src/%.cxx
-	$(CXX) -c $(CFLAGS) $(INCLUDE) $(DEFINES) -DD3D $< -o $@
+	$(CXX) -c $(CFLAGS) $(INCLUDE) $(DEFINES) $(D3DDEFS) $< -o $@
 
 $(SEROBJS_ITER) : $(OBJDIR)/iter/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) $(INCLUDE) $(DEFINES) -DITER $< -o $@

@@ -20,17 +20,20 @@
 #include <sstream>
 #include <blitz/array.h>
 #include <blitz/tinyvec-et.h>
+#include <efit_class.hxx>
+#include <io_class.hxx>
+#if defined(m3dc1)
+	#include <m3dc1_class.hxx>
+#endif
 using namespace blitz;
 
 // extern Prototypes, defined in Machine-specific header
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
+int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 bool outofBndy(double x, double y, EFIT& EQD);	
 
 // Prototypes  
 void get_Energy(double psi, double& Enorm, double& dEnorm);
 double get_Lmfp(double Ekin);
-void getRZ(double x, double y, double& R, double &Z, EFIT& EQD);
-double bisec(double psi, double theta, double a, double b, EFIT& EQD, int flag);
 
 // Integrator Parameters
 const int nvar = 2;				// Number of Variables
@@ -39,6 +42,12 @@ const double dpinit = 1.0;		// step size of phi in [deg]
 
 // Golbal Parameters 
 extern ofstream ofs2;
+#if defined(m3dc1)
+	extern M3DC1 M3D;
+#endif
+#ifdef USE_SIESTA
+	extern SIESTA SIES;
+#endif
 
 //--------- Begin Class PARTICLE ----------------------------------------------------------------------------------------------
 class PARTICLE
@@ -55,9 +64,10 @@ private:
 	int steps;		// total number of integration steps along trajectory
 
 // Member-Functions
-	void dgls(double x, Array<double,1> y, Array<double,1>& dydx);
+	int dgls(double x, Array<double,1> y, Array<double,1>& dydx);
 	int rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x);
-	void rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout);
+	int rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout);
+	double bisec(double p, double th, double a, double b, int flag);
 
 public: 
 // Member Variables
@@ -65,6 +75,7 @@ public:
 	double Z;		// cylindrical vertical coordinate [m]
 	double phi;		// toroidal angle [deg]
 	double psi;		// normalized flux
+	double theta;	// poloidal angle (not always used!)
 
 	double Lc;		// connection length [m]
 	double psimin;	// minimum of normalized flux reached by trajectory
@@ -78,7 +89,7 @@ public:
 	double Lmfp_total;	// Sum of all mean free paths along the trajectory (PARr.useTprofile == 1 only)
 
 // Constructors
-	PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
+PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 
 // Member-Operators
 	PARTICLE& operator =(const PARTICLE& FLT);								// Operator =
@@ -87,6 +98,7 @@ public:
 // Member-Functions
 	double get_r();
 	double get_theta();
+	int get_psi(const double x1, const double x2, double& y, double p = 0);
 	void set_Energy();
 	int mapit(const int itt,int MapDirection=1);
 	int mapstep(int MapDirection=1, int nstep=ilt);
@@ -96,6 +108,7 @@ public:
 	void set(int i, int N, double Rmin, double Rmax, double Zmin, double Zmax, int N_Z=1, int flag=0);
 	void create(long& idum, double Rmin, double Rmax, double Zmin, double Zmax, int flag=0);
 	void convertRZ(double theta, double r);
+	void getRZ(double x, double y, double& r, double &z);
 
 }; //end of class
 
@@ -104,7 +117,7 @@ public:
 
 //--------- Default Constructor -------------------------------------------------------------------------------------------
 // Constructor list necessary to set EQDr and PARr since references cannot be empty
-PARTICLE::PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank): EQDr(EQD), PARr(PAR)	
+PARTICLE::PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank): EQDr(EQD), PARr(PAR)
 {
 // Variables
 double omegac;
@@ -118,11 +131,11 @@ const double E0p=mp*c*c/e/1000.0;	// Rest energy of Protons in [keV]
 const int Massnumber=1;				// Mass number
 
 // Public Member Variables
-
 R = 0;				// cylindrical major radius [m]
 Z = 0;				// cylindrical vertical coordinate [m]
 phi = 0;			// toroidal angle [deg]
 psi = 0;			// normalized flux
+theta = 0;			// poloidal angle
 
 Lc = 0;				// connection length [m]
 psimin = 10;		// minimum of normalized flux reached by trajectory
@@ -184,7 +197,8 @@ steps = FLT.steps;
 R = FLT.R;	
 Z = FLT.Z;	
 phi = FLT.phi;	
-psi = FLT.psi;	
+psi = FLT.psi;
+theta = FLT.theta;
 
 Lc = FLT.Lc;	
 psimin = FLT.psimin;
@@ -248,6 +262,46 @@ if(Rm<0) theta += pi;
 if(Rm>=0 && Zm<0) theta += pi2;
 
 return theta;
+}
+
+//-------------- get_psi -------------------------------------------------------------------------------------------------
+// p is the toroidal angle in radiants - IGNORED for now
+int PARTICLE::get_psi(const double x1, const double x2, double& y, double p)
+{
+int i,chk;
+double dummy;
+double coord[3], A_field[3];
+coord[0] = x1; coord[1] = 0; coord[2] = x2;
+
+if((PARr.response_field == 0) || (PARr.response_field == 2))
+{
+	#if defined(m3dc1)
+		if(M3D.nonlinear)	// in a non-linear run one has to evaluate the vector-potential at various toroidal locations and average
+		{
+			//coord[1] = modulo2pi(p);
+			//i = int(coord[1]*rTOd + 0.5)%360;
+			chk = 0; y = 0;
+			for(i=0;i<M3D.Np;i++)
+			{
+				coord[1] = i*pi2/M3D.Np;
+				chk += fio_eval_field(M3D.ia, coord, A_field);
+				y += (A_field[1] * x1 - M3D.psi_axis_a[i]) / (M3D.psi_lcfs_a[i] - M3D.psi_axis_a[i]);
+			}
+			y /= M3D.Np;
+		}
+		else	// vector-potential taken from equilibrium_only setup
+		{
+			chk = fio_eval_field(M3D.ia, coord, A_field);
+			y = (A_field[1] * x1 - M3D.psi_axis_a[0]) / (M3D.psi_lcfs_a[0] - M3D.psi_axis_a[0]);
+		}
+		if(chk != 0) {y = 1.2; chk = -1;}
+	#else
+		chk = EQDr.get_psi(x1,x2,y,dummy,dummy);
+	#endif
+}
+else chk = EQDr.get_psi(x1,x2,y,dummy,dummy);
+
+return chk;
 }
 
 //---------------- set_Energy ---------------------------------------------------------------------------------------------
@@ -430,7 +484,7 @@ return 0;
 // R is varied first, Z second
 void PARTICLE::set(int i, int N, double Rmin, double Rmax, double Zmin, double Zmax, int N_Z, int flag)
 {
-double dZ,dR,dummy;
+double dZ,dR;
 double x,y;
 int i_Z=0,i_R=0;
 int N_R;
@@ -456,25 +510,31 @@ if(dZ!=0 && dR!=0)
 x = Rmin + i_R*dR;
 y = Zmin + i_Z*dZ;
 
+phi = PARr.phistart;
+
 switch(flag)
 {
 case 2:		// get R, Z from x = psi and y = theta
-	getRZ(x, y, R, Z, EQDr);
+#ifdef USE_SIESTA
+	if(PARr.response_field == -2) SIES.get_RZ(x, y, phi/rTOd, R, Z);	// x = s and y = u
+	else getRZ(x, y, R, Z);
+#else
+	getRZ(x, y, R, Z);
+#endif
 	psi = x;
+	theta = y;
 	break;
 case 1:		// get R, Z from r and theta
 	R = x*cos(y) + EQDr.RmAxis;
 	Z = x*sin(y) + EQDr.ZmAxis;
-	EQDr.get_psi(R,Z,psi,dummy,dummy);
+	get_psi(R,Z,psi);
 	break;
 default:
 	R = x;
 	Z = y;
-	EQDr.get_psi(R,Z,psi,dummy,dummy);
+	get_psi(R,Z,psi);
 	break;
 }
-
-phi = PARr.phistart;
 
 Lc = 0;
 psimin = 10;
@@ -493,7 +553,7 @@ void PARTICLE::create(long& idum, double Rmin, double Rmax, double Zmin, double 
 {
 const double dR=Rmax-Rmin;
 const double dZ=Zmax-Zmin;
-double v,dummy;
+double v;
 double x,y;
 
 v=ran0(idum);
@@ -502,25 +562,31 @@ x=Rmin+v*dR;
 v=ran0(idum);
 y=Zmin+v*dZ;
 
+phi = PARr.phistart;
+
 switch(flag)
 {
 case 2:		// get R, Z from psi and theta
-	getRZ(x, y, R, Z, EQDr);
+#ifdef USE_SIESTA
+	if(PARr.response_field == -2) SIES.get_RZ(x, y, phi/rTOd, R, Z);	// x = s and y = u
+	else getRZ(x, y, R, Z);
+#else
+	getRZ(x, y, R, Z);
+#endif
 	psi = x;
+	theta = y;
 	break;
 case 1:		// get R, Z from r and theta
 	R = x*cos(y) + EQDr.RmAxis;
 	Z = x*sin(y) + EQDr.ZmAxis;
-	EQDr.get_psi(R,Z,psi,dummy,dummy);
+	get_psi(R,Z,psi);
 	break;
 default:
 	R = x;
 	Z = y;
-	EQDr.get_psi(R,Z,psi,dummy,dummy);
+	get_psi(R,Z,psi);
 	break;
 }
-
-phi = PARr.phistart;
 
 Lc = 0;
 psimin = 10;
@@ -539,20 +605,137 @@ void PARTICLE::convertRZ(double theta, double r)
 	Z = r*sin(theta) + EQDr.ZmAxis;
 }
 
+//--------- getRZ ------------------------------------------------------------------------------------------------------------
+// calculate (R,Z) from (theta,psi), x = psi, y = theta
+// exclude the private flux region <--> two points (R,Z) with the same psi exist
+// optimized for lower single null discharges
+// wall(Range(1,toEnd,2)) are all R coordinates of wall, same with lcfs
+// wall(Range(2,toEnd,2)) are all Z coordiantes of wall, same with lcfs
+void PARTICLE::getRZ(double x, double y, double& r, double &z)
+{
+if(y < pi/4 || y > 7*pi/4)	// LFS
+{
+	// z = z(r,theta)
+	if(x <= 1) r = bisec(x, y, EQDr.RmAxis, max(EQDr.lcfs(Range(1,toEnd,2)))+EQDr.dR, 0);
+	else r = bisec(x, y, EQDr.RmAxis, max(EQDr.wall(Range(1,toEnd,2))), 0);
+	z = (r - EQDr.RmAxis)*tan(y) + EQDr.ZmAxis;
+}
+if(y > 3*pi/4 && y < 5*pi/4)	// HFS, lcfs and wall are close together anyway, so here no distinction necessary
+{
+	// z = z(r,theta)
+	r = bisec(x, y, min(EQDr.wall(Range(1,toEnd,2))), EQDr.RmAxis, 0);
+	z = (r - EQDr.RmAxis)*tan(y) + EQDr.ZmAxis;
+}
+if(y >= pi/4 && y <= 3*pi/4)	// top
+{
+	// r = r(z,theta)
+	if(x <= 1) z = bisec(x, y, EQDr.ZmAxis, max(EQDr.lcfs(Range(2,toEnd,2)))+EQDr.dZ, 1);
+	else z = bisec(x, y, EQDr.ZmAxis, max(EQDr.wall(Range(2,toEnd,2))), 1);
+	r = (z - EQDr.ZmAxis)/tan(y) + EQDr.RmAxis;
+}
+if(y >= 5*pi/4 && y <= 7*pi/4)	// bottom
+{
+	// r = r(z,theta)
+	if(x <= 1) z = bisec(x, y, min(EQDr.lcfs(Range(2,toEnd,2))), EQDr.ZmAxis, 1);
+	else z = bisec(x, y, min(EQDr.wall(Range(2,toEnd,2))), EQDr.ZmAxis, 1);
+	r = (z - EQDr.ZmAxis)/tan(y) + EQDr.RmAxis;
+}
+}
+
 //----------------------- End of Public Member Functions ------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
 //----------------------- Private Member Functions ------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+//--------- bisec ---------------------------------------------------------------------------------------------------------
+// called by getRZ
+double PARTICLE::bisec(double p, double th, double a, double b, int flag)
+{
+int chk;
+double xo,xu,x;
+double r,z;
+double f;
+double dummy;
+const double eps = 1e-14;
+
+x = a;
+if (flag == 0)	// z = z(r,th)
+{
+	z = (x - EQDr.RmAxis)*tan(th) + EQDr.ZmAxis;
+	if(outofBndy(x, z, EQDr)) f = 1.2;
+	else
+	{
+		chk = get_psi(x, z, f);
+		if(chk != 0) f = 1.2;
+	}
+	f -= p;
+}
+else			// r = r(z,th)
+{
+	r = (x - EQDr.ZmAxis)/tan(th) + EQDr.RmAxis;
+	if(outofBndy(r, x, EQDr)) f = 1.2;
+	else
+	{
+		chk = get_psi(r, x, f);
+		if(chk != 0) f = 1.2;
+	}
+	f -= p;
+}
+
+if(f > 0)
+{
+	xo = a;
+	xu = b;
+}
+else
+{
+	xo = b;
+	xu = a;
+}
+
+while(fabs(xo-xu) > eps)
+{
+	x = (xo + xu)/2;
+	if (flag == 0)	// z = z(r,th)
+	{
+		z = (x - EQDr.RmAxis)*tan(th) + EQDr.ZmAxis;
+		if(outofBndy(x, z, EQDr)) f = 1.2;
+		else
+		{
+			chk = get_psi(x, z, f);
+			if(chk != 0) f = 1.2;
+		}
+		f -= p;
+	}
+	else			// r = r(z,th)
+	{
+		r = (x - EQDr.ZmAxis)/tan(th) + EQDr.RmAxis;
+		if(outofBndy(r, x, EQDr)) f = 1.2;
+		else
+		{
+			chk = get_psi(r, x, f);
+			if(chk != 0) f = 1.2;
+		}
+		f -= p;
+	}
+	if(f > 0) xo = x;
+	else xu = x;
+}
+
+return x;
+}
 
 //---------------- dgls ---------------------------------------------------------------------------------------------------
 // Type the differential equations (dgls) as they are written, while x is the independent variable
 // Here: x = phi, y(0) = R, y(1) = Z, dydx(0) = dR/dphi, dydx(1) = dZ/dphi
-void PARTICLE::dgls(double x, Array<double,1> y, Array<double,1>& dydx)
+int PARTICLE::dgls(double x, Array<double,1> y, Array<double,1>& dydx)
 {
+int chk;
 double B_R,B_Z,B_phi;
 double S;
-getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
+
+chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
+if (chk == -1) return -1;
 
 dydx(0) = y(0)*B_R/B_phi;
 dydx(1) = y(0)*B_Z/B_phi;
@@ -560,10 +743,11 @@ dydx(1) = y(0)*B_Z/B_phi;
 if(sigma != 0)
 {
 	S = eps0*(GAMMA*GAMMA-1)-2*EQDr.R0*Ix/y(0);
-	if(S<0) {ofs2 << "dgls: Sqrt argument negative => Abort" << endl; EXIT;}	// Error -> Abort program
+	if(S<0) {ofs2 << "dgls: Sqrt argument negative => Abort" << endl; return -1;}	// Error -> Abort program
 	S = sqrt(S);
 	dydx(1) += -sigma/double(Zq)*(y(0)*S + EQDr.R0*Ix/S);	// sign corrected: sigma = +1 is indeed co-passing
 }
+return 0;
 }
 
 //----------------- rkint -------------------------------------------------------------------------------------------------
@@ -572,17 +756,18 @@ if(sigma != 0)
 //evaluates derivatives. Results after nstep Steps are stored in y[0..nvar-1]
 int PARTICLE::rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x)
 {
-int k;
+int k, chk;
 double x1 = x;	//Store first value (helps reduce Error in x)
-double dummy;
 double Lmfp;
 Array<double,1> yout(nvar),dydx(nvar);
 
 //Take nstep steps
 for (k=1;k<=nstep;k++) 
 { 
-	dgls(x,y,dydx);
-	rungekutta4(y,dydx,nvar,x,dx,yout);
+	chk = dgls(x,y,dydx);
+	if (chk == -1) return -1;
+	chk = rungekutta4(y,dydx,nvar,x,dx,yout);
+	if (chk == -1) return -1;
 	x = x1 + k*dx; // Better than x+=dx
 
 	// Integration terminates outside of boundary box
@@ -590,7 +775,17 @@ for (k=1;k<=nstep;k++)
 
 	// Get additional Parameter
 	Lc += sqrt((yout(0)-y(0))*(yout(0)-y(0)) + (yout(1)-y(1))*(yout(1)-y(1)) + 0.25*(yout(0)+y(0))*(yout(0)+y(0))*dx*dx);
-	EQDr.get_psi(yout(0),yout(1),psi,dummy,dummy);
+#ifdef USE_SIESTA
+	if(PARr.response_field == -2) SIES.get_su(yout(0),x,yout(1),psi,theta);
+	else
+	{
+		chk = get_psi(yout(0),yout(1),psi,x);
+		if (chk == -1) return -1;
+	}
+#else
+	chk = get_psi(yout(0),yout(1),psi,x);
+	if (chk == -1) return -1;
+#endif
 	if(psi < psimin) psimin = psi;
 	if(psi > psimax) psimax = psi;
 	psiav += psi;
@@ -614,9 +809,9 @@ return 0;
 //fourth-order Runge-Kutta method to advance the solution over an interval h and return the
 //incremented variables as yout[0..n-1], which need not be a distinct array from y. The user
 //supplies the routine dgl(x,y,dydx), which returns derivatives dydx at x.
-void PARTICLE::rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout)
+int PARTICLE::rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout)
 {
-int i;
+int i, chk;
 double xh,hh,h6;
 Array<double,1> dym(n),dyt(n),yt(n);
 
@@ -628,11 +823,13 @@ xh=x+hh;
 for (i=0;i<n;i++) yt(i)=y(i)+hh*dydx(i); 
 
 //Second step
-dgls(xh,yt,dyt); 
+chk = dgls(xh,yt,dyt);
+if (chk == -1) return -1;
 for (i=0;i<n;i++) yt(i)=y(i)+hh*dyt(i);
 
 //Third step
-dgls(xh,yt,dym); 
+chk = dgls(xh,yt,dym);
+if (chk == -1) return -1;
 for (i=0;i<n;i++) 
 {
 	yt(i)=y(i)+h*dym(i);
@@ -640,9 +837,11 @@ for (i=0;i<n;i++)
 }
 
 //Fourth step
-dgls(x+h,yt,dyt); 
+chk = dgls(x+h,yt,dyt);
+if (chk == -1) return -1;
 for (i=0;i<n;i++) yout(i)=y(i)+h6*(dydx(i)+dyt(i)+2.0*dym(i)); //Accumulate increments with proper weights
- 
+
+return 0;
 }
 
 //----------------------- End of Member Functions -------------------------------------------------------------------------
@@ -664,103 +863,6 @@ double get_Lmfp(double Ekin)
 const double L_Debye = sqrt(Ekin*1000)*7.43e-7;			// Debye length [m], density 1e14 cm^-3, Ekin in [keV], needed in [eV]
 const double Lambda_Coulomb = 4*pi*1e20*pow(L_Debye,3);	// density set to constant 1e20 m^-3 = 1e14 cm^-3
 return 64*pi*L_Debye*Lambda_Coulomb/log(Lambda_Coulomb);
-}
-
-//--------- getRZ ----------------------------------------------------
-// calculate (R,Z) from (theta,psi), x = psi, y = theta
-// exclude the private flux region <--> two points (R,Z) with the same psi exist
-// optimized for lower single null discharges
-// wall(Range(1,toEnd,2)) are all R coordinates of wall, same with lcfs
-// wall(Range(2,toEnd,2)) are all Z coordiantes of wall, same with lcfs
-void getRZ(double x, double y, double& R, double &Z, EFIT& EQD)
-{
-if(y < pi/4 || y > 7*pi/4)
-{
-	// Z = Z(R,theta)
-	if(x <= 1) R = bisec(x, y, EQD.RmAxis, max(EQD.lcfs(Range(1,toEnd,2)))+EQD.dR, EQD, 0);
-	else R = bisec(x, y, EQD.RmAxis, max(EQD.wall(Range(1,toEnd,2))), EQD, 0);
-	Z = (R - EQD.RmAxis)*tan(y) + EQD.ZmAxis;
-}
-if(y > 3*pi/4 && y < 5*pi/4)
-{
-	// Z = Z(R,theta)
-	if(x <= 1) R = bisec(x, y, min(EQD.lcfs(Range(1,toEnd,2)))-EQD.dR, EQD.RmAxis, EQD, 0);
-	else R = bisec(x, y, min(EQD.wall(Range(1,toEnd,2))), EQD.RmAxis, EQD, 0);
-	Z = (R - EQD.RmAxis)*tan(y) + EQD.ZmAxis;
-}
-if(y >= pi/4 && y <= 3*pi/4)
-{
-	// R = R(Z,theta)
-	if(x <= 1) Z = bisec(x, y, EQD.ZmAxis, max(EQD.lcfs(Range(2,toEnd,2)))+EQD.dZ, EQD, 1);
-	else Z = bisec(x, y, EQD.ZmAxis, max(EQD.wall(Range(2,toEnd,2))), EQD, 1);
-	R = (Z - EQD.ZmAxis)/tan(y) + EQD.RmAxis;
-}
-if(y >= 5*pi/4 && y <= 7*pi/4)
-{
-	// R = R(Z,theta)
-	if(x <= 1) Z = bisec(x, y, min(EQD.lcfs(Range(2,toEnd,2))), EQD.ZmAxis, EQD, 1);
-	else Z = bisec(x, y, min(EQD.wall(Range(2,toEnd,2))), EQD.ZmAxis, EQD, 1);
-	R = (Z - EQD.ZmAxis)/tan(y) + EQD.RmAxis;
-}
-}
-
-//--------- bisec ----------------------------------------------------
-double bisec(double psi, double theta, double a, double b, EFIT& EQD, int flag)
-{
-double xo,xu,x;
-double R,Z;
-double f,dummy;
-const double eps = 1e-14;
-
-x = a;
-if (flag == 0)	// Z = Z(R,theta)
-{
-	Z = (x - EQD.RmAxis)*tan(theta) + EQD.ZmAxis;
-	if(outofBndy(x, Z, EQD)) f = 1.2;
-	else EQD.get_psi(x, Z, f, dummy, dummy);
-	f -= psi;
-}
-else			// R = R(Z,theta)
-{
-	R = (x - EQD.ZmAxis)/tan(theta) + EQD.RmAxis;
-	if(outofBndy(R, x, EQD)) f = 1.2;
-	else EQD.get_psi(R, x, f, dummy, dummy);
-	f -= psi;
-}
-
-if(f > 0)
-{
-	xo = a;
-	xu = b;
-}
-else
-{
-	xo = b;
-	xu = a;
-}
-
-while(fabs(xo-xu) > eps)
-{
-	x = (xo + xu)/2;
-	if (flag == 0)	// Z = Z(R,theta)
-	{
-		Z = (x - EQD.RmAxis)*tan(theta) + EQD.ZmAxis;
-		if(outofBndy(x, Z, EQD)) f = 1.2;
-		else EQD.get_psi(x, Z, f, dummy, dummy);
-		f -= psi;
-	}
-	else			// R = R(Z,theta)
-	{
-		R = (x - EQD.ZmAxis)/tan(theta) + EQD.RmAxis;
-		if(outofBndy(R, x, EQD)) f = 1.2;
-		else EQD.get_psi(R, x, f, dummy, dummy);
-		f -= psi;
-	}
-	if(f > 0) xo = x;
-	else xu = x;
-}
-
-return x;
 }
 
 #endif //  PARTICLE_CLASS_INCLUDED

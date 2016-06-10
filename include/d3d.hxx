@@ -13,7 +13,7 @@
 //void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var);	// declared in IO class, defined here
 
 bool outofBndy(double x, double y, EFIT& EQD);
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
+int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
 					 EFIT& EQD, IO& PAR, PARTICLE& FLT);
@@ -71,6 +71,13 @@ int simpleBndy = 0;		// 0: use real wall as boundaries, 1: use simple boundary b
 double bndy[4] = {1.0, 2.4, -1.367, 1.36};	// Boundary
 
 Array<double,4> field;	// default constructed
+
+#ifdef USE_SIESTA
+	SIESTA SIES;
+#endif
+#ifdef USE_XFIELD
+	XFIELD XPND;
+#endif
 
 // ------------------ log file --------------------------------------------------------------------------------------------
 ofstream ofs2;
@@ -162,6 +169,9 @@ sigma = int(vec[16]);
 Zq = int(vec[17]);
 useFilament = int(vec[20]);
 
+// M3D-C1/SIESTA parameter
+response_field = int(vec[10]);
+
 if(vec[21]>1) useTprofile = 0;
 else useTprofile = int(vec[21]);
 }
@@ -183,7 +193,7 @@ out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
 out << "# No. of current filaments (0=none): " << useFilament << endl;
 out << "# Use Temperature Profile (0=off, 1=on): " << useTprofile << endl;
 out << "# Target (0=cp, 1=inner, 2=outer, 3=shelf): " << which_target_plate << endl;
-out << "# Create Points (0=grid, 1=random, 2=target): " << create_flag << endl;
+out << "# Create Points (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-random, 5=RZ-grid): " << create_flag << endl;
 out << "# Direction of particles (1=co-pass, -1=count-pass, 0=field lines): " << sigma << endl;
 out << "# Charge number of particles (=-1:electrons, >=1:ions): " << Zq << endl;
 out << "# Boundary (0=Wall, 1=Box): " << simpleBndy << endl;
@@ -236,7 +246,7 @@ return false;
 }
 
 //---------------- getBfield ----------------------------------------------------------------------------------------------
-void getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
+int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
 {
 int chk;
 double psi,dpsidr,dpsidz;
@@ -251,16 +261,31 @@ cosp = cos(phi);
 X = R*cosp;
 Y = R*sinp;
 
-// get normalized poloidal Flux psi (should be chi in formulas!)
-chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
-if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return;}	// integration of this point terminates 
+switch(PAR.response_field)
+{
+#ifdef USE_XFIELD
+case -3:
+	XPND.get_B(R, phi, Z, B_R, B_phi, B_Z);
+	break;
+#endif
+#ifdef USE_SIESTA
+case -2:
+	SIES.get_B(R, phi, Z, B_R, B_phi, B_Z);
+	break;
+#endif
+default:
+	// get normalized poloidal Flux psi (should be chi in formulas!)
+	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
+	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
 
-// Equilibrium field
-F = EQD.get_Fpol(psi);
-B_R = dpsidz/R;
-B_phi = F/R;
-//B_phi = EQD.Bt0*EQD.R0/R;
-B_Z = -dpsidr/R;
+	// Equilibrium field
+	F = EQD.get_Fpol(psi);
+	B_R = dpsidz/R;
+	B_phi = F/R;
+	//B_phi = EQD.Bt0*EQD.R0/R;
+	B_Z = -dpsidr/R;
+	break;
+}
 
 B_X = 0;	B_Y = 0;
 // F-coil perturbation field
@@ -299,6 +324,7 @@ B_Z += bz;
 // Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
 B_R += B_X*cosp + B_Y*sinp;
 B_phi += -B_X*sinp + B_Y*cosp;
+return 0;
 }
 
 //---------- prep_perturbation --------------------------------------------------------------------------------------------
@@ -307,6 +333,26 @@ void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING supPath)
 int i;
 LA_STRING line;	// entire line is read by ifstream
 ifstream in;
+
+// Prepare SIESTA
+#ifdef USE_SIESTA
+	if(PAR.response_field == -2)
+	{
+		if(mpi_rank < 1) cout << "Read SIESTA file" << endl;
+		ofs2 << "Read SIESTA file" << endl;
+		SIES.read("siesta.dat");
+	}
+#endif
+
+// Prepare XFIELD
+#ifdef USE_XFIELD
+	if(PAR.response_field == -3)
+	{
+		if(mpi_rank < 1) cout << "Read XFIELD file" << endl;
+		ofs2 << "Read XFIELD file" << endl;
+		XPND.read("xpand.dat");
+	}
+#endif
 
 if(mpi_rank < 1) cout << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
 ofs2 << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
@@ -434,7 +480,6 @@ int i_phi=0;
 int N=Np*Nphi;
 int target;
 double dp,dphi,t;
-double dummy;
 Array<double,1> p1(Range(1,2)),p2(Range(1,2)),p(Range(1,2)),d(Range(1,2));
 
 // Magnetic Axis
@@ -500,7 +545,7 @@ p = p1 + t*d;
 FLT.R = p(1);
 FLT.Z = p(2);
 FLT.phi = (phimin + dphi*i_phi)*rTOd;	// phi in deg
-EQD.get_psi(p(1),p(2),FLT.psi,dummy,dummy);
+FLT.get_psi(p(1),p(2),FLT.psi);
 
 FLT.Lc = 0;
 FLT.psimin = 10;

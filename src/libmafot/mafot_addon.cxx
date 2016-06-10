@@ -262,7 +262,7 @@ if(write2file == 1) ofs2 << "Program terminates normally, Time: " << now2-now  <
 ofs2.close();
 
 #ifdef m3dc1
-if(PAR.response_field >= 0) m3dc1_unload_file_();
+if(PAR.response_field >= 0) M3D.unload();
 #endif
 
 return;
@@ -360,7 +360,7 @@ for(n=0;n<PAR.N;n++)
 } // end for n
 
 #ifdef m3dc1
-if(PAR.response_field >= 0) m3dc1_unload_file_();
+if(PAR.response_field >= 0) M3D.unload();
 #endif
 
 return;
@@ -442,7 +442,7 @@ for(n=0;n<PAR.N;n++)
 } // end for n
 
 #ifdef m3dc1
-if(PAR.response_field >= 0) m3dc1_unload_file_();
+if(PAR.response_field >= 0) M3D.unload();
 #endif
 
 return;
