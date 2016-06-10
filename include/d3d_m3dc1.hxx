@@ -18,6 +18,7 @@
 // Include
 //--------
 #include <m3dc1_class.hxx>
+#include <fakeIsland_class.hxx>
 
 // --------------- Prototypes ---------------------------------------------------------------------------------------------
 //void IO::readiodata(char* name, int mpi_rank);								// declared in IO class, defined here
@@ -92,6 +93,7 @@ Array<double,4> field;	// default constructed
 #endif
 
 M3DC1 M3D;
+fakeIsland FISLD;
 
 // ------------------ log file --------------------------------------------------------------------------------------------
 ofstream ofs2;
@@ -300,7 +302,7 @@ case -2:
 	SIES.get_B(R, phi, Z, B_R, B_phi, B_Z);
 	break;
 #endif
-case -1: case 1:	// Vacuum equilibrium field from g file
+case -1: case 1: case -10:	// Vacuum equilibrium field from g file
 	// get normalized poloidal Flux psi (should be chi in formulas!)
 	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
 	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
@@ -388,6 +390,15 @@ B_Z += bz;
 // Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
 B_R += B_X*cosp + B_Y*sinp;
 B_phi += -B_X*sinp + B_Y*cosp;
+
+if(PAR.response_field == -10)
+{
+	bx = 0;	bz = 0;
+	FISLD.get_B(R,phi,Z,bx,bz,EQD);
+	B_R += bx;
+	B_Z += bz;
+}
+
 return 0;
 }
 
@@ -552,6 +563,23 @@ if(PAR.useFilament>0)
 	in.clear();
 	if(mpi_rank < 1) cout << endl;
 	ofs2 << endl;
+}
+
+// Prepare fake Islands
+if(PAR.response_field == -10)
+{
+	if(mpi_rank < 1) cout << "Read Fake Islands file" << endl;
+	ofs2 << "Read Fake Islands file" << endl;
+	FISLD.read("fakeIslands.in");
+	FISLD.get_surfaces(EQD);
+	if(mpi_rank < 1)
+	{
+		cout << "Amplitude: " << FISLD.A << endl;
+		cout << "m: " << FISLD.m << endl;
+		cout << "n: " << FISLD.n << endl;
+		cout << "Phase: " << FISLD.delta << endl;
+		cout << "Location: " << FISLD.psi0 << endl;
+	}
 }
 }
 
