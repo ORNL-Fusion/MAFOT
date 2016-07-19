@@ -70,6 +70,7 @@ public:
 	double ZmAxis;				// average Z of magnetic axis
 	double psi_axis_a[Nphi];	// array of poloidal flux on axis for various toroidal angles
 	double psi_lcfs_a[Nphi];	// array of poloidal flux on lcfs for various toroidal angles
+	double phase[nfiles_max];	// perturbation phase shift for linear runs
 
 	// Constructors
 	M3DC1();								// Default Constructor
@@ -82,6 +83,7 @@ public:
 	void load(IO& PAR, int mpi_rank);
 	void unload(void);
 	int open_source(int response, int response_field, int flag = 0);
+	void show_m3dc1sup_data(void);
 
 }; //end of class
 
@@ -114,6 +116,7 @@ chk = 0;
 Br = 0; Bp = 0; Bz = 0;
 for(i=0;i<nfiles;i++)
 {
+	coord[1] = phi + phase[i];
 	chk += fio_eval_field(imag[i], coord, B);
 	Br += B[0]; Bp += B[1]; Bz += B[2];
 }
@@ -137,8 +140,9 @@ return chk;
 int M3DC1::read_m3dc1sup(LA_STRING supPath)
 {
 int i;
-string file;
+string file, line;
 ifstream in;
+double ph;
 
 in.open(supPath + "m3dc1sup.in");
 if(in.fail()==1) // no m3dc1 control file found -> use default: scale by coils and filename = "C1.h5"
@@ -146,20 +150,30 @@ if(in.fail()==1) // no m3dc1 control file found -> use default: scale by coils a
 	nfiles = 1;
 	filenames[0] = "C1.h5";
 	scale[0] = 1;
+	phase[0] = 0;
 	in.close();
 	return -1;
 }
 else	// m3dc1 control file found
 {
 	i = 0;
-	while(in.eof()==0) // Last row is read twice --- can't be changed --- -> i-1 is actual number of rows in file
+	while(getline(in, line))
 	{
-		in >> file;
-		in >> scale[i];
+		if(line.length() < 1) continue; 	// blank lines anywhere don't matter
+		stringstream ss(line);
+		if( ss >> file >> scale[i] >> ph)	// assigns any one of file, scale and ph if possible
+		{
+			if(fabs(ph) > pi) ph /= rTOd;	// convert phase to radiants
+			phase[i] = ph;
+		}
+		else	// ph assignment was not possible, others are set though
+		{
+			phase[i] = 0;
+		}
 		filenames[i] = file.c_str();
 		i += 1;
 	}
-	nfiles = i - 1;
+	nfiles = i;
 }
 in.close();
 return 0;
@@ -195,8 +209,8 @@ if(PAR.response_field > 0)		// Perturbation already included in M3D-C1 output
 {
 	for(j=0;j<nfiles;j++)
 	{
-		if(mpi_rank < 1) cout << "M3D-C1 file: " << filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << endl;
-		ofs2 << "M3D-C1 file: " << filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << endl;
+		if(mpi_rank < 1) cout << "M3D-C1 file: " << filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << "  and phase: " << phase[j] << endl;
+		ofs2 << "M3D-C1 file: " << filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << "  and phase: " << phase[j] << endl;
 	}
 
 	if(mpi_rank < 1) cout << "Coils turned off: perturbation (only) already included in M3D-C1 output" << endl;
@@ -288,6 +302,18 @@ if(flag == 0 && nonlinear) ierr3 += Xpoint();
 if(flag == 0) ierr3 += make_psi();
 
 return ierr+ierr2+ierr3;
+}
+
+
+void M3DC1::show_m3dc1sup_data(void)
+{
+int i;
+
+cout << "M3DC1 Files found: " << nfiles << endl;
+for(i=0;i<nfiles;i++)
+{
+	cout << "File: " << filenames[i] << ",  Scale: " << scale[i] << ",  Phase: " << phase[i] << endl;
+}
 }
 
 //--------------------- Private Member Functions --------------------------------------------------------------------------
