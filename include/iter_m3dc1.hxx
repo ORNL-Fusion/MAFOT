@@ -352,6 +352,7 @@ if(PAR.response_field == 1)
 {
 	for(i=0;i<M3D.nfiles;i++)
 	{
+		coord[1] = phi + M3D.phase[i];
 		chk = fio_eval_field(M3D.imag[i], coord, b_field);
 		if(chk != 0) {b_field[0] = 0; b_field[1] = 0; b_field[2] = 0; break;}
 		B_R += b_field[0];

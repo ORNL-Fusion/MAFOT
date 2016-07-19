@@ -46,11 +46,16 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.74
+MAFOT 3.75
 GUI 1.43
 
 Version Notes: 
 ----------------
+MAFOT 3.75 -- Jul 2016
+- divB correction in xpand does not work properly - DO NOT USE
+- use of multiple M3DC1 files now allows arbitrary relative phase
+- fake island perturbation added (D3D only) 
+
 MAFOT 3.74 -- Apr 2016
 - splines separated from EFIT_Class into own header
 - function added to read & store header lines from files
