@@ -139,7 +139,7 @@ class xpand_class:
 			self.phi[0,:,:] = phi
 			self.Z[0,:,:]= Z
 		else:
-			if(self.pmin % (2*pi) == self.pmax % (2*pi)): # periodic
+			if(self.pmin % (2*np.pi) == self.pmax % (2*np.pi)): # periodic
 				phi = np.linspace(self.pmin, self.pmax, self.Np+1)[0:-1]	# last = first -> remove last
 			else: phi = np.linspace(self.pmin, self.pmax, self.Np)
 			R, Z, phi = np.broadcast_arrays(R, Z[:,np.newaxis], phi[:,np.newaxis,np.newaxis]) # 3-D meshgrid

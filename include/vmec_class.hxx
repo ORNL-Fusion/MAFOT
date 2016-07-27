@@ -603,6 +603,7 @@ public:
 	double wb;
 	double ctor;
 
+	bool lfreeb;
 	bool lasym;
 	bool lpot;		// potential spectral data available or not
 	bool n0only;	// use n = 0 components only
@@ -670,6 +671,7 @@ nextcur = 0;
 wb = 0;
 ctor = 0;
 
+lfreeb = true;
 lasym = false;
 lpot = false;
 n0only = false;
@@ -713,6 +715,7 @@ nextcur = V.nextcur;
 wb = V.wb;
 ctor = V.ctor;
 
+lfreeb = V.lfreeb;
 lasym = V.lasym;
 lpot = V.lpot;
 n0only = V.n0only;
@@ -784,6 +787,13 @@ chk = nc_get_var_int(ncid, varid, &ntor);	// read
 chk = nc_inq_varid(ncid, "mnmax", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: mnmax not found" << endl; EXIT;}	// get variable id
 chk = nc_get_var_int(ncid, varid, &mnmax);	// read
 nshalf = ns;
+
+// read lfreeb
+int lfreeb_in;
+chk = nc_inq_varid(ncid, "lfreeb__logical__", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: lfreeb__logical__ not found" << endl; EXIT;}		// get variable id
+chk = nc_get_var_int(ncid, varid, &lfreeb_in);	// read
+lfreeb = bool(lfreeb_in);
+if(not lfreeb) {if(mpi_rank == 0) cout << "Warning: VMEC fixed boundary mode -> MGRID_FILE and EXTCUR may not be available. Provide separately!" << endl;}
 
 // read lasym
 int lasym_in;
@@ -903,8 +913,12 @@ chk = nc_inq_varid(ncid, "wb", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "V
 chk = nc_get_var_double(ncid, varid, &wb);
 chk = nc_inq_varid(ncid, "ctor", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: ctor not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, &ctor);
-chk = nc_inq_varid(ncid, "nextcur", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: nextcur not found" << endl; EXIT;}
-chk = nc_get_var_int(ncid, varid, &nextcur);
+if(lfreeb)
+{
+	chk = nc_inq_varid(ncid, "nextcur", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: nextcur not found" << endl; EXIT;}
+	chk = nc_get_var_int(ncid, varid, &nextcur);
+}
+else nextcur = 0;
 chk = nc_inq_varid(ncid, "mnmaxpot", &varid);
 if(chk!=0)
 {
@@ -922,10 +936,20 @@ input_extension = text;
 chk = input_extension.indexOf(" ");
 if(chk > 1) input_extension = input_extension.left(chk - 1);
 input_extension = input_extension.strip();
+
 text[0] = 0;
-chk = nc_inq_varid(ncid, "mgrid_file", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: mgrid_file not found" << endl; EXIT;}
-chk = nc_get_var_text(ncid, varid, &text[0]);
-mgrid_file = text; mgrid_file = mgrid_file.left(mgrid_file.indexOf(".nc") + 2);
+chk = nc_inq_varid(ncid, "mgrid_file", &varid);
+if(chk!=0)
+{
+	if(lfreeb) {if(mpi_rank == 0) cout << "VMEC: mgrid_file not found" << endl; EXIT;}
+	else mgrid_file = "None";
+}
+else
+{
+	chk = nc_get_var_text(ncid, varid, &text[0]);
+	mgrid_file = text; mgrid_file = mgrid_file.left(mgrid_file.indexOf(".nc") + 2);
+	if(not lfreeb) {if(mpi_rank == 0) cout << "VMEC: MGRID_FILE found in wout: " << mgrid_file << endl;}
+}
 
 // read 1D-profiles s -mesh
 TinyVector <int,1> index1(1);
@@ -949,9 +973,17 @@ chk = nc_get_var_double(ncid, varid, bvco.y.data());
 bvco.y(1) = bvco.y(2);	// expand beyond magnetic axis: 1-D profiles axisymmetric => y(-s) = y(s)
 
 // read other 1D-arrays
-extcur.resize(nextcur); extcur.reindexSelf(index1);
-chk = nc_inq_varid(ncid, "extcur", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: extcur not found" << endl; EXIT;}
-chk = nc_get_var_double(ncid, varid, extcur.data());
+if(lfreeb)
+{
+	extcur.resize(nextcur); extcur.reindexSelf(index1);
+	chk = nc_inq_varid(ncid, "extcur", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: extcur not found" << endl; EXIT;}
+	chk = nc_get_var_double(ncid, varid, extcur.data());
+}
+else
+{
+	extcur.resize(1); extcur.reindexSelf(index1);
+	extcur = 0;
+}
 
 if(lpot)
 {

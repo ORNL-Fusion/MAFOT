@@ -7,7 +7,7 @@
 // Define
 //--------
 #ifdef USE_MPI
-#define EXIT MPI::COMM_WORLD.Abort(0)
+#define EXIT {MPI::COMM_WORLD.Barrier(); MPI::COMM_WORLD.Abort(0);}
 #else
 #define EXIT exit(0)
 #endif
