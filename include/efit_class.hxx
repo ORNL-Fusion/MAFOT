@@ -291,14 +291,12 @@ ifstream in;
 in.open(Path + filename);
 if(in.fail()==1) {cout << "Unable to open file " << Path + filename << endl; exit(0);}
 
-// Read tags and dimension
-in >> stdummy;
-while (stdummy[0] != '#') in >> stdummy;
-in >> stdummy;
-in >> dummy;	
-in >> NR;	// Number of Points in R-direction
-in >> NZ;	// Number of Points in Z-direction
-//in >> stdummy;	// useless string: endHead 
+// Read dimensions, last two enties in first line
+getline(in, stdummy);
+vector<string> words;
+words = split(stdummy);
+NR = atoi(words[words.size()-2].c_str());	// Number of Points in R-direction
+NZ = atoi(words[words.size()-1].c_str());	// Number of Points in Z-direction
 
 // Rezize Arrays (if size = 129 nothing is done!); All Arrays start with index 1 
 Fpol.resize(NR);

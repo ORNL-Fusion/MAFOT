@@ -173,7 +173,9 @@ if(PAR.response_field == -3)
 	if(mpi_rank < 1) cout << "Read VMEC file" << endl;
 	ofs2 << "Read VMEC file" << endl;
 	vmec.read("wout.nc");
-	vmec.get_axis(PAR.phistart/rTOd,Raxis,Zaxis);
+	vmec.n0only = true;
+	vmec.get_axis(PAR.phistart/rTOd,Raxis,Zaxis);	// need axisymmetric axis only
+	vmec.n0only = false;
 }
 #endif
 
