@@ -285,9 +285,10 @@ if((PARr.response_field == 0) || (PARr.response_field == 2))
 			{
 				coord[1] = i*pi2/M3D.Np;
 				chk += fio_eval_field(M3D.ia, coord, A_field);
-				y += (A_field[1] * x1 - M3D.psi_axis_a[i]) / (M3D.psi_lcfs_a[i] - M3D.psi_axis_a[i]);
+				y += A_field[1] * x1;
 			}
 			y /= M3D.Np;
+			y = (y - M3D.psi_axis_a[0]) / (M3D.psi_lcfs_a[0] - M3D.psi_axis_a[0]);	// normalize; the psi_arrays hold only an average value in [0]
 		}
 		else	// vector-potential taken from equilibrium_only setup
 		{

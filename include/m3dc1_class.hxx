@@ -242,6 +242,7 @@ int i, ierr, ierr2, ierr3;
 
 // open file(s)
 ierr =  fio_open_source(FIO_M3DC1_SOURCE, filenames[0], &(isrc[0]));
+if(ierr != 0) {cout << filenames[0] << " not found" << endl;}
 
 // Set options appropriate to this source
 chk_linear(response);
@@ -287,22 +288,27 @@ for(i=1;i<nfiles;i++)
     // set field handle
     ierr2 += fio_get_field(isrc[i], FIO_MAGNETIC_FIELD, &(imag[i]));
 }
+if(ierr2 != 0) {cout << "M3DC1: setting options failed" << endl;}
 
 // prepare vector potential
 ierr3 = make_A(response);
+if(ierr3 != 0) {cout << "M3DC1: Vector Potential setup failed" << endl;}
 
 // get magnetic axis
 if(RmAxis == 0 || not nonlinear) ierr3 += axis();
+if(ierr3 != 0) {cout << "M3DC1: Magn. Axis setup failed" << endl;}
 //ofs2 << endl << "Axis locations:" << endl;
 //for(i=0;i<Nphi;i++) ofs2 << i*pi2/Nphi << "\t" << RmAxis_a[i] << "\t" << ZmAxis_a[i] << endl;
 
 // get X-point location
-if(flag == 0 && nonlinear) ierr3 += Xpoint();
+//if(flag == 0 && nonlinear) ierr3 += Xpoint();
+//if(ierr3 != 0) {cout << "M3DC1: Locating Xpoint failed" << endl;}
 //ofs2 << endl << "X-point locations:" << endl;
 //for(i=0;i<Nphi;i++) ofs2 << i*pi2/Nphi << "\t" << RX[i] << "\t" << ZX[i] << endl;
 
 // prepare psi eval
 if(flag == 0) ierr3 += make_psi();
+if(ierr3 != 0) {cout << "M3DC1: poloidal flux setup failed" << endl;}
 
 return ierr+ierr2+ierr3;
 }
@@ -350,31 +356,34 @@ int M3DC1::make_psi(void)
 {
 int ierr,i;
 int ipsi_axis, ipsi_lcfs;
-double a, dummy, phi;
+//double a, dummy, phi;
 
 // get psi_axis and psi_sep
+// in a nonlinear run, this returns roughly a toroidally averaged value
+ierr = fio_get_series(isrc[0], FIO_MAGAXIS_PSI, &ipsi_axis);
+ierr += fio_get_series(isrc[0], FIO_LCFS_PSI, &ipsi_lcfs);
+ierr += fio_eval_series(ipsi_axis, 0., &psi_axis_a[0]);
+ierr += fio_eval_series(ipsi_lcfs, 0., &psi_lcfs_a[0]);
+ierr += fio_close_series(ipsi_axis);
+ierr += fio_close_series(ipsi_lcfs);
+
+// just make sure that the other array elements are something usefull, in case they are still used elsewhere
 if(nonlinear)
 {
-	ierr = 0;
-	for(i=0;i<Nphi;i++)
+	//ierr = 0;
+	for(i=1;i<Nphi;i++)
 	{
-		phi = i*pi2/Nphi;
-		ierr += getA(RmAxis_a[i],phi,ZmAxis_a[i],dummy,a,dummy);
-		psi_axis_a[i] = a*RmAxis_a[i];
+		//phi = i*pi2/Nphi;
+		//ierr += getA(RmAxis_a[i],phi,ZmAxis_a[i],dummy,a,dummy);
+		//psi_axis_a[i] = a*RmAxis_a[i];
+		psi_axis_a[i] = psi_axis_a[0];
 
-		ierr += getA(RX[i],phi,ZX[i],dummy,a,dummy);
-		psi_lcfs_a[i] = a*RX[i];
+		//ierr += getA(RX[i],phi,ZX[i],dummy,a,dummy);
+		//psi_lcfs_a[i] = a*RX[i];
+		psi_lcfs_a[i] = psi_lcfs_a[0];
 	}
 }
-else
-{
-	ierr = fio_get_series(isrc[0], FIO_MAGAXIS_PSI, &ipsi_axis);
-	ierr += fio_get_series(isrc[0], FIO_LCFS_PSI, &ipsi_lcfs);
-	ierr += fio_eval_series(ipsi_axis, 0., &psi_axis_a[0]);
-	ierr += fio_eval_series(ipsi_lcfs, 0., &psi_lcfs_a[0]);
-	ierr += fio_close_series(ipsi_axis);
-	ierr += fio_close_series(ipsi_lcfs);
-}
+
 return ierr;
 }
 
