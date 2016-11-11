@@ -50,7 +50,7 @@ private:
 	double ZmAxis_a[Nphi];				// Z array of magnetic axis at various phi
 
 	// Member-Functions
-	void chk_linear(void);
+	void chk_linear(int response);
 	int make_A(int response);
 	int make_psi(void);
 	int axis0(void);
@@ -201,6 +201,7 @@ ofs2 << "Loading M3D-C1 output file C1.h5" << endl;
 
 chk = open_source(PAR.response, PAR.response_field);	// load C1.h5
 if(chk != 0) {if(mpi_rank < 1) cout << "Error loding C1.h5 file" << endl; EXIT;}
+if(nonlinear) PAR.response_field = 2;	// nonlinear runs should only use the full field
 
 if(mpi_rank < 1) cout << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
 ofs2 << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
@@ -243,9 +244,11 @@ int i, ierr, ierr2, ierr3;
 ierr =  fio_open_source(FIO_M3DC1_SOURCE, filenames[0], &(isrc[0]));
 
 // Set options appropriate to this source
-chk_linear();
+chk_linear(response);
 ierr2 = fio_get_options(isrc[0]);
 ierr2 += fio_set_int_option(FIO_TIMESLICE, response);	// response = 1: plasma response solution; response = 0: vacuum field;
+
+if(nonlinear) response_field = 2;	// nonlinear runs should only use the full field
 
 switch(response_field)
 {
@@ -320,9 +323,10 @@ for(i=0;i<nfiles;i++)
 //-------------------------------------------------------------------------------------------------------------------------
 
 // ----------------- chk_linear -------------------------------------------------------------------------------------------
-void M3DC1::chk_linear(void)
+void M3DC1::chk_linear(int response)
 {
-	nonlinear = false;
+	if(response > 1) nonlinear = true;
+	else nonlinear = false;
 }
 
 // ----------------- make_A -----------------------------------------------------------------------------------------------
