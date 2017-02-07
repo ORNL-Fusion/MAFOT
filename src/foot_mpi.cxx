@@ -176,7 +176,11 @@ case 3:
 	#endif
 	break;
 case 4:
-	type = "_outdwn";
+	#if defined(NSTX)
+		type = "_outdwn";
+	#else
+		type = "_sas";
+	#endif
 	break;
 default:
 	type = "";

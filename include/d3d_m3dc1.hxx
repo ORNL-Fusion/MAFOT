@@ -600,6 +600,9 @@ int N=Np*Nphi;
 int target;
 double dp,dphi,t;
 Array<double,1> p1(Range(1,2)),p2(Range(1,2)),p(Range(1,2)),d(Range(1,2));
+Array<double,1> R,Z,S;	// Curve
+int idx;
+double x,Smax;
 
 // Magnetic Axis
 //const double R0=EQD.RmAxis;
@@ -648,18 +651,57 @@ case 3:	// 21.9cm (same length as outer target) horizontal shelf above pump to o
 	R1=1.372;	Z1=-1.25;
 	R2=1.591;	Z2=-1.25;
 	break;
+case 4:	// SAS divertor at upper outer divertor;  here t is dimensionless length along the wall;  t = 1 is same as Smax = 1.01693189 m; t = 0 is at the upper pump exit
+	N = 36;
+	R.resize(Range(1,N));
+	Z.resize(Range(1,N));
+	S.resize(Range(1,N));
+
+	R = 1.372  ,  1.37167,  1.37003,  1.36688,  1.36719,  1.37178,
+	        1.37224,  1.38662,  1.38708,  1.40382,  1.41127,  1.41857,
+	        1.421  ,  1.48663,  1.4973 ,  1.49762,  1.49745,  1.49275,
+	        1.4926 ,  1.49261,  1.49279,  1.4934 ,  1.4947 ,  1.49622,
+	        1.47981,  1.48082,  1.48149,  1.48646,  1.49095,  1.50305,
+	        1.59697,  1.6255 ,  1.63752,  1.647  ,  1.785  ,  2.07;
+	Z = 1.31   ,  1.29238,  1.28268,  1.25644,  1.22955,  1.19576,
+	        1.19402,  1.16487,  1.16421,  1.15696,  1.1573 ,  1.16132,
+	        1.164  ,  1.2405 ,  1.23458,  1.23428,  1.23174,  1.2133 ,
+	        1.21061,  1.20486,  1.20214,  1.19642,  1.18511,  1.1607 ,
+	        1.12426,  1.12256,  1.12138,  1.11692,  1.11439,  1.11244,
+	        1.09489,  1.0853 ,  1.07988,  1.077  ,  1.077  ,  1.04;
+	Smax = 1.01693189;
+
+	if(tmin < 0 || tmax > 1) ofs2 << "start_on_target: Warning, t out of range" << endl;
+	S(1) = 0;
+	idx = 1;
+	for(int i=2;i<=N;i++)
+	{
+		S(i) = S(i-1) + sqrt((R(i)-R(i-1))*(R(i)-R(i-1)) + (Z(i)-Z(i-1))*(Z(i)-Z(i-1)));	//length of curve in m
+		if(S(i) < Smax*t) idx = i;
+		else break;
+	}
+	p1(1) = R(idx);		p1(2) = Z(idx);
+	p2(1) = R(idx+1);		p2(2) = Z(idx+1);
+	d = p2 - p1;
+	x = (Smax*t - S(idx))/sqrt(d(1)*d(1)+d(2)*d(2));	// rescale t in m (like S); x is dimensionless in [0,1]
+	p = p1 + x*d;
+	break;
 default:
 	ofs2 << "No target specified" << endl;
 	EXIT;
 	break;
 }
-p1(1) = R1;	 p1(2) = Z1;
-p2(1) = R2;	 p2(2) = Z2;
-d = p2 - p1;
-if(target == 0) d(2) *= -1;
 
-// Coordinates
-p = p1 + t*d;
+if(target <= 3)
+{
+	p1(1) = R1;	 p1(2) = Z1;
+	p2(1) = R2;	 p2(2) = Z2;
+	d = p2 - p1;
+	if(target == 0) d(2) *= -1;
+
+	// Coordinates
+	p = p1 + t*d;
+}
 
 FLT.R = p(1);
 FLT.Z = p(2);

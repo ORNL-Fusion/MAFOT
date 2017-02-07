@@ -52,6 +52,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if(filename[5:7] == 'in'): target = 'in'
 		elif(filename[5:7] == 'ou'): target = 'out'
 		elif(filename[5:7] == 'sh'): target = 'shelf'
+		elif(filename[5:7] == 'sa'): target = 'sas'
 		else: 
 			print 'cannot identify target'
 			return
@@ -114,7 +115,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			yLabel = '$\\psi$'
 
 	elif(coordinates == 'phi'):
-		if(machine == 'd3d'):
+		if('d3d' in machine):
 			if not latex: xLabel = u'\u03C6' + ' [rad]'
 			else: xLabel = '$\\varphi$ $\\mathrm{[rad]}$'
 			yLabel = 't'
@@ -135,6 +136,10 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 						yLabel = 't [cm]'
 				elif(target == 'out'): y = 1.153 + y*0.219
 				elif(target == 'shelf'): y = 1.372 + y*0.219
+				elif(target == 'sas'):
+					physical = 2
+					yLabel = 't [cm]'
+					y = y*101.693189
 		elif(machine == 'iter'):
 			if not latex: xLabel = u'\u03C6' + ' [rad]'
 			else: xLabel = '$\\varphi$ $\\mathrm{[rad]}$'
@@ -151,7 +156,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	# --- set z data ------------------
 	if(what == 'Lc'):
 		if(b == None): 
-			if(machine == 'd3d'): b = np.linspace(0.075,0.4,N)
+			if('d3d' in machine): b = np.linspace(0.075,0.4,N)
 			elif(machine == 'iter'): b = np.linspace(0.22,1.8,N)
 		z = Lc
 		if not latex: C_label = '$L_{c}$ [km]'
@@ -218,7 +223,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	usecolormap = LinearSegmentedColormap('my_cmap', cdict, len(b))
 	
 	# correct for PFR
-	if(machine == 'd3d'): Lcmin = 0.075
+	if('d3d' in machine): Lcmin = 0.075
 	elif(machine == 'iter'): Lcmin = 0.22
 	
 	if(coordinates == 'RZ') | (coordinates == 'phi'): 
@@ -300,11 +305,22 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		plt.plot(wall[:,0], wall[:,1], 'k--', linewidth = 2)
 		
 	if(coordinates == 'phi'):
-		if (target== 'in'):	# plot tile limit
-			if(physical == 1) & (machine == 'd3d'): plt.plot([x.min(), x.max()], [-1.223, -1.223], 'k--', linewidth = 1.5)
+		if (target == 'in'):	# plot tile limit
+			if(physical == 1) & ('d3d' in machine): plt.plot([x.min(), x.max()], [-1.223, -1.223], 'k--', linewidth = 1.5)
 			else: plt.plot([x.min(), x.max()], [0, 0], 'k--', linewidth = 1.5)
+		elif (target == 'sas') & ('d3d' in machine):	# plot sas edges
+			if(physical == 0):
+				plt.plot([x.min(), x.max()], [0.17276, 0.17276], 'k--', linewidth = 1.5)
+				plt.plot([x.min(), x.max()], [0.41, 0.41], 'k--', linewidth = 1.5)			
+				plt.plot([x.min(), x.max()], [0.28363, 0.28363], 'k--', linewidth = 1.5)
+				plt.plot([x.min(), x.max()], [0.296, 0.296], 'k--', linewidth = 1.5)			
+			else:
+				plt.plot([x.min(), x.max()], [17.569, 17.569], 'k--', linewidth = 1.5)
+				plt.plot([x.min(), x.max()], [41.736, 41.736], 'k--', linewidth = 1.5)			
+				plt.plot([x.min(), x.max()], [28.843, 28.843], 'k--', linewidth = 1.5)
+				plt.plot([x.min(), x.max()], [30.11, 30.11], 'k--', linewidth = 1.5)			
 		else:	# plot the pump limit / edge of shelf nose location
-			if(physical == 1) & (machine == 'd3d'): plt.plot([x.min(), x.max()], [1.372, 1.372], 'k--', linewidth = 1.5)
+			if(physical == 1) & ('d3d' in machine): plt.plot([x.min(), x.max()], [1.372, 1.372], 'k--', linewidth = 1.5)
 			else: plt.plot([x.min(), x.max()], [1, 1], 'k--', linewidth = 1.5)
 			
 	if(coordinates == 'RZ') & (what in ['pitch', 'yaw']): # plot plasma boundary
@@ -445,7 +461,37 @@ def get_wall(machine):
 				[2.354,	0],[2.35082,	0.204946],[2.3523,	0.400178],
 				[2.37704,	0.389023],[2.1282,	0.993424],[2.0699,	1.03975],
 				[1.78499,	1.07688],[1.647,	1.07675],[1.60799,	1.09525],
-				[1.37198,	1.29208],[1.3721,	1.30954],[1.41897,	1.31017]]
+				[1.37198,	1.29208],[1.3721,	1.30954],[1.41897,	1.31017]]	
+	elif machine == 'd3d_sas':
+		wall = [[ 1.016  ,  0.     ],[ 1.016  ,  0.964  ],[ 1.016  ,  0.968  ],[ 1.016  ,  1.001  ],
+				[ 1.016  ,  1.019  ],[ 1.016  ,  1.077  ],[ 1.016  ,  1.07   ],[ 1.016  ,  1.096  ],
+				[ 1.016  ,  1.113  ],[ 1.016  ,  1.138  ],[ 1.016  ,  1.147  ],[ 1.012  ,  1.165  ],
+				[ 1.001  ,  1.217  ],[ 1.029  ,  1.217  ],[ 1.042  ,  1.1624 ],[ 1.046  ,  1.16238],
+				[ 1.056  ,  1.1626 ],[ 1.097  ,  1.1645 ],[ 1.108  ,  1.16594],[ 1.116  ,  1.16591],
+				[ 1.134  ,  1.16896],[ 1.148  ,  1.17175],[ 1.162  ,  1.17556],[ 1.181  ,  1.183  ],
+				[ 1.182  ,  1.1835 ],[ 1.185  ,  1.185  ],[ 1.19   ,  1.188  ],[ 1.195  ,  1.191  ],
+				[ 1.201  ,  1.196  ],[ 1.209  ,  1.202  ],[ 1.215  ,  1.208  ],[ 1.222  ,  1.214  ],
+				[ 1.228  ,  1.221  ],[ 1.234  ,  1.231  ],[ 1.239  ,  1.238  ],[ 1.242  ,  1.244  ],
+				[ 1.248  ,  1.254  ],[ 1.258  ,  1.278  ],[ 1.263  ,  1.29   ],[ 1.28   ,  1.331  ],
+				[ 1.28   ,  1.347  ],[ 1.28   ,  1.348  ],[ 1.31   ,  1.348  ],[ 1.328  ,  1.348  ],
+				[ 1.361  ,  1.348  ],[ 1.38   ,  1.348  ],[ 1.419  ,  1.348  ],[ 1.419  ,  1.31   ],
+				[ 1.372  ,  1.31   ],[ 1.37167,  1.29238],[ 1.37003,  1.28268],[ 1.36688,  1.25644],
+				[ 1.36719,  1.22955],[ 1.37178,  1.19576],[ 1.37224,  1.19402],[ 1.38662,  1.16487],
+				[ 1.38708,  1.16421],[ 1.40382,  1.15696],[ 1.41127,  1.1573 ],[ 1.41857,  1.16132],
+				[ 1.421  ,  1.164  ],[ 1.48663,  1.2405 ],[ 1.4973 ,  1.23458],[ 1.49762,  1.23428],
+				[ 1.49745,  1.23174],[ 1.49275,  1.2133 ],[ 1.4926 ,  1.21061],[ 1.49261,  1.20486],
+				[ 1.49279,  1.20214],[ 1.4934 ,  1.19642],[ 1.4947 ,  1.18511],[ 1.49622,  1.1607 ],
+				[ 1.47981,  1.12426],[ 1.48082,  1.12256],[ 1.48149,  1.12138],[ 1.48646,  1.11692],
+				[ 1.49095,  1.11439],[ 1.50305,  1.11244],[ 1.59697,  1.09489],[ 1.6255 ,  1.0853 ],
+				[ 1.63752,  1.07988],[ 1.647  ,  1.077  ],[ 1.785  ,  1.077  ],[ 2.07   ,  1.04   ],
+				[ 2.128  ,  0.993  ],[ 2.245  ,  0.709  ],[ 2.33956,  0.46143],[ 2.34708,  0.41583],
+				[ 2.34913,  0.27218],[ 2.35103,  0.17018],[ 2.35158,  0.07012],[ 2.35125, -0.03179],
+				[ 2.35051, -0.14435],[ 2.34965, -0.21483],[ 2.3487 , -0.32669],[ 2.3476 , -0.38677],
+				[ 2.3402 , -0.45304],[ 2.32942, -0.47757],[ 2.134  , -0.973  ],[ 1.786  , -1.174  ],
+				[ 1.768  , -1.211  ],[ 1.768  , -1.25   ],[ 1.682  , -1.25   ],[ 1.372  , -1.25   ],
+				[ 1.372  , -1.329  ],[ 1.42   , -1.329  ],[ 1.42   , -1.363  ],[ 1.273  , -1.363  ],
+				[ 1.153  , -1.363  ],[ 1.016  , -1.223  ],[ 1.016  , -1.223  ],[ 1.016  , -0.83   ],
+				[ 1.016  , -0.8    ],[ 1.016  , -0.415  ],[ 1.016  , -0.4    ],[  1.016,  -0.001]]
 	elif machine == 'iter':
 		wall = [[4.05460000,   -2.50630000],[4.05460000,   -1.50000000],[4.05460000,   -0.48360000],
 				[4.05460000,   0.53280000],[4.05460000,   1.54920000],[4.05460000,   2.56560000],
