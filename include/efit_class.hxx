@@ -125,6 +125,11 @@ public:
 
 	int helicity;	// +1 = right handed equlibrium		-1 = left handed
 
+	// external 3D wall
+	bool use_3Dwall;		// default is false
+	Array<int,1> Nwall3D;	// number of points for the Wall at each full integer toroidal angle phi = 0,...,359; each respective Array has twice the size!
+	Array<double,2> wall3D;	// for each toroidal angle: Position of the Wall in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
+
 // Konstruktoren
 	EFIT();		// Default Constructor
 
@@ -143,6 +148,7 @@ public:
 	double get_Pprime(const double x);		// Spline interpolates Pprime
 	double get_q(const double x);		// Spline interpolates qpsi
 	int lcfs_RZ_nn(const double th, double& r, double& z);
+	void set3Dwall(LA_STRING wall_file);	// read 3D wall and set arrays
 
 }; //end of class
 
@@ -154,6 +160,7 @@ EFIT::EFIT()
 {
 TinyVector <int,1> index(1);
 TinyVector <int,2> index2(1,1);
+TinyVector <int,2> index2_10(1,0);
 TinyVector <int,4> index4(1,1,1,1);
 
 Shot = "none";
@@ -196,6 +203,10 @@ Ca.resize(NR-1,NZ-1,4,4);	Ca.reindexSelf(index4);
 
 helicity = 1;
 helicity_adjust = 1;
+
+use_3Dwall = false;
+Nwall3D.resize(360);	// Nwall3D starts at index 0, which corresponds to angle phi = 0
+wall3D.resize(500,360);		wall3D.reindexSelf(index2_10);	// second index (= angle) starts with 0 again
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -259,6 +270,10 @@ Ca.reference(EQD.Ca.copy());
 
 helicity = EQD.helicity;
 helicity_adjust = EQD.helicity_adjust;
+
+use_3Dwall = EQD.use_3Dwall;
+Nwall3D.reference(EQD.Nwall3D.copy());
+wall3D.reference(EQD.wall3D.copy());
 
 return(*this);
 }
@@ -560,6 +575,54 @@ z = lcfs(2*i);
 return idx;
 }
 
+//-------------- set3Dwall ------------------------------------------------------------------------------------------------
+// Read 3D wall file
+void EFIT::set3Dwall(LA_STRING wall_file)
+{
+// Variables
+int i,k;
+LA_STRING line;
+int count = 0;
+int N,Nmax;
+
+// Input
+ifstream in;
+in.open(wall_file);
+if(in.fail()==1) {cout << "Unable to open file " << wall_file << endl; exit(0);}
+
+// Count the number of rows starting with #
+while(1)
+{
+	in >> line;
+	if(line[1]=='#') {count+=1; continue;}
+	else break;
+}
+
+in.close();	// Important to start reading from the beginning of the file
+in.clear(); // Important to clear EOF flag
+
+in.open(wall_file);	// Open file again
+for(i=1;i<=count;i++)	// Skip IO data rows
+{
+	in >> line;
+}
+
+// Read data
+in >> Nmax;
+wall3D.resize(2*Nmax,360);
+
+for(k=0;k<360;k++)
+{
+	in >> N;
+	Nwall3D(k) = N;
+	for(i=1;i<=2*N;i++) in >> wall3D(i,k);
+}
+
+in.close();
+
+// use the 3D wall now
+use_3Dwall = true;
+}
 
 //----------------------- End of Member Functions -------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------

@@ -29,7 +29,7 @@ using namespace blitz;
 
 // extern Prototypes, defined in Machine-specific header
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
-bool outofBndy(double x, double y, EFIT& EQD);	
+bool outofBndy(double phi, double x, double y, EFIT& EQD);
 
 // Prototypes  
 void get_Energy(double psi, double& Enorm, double& dEnorm);
@@ -663,7 +663,7 @@ x = a;
 if (flag == 0)	// z = z(r,th)
 {
 	z = (x - EQDr.RmAxis)*tan(th) + EQDr.ZmAxis;
-	if(outofBndy(x, z, EQDr)) f = 1.2;
+	if(outofBndy(0, x, z, EQDr)) f = 1.2;
 	else
 	{
 		chk = get_psi(x, z, f);
@@ -674,7 +674,7 @@ if (flag == 0)	// z = z(r,th)
 else			// r = r(z,th)
 {
 	r = (x - EQDr.ZmAxis)/tan(th) + EQDr.RmAxis;
-	if(outofBndy(r, x, EQDr)) f = 1.2;
+	if(outofBndy(0, r, x, EQDr)) f = 1.2;
 	else
 	{
 		chk = get_psi(r, x, f);
@@ -700,7 +700,7 @@ while(fabs(xo-xu) > eps)
 	if (flag == 0)	// z = z(r,th)
 	{
 		z = (x - EQDr.RmAxis)*tan(th) + EQDr.ZmAxis;
-		if(outofBndy(x, z, EQDr)) f = 1.2;
+		if(outofBndy(0, x, z, EQDr)) f = 1.2;
 		else
 		{
 			chk = get_psi(x, z, f);
@@ -711,7 +711,7 @@ while(fabs(xo-xu) > eps)
 	else			// r = r(z,th)
 	{
 		r = (x - EQDr.ZmAxis)/tan(th) + EQDr.RmAxis;
-		if(outofBndy(r, x, EQDr)) f = 1.2;
+		if(outofBndy(0, r, x, EQDr)) f = 1.2;
 		else
 		{
 			chk = get_psi(r, x, f);
@@ -772,7 +772,7 @@ for (k=1;k<=nstep;k++)
 	x = x1 + k*dx; // Better than x+=dx
 
 	// Integration terminates outside of boundary box
-	if(outofBndy(yout(0),yout(1),EQDr) == true) return -1;
+	if(outofBndy(x*rTOd,yout(0),yout(1),EQDr) == true) return -1;
 
 	// Get additional Parameter
 	Lc += sqrt((yout(0)-y(0))*(yout(0)-y(0)) + (yout(1)-y(1))*(yout(1)-y(1)) + 0.25*(yout(0)+y(0))*(yout(0)+y(0))*dx*dx);

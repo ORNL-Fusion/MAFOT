@@ -4,7 +4,7 @@ include ./make.inc
 
 # ---- set directories ----
 OBJDIR := $(MAFOT_DIR)/release
-DIRS = $(OBJDIR)/d3d $(OBJDIR)/iter $(OBJDIR)/nstx $(OBJDIR)/mast $(LIB_DIR) $(BIN_DIR)
+DIRS = $(OBJDIR)/d3d $(OBJDIR)/iter $(OBJDIR)/nstx $(OBJDIR)/mast $(OBJDIR)/cmod $(LIB_DIR) $(BIN_DIR)
 
 
 # ---- M3DC1 setup ----
@@ -21,12 +21,14 @@ endif
 
 # ---- Defines ----
 D3DDEFS = -DD3D
+CMODDEFS = -DCMOD
 
 
 # ---- SIESTA support ----
 ifdef SIESTA
 ifeq ($(SIESTA),True)
    D3DDEFS += -DUSE_SIESTA
+   CMODDEFS += -DUSE_SIESTA
    VMEC = True
 endif
 endif
@@ -38,6 +40,7 @@ ifeq ($(VMEC),True)
    LIBS += $(NETCDFLIBS)
    INCLUDE += $(NETCDFINCLUDE)
    D3DDEFS += -DUSE_XFIELD
+   CMODDEFS += -DUSE_XFIELD
 endif
 endif
 
@@ -54,10 +57,12 @@ MPIOBJS_D3D = $(addprefix $(OBJDIR)/d3d/, $(MPIOBJS))
 MPIOBJS_ITER = $(addprefix $(OBJDIR)/iter/, $(MPIOBJS))
 MPIOBJS_NSTX = $(addprefix $(OBJDIR)/nstx/, $(MPIOBJS))
 MPIOBJS_MAST = $(addprefix $(OBJDIR)/mast/, $(MPIOBJS))
+MPIOBJS_CMOD = $(addprefix $(OBJDIR)/cmod/, $(MPIOBJS))
 MPIDEPS_D3D = $(MPIOBJS_D3D:.o=.d)
 MPIDEPS_ITER = $(MPIOBJS_ITER:.o=.d)
 MPIDEPS_NSTX = $(MPIOBJS_NSTX:.o=.d)
 MPIDEPS_MAST = $(MPIOBJS_MAST:.o=.d)
+MPIDEPS_CMOD = $(MPIOBJS_CMOD:.o=.d)
 
 SERSRCS = fix.cxx man.cxx plot.cxx structure.cxx
 SEROBJS = $(SERSRCS:.cxx=.o)
@@ -90,6 +95,9 @@ nstx : $(DIRS) nstxplot nstxfix nstxman nstxlaminar_mpi nstxfoot_mpi nstxplot_mp
 
 .PHONY : mast 
 mast : $(DIRS) mastplot mastfix mastman mastlaminar_mpi mastfoot_mpi mastplot_mpi 
+
+.PHONY : cmod 
+cmod : $(DIRS) cmodplot_mpi
 
 .PHONY : gui
 gui : $(MAFOT_DIR)/python/mafot_gui.py
@@ -219,6 +227,11 @@ mastplot_mpi : $(OBJDIR)/mast/plot_mpi.o libla_string.a libtrip3d.a
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/mast/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 
+# ---- CMOD Targets ----
+cmodplot_mpi : $(OBJDIR)/cmod/plot_mpi.o libla_string.a libtrip3d.a
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/cmod/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
+
 # ---- Include Dependencies ----
 -include $(DEPS)
 -include $(SERDEPS_D3D)
@@ -229,6 +242,7 @@ mastplot_mpi : $(OBJDIR)/mast/plot_mpi.o libla_string.a libtrip3d.a
 -include $(MPIDEPS_ITER)
 -include $(MPIDEPS_NSTX)
 -include $(MPIDEPS_MAST)
+-include $(MPIDEPS_CMOD)
 
 
 # ---- Compile ----
@@ -249,6 +263,9 @@ $(MPIOBJS_MAST) : $(OBJDIR)/mast/%.o : $(MAFOT_DIR)/src/%.cxx
 
 $(MPIOBJS_NSTX) : $(OBJDIR)/nstx/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DNSTX $< -o $@
+	
+$(MPIOBJS_CMOD) : $(OBJDIR)/cmod/%.o : $(MAFOT_DIR)/src/%.cxx
+	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) $(CMODDEFS) $< -o $@
 
 $(SEROBJS_D3D) : $(OBJDIR)/d3d/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) $(D3DDEFS) $< -o $@

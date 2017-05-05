@@ -20,6 +20,8 @@
 	#define program_name "nstxplot_mpi"
 #elif defined(MAST)
 	#define program_name "mastplot_mpi"
+#elif defined(CMOD)
+	#define program_name "cmodplot_mpi"
 #else
 	#define program_name "dtplot_mpi"
 #endif
@@ -45,6 +47,12 @@
 		#include <mast_m3dc1.hxx>
 	#else
 		#include <mast.hxx>
+	#endif
+#elif defined(CMOD)
+	#if defined(m3dc1)
+		#include <cmod_m3dc1.hxx>
+	#else
+		#include <cmod.hxx>
 	#endif
 #else
 	#if defined(m3dc1)

@@ -25,7 +25,7 @@
 #include <particle_class.hxx>		// includes all particle/fieldline parameters and Runge-Kutta Integrator
 
 // --------------- Prototypes ---------------------------------------------------------------------------------------------
-bool outofRealBndy(double x, double y, EFIT& EQD);
+bool outofRealBndy(double phi, double x, double y, EFIT& EQD);
 
 void get_filament_field(double R, double phi, double Z, Array<double,4>& field, double& bx, double& by, double& bz, EFIT& EQD);
 void bcuderiv_square(Array<double,2>& y, int j, int k, double d1, double d2, 
@@ -40,26 +40,44 @@ void bcuint_square(Array<double,1>& Ra, Array<double,1>& Za, double dR, double d
 // Check if (x,y) is out of the torus. It uses the jordan curve theorem with 
 // additional detection if (x,y) is part of an edge. Edge is defined as inside
 // the torus.
-bool outofRealBndy(double x, double y, EFIT& EQD)
+// toroidal angle phi is in degrees and right-handed
+bool outofRealBndy(double phi, double x, double y, EFIT& EQD)
 {
 int wn = 0;
+int Nwall,p;
+Array<double,1> wall;
+Range all = Range::all();
+
+if(EQD.use_3Dwall) 	// use 3D wall
+{
+	p = int(phi + sign(phi)*0.5);	// round phi to nearest integer -> nearest neighbor approximation of 3D wall
+	p = p % 360;					// phi now between -359 and 359
+	if(p < 0) p += 360;				// phi is now between 0 and 359
+	Nwall = EQD.Nwall3D(p);
+	wall.reference(EQD.wall3D(all,p));
+}
+else				// use 2D wall from EFIT for every phi
+{
+	Nwall = EQD.Nwall;
+	wall.reference(EQD.wall);
+}
 
 double x1,y1;
-double x2 = EQD.wall(1);	//R1
-double y2 = EQD.wall(2);	//Z1
+double x2 = wall(1);	//R1
+double y2 = wall(2);	//Z1
 
 double a; 
 
 bool startUeber = (y2 >= y) ? 1 : 0;
-for(int i=3; i<(2*EQD.Nwall); i=i+2)
+for(int i=3; i<(2*Nwall); i=i+2)
 {
 	// Continue if two wall point are identical
-	if(x2 == EQD.wall(i) && y2 == EQD.wall(i+1)) continue;
+	if(x2 == wall(i) && y2 == wall(i+1)) continue;
 
 	x1 = x2;
 	y1 = y2;
-	x2 = EQD.wall(i);
-	y2 = EQD.wall(i+1);
+	x2 = wall(i);
+	y2 = wall(i+1);
 
 	if((y1==y2) && (y==y1))
 	{

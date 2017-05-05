@@ -97,17 +97,19 @@ double now = zeit();
 // defaults
 int spare_interior = 0;					// 0: all points are calculated		1: inside psi = psi_interior_limit results are set to fixed values (code runs faster)
 double psi_interior_limit = 0.85;		// psi limit for spare_interior == 1
+bool use_3Dwall = false;
+LA_STRING wall_file = "none";
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsl:")) != -1)
+while ((c = getopt(argc, argv, "hsl:W:")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-s] [-l limit] file [tag]" << endl << endl;
+		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-s] [-l limit] [-W wall] file [tag]" << endl << endl;
 		cout << "Calculate field line connection length and penetration depth in a poloidal cross-section." << endl << endl;
 		cout << "positional arguments:" << endl;
 		cout << "  file          Contol file (starts with '_')" << endl;
@@ -116,6 +118,7 @@ case 'h':
 		cout << "  -h            show this help message and exit" << endl;
 		cout << "  -s            spare calculation of interior, default = No" << endl;
 		cout << "  -l            flux limit for spare interior, default = 0.85" << endl;
+		cout << "  -W            use separate 3D Wall-File; default is 2D wall from EFIT file" << endl;
 		cout << endl << "Examples:" << endl;
 		cout << "  mpirun -n 4 dtlaminar_mpi _lam.dat blabla" << endl;
 		cout << "  mpirun -n 12 dtlaminar_mpi -s -l 0.7 _lam.dat skip_inside0.7" << endl;
@@ -127,6 +130,10 @@ case 's':
 	break;
 case 'l':
 	psi_interior_limit = atof(optarg);
+	break;
+case 'W':
+	use_3Dwall = true;
+	wall_file = optarg;
 	break;
 case '?':
 	if(mpi_rank < 1)
@@ -197,6 +204,14 @@ if(PAR.response_field == 0 || PAR.response_field == 2)
 EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
 if(mpi_rank < 1) cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
+
+// Read 3D wall file and add to EQD
+if(use_3Dwall)
+{
+	if(mpi_rank < 1) cout << "Using 3D wall from file: " << wall_file << endl;
+	ofs2 << "Using 3D wall from file: " << wall_file << endl;
+	EQD.set3Dwall(wall_file);
+}
 
 // Set starting parameters
 int N_variables = 9;
@@ -423,7 +438,7 @@ if(mpi_rank < 1)
 
 					// Integration terminates outside of boundary box
 					skip_connect = 0;
-					if(outofBndy(FLT.R,FLT.Z,EQD) == true)
+					if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true)
 					{
 						ntor = 0;
 						length = 0;
@@ -547,7 +562,7 @@ if(mpi_rank > 0)
 
 			// Integration terminates outside of boundary box
 			skip_connect = 0;
-			if(outofBndy(FLT.R,FLT.Z,EQD) == true)
+			if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true)
 			{
 				ntor = 0;
 				length = 0;

@@ -12,7 +12,7 @@
 //void IO::readiodata(char* name, int mpi_rank);								// declared in IO class, defined here
 //void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var);	// declared in IO class, defined here
 
-bool outofBndy(double x, double y, EFIT& EQD);
+bool outofBndy(double phi, double x, double y, EFIT& EQD);
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0);
 int get_target(EFIT& EQD, IO& PAR);
@@ -243,12 +243,12 @@ out << "#" << endl;
 // is in boundary an 1 if (x,y) is out of boundary. 
 // simpleBndy = 0; use real wall as boundaries
 // simpleBndy = 1: use simple boundary box
-bool outofBndy(double x, double y, EFIT& EQD)
+bool outofBndy(double phi, double x, double y, EFIT& EQD)
 {
 switch(simpleBndy)
 {
 case 0:
-	return outofRealBndy(x,y,EQD);
+	return outofRealBndy(phi,x,y,EQD);
 	break;
 case 1:
 	if(x<bndy[0] || x>bndy[1] || y<bndy[2] || y>bndy[3]) return true;	//  bndy[4]={3.95, 8.45, -4.6, 4.75}

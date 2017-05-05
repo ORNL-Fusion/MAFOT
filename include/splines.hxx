@@ -28,6 +28,8 @@ int bcuint(Array<double,1>& Ra, Array<double,1>& Za, Array<double,4>& Ca, double
 			double R, double Z, double& y, double& y1, double& y2);
 
 
+extern ofstream ofs2;
+
 // ------------------------ spline (mit Blitz-Arrays) -------------------------------------------------------------------
 //Given arrays x[1..n] and y[1..n] containing a tabulated function, i.e., yi = f(xi), with
 //x1 < x2 < .. . < xN, and given values yp1 and ypn for the first derivative of the interpolating
@@ -278,7 +280,7 @@ j = int((R-Ra(1))/dR) + 1;
 k = int((Z-Za(1))/dZ) + 1;
 if(j == NR) j -= 1;	// exception: add outermost right boundary to square one to the left
 if(k == NZ) k -= 1;	// exception: add outermost top boundary to square one down
-if(j>NR || j<1 || k>NZ || k<1)	{cout << "bcuint: Point outside of grid" << endl; return -1;}
+if(j>NR || j<1 || k>NZ || k<1)	{ofs2 << "bcuint: Point outside of grid" << endl; return -1;}
 
 // Get the c's.
 c.reference(Ca(j,k,all,all));
