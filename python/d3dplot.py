@@ -155,7 +155,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 	# --- set z data ------------------
 	if(what == 'Lc'):
-		if(b == None): 
+		if(b is None): 
 			if('d3d' in machine): b = np.linspace(0.075,0.4,N)
 			elif(machine == 'iter'): b = np.linspace(0.22,1.8,N)
 		z = Lc
@@ -165,7 +165,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		cdict = plt.cm.get_cmap(cmap)._segmentdata
 		
 	elif(what == 'psimin'):
-		if(b == None): b = np.linspace(0.88,1.02,N)
+		if(b is None): b = np.linspace(0.88,1.02,N)
 		z = psimin
 		if not latex: C_label = u'\u03c8' + '$_{Min}$'
 		else: C_label = '$\\psi_{Min}$'
@@ -176,7 +176,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not use_psimaxav:
 			print "psimax data is not available in this file"
 			return
-		if(b == None): b = np.linspace(0.88,1.02,N)
+		if(b is None): b = np.linspace(0.88,1.02,N)
 		z = psimax
 		if not latex: C_label = u'\u03c8' + '$_{Max}$'
 		else: C_label = '$\\psi_{Max}$'
@@ -187,7 +187,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not use_psimaxav:
 			print "psiav data is not available in this file"
 			return
-		if(b == None): b = np.linspace(0.88,1.02,N)
+		if(b is None): b = np.linspace(0.88,1.02,N)
 		z = psiav
 		if not latex: C_label = u'\u03c8' + '$_{av}$'
 		else: C_label = '$\\psi_{av}$'
@@ -198,7 +198,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not use_pitch_yaw:
 			print "pitch angle data is not available in this file"
 			return
-		if(b == None): b = np.linspace(-5,20,N)
+		if(b is None): b = np.linspace(-5,20,N)
 		z = pitch/np.pi*180
 		if not latex: C_label = u'\u03b1' + '$_{p}$ [deg]'
 		else: C_label = '$\\alpha_{p}$ [deg]'
@@ -209,7 +209,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not use_pitch_yaw:
 			print "yaw angle data is not available in this file"
 			return
-		if(b == None): b = np.linspace(-10,10,N)
+		if(b is None): b = np.linspace(-10,10,N)
 		z = yaw/np.pi*180
 		if not latex: C_label = u'\u03b1' + '$_{r}$  [deg]'
 		else: C_label = '$\\alpha_{r}$  [deg]'
@@ -286,8 +286,8 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	if(coordinates == 'phi'):
 		ylabel_size = font['size']
 		
-	if figwidth == None: figwidth = width
-	if figheight == None: figheight = height
+	if figwidth is None: figwidth = width
+	if figheight is None: figheight = height
 	
 	C_label_size = latexFontSize
 
@@ -341,8 +341,8 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	if(coordinates == 'phi') & (target== 'in') & (physical == 2): 
 		plt.gca().invert_yaxis()
 		
-	if not (xlimit == None): plt.xlim(xlimit)
-	if not (ylimit == None): plt.ylim(ylimit)
+	if not (xlimit is None): plt.xlim(xlimit)
+	if not (ylimit is None): plt.ylim(ylimit)
 
 	plt.xlabel(xLabel, size = xlabel_size)
 	plt.ylabel(yLabel, size = ylabel_size, labelpad = 10)
@@ -397,12 +397,12 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 						
 	# --- Title -----------------------
 	if(Title == True): plt.title(str(shot) + ',  ' + str(time) + 'ms', size = 18)
-	elif not (Title == None): plt.title(Title, size = 18)
+	elif not (Title is None): plt.title(Title, size = 18)
 
 	# --- save Figure to file ---------
-	if not (tag == None): printme = True
+	if not (tag is None): printme = True
 	if printme: 
-		if(tag == None): F.savefig(path + filename[0:-4] + '.' + graphic, dpi = (300), bbox_inches = 'tight')
+		if(tag is None): F.savefig(path + filename[0:-4] + '.' + graphic, dpi = (300), bbox_inches = 'tight')
 		else: F.savefig(path + filename[0:-4] + '_' + tag + '.' + graphic, dpi = (300), bbox_inches = 'tight')
 
 

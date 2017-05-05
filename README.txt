@@ -46,11 +46,16 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.75
+MAFOT 3.8
 GUI 1.43
 
 Version Notes: 
 ----------------
+MAFOT 3.8 -- May 2017
+- C-Mod support added (only plot_mpi for now)
+- 3D wall added
+- Python "== None" warning fixed
+
 MAFOT 3.75 -- Jul 2016
 - divB correction in xpand does not work properly - DO NOT USE
 - use of multiple M3DC1 files now allows arbitrary relative phase
