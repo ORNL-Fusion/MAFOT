@@ -34,8 +34,13 @@ class VMEC_SPECTRAL
 {
 private:
 	// Member Variables
+	bool half_grid;			// is this on half or full s-grid
+
 	Array<double,2> d2ymns;	// d^2/ds^2 ymns(s), output of spline and input of splint
 	Array<double,2> d2ymnc;	// d^2/ds^2 ymnc(s), output of spline and input of splint
+
+	// Member-Functions
+	void extrapolate2axis();	// linear extarpolates shalf-grid spectral data to s = 0
 
 public:
 	// Member Variables
@@ -87,6 +92,7 @@ ns = 0;
 id = "None";
 parity = 0;
 n0only = false;
+half_grid = false;
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -94,6 +100,8 @@ n0only = false;
 VMEC_SPECTRAL& VMEC_SPECTRAL::operator =(const VMEC_SPECTRAL& spec)
 {
 if (this == &spec) return(*this);	    // if: x=x
+half_grid = spec.half_grid;
+
 d2ymns.reference(spec.d2ymns);
 d2ymnc.reference(spec.d2ymnc);
 
@@ -128,6 +136,9 @@ xn.reference(xn0);
 xm.reference(xm0);
 S.reference(S0);
 n0only = n0only0;
+
+if(S(ns) < 1) half_grid = true;
+else half_grid = false;
 }
 
 //-----------------------------------------------
@@ -145,10 +156,16 @@ int i;
 double d1,dn;
 Array<double,1> slice, d2slice;
 Range all = Range::all();
-const double ds1 = (S(7) - S(1))/6.0;		// is S is equidistant, then ds1 = dsn = ds = S(i) - S(i-1) for any i
+const double ds1 = (S(7) - S(2))/5.0;		// is S is equidistant, then ds1 = dsn = ds = S(i) - S(i-1) for any i
 const double dsn = (S(ns) - S(ns-6))/6.0;	// if not, then this is an average, which makes d1 and dn somewhat more inaccurate
 
 TinyVector <int,2> index2(1,0);	// Array ranges
+
+if(half_grid)
+{
+	extrapolate2axis();
+	//cout << "Extrapolate to axis: " << id << endl;
+}
 
 // cosine series or both
 if(parity >= 0)
@@ -156,7 +173,7 @@ if(parity >= 0)
 	d2ymnc.resize(ns,mnmax);	d2ymnc.reindexSelf(index2);
 	for(i=0;i<mnmax;i++)
 	{
-		d1 = (-49/20.0*ymnc(1,i) + 6*ymnc(2,i) - 15/2.0*ymnc(3,i) + 20/3.0*ymnc(4,i) - 15/4.0*ymnc(5,i) + 6/5.0*ymnc(6,i) - 1/6.0*ymnc(7,i)) / ds1;
+		d1 = 0; // gives best result so far, better than any other derivative. //(-49/20.0*ymnc(1,i) + 6*ymnc(2,i) - 15/2.0*ymnc(3,i) + 20/3.0*ymnc(4,i) - 15/4.0*ymnc(5,i) + 6/5.0*ymnc(6,i) - 1/6.0*ymnc(7,i)) / ds1;
 		dn = (49/20.0*ymnc(ns,i) - 6*ymnc(ns-1,i) + 15/2.0*ymnc(ns-2,i) - 20/3.0*ymnc(ns-3,i) + 15/4.0*ymnc(ns-4,i) - 6/5.0*ymnc(ns-5,i) + 1/6.0*ymnc(ns-6,i)) / dsn;
 		slice.reference(ymnc(all,i));
 		d2slice.reference(d2ymnc(all,i));
@@ -170,7 +187,7 @@ if(parity <= 0)
 	d2ymns.resize(ns,mnmax);	d2ymns.reindexSelf(index2);
 	for(i=0;i<mnmax;i++)
 	{
-		d1 = (-49/20.0*ymns(1,i) + 6*ymns(2,i) - 15/2.0*ymns(3,i) + 20/3.0*ymns(4,i) - 15/4.0*ymns(5,i) + 6/5.0*ymns(6,i) - 1/6.0*ymns(7,i)) / ds1;
+		d1 = 0; //(-49/20.0*ymns(1,i) + 6*ymns(2,i) - 15/2.0*ymns(3,i) + 20/3.0*ymns(4,i) - 15/4.0*ymns(5,i) + 6/5.0*ymns(6,i) - 1/6.0*ymns(7,i)) / ds1;
 		dn = (49/20.0*ymns(ns,i) - 6*ymns(ns-1,i) + 15/2.0*ymns(ns-2,i) - 20/3.0*ymns(ns-3,i) + 15/4.0*ymns(ns-4,i) - 6/5.0*ymns(ns-5,i) + 1/6.0*ymns(ns-6,i)) / dsn;
 		slice.reference(ymns(all,i));
 		d2slice.reference(d2ymns(all,i));
@@ -460,6 +477,32 @@ get_sincos(u, v, sinuv, cosuv);
 return ev(s, u, v, dyds, dydu, dydv, dydudv, sinuv, cosuv, use_spline);
 }
 
+//---------------------------- extrapolate2axis ---------------------------------------------------------------------------
+// linear extrapolation of spectral modes to magnetic axis for half-grid quantities
+void VMEC_SPECTRAL::extrapolate2axis()
+{
+int i;
+// cosine series or both
+if(parity >= 0)
+{
+	for(i=0;i<mnmax;i++)
+	{
+		if(xm(i) == 0) ymnc(1,i) = (ymnc(2,i)*S(3) - ymnc(3,i)*S(2)) / (S(3) - S(2));
+		else ymnc(1,i) = 0;
+	}
+}
+
+// sine series or both
+if(parity <= 0)
+{
+	for(i=0;i<mnmax;i++)
+	{
+		if(xm(i) == 0) ymns(1,i) = (ymns(2,i)*S(3) - ymns(3,i)*S(2)) / (S(3) - S(2));
+		else ymns(1,i) = 0;
+	}
+}
+}
+
 //------------------------ End of Class VMEC_SPECTRAL----------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
@@ -473,6 +516,7 @@ class VMEC_PROFILE
 {
 private:
 	// Member Variables
+	bool half_grid;			// is this on half or full s-grid
 	Array<double,1> d2y;	// d^2/ds^2 y(s), output of spline and input of splint
 
 public:
@@ -502,6 +546,7 @@ public:
 VMEC_PROFILE::VMEC_PROFILE()
 {
 ns = 0;
+half_grid = false;
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -512,7 +557,8 @@ if (this == &prof) return(*this);	    // if: x=x
 d2y.reference(prof.d2y);
 S.reference(prof.S);
 y.reference(prof.y);
-
+half_grid = prof.half_grid;
+ns = prof.ns;
 return(*this);
 }
 
@@ -542,6 +588,8 @@ void VMEC_PROFILE::set(int ns0, Array<double,1>& S0)
 {
 ns = ns0;
 S.reference(S0);
+if(S(ns) < 1) half_grid = true;
+else half_grid = false;
 }
 
 //---------------------------- spline -------------------------------------------------------------------------------------
@@ -549,12 +597,14 @@ S.reference(S0);
 void VMEC_PROFILE::Vspline()
 {
 double d1,dn;
-const double ds1 = (S(7) - S(1))/6.0;		// is S is equidistant, then ds1 = dsn = ds = S(i) - S(i-1) for any i
+const double ds1 = (S(7) - S(2))/5.0;		// is S is equidistant, then ds1 = dsn = ds = S(i) - S(i-1) for any i
 const double dsn = (S(ns) - S(ns-6))/6.0;	// if not, then this is an average, which makes d1 and dn somewhat more inaccurate
 TinyVector <int,1> index(1);	// Array range
 
+if(half_grid) y(1) = (y(2)*S(3) - y(3)*S(2)) / (S(3) - S(2));	// linear extrapolate to s = 0
+
 d2y.resize(ns);	d2y.reindexSelf(index);
-d1 = (-49/20.0*y(1) + 6*y(2) - 15/2.0*y(3) + 20/3.0*y(4) - 15/4.0*y(5) + 6/5.0*y(6) - 1/6.0*y(7)) / ds1;
+d1 = 0; //(-49/20.0*y(1) + 6*y(2) - 15/2.0*y(3) + 20/3.0*y(4) - 15/4.0*y(5) + 6/5.0*y(6) - 1/6.0*y(7)) / ds1;
 dn = (49/20.0*y(ns) - 6*y(ns-1) + 15/2.0*y(ns-2) - 20/3.0*y(ns-3) + 15/4.0*y(ns-4) - 6/5.0*y(ns-5) + 1/6.0*y(ns-6)) / dsn;
 spline(S, y, ns, d1, dn, d2y);
 }
@@ -809,14 +859,6 @@ xm.resize(mnmax);
 chk = nc_inq_varid(ncid, "xm", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: xm not found" << endl; EXIT;}
 chk = nc_get_var_int(ncid, varid, xm.data());
 
-// set sign array for s < 0 entry in half-grid spectral variables
-Array<int,1> signhalf(mnmax);
-for(i=0;i<mnmax;i++) 	// signhalf = (-1)^xm
-{
-	if(xm(i)%2 == 0) signhalf(i) = 1;
-	else signhalf(i) = -1;
-}
-
 // read and reindex spectral data: full-mesh:(1 -> ns, 0 -> mnmax-1),  half-mesh:(1 -> nshalf, 0 -> mnmax-1)
 TinyVector <int,2> index2(1,0);	// Array range
 Array<double,2> input;
@@ -841,21 +883,18 @@ if(lasym)
 	gmn.ymns.resize(nshalf, mnmax); 						// set size
 	gmn.ymns.reindexSelf(index2);							// set indices
 	gmn.ymns = input.copy();							// move into place
-	gmn.ymns(1,all) = gmn.ymns(2,all) * signhalf;	// expand beyond magnetic axis: Shalf(1) = -Shalf(2) => Amn(-s)*sin(mu-nv) = Amn(s)*sin(m(u+pi)-nv) = (-1)^m * Amn(s)*sin(mu-nv); same for cos
 
 	chk = nc_inq_varid(ncid, "bsupumns", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: bsupumns not found" << endl; EXIT;}			// get variable id
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	bsupumn.ymns.resize(nshalf, mnmax); 						// set size
 	bsupumn.ymns.reindexSelf(index2);							// set indices^n
 	bsupumn.ymns = input.copy();							// move into place
-	bsupumn.ymns(1,all) = bsupumn.ymns(2,all) * signhalf;
 
 	chk = nc_inq_varid(ncid, "bsupvmns", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: bsupvmns not found" << endl; EXIT;}			// get variable id
 	chk = nc_get_var_double(ncid, varid, input.data());	// read
 	bsupvmn.ymns.resize(nshalf, mnmax); 						// set size
 	bsupvmn.ymns.reindexSelf(index2);							// set indices
 	bsupvmn.ymns = input.copy();							// move into place
-	bsupvmn.ymns(1,all) = bsupvmn.ymns(2,all) * signhalf;
 }
 
 chk = nc_inq_varid(ncid, "rmnc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: rmnc not found" << endl; EXIT;}			// get variable id
@@ -875,21 +914,18 @@ chk = nc_get_var_double(ncid, varid, input.data());	// read
 gmn.ymnc.resize(nshalf, mnmax); 						// set size
 gmn.ymnc.reindexSelf(index2);							// set indices
 gmn.ymnc = input.copy();							// move into place
-gmn.ymnc(1,all) = gmn.ymnc(2,all) * signhalf;
 
 chk = nc_inq_varid(ncid, "bsupumnc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: bsupumnc not found" << endl; EXIT;}			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 bsupumn.ymnc.resize(nshalf, mnmax); 						// set size
 bsupumn.ymnc.reindexSelf(index2);							// set indices
 bsupumn.ymnc = input.copy();							// move into place
-bsupumn.ymnc(1,all) = bsupumn.ymnc(2,all) * signhalf;
 
 chk = nc_inq_varid(ncid, "bsupvmnc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: bsupvmnc not found" << endl; EXIT;}			// get variable id
 chk = nc_get_var_double(ncid, varid, input.data());	// read
 bsupvmn.ymnc.resize(nshalf, mnmax); 						// set size
 bsupvmn.ymnc.reindexSelf(index2);							// set indices
 bsupvmn.ymnc = input.copy();							// move into place
-bsupvmn.ymnc(1,all) = bsupvmn.ymnc(2,all) * signhalf;
 
 // read axis
 if(lasym)
@@ -970,7 +1006,6 @@ chk = nc_get_var_double(ncid, varid, jdotb.y.data());
 bvco.y.resize(ns); bvco.y.reindexSelf(index1);
 chk = nc_inq_varid(ncid, "bvco", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: bvco not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, bvco.y.data());
-bvco.y(1) = bvco.y(2);	// expand beyond magnetic axis: 1-D profiles axisymmetric => y(-s) = y(s)
 
 // read other 1D-arrays
 if(lfreeb)
@@ -1008,7 +1043,8 @@ chk = nc_inq_varid(ncid, "phi", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "
 chk = nc_get_var_double(ncid, varid, S.data());
 S /= S(ns);	// normalize
 for(i=2;i<=nshalf;i++) Shalf(i) = 0.5*(S(i) + S(i-1));	// Shalf(i) is center of each [S(i-1), S(i)] intervall
-Shalf(1) = -Shalf(2); // Shalf(1) < 0
+//Shalf(1) = -Shalf(2); // Shalf(1) < 0
+Shalf(1) = 0;
 
 // close file
 chk = nc_close(ncid);
