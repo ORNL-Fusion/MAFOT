@@ -123,17 +123,17 @@ LA_STRING::LA_STRING( unsigned i )
 }
 
 
-LA_STRING::LA_STRING(float x, char *f)
+LA_STRING::LA_STRING(float x)
 {
-    sprintf(Buffer, f, x);
+    sprintf(Buffer, "%g", x);
     s = new char[ strlen(Buffer)+1 ];
     strcpy(s,Buffer);                                // String kopieren
     slen=strlen(s);
 }
 
-LA_STRING::LA_STRING(double x, char *f)
+LA_STRING::LA_STRING(double x)
 {
-    sprintf(Buffer, f, x);
+    sprintf(Buffer, "%g", x);
     s = new char[ strlen(Buffer)+1 ];
     strcpy(s,Buffer);                                // String kopieren
     slen=strlen(s);
