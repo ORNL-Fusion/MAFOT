@@ -173,7 +173,7 @@ if(parity >= 0)
 	d2ymnc.resize(ns,mnmax);	d2ymnc.reindexSelf(index2);
 	for(i=0;i<mnmax;i++)
 	{
-		d1 = 0; // gives best result so far, better than any other derivative. //(-49/20.0*ymnc(1,i) + 6*ymnc(2,i) - 15/2.0*ymnc(3,i) + 20/3.0*ymnc(4,i) - 15/4.0*ymnc(5,i) + 6/5.0*ymnc(6,i) - 1/6.0*ymnc(7,i)) / ds1;
+		d1 = (-49/20.0*ymnc(1,i) + 6*ymnc(2,i) - 15/2.0*ymnc(3,i) + 20/3.0*ymnc(4,i) - 15/4.0*ymnc(5,i) + 6/5.0*ymnc(6,i) - 1/6.0*ymnc(7,i)) / ds1;
 		dn = (49/20.0*ymnc(ns,i) - 6*ymnc(ns-1,i) + 15/2.0*ymnc(ns-2,i) - 20/3.0*ymnc(ns-3,i) + 15/4.0*ymnc(ns-4,i) - 6/5.0*ymnc(ns-5,i) + 1/6.0*ymnc(ns-6,i)) / dsn;
 		slice.reference(ymnc(all,i));
 		d2slice.reference(d2ymnc(all,i));
@@ -187,7 +187,7 @@ if(parity <= 0)
 	d2ymns.resize(ns,mnmax);	d2ymns.reindexSelf(index2);
 	for(i=0;i<mnmax;i++)
 	{
-		d1 = 0; //(-49/20.0*ymns(1,i) + 6*ymns(2,i) - 15/2.0*ymns(3,i) + 20/3.0*ymns(4,i) - 15/4.0*ymns(5,i) + 6/5.0*ymns(6,i) - 1/6.0*ymns(7,i)) / ds1;
+		d1 = (-49/20.0*ymns(1,i) + 6*ymns(2,i) - 15/2.0*ymns(3,i) + 20/3.0*ymns(4,i) - 15/4.0*ymns(5,i) + 6/5.0*ymns(6,i) - 1/6.0*ymns(7,i)) / ds1;
 		dn = (49/20.0*ymns(ns,i) - 6*ymns(ns-1,i) + 15/2.0*ymns(ns-2,i) - 20/3.0*ymns(ns-3,i) + 15/4.0*ymns(ns-4,i) - 6/5.0*ymns(ns-5,i) + 1/6.0*ymns(ns-6,i)) / dsn;
 		slice.reference(ymns(all,i));
 		d2slice.reference(d2ymns(all,i));
@@ -482,13 +482,18 @@ return ev(s, u, v, dyds, dydu, dydv, dydudv, sinuv, cosuv, use_spline);
 void VMEC_SPECTRAL::extrapolate2axis()
 {
 int i;
+double a;
+const double h = (S(8) - S(2))/6.0;
 // cosine series or both
 if(parity >= 0)
 {
 	for(i=0;i<mnmax;i++)
 	{
-		if(xm(i) == 0) ymnc(1,i) = (ymnc(2,i)*S(3) - ymnc(3,i)*S(2)) / (S(3) - S(2));
-		else ymnc(1,i) = 0;
+		a = (-49/20.0*ymnc(2,i) + 6*ymnc(3,i) - 15/2.0*ymnc(4,i) + 20/3.0*ymnc(5,i) - 15/4.0*ymnc(6,i) + 6/5.0*ymnc(7,i) - 1/6.0*ymnc(8,i)) / h;
+		//if(xm(i) == 0) ymnc(1,i) = (ymnc(2,i)*S(3) - ymnc(3,i)*S(2)) / (S(3) - S(2));
+		//else ymnc(1,i) = 0;
+		ymnc(1,i) = ymnc(2,i) - a*S(2);
+		//if(xm(i)%2 == 1) ymnc(1,i) = 0;
 	}
 }
 
@@ -497,8 +502,11 @@ if(parity <= 0)
 {
 	for(i=0;i<mnmax;i++)
 	{
-		if(xm(i) == 0) ymns(1,i) = (ymns(2,i)*S(3) - ymns(3,i)*S(2)) / (S(3) - S(2));
-		else ymns(1,i) = 0;
+		a = (-49/20.0*ymns(2,i) + 6*ymns(3,i) - 15/2.0*ymns(4,i) + 20/3.0*ymns(5,i) - 15/4.0*ymns(6,i) + 6/5.0*ymns(7,i) - 1/6.0*ymns(8,i)) / h;
+		//if(xm(i) == 0) ymns(1,i) = (ymns(2,i)*S(3) - ymns(3,i)*S(2)) / (S(3) - S(2));
+		//else ymns(1,i) = 0;
+		ymns(1,i) = ymns(2,i) - a*S(2);
+		//if(xm(i)%2 == 1) ymns(1,i) = 0;
 	}
 }
 }
