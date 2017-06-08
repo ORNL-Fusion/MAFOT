@@ -34,8 +34,12 @@ class VMEC_SPECTRAL
 {
 private:
 	// Member Variables
+    bool half_grid;            // is this on half or full s-grid
 	Array<double,2> d2ymns;	// d^2/ds^2 ymns(s), output of spline and input of splint
 	Array<double,2> d2ymnc;	// d^2/ds^2 ymnc(s), output of spline and input of splint
+
+	// Member-Functions
+	void extrapolate2axis();	// linear extarpolates shalf-grid spectral data to s = 0
 
 public:
 	// Member Variables
@@ -87,6 +91,7 @@ ns = 0;
 id = "None";
 parity = 0;
 n0only = false;
+half_grid = false;
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -96,6 +101,7 @@ VMEC_SPECTRAL& VMEC_SPECTRAL::operator =(const VMEC_SPECTRAL& spec)
 if (this == &spec) return(*this);	    // if: x=x
 d2ymns.reference(spec.d2ymns);
 d2ymnc.reference(spec.d2ymnc);
+half_grid = spec.half_grid;
 
 id = spec.id;
 parity = spec.parity;
@@ -126,8 +132,11 @@ ns = ns0;
 mnmax = mnmax0;
 xn.reference(xn0);
 xm.reference(xm0);
-S.reference(S0);
+S.reference(S0.copy());	// this makes S unique in this class, so that it does not affect S in the main VMEC class or other SPECTRAL classes
 n0only = n0only0;
+
+if(S(ns) < 1) half_grid = true;
+else half_grid = false;
 }
 
 //-----------------------------------------------
@@ -177,6 +186,44 @@ if(parity <= 0)
 		spline(S, slice, ns, d1, dn, d2slice);
 	}
 }
+
+// Improve the accuracy between s = 0 and s = shalf(2) for half-grid spectral variables.
+// This extrapolates to s = 0 and adjusts the spline coeficients at the first grid point shalf(1).
+// Without this fix, an unphysical horizontal inward pinch occurs in Bphi inside the shalf(2) surface.
+// If spline is constructed after the extrapolation, a strange large wobble occurs around the shalf(3) surface in Bphi.
+// With this adjustment there is only a very small wobble around the shalf(2) surface, no issue at the shalf(3) surface and good extrapolation into s = 0.
+// +++ IMPORTANT: This fix results in a discontinuity in the first derivative with respect to s at the shalf(2) surface for all modes +++
+double u;
+if(half_grid)	// shift S(1) to s=0, and reset ymn(1) and d2ymn(1)
+{
+	extrapolate2axis();	// this sets ymn(1) and S(1) = 0 !!!
+	//cout << "Extrapolate to axis: " << id << endl;
+
+	// cosine series or both
+	if(parity >= 0)
+	{
+		for(i=0;i<mnmax;i++)
+		{
+			if(xm(i)%2 == 0) d1 = 0;
+			else d1 = ymnc(2,i) / S(2);	// dy(1) = 0.5*(y(2) - y(0)) / (s(2) - s(1)), with s(1) = 0 and y(0) = -y(2)
+			u = (3.0/(S(2)-S(1)))*((ymnc(2,i)-ymnc(1,i))/(S(2)-S(1))-d1);
+			d2ymnc(1,i) = -0.5*d2ymnc(2,i) + u;
+		}
+	}
+
+	// sine series or both
+	if(parity <= 0)
+	{
+		for(i=0;i<mnmax;i++)
+		{
+			if(xm(i)%2 == 0) d1 = 0;
+			else d1 = ymns(2,i) / S(2);	// dy(1) = 0.5*(y(2) - y(0)) / (s(2) - s(1)), with s(1) = 0 and y(0) = -y(2)
+			u = (3.0/(S(2)-S(1)))*((ymns(2,i)-ymns(1,i))/(S(2)-S(1))-d1);
+			d2ymns(1,i) = -0.5*d2ymns(2,i) + u;
+		}
+	}
+}
+
 }
 
 //---------------------------- splint -------------------------------------------------------------------------------------
@@ -458,6 +505,51 @@ double VMEC_SPECTRAL::ev(double s, double u, double v, double& dyds, double& dyd
 Array<double,1> sinuv, cosuv;
 get_sincos(u, v, sinuv, cosuv);
 return ev(s, u, v, dyds, dydu, dydv, dydudv, sinuv, cosuv, use_spline);
+}
+
+//---------------------------- extrapolate2axis ---------------------------------------------------------------------------
+// linear extrapolation of spectral modes to magnetic axis for half-grid quantities
+void VMEC_SPECTRAL::extrapolate2axis()
+{
+int i;
+double dy,a,c;
+
+// reset first grid point
+S(1) = 0;
+
+// cosine series or both
+if(parity >= 0)
+{
+	for(i=0;i<mnmax;i++)
+	{
+		if(xm(i) == 0)
+		{
+			// assume y(s) = a*s^2 + c   near s = 0
+			dy = (ymnc(3,i) - ymnc(2,i))/(S(3) - S(2));	// approximate derivative at s = S(2)
+			a = 0.5*dy/S(2);
+			c = ymnc(2,i) - 0.5*dy*S(2);
+			ymnc(1,i) = c;
+		}
+		else ymnc(1,i) = 0;
+	}
+}
+
+// sine series or both
+if(parity <= 0)
+{
+	for(i=0;i<mnmax;i++)
+	{
+		if(xm(i) == 0)
+		{
+			// assume y(s) = a*s^2 + c   near s = 0
+			dy = (ymns(3,i) - ymns(2,i))/(S(3) - S(2));	// approximate derivative at s = S(2)
+			a = 0.5*dy/S(2);
+			c = ymns(2,i) - 0.5*dy*S(2);
+			ymns(1,i) = c;
+		}
+		else ymns(1,i) = 0;
+	}
+}
 }
 
 //------------------------ End of Class VMEC_SPECTRAL----------------------------------------------------------------------
