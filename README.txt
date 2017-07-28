@@ -46,11 +46,15 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.8
+MAFOT 3.9
 GUI 1.43
 
 Version Notes: 
 ----------------
+MAFOT 3.9 -- July 2017
+- laminar can now compute Lc, psimin, etc. along an EFIT flux surface of constant psi
+- d3dplot.py can plot the new laminar plots
+
 MAFOT 3.8 -- May 2017
 - C-Mod support added (only plot_mpi for now)
 - 3D wall added
