@@ -11,13 +11,13 @@ HOST = socket.gethostname()
 def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', machine = 'd3d', 
 			tag = None, graphic = 'png', physical = 1, b = None, N = 60, Title = None,
 			typeOfPlot = 'contourf', xlimit = None, ylimit = None, figwidth = None, figheight = None, 
-			latex = True, cmap = 'jet'):
+			latex = True, cmap = 'jet', toroidal_angle = 0, wall3Dfile = None, use_z_logscale = False):
 	"""
 	plot MAFOT results
 	--- user input ------------------
 	pathname    path/filename
 	printme     True: save to File, False: no saving
-	coordinates 'RZ', 'psi', 'pest', 'phi'
+	coordinates 'RZ', 'psi', 'pest', 'phi', 'phitheta', 'phiZ'
 	what        'Lc', 'psimin', 'psimax', 'psiav'
 	machine     'd3d', 'iter'
 	tag         arbitary string, attached to the file name of the saved figure
@@ -77,7 +77,8 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	Nth, Npsi = gridSize(data)
 	if(coordinates == 'RZ') | (coordinates == 'phi'): Nth, Npsi = Npsi, Nth
 	x = data[:,0].reshape(Nth,Npsi)
-	y = data[:,1].reshape(Nth,Npsi)
+	if(coordinates == 'phiZ'): y = data[:,10].reshape(Nth,Npsi)
+	else: y = data[:,1].reshape(Nth,Npsi)
 	Lc = data[:,3].reshape(Nth,Npsi)
 	psimin = data[:,4].reshape(Nth,Npsi)
 	try:
@@ -147,8 +148,24 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			if(physical > 0):
 				x = x*180.0/np.pi
 				if not latex: xLabel = u'\u03C6' + ' [deg]'
-				else: xLabel = '$\\phi$ $\\mathrm{[deg]}$'
-								
+				else: xLabel = '$\\phi$ $\\mathrm{[deg]}$'							
+	
+	elif(coordinates == 'phitheta'):
+		if not latex:
+			xLabel = u'\u03C6' + ' [deg]'
+			yLabel = u'\u03B8' + ' [rad]'
+		else:
+			xLabel = '$\\varphi$ $\\mathrm{[deg]}$'
+			yLabel = '$\\theta$ $\\mathrm{[rad]}$'
+
+	elif(coordinates == 'phiZ'):
+		if not latex:
+			xLabel = u'\u03C6' + ' [deg]'
+			yLabel = 'Z [m]'
+		else:
+			xLabel = '$\\varphi$ $\\mathrm{[deg]}$'
+			yLabel = 'Z [m]'
+	
 	else:
 		print 'coordinates: Unknown input'
 		return
@@ -159,8 +176,14 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			if('d3d' in machine): b = np.linspace(0.075,0.4,N)
 			elif(machine == 'iter'): b = np.linspace(0.22,1.8,N)
 		z = Lc
-		if not latex: C_label = '$L_{c}$ [km]'
-		else: C_label = '$L_{c}$ $\\mathrm{[km]}$'
+		if (z[np.isfinite(z)].max() < 0.1) | ((b.max() > 0) & (b.max() < 0.1)):
+			z *= 1000.0
+			b *= 1000.0
+			if not latex: C_label = '$L_{c}$ [m]'
+			else: C_label = '$L_{c}$ $\\mathrm{[m]}$'
+		else:
+			if not latex: C_label = '$L_{c}$ [km]'
+			else: C_label = '$L_{c}$ $\\mathrm{[km]}$'
 		#usecolormap = cm.jet	#  'myjet', 'jet' or cm.jet, cm.jet_r
 		cdict = plt.cm.get_cmap(cmap)._segmentdata
 		
@@ -219,7 +242,11 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	else: 
 		print 'what: Unknown input'
 		return
-		
+	
+	# autoscale color, if all(b == 0)
+	if all(b == 0) & (not use_z_logscale): b = np.linspace(z[np.isfinite(z)].min(), z[np.isfinite(z)].max(), N)
+	
+	# set colormap based on b
 	usecolormap = LinearSegmentedColormap('my_cmap', cdict, len(b))
 	
 	# correct for PFR
@@ -229,7 +256,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	if(coordinates == 'RZ') | (coordinates == 'phi'): 
 		if('psi' in what):
 			z[Lc < Lcmin] = 1.01*b.max()
-	elif not (coordinates == 'phi'): 
+	elif not ('phi' in coordinates): 
 		if(what == 'Lc'): z[(y >= 1) & (z >= 4)] = b.min()
 		elif('psi' in what): z[z < 0.5] = b.max()
 	
@@ -244,6 +271,12 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	
 	# correct, if last x point is larger than 2pi -> x mod 2pi is very small
 	if(x[-1,0] < x[-2,0]): x = x[0:-1,:]; y = y[0:-1,:]; z = z[0:-1,:]
+	
+	# set log scale for colorbar
+	if(what == 'Lc') & (use_z_logscale):
+		z = np.log10(z)
+		if all(b == 0): b = np.linspace(z[np.isfinite(z)].min(), z[np.isfinite(z)].max(), N)
+		else: b = np.linspace(np.log10(b.min()), np.log10(b.max()), len(b))
 
 	# --- Pest theta ------------------
 	if(coordinates == 'pest'):
@@ -301,7 +334,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 	# --- additional plots ------------
 	if(coordinates == 'RZ'): # plot wall
-		wall = get_wall(machine)
+		wall = get_wall(machine, toroidal_angle, wall3Dfile)
 		plt.plot(wall[:,0], wall[:,1], 'k--', linewidth = 2)
 		
 	if(coordinates == 'phi'):
@@ -333,11 +366,11 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		plt.ylim(y.min(),y.max())
 		try: plt.locator_params(axis = 'x', nbins = 5)
 		except: pass
-	elif(coordinates == 'phi') | (coordinates == 'psi'): 
-		plt.xlim(x.min(),x.max())
-		plt.ylim(y.min(),y.max())
 	elif(coordinates == 'pest'): 
 		plt.ylim(y.min(), min([y.max(), 1.0]))
+	else: 
+		plt.xlim(x.min(),x.max())
+		plt.ylim(y.min(),y.max())
 	if(coordinates == 'phi') & (target== 'in') & (physical == 2): 
 		plt.gca().invert_yaxis()
 		
@@ -361,7 +394,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	steps = int(np.ceil(steps/factor))*factor
 	bmin = int(np.ceil(b.min()/factor))*factor
 	myticks = np.arange(bmin, b.max()+steps, steps)
-	if(coordinates == 'RZ') | (coordinates == 'phi'): 
+	if(coordinates == 'RZ') | ('phi' in coordinates): 
 		if('psi' in what): 
 			myticks = myticks[myticks <= b.max()]
 			myticks[-1] = b.max()
@@ -374,11 +407,13 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	
 	myticks[np.abs(myticks) < 1e-10] = 0
 	
+	if (what == 'Lc') & (use_z_logscale): myticks = np.arange(np.floor(b.min()), np.ceil(b.max())+1,1)
+	
 	# If the "extend" argument is given, contourf sets the data limits to some odd extension of the actual data.
 	# Resetting the data limits, after plotting the contours, forces set_over & set_under colors to show,
 	# once the colorbar is called after the reset.
 	if(typeOfPlot == 'contourf'): cs.set_clim(b.min(),b.max())
-	if(coordinates == 'RZ') | (coordinates == 'phi'): 
+	if(coordinates == 'RZ') | ('phi' in coordinates): 
 		if('psi' in what): cs.cmap.set_over('w')
 		elif(what == 'Lc'): cs.cmap.set_under('w')
 
@@ -387,13 +422,15 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	if 'Anaconda' in sys.version: C.set_label(C_label, rotation = 270, size = C_label_size, va = 'bottom')	# anaconda
 	elif (HOST == 'head.cluster'): C.set_label(C_label, rotation = 270, size = C_label_size, va = 'bottom') # Drop Cluster
 	else: C.set_label(C_label, rotation = 270, size = C_label_size)	# enthought
-	
+		
 	# add SOL label in RZ plot and footprint
 	if(coordinates == 'RZ') | (coordinates == 'phi'): 
 		myticklabels = [str(item) for item in myticks]
-		if('psi' in what): myticklabels[-1] = 'SOL'
-		elif(what == 'Lc'): myticklabels[0] = 'SOL'
+		if('psi' in what) & (b[-2] <= 1) & (b[-1] >= 1): myticklabels[-1] = 'SOL'
+		elif(what == 'Lc') & (b[0] <= Lcmin) & (b[1] > Lcmin): myticklabels[0] = 'SOL'
 		C.ax.set_yticklabels(myticklabels)
+	
+	if (what == 'Lc') & (use_z_logscale): C.ax.set_yticklabels(['10$^{' + str(int(item)) + '}$' for item in myticks])
 						
 	# --- Title -----------------------
 	if(Title == True): plt.title(str(shot) + ',  ' + str(time) + 'ms', size = 18)
@@ -444,7 +481,7 @@ def gridSize(data):
 	return Nx, Ny
 
 
-def get_wall(machine):
+def get_wall(machine, angle = 0, wall3Dfile = None):
 	if machine == 'd3d':
 		wall = [[1.41903,	1.34783],[1.28008,	1.34773],[1.27999,	1.33104],
 				[1.24803,	1.2539],[1.22784,	1.22143],[1.20913,	1.20165],
@@ -514,8 +551,34 @@ def get_wall(machine):
 				[4.05460000,   -2.50630000]]
 	else:
 		raise AssertionError('unkown machine')
-	return np.array(wall)
+		
+	if wall3Dfile is not None:
+		wall3D = read_3Dwall(wall3Dfile)
+		if angle > 0: angle = int(angle + 0.5)
+		else: angle = int(angle - 0.5)
+		angle = angle%360
+		wall = wall3D[angle].T
 	
+	return np.array(wall)
+
+
+def read_3Dwall(file):
+	wall = list(np.zeros(360))
+	lines = open(file).readlines()
+	idx = 1
+	for line in lines:
+		if '#' in line: idx += 1
+		else: break
+		
+	for i in xrange(360):
+		N = int(lines[idx].strip())
+		idx += 1
+		wall[i] = np.array([np.zeros(N),np.zeros(N)])
+		for n in xrange(N):
+			wall[i][0,n], wall[i][1,n] = [np.float64(item) for item in lines[idx].strip().split()]
+			idx += 1
+		
+	return wall
 
 
 # ----------------------------------------------------------------------------------------
@@ -574,18 +637,22 @@ if __name__ == '__main__':
 	b = None;		set_color = False
 	xlim = None
 	ylim = None
+	angle = 0
+	wall3Dfile = None
+	use_z_logscale = False
+	
 
-	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:C:T:iW:H:Ub:x:y:", ["help", "coord=", "what=", 
+	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:C:T:iW:H:Ub:x:y:L:l", ["help", "coord=", "what=", 
 																 "machine=", "printme", "graphic=", 
 																 "tag=", "physical=", "cmap=", "Title=", "imshow", 	 
 																 "figwidth=", "figheight=", "unicode",
-																 "range", "xlim", "ylim"])
+																 "range=", "xlim=", "ylim=", "wall="])
 	for o, a in opts:
 		if o in ("-h", "--help"):
 			print "usage: d3dplot.py [-h] [-c COORDINATES] [-w WHAT] [-m MACHINE] [-p]"
 			print "                  [-g GRAPHIC] [-t TAG] [-P PHYSICAL] [-N N] [-C CMAP]"
-			print "                  [-T TITLE] [-i] [-W FIGWIDTH] [-H FIGHEIGHT] [-U]"
-			print "                  [-b MIN,MAX] [-x MIN,MAX] [-y MIN,MAX]"
+			print "                  [-T TITLE] [-i] [-W FIGWIDTH] [-H FIGHEIGHT] [-U] [-l]"
+			print "                  [-b MIN,MAX] [-x MIN,MAX] [-y MIN,MAX] [-L FILE,ANGLE]"
 			print "                  pathname"
 			print ""
 			print "Plot MAFOT output"
@@ -596,7 +663,7 @@ if __name__ == '__main__':
 			print "optional arguments:"
 			print "  -h, --help            show this help message and exit"
 			print "  -c, --coord <Arg>     Coordinate sytem for plot. <Arg> = "
-			print "                        RZ, psi(default), phi, pest"
+			print "                        RZ, psi(default), phi, pest, phitheta, phiZ"
 			print "  -w, --what <Arg>      Data to plot. <Arg> = "
 			print "                        Lc, psimin (default), psimax, psiav"
 			print "  -m, --machine <Arg>   Machine. <Arg> = d3d (default), iter"
@@ -618,6 +685,8 @@ if __name__ == '__main__':
 			print "  -b, --range <Arg>     ColorBar range: Min,Max (no spaces)"
 			print "  -x, --xlim <Arg>      X-Axis range: Min,Max (no spaces)"
 			print "  -y, --ylim <Arg>      Y-Axis range: Min,Max (no spaces)"
+			print "  -L, --wall <Arg>      3D Wall info: filename,angle (no spaces)"
+			print "  -l, --log             Plot colorbar in log10 scale"
 			print ""
 			print "Examples: d3dplot.py foot_in_test.dat"
 			print "          d3dplot.py /path/to/gfile/foot_in_test.dat -p -c RZ"
@@ -661,6 +730,11 @@ if __name__ == '__main__':
 		elif o in ("-y", "--ylim"):
 			range = a.split(',')
 			ylim = (float(range[0]), float(range[1]))
+		elif o in ("-L", "--wall"):
+			range = a.split(',')
+			wall3Dfile, angle = range[0], float(range[1])
+		elif o in ("-l", "--log"):
+			use_z_logscale = True
 		else:
 			raise AssertionError("unknown option")
 			
@@ -669,7 +743,7 @@ if __name__ == '__main__':
 	d3dplot(args[0], printme = printme, coordinates = coordinates, what = what, machine = machine, 
 			tag = tag, graphic = graphic, physical = physical, b = b, N = N, Title = Title,
 			typeOfPlot = toP, xlimit = xlim, ylimit = ylim, figwidth = figwidth, figheight = figheight,
-			latex = latex, cmap = cmap)
+			latex = latex, cmap = cmap, toroidal_angle = angle, wall3Dfile = wall3Dfile, use_z_logscale = use_z_logscale)
 
 	plt.show()
 

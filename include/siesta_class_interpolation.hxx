@@ -33,8 +33,13 @@ class SIESTA
 {
 private:
 // Parameter
+#if (__GNUC__ < 5)  // for GNU compiler version less than 5.0
+	static const double smin = 0;
+	static const double smax = 1;
+#else
 	static constexpr double smin = 0;
 	static constexpr double smax = 1;
+#endif
 
 // Member Variables
 	double ds, du, dv;

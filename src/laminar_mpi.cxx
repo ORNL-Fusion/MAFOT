@@ -83,6 +83,7 @@ int i,j;
 int chk,skip_connect;
 double ntor,length,psimin,psimax,psiav;
 double pitch,yaw;
+double xtmp,ytmp;
 Range all = Range::all();
 
 int tag,sender;
@@ -214,7 +215,7 @@ if(use_3Dwall)
 }
 
 // Set starting parameters
-int N_variables = 9;
+int N_variables = 11;
 int NZ_slave = 1;
 int N = PAR.NR*PAR.NZ;
 int N_slave = PAR.NR*NZ_slave;
@@ -260,13 +261,16 @@ if(mpi_rank < 1)
 	PAR.pv[10].name = "Ekin";			PAR.pv[10].wert = PAR.Ekin;
 
 	if(PAR.create_flag == 3) {PAR.pv[1].name = "psi-grid"; PAR.pv[2].name = "theta-grid"; PAR.pv[3].name = "psimin"; PAR.pv[4].name = "psimax"; PAR.pv[5].name = "thetamin"; PAR.pv[6].name = "thetamax";}
+	if(PAR.create_flag == 6) {PAR.pv[1].name = "theta-grid"; PAR.pv[2].name = "phi-grid"; PAR.pv[3].name = "thetamin"; PAR.pv[4].name = "thetamax"; PAR.pv[5].name = "phimin"; PAR.pv[6].name = "phimax"; PAR.pv[7].name = "psi surface";}
 
 	// Output
 	ofstream out(filenameout);
 	out.precision(16);
 	vector<LA_STRING> var(N_variables);
 	var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";  var[5] = "psimax";  var[6] = "psiav";  var[7] = "FL pitch angle";  var[8] = "FL yaw angle";
-	if(PAR.create_flag == 3) {var[0] = "theta";  var[1] = "psi";}
+	var[9] = "theta";  var[10] = "psi";
+	if(PAR.create_flag == 3) {var[0] = "theta";  var[1] = "psi";  var[9] = "R[m]";  var[10] = "Z[m]";}
+	if(PAR.create_flag == 6) {var[0] = "phi";  var[1] = "theta";  var[9] = "R[m]";  var[10] = "Z[m]";}
 	if(PAR.response_field == -2) {var[0] = "u"; var[3] = "s";}
 	PAR.writeiodata(out,bndy,var);
 
@@ -370,7 +374,12 @@ if(mpi_rank < 1)
 				// Write Output to file
 				for(i=write_last+1; i<=write_max; i++)
 				{
-					for(j=1;j<=N_slave;j++)	out << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << "\t" << results_all(i,7,j) << "\t" << results_all(i,8,j) << "\t" << results_all(i,9,j) << endl;
+					for(j=1;j<=N_slave;j++)
+					{
+						out << results_all(i,1,j);
+						for(int k=2;k<=N_variables;k++) out << "\t" << results_all(i,k,j);
+						out << endl;
+					}
 					write_memory(i) = 2;
 				}
 				write_last = write_max;
@@ -408,7 +417,15 @@ if(mpi_rank < 1)
 				for(i=1;i<=N_slave;i++)
 				{
 					// Set and store initial condition
-					if(PAR.create_flag == 3)	// creates regular grid from theta and psi
+					if(PAR.create_flag == 6)	// creates regular grid from theta and phi at psi = const.
+					{
+						FLT.set_surface(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave);	// here Rmin = thetamin and Zmin = phimin; max respectively
+						results_all(tag,1,i) = FLT.phi;
+						results_all(tag,2,i) = FLT.theta;
+						xtmp = FLT.R;
+						ytmp = FLT.Z;
+					}
+					else if(PAR.create_flag == 3)	// creates regular grid from theta and psi
 					{
 						FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave,2);	// here Rmin = psimin and Zmin = thetamin; max respectively
 #ifdef USE_SIESTA
@@ -418,15 +435,21 @@ if(mpi_rank < 1)
 							SIES.get_su(FLT.R, FLT.phi/rTOd, FLT.Z, s, u);
 							results_all(tag,1,i) = u;
 							results_all(tag,2,i) = s;
+							xtmp = FLT.R;
+							ytmp = FLT.Z;
 						}
 						else
 						{
 							results_all(tag,1,i) = FLT.theta;
 							results_all(tag,2,i) = FLT.psi;
+							xtmp = FLT.R;
+							ytmp = FLT.Z;
 						}
 #else
 						results_all(tag,1,i) = FLT.theta;
 						results_all(tag,2,i) = FLT.psi;
+						xtmp = FLT.R;
+						ytmp = FLT.Z;
 #endif
 					}
 					else						// creates regular grid from R and Z
@@ -434,6 +457,8 @@ if(mpi_rank < 1)
 						FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave);	// matlab requires R to vary first
 						results_all(tag,1,i) = FLT.R;
 						results_all(tag,2,i) = FLT.Z;
+						xtmp = FLT.theta;
+						ytmp = FLT.psi;
 					}
 
 					// Integration terminates outside of boundary box
@@ -473,6 +498,8 @@ if(mpi_rank < 1)
 					results_all(tag,7,i) = psiav;
 					results_all(tag,8,i) = pitch;
 					results_all(tag,9,i) = yaw;
+					results_all(tag,10,i) = xtmp;
+					results_all(tag,11,i) = ytmp;
 
 					if(i%100==0) ofs2 << "Trax: " << i << endl;
 				} // end for
@@ -492,7 +519,12 @@ if(mpi_rank < 1)
 	// Write remaining Output to file
 	for(i=write_last+1;i<=NoOfPackages;i++)
 	{
-		for(j=1;j<=N_slave;j++)	out << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << "\t" << results_all(i,7,j) << "\t" << results_all(i,8,j) << "\t" << results_all(i,9,j) << endl;
+		for(j=1;j<=N_slave;j++)
+		{
+			out << results_all(i,1,j);
+			for(int k=2;k<=N_variables;k++) out << "\t" << results_all(i,k,j);
+			out << endl;
+		}
 	}
 } // end Master
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -530,11 +562,17 @@ if(mpi_rank > 0)
 		for(i=1;i<=N_slave;i++)
 		{
 			// Set and store initial condition
-			if(PAR.create_flag == 3)	// creates regular grid from theta and psi
+			if(PAR.create_flag == 6)	// creates regular grid from theta and phi at psi = const.
+			{
+				FLT.set_surface(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave);	// here Rmin = thetamin and Zmin = phimin; max respectively
+				results(1,i) = FLT.phi;
+				results(2,i) = FLT.theta;
+				xtmp = FLT.R;
+				ytmp = FLT.Z;
+			}
+			else if(PAR.create_flag == 3)	// creates regular grid from theta and psi
 			{
 				FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave,2);	// here Rmin = psimin and Zmin = thetamin; max respectively
-				results(1,i) = FLT.theta;
-				results(2,i) = FLT.psi;
 #ifdef USE_SIESTA
 				if(PAR.response_field == -2)
 				{
@@ -542,15 +580,21 @@ if(mpi_rank > 0)
 					SIES.get_su(FLT.R, FLT.phi/rTOd, FLT.Z, s, u);
 					results(1,i) = u;
 					results(2,i) = s;
+					xtmp = FLT.R;
+					ytmp = FLT.Z;
 				}
 				else
 				{
 					results(1,i) = FLT.theta;
 					results(2,i) = FLT.psi;
+					xtmp = FLT.R;
+					ytmp = FLT.Z;
 				}
 #else
 				results(1,i) = FLT.theta;
 				results(2,i) = FLT.psi;
+				xtmp = FLT.R;
+				ytmp = FLT.Z;
 #endif
 			}
 			else						// creates regular grid from R and Z
@@ -558,6 +602,8 @@ if(mpi_rank > 0)
 				FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave);	// matlab requires R to vary first
 				results(1,i) = FLT.R;
 				results(2,i) = FLT.Z;
+				xtmp = FLT.theta;
+				ytmp = FLT.psi;
 			}
 
 			// Integration terminates outside of boundary box
@@ -597,6 +643,8 @@ if(mpi_rank > 0)
 			results(7,i) = psiav;
 			results(8,i) = pitch;
 			results(9,i) = yaw;
+			results(10,i) = xtmp;
+			results(11,i) = ytmp;
 
 			if(i%100==0) ofs2 << "Trax: " << i << endl;
 		} // end for
