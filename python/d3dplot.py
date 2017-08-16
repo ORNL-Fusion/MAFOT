@@ -257,7 +257,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if('psi' in what):
 			z[Lc < Lcmin] = 1.01*b.max()
 	elif not ('phi' in coordinates): 
-		if(what == 'Lc'): z[(y >= 1) & (z >= 4)] = b.min()
+		if(what == 'Lc'): z[(y >= 1) & (z >= 2)] = 0 #z[(y >= 1) & (z >= 4)] = b.min()
 		elif('psi' in what): z[z < 0.5] = b.max()
 	
 	# reverse axes for footprint
@@ -290,6 +290,25 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 				z[:,i] = spline(x[:,i])
 		except:
 			raise ImportError('Pest coordinates not available. Choose other coordinates')
+
+
+	# --- shift x-axis ----------------------
+	if (xlimit is not None):
+		if (coordinates == 'psi'):
+			if (xlimit[0] < 0):
+				xlimit0 = xlimit[0] % (2*np.pi)
+				idx_xlimit0 = abs(x[:,0] - xlimit0).argmin()
+				x = np.append(x[idx_xlimit0:-1,:] - 2*np.pi, x[0:idx_xlimit0,:],0)
+				y = np.append(y[idx_xlimit0:-1,:], y[0:idx_xlimit0,:],0)
+				z = np.append(z[idx_xlimit0:-1,:], z[0:idx_xlimit0,:],0)
+			if (xlimit[1] > 2*np.pi):
+				xlimit0 = xlimit[1] % (2*np.pi)
+				idx_xlimit0 = abs(x[:,0] - xlimit0).argmin()
+				x = np.append(x[idx_xlimit0:-1,:], x[0:idx_xlimit0,:] + 2*np.pi,0)
+				y = np.append(y[idx_xlimit0:-1,:], y[0:idx_xlimit0,:],0)
+				z = np.append(z[idx_xlimit0:-1,:], z[0:idx_xlimit0,:],0)
+		elif ('phi' in coordinates):
+			pass
 
 	# --- layout ----------------------
 	#rcParams['text.latex.preamble'] = [r'\usepackage{times}']#\usepackage{amsmath}
