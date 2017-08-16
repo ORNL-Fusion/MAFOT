@@ -100,17 +100,22 @@ int spare_interior = 0;					// 0: all points are calculated		1: inside psi = psi
 double psi_interior_limit = 0.85;		// psi limit for spare_interior == 1
 bool use_3Dwall = false;
 LA_STRING wall_file = "none";
+double Raxis = 0, Zaxis = 0;
+LA_STRING new_axis_loc;
+int new_axis_loc_idx;
+bool use_inputPointsFile = false;
+LA_STRING inputPoints_file = "none";
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsl:W:")) != -1)
+while ((c = getopt(argc, argv, "hsl:W:A:P:")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-s] [-l limit] [-W wall] file [tag]" << endl << endl;
+		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-s] [-l limit] [-W wall] [-A Raxis,Zaxis] [-P points] file [tag]" << endl << endl;
 		cout << "Calculate field line connection length and penetration depth in a poloidal cross-section." << endl << endl;
 		cout << "positional arguments:" << endl;
 		cout << "  file          Contol file (starts with '_')" << endl;
@@ -120,6 +125,10 @@ case 'h':
 		cout << "  -s            spare calculation of interior, default = No" << endl;
 		cout << "  -l            flux limit for spare interior, default = 0.85" << endl;
 		cout << "  -W            use separate 3D Wall-File; default is 2D wall from EFIT file" << endl;
+		cout << "  -A            force magnetic axis location, use: -A Raxis,Zaxis , default: use g-file" << endl;
+		cout << "  -P            use separate input file for initial conditions; argument is the file name; default is None" << endl;
+		cout << "                File format of columns: R [m], phi [deg, right-handed coord.], Z [m]" << endl;
+		cout << "                Header lines start with '#'; no comment lines between/after data possible" << endl;
 		cout << endl << "Examples:" << endl;
 		cout << "  mpirun -n 4 dtlaminar_mpi _lam.dat blabla" << endl;
 		cout << "  mpirun -n 12 dtlaminar_mpi -s -l 0.7 _lam.dat skip_inside0.7" << endl;
@@ -135,6 +144,16 @@ case 'l':
 case 'W':
 	use_3Dwall = true;
 	wall_file = optarg;
+	break;
+case 'A':
+	new_axis_loc = LA_STRING(optarg);
+	new_axis_loc_idx = new_axis_loc.indexOf(",");
+	Raxis = atof(new_axis_loc.left(new_axis_loc_idx-1));
+	Zaxis = atof(new_axis_loc.mid(new_axis_loc_idx+1));
+	break;
+case 'P':
+	use_inputPointsFile = true;
+	inputPoints_file = optarg;
 	break;
 case '?':
 	if(mpi_rank < 1)
@@ -178,7 +197,6 @@ ofs2 << "Read Parameterfile " << parfilename << endl;
 IO PAR(EQD,parfilename,11,mpi_rank);
 
 // Read EFIT-data
-double Raxis = 0, Zaxis = 0;
 #ifdef USE_XFIELD
 if(PAR.response_field == -3)
 {
@@ -202,9 +220,26 @@ if(PAR.response_field == 0 || PAR.response_field == 2)
 }
 #endif
 
+if(Raxis > 0)
+{
+	if(mpi_rank < 1) cout << "Shift Equilibrium to new axis: Raxis = " << Raxis << "     Zaxis = " << Zaxis << endl;
+	ofs2 << "Shift Equilibrium to new axis: Raxis = " << Raxis << "     Zaxis = " << Zaxis << endl;
+}
 EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
 if(mpi_rank < 1) cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
+
+// Read input points file. Use format for columns: R [m], phi [deg, right-handed coord.], Z [m]
+Array<double,2> inputPoints;
+int inputPoints_columns;
+if(use_inputPointsFile)
+{
+	if(mpi_rank < 1) cout << "Using Points from file: " << inputPoints_file << endl;
+	ofs2 << "Using Points from file: " << inputPoints_file << endl;
+	inputPoints_columns = count_column(inputPoints_file);
+	readfile(inputPoints_file, inputPoints_columns, inputPoints);
+	PAR.create_flag = 0;	// set to "setRZ" mode by default
+}
 
 // Read 3D wall file and add to EQD
 if(use_3Dwall)
@@ -220,6 +255,26 @@ int NZ_slave = 1;
 int N = PAR.NR*PAR.NZ;
 int N_slave = PAR.NR*NZ_slave;
 int NoOfPackages = int(PAR.NZ/NZ_slave);
+int N_slave_last = N_slave;
+
+if(use_inputPointsFile)
+{
+	N = inputPoints.rows();
+	if(N < 10*mpi_size) N_slave = 1;
+	else if(N < 100*mpi_size) N_slave = 10;
+	else N_slave = 100;
+	NoOfPackages = int(N/N_slave);
+	if(N_slave*NoOfPackages < N) // if not exact, work on one more package
+	{
+		N_slave_last = N - N_slave*NoOfPackages;
+		NoOfPackages += 1;
+	}
+	else N_slave_last = N_slave;
+	PAR.NR = int(N_slave/NZ_slave);
+	PAR.NZ = NZ_slave*NoOfPackages;
+}
+
+int N_slave_use = N_slave;	// set to private in omp section, so needs to be reinitialized in there.
 
 // Needed for storage of data while calculating
 Array<int,1> write_memory(Range(1,NoOfPackages)); //store which data is written to file (0: not calculated yet, 1: calculated, 2: written to file)
@@ -272,6 +327,7 @@ if(mpi_rank < 1)
 	if(PAR.create_flag == 3) {var[0] = "theta";  var[1] = "psi";  var[9] = "R[m]";  var[10] = "Z[m]";}
 	if(PAR.create_flag == 6) {var[0] = "phi";  var[1] = "theta";  var[9] = "R[m]";  var[10] = "Z[m]";}
 	if(PAR.response_field == -2) {var[0] = "u"; var[3] = "s";}
+	if(use_inputPointsFile) var[9] = "phi";
 	PAR.writeiodata(out,bndy,var);
 
 	// Result array:					Package ID,  Column Number,  Values
@@ -281,13 +337,14 @@ if(mpi_rank < 1)
 	tag = 1;	// first Package
 
 	// Z array
+	// if(use_inputPointsFile) Z_values is not used. Slave works on package 'tag', which already determines the indices of the points to work on in array "inputPoints"
 	Array<double,1> Z_values(Range(1,PAR.NZ));
 	for(i=1;i<=PAR.NZ;i++) Z_values(i) = PAR.Zmin + (i-1)*dz;
 
 	int sent_packages = 0;
 	int recieve_packages = 0;
 
-	#pragma omp parallel shared(results_all,Z_values,sent_packages,recieve_packages,write_memory) private(i,tag) num_threads(2)
+	#pragma omp parallel shared(results_all,Z_values,sent_packages,recieve_packages,write_memory) private(i,tag,N_slave_use) num_threads(2)
 	{
 		#pragma omp sections nowait
 		{
@@ -372,9 +429,11 @@ if(mpi_rank < 1)
 				while((write_memory(write_max+1) == 1) && (write_max < NoOfPackages)) write_max++;
 
 				// Write Output to file
+				N_slave_use = N_slave;
 				for(i=write_last+1; i<=write_max; i++)
 				{
-					for(j=1;j<=N_slave;j++)
+					if(i == NoOfPackages) N_slave_use = N_slave_last;	// size of last package may be smaller
+					for(j=1;j<=N_slave_use;j++)
 					{
 						out << results_all(i,1,j);
 						for(int k=2;k<=N_variables;k++) out << "\t" << results_all(i,k,j);
@@ -406,6 +465,8 @@ if(mpi_rank < 1)
 					tag = sent_packages;
 				}
 				if(tag > NoOfPackages) break;	// Still work to do?  ->  tag > NoOfPackages: NO, stop working
+				if(tag == NoOfPackages) N_slave_use = N_slave_last;	// size of last package may be smaller
+				else N_slave_use = N_slave;		// this is a private variable so it is different from the one outside the omp section and needs initialization
 				ofs2 << endl;
 				ofs2 << "Node: " << mpi_rank << " works on Package: " << tag << endl;
 				ofs3 << "Node: " << mpi_rank << " works on Package: " << tag << endl;
@@ -413,8 +474,8 @@ if(mpi_rank < 1)
 				Zmin_slave = Z_values((tag-1)*NZ_slave+1);
 				Zmax_slave = Z_values(tag*NZ_slave);
 
-				ofs2 << "Start Tracer for " << N_slave << " points ... " << endl;
-				for(i=1;i<=N_slave;i++)
+				ofs2 << "Start Tracer for " << N_slave_use << " points ... " << endl;
+				for(i=1;i<=N_slave_use;i++)
 				{
 					// Set and store initial condition
 					if(PAR.create_flag == 6)	// creates regular grid from theta and phi at psi = const.
@@ -458,6 +519,20 @@ if(mpi_rank < 1)
 						results_all(tag,1,i) = FLT.R;
 						results_all(tag,2,i) = FLT.Z;
 						xtmp = FLT.theta;
+						ytmp = FLT.psi;
+					}
+
+					// Overwrite previous settings in case a file with initial points is used
+					if(use_inputPointsFile)
+					{
+						FLT.R = inputPoints((tag-1)*N_slave + i, 1);
+						FLT.phi = inputPoints((tag-1)*N_slave + i, 2);
+						FLT.Z = inputPoints((tag-1)*N_slave + i, 3);
+						FLT.get_psi(FLT.R,FLT.Z,FLT.psi);
+						FLT.theta = polar_phi(FLT.R-EQD.RmAxis, FLT.Z-EQD.ZmAxis);
+						results_all(tag,1,i) = FLT.R;
+						results_all(tag,2,i) = FLT.Z;
+						xtmp = FLT.phi;
 						ytmp = FLT.psi;
 					}
 
@@ -517,9 +592,11 @@ if(mpi_rank < 1)
 	} // end omp parallel
 
 	// Write remaining Output to file
+	N_slave_use = N_slave;
 	for(i=write_last+1;i<=NoOfPackages;i++)
 	{
-		for(j=1;j<=N_slave;j++)
+		if(i == NoOfPackages) N_slave_use = N_slave_last;	// size of last package may be smaller
+		for(j=1;j<=N_slave_use;j++)
 		{
 			out << results_all(i,1,j);
 			for(int k=2;k<=N_variables;k++) out << "\t" << results_all(i,k,j);
@@ -554,12 +631,13 @@ if(mpi_rank > 0)
 		ofs2 << endl;
 		ofs2 << "Node: " << mpi_rank << " works on Package: " << tag << endl;
 		if(tag == 0) break;	// Still work to do?  ->  tag = 0: NO, stop working
+		if(tag == NoOfPackages) N_slave_use = N_slave_last;	// size of last package may be smaller
 
 		Zmin_slave = send_Z_limits(1);
 		Zmax_slave = send_Z_limits(2);
 
-		ofs2 << "Start Tracer for " << N_slave << " points ... " << endl;
-		for(i=1;i<=N_slave;i++)
+		ofs2 << "Start Tracer for " << N_slave_use << " points ... " << endl;
+		for(i=1;i<=N_slave_use;i++)
 		{
 			// Set and store initial condition
 			if(PAR.create_flag == 6)	// creates regular grid from theta and phi at psi = const.
@@ -603,6 +681,20 @@ if(mpi_rank > 0)
 				results(1,i) = FLT.R;
 				results(2,i) = FLT.Z;
 				xtmp = FLT.theta;
+				ytmp = FLT.psi;
+			}
+
+			// Overwrite previous settings in case a file with initial points is used
+			if(use_inputPointsFile)
+			{
+				FLT.R = inputPoints((tag-1)*N_slave + i, 1);
+				FLT.phi = inputPoints((tag-1)*N_slave + i, 2);
+				FLT.Z = inputPoints((tag-1)*N_slave + i, 3);
+				FLT.get_psi(FLT.R,FLT.Z,FLT.psi);
+				FLT.theta = polar_phi(FLT.R-EQD.RmAxis, FLT.Z-EQD.ZmAxis);
+				results(1,i) = FLT.R;
+				results(2,i) = FLT.Z;
+				xtmp = FLT.phi;
 				ytmp = FLT.psi;
 			}
 
