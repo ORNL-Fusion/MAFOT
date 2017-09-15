@@ -133,10 +133,12 @@ PAR.pv[9].name = "Zmax";			PAR.pv[9].wert = PAR.Zmax;
 // Read pointfile 
 Array<double,2> initial;
 double dR,dZ,dN;
+int inputPoints_columns;
 if(usePointfile == 1) 
 {
 	// points in file are:    R[m]		phi[deg] (left-handed machine angle)	Z[m]
-	readfile(pointname,3,initial);
+	inputPoints_columns = count_column(pointname);
+	readfile(pointname,inputPoints_columns,initial);
 	PAR.N = initial.rows();
 	PAR.pv[5].wert = PAR.N;
 }
@@ -193,19 +195,22 @@ for(i=1;i<=PAR.N;i++)
 	if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin);}
 
 	// negative direction
-	for(j=1;j<=size;j++)
+	if(PAR.MapDirection <= 0)
 	{
-		chk = FLT.mapstep(-1,nstep);	
-		if(chk==-1) break;
-		if(fabs(FLT.phi + j*dpinit*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi + j*dpinit*dphi - PAR.phistart) << endl;
-		FLT.phi = -j*dpinit*dphi + PAR.phistart;
+		for(j=1;j<=size;j++)
+		{
+			chk = FLT.mapstep(-1,nstep);
+			if(chk==-1) break;
+			if(fabs(FLT.phi + j*dpinit*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi + j*dpinit*dphi - PAR.phistart) << endl;
+			FLT.phi = -j*dpinit*dphi + PAR.phistart;
 
-		//Store Values
-		data(j,1) = FLT.R;	data(j,2) = FLT.Z;	data(j,3) = FLT.phi;
+			//Store Values
+			data(j,1) = FLT.R;	data(j,2) = FLT.Z;	data(j,3) = FLT.phi;
+		}
+		// Write stored values in reverse direction
+		if(angleInDeg) {for(k=j-1;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << modulo(360.0 - data(k,3), 360.0) << endl;}
+		else {for(k=j-1;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << data(k,3)/rTOd << endl;}
 	}
-	// Write stored values in reverse direction
-	if(angleInDeg) {for(k=j-1;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << modulo(360.0 - data(k,3), 360.0) << endl;}
-	else {for(k=j-1;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << data(k,3)/rTOd << endl;}
 
 	// Restore start values and write them
 	FLT.R = initial(i,1);
@@ -218,15 +223,18 @@ for(i=1;i<=PAR.N;i++)
 	else {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << endl;}
 
 	//positive direction
-	for(j=1;j<=size;j++)
+	if(PAR.MapDirection >= 0)
 	{
-		chk = FLT.mapstep(1,nstep);	
-		if(chk==-1) break;
-		if(fabs(FLT.phi - j*dpinit*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi - j*dpinit*dphi - PAR.phistart) << endl;
-		FLT.phi = j*dpinit*dphi + PAR.phistart;
+		for(j=1;j<=size;j++)
+		{
+			chk = FLT.mapstep(1,nstep);
+			if(chk==-1) break;
+			if(fabs(FLT.phi - j*dpinit*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi - j*dpinit*dphi - PAR.phistart) << endl;
+			FLT.phi = j*dpinit*dphi + PAR.phistart;
 
-		if(angleInDeg) {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << modulo(360.0 - FLT.phi, 360.0) << endl;}
-		else {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << endl;}
+			if(angleInDeg) {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << modulo(360.0 - FLT.phi, 360.0) << endl;}
+			else {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << endl;}
+		}
 	}
 }
 
