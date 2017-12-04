@@ -60,6 +60,7 @@ public:
 	double verschieb;							// parameter for mainfolds
 	int response;								// 1: use M3D-C1 plasma response solution; 0: no plasma response included -> vacuum field as used in M3D-C1
 	int response_field;							// -1: use vacuum field from g-file (= M3D-C1 off); 0: equilibrium only; 1: perturbation only; 2: total field
+	int output_step_size;
 
 	parstruct* pv;								// parstruct array
 
@@ -88,6 +89,7 @@ IO::IO(EFIT& EQD): EQDr(EQD)										// Default
 	filename = "";
 	psize = 0;
 	pv = 0;
+	output_step_size = 360;
 }					
 IO::IO(EFIT& EQD, LA_STRING name, int size, int mpi_rank): EQDr(EQD)	// with readiodata
 {
@@ -95,6 +97,7 @@ IO::IO(EFIT& EQD, LA_STRING name, int size, int mpi_rank): EQDr(EQD)	// with rea
 	readiodata(name, mpi_rank);
 	if(psize > 0) pv = new parstruct[psize];
 	else pv = 0;
+	output_step_size = 360;
 }	
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------

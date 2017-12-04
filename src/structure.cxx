@@ -48,6 +48,7 @@
 		#include <d3d.hxx>
 	#endif
 #endif
+#include <unistd.h>
 
 // namespaces
 //-----------
@@ -69,7 +70,6 @@ int main(int argc, char *argv[])
 {
 // Variables
 int i,j,k,chk;
-int usePointfile;
 //double dummy;
 EFIT EQD;
 
@@ -77,26 +77,70 @@ EFIT EQD;
 double now = zeit();
 //long idum = long(now);
 
-// Input file names
-LA_STRING basename,pointname;
-LA_STRING praefix = "";
-if(argc==4) praefix = "_" + LA_STRING(argv[3]);
-if(argc>=3) {basename = LA_STRING(argv[1]); pointname = LA_STRING(argv[2]);}
-else	// No Input: Abort
+// defaults
+LA_STRING pointname;
+bool filaments = false;
+int nstep = 10;					// Number of dpinit steps
+bool angleInDeg = false;			// phi angle in output file is in degrees (left-handed machine angle), else in radiants (right-handed angle)
+bool usePointfile = false;
+
+// Command line input parsing
+int c;
+opterr = 0;
+while ((c = getopt(argc, argv, "hafd:P:")) != -1)
+switch (c)
 {
-	cout << "No Input files -> Abort!" << endl;
-	exit(0);
+case 'h':
+	cout << "usage: dtstructure [-h] [-a] [-d step] [-f] [-P points] file [tag]" << endl << endl;
+	cout << "Trace field lines in 3D and return the path every step d in toroidal angle." << endl << endl;
+	cout << "positional arguments:" << endl;
+	cout << "  file          Contol file (starts with '_')" << endl;
+	cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
+	cout << endl << "optional arguments:" << endl;
+	cout << "  -h            show this help message and exit" << endl;
+	cout << "  -a            output angle in DIII-D angle (left-handed) in degrees, default = radiants and right-handed," << endl;
+	cout << "  -d            step size for output, default = 10 degrees" << endl;
+	cout << "  -f            create filament.in file, default = No" << endl;
+	cout << "  -P            use separate input file for initial conditions; argument is the file name; default is None" << endl;
+	cout << "                File format of columns: R [m], phi [deg, right-handed coord.], Z [m]" << endl;
+	cout << "                Header lines start with '#'; no comment lines between/after data possible" << endl;
+	cout << endl << "Examples:" << endl;
+	cout << "  dtstructure _struct.dat blabla" << endl;
+	cout << "  dtstructure _struct.dat testrun -P startpoints.dat -d 2 -a" << endl;
+	return 0;
+case 'a':
+	angleInDeg = true;
+	break;
+case 'd':
+	nstep = atoi(optarg);
+	break;
+case 'f':
+	filaments = true;
+	break;
+case 'P':
+	usePointfile = true;
+	pointname = optarg;
+	break;
+case '?':
+	if (optopt == 'c')
+		fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+	else if (isprint (optopt))
+		fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+	else
+		fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
+	EXIT;
+default:
+	EXIT;
 }
+
+// Input file names
+LA_STRING basename;
+LA_STRING praefix = "";
+if(argc==optind+2) praefix = "_" + LA_STRING(argv[optind+1]);
+if(argc>=optind+1) basename = LA_STRING(argv[optind]);
+else {cout << "No Input files -> Abort!" << endl; EXIT;}
 basename = checkparfilename(basename);
 LA_STRING parfilename = "_" + basename + ".dat";
-
-if(pointname == 'x') usePointfile = 0;
-else
-{
-	usePointfile = 1;
-	pointname = checkparfilename(pointname);
-	pointname = pointname + ".dat";
-}
 
 // log file
 ofs2.open("log_" + LA_STRING(program_name) + praefix + ".dat");
@@ -113,10 +157,8 @@ cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 
 // Set starting parameters
-int nstep = 10;					// Number of dpinit steps
 double dphi = nstep*dpinit;		// in deg;  dpinit = 1.0 (default)
 double alpha = PAR.verschieb;	// Scales parabolic deformation of line between start and end point, alpha = 0: no deformation, alpha = 1: max deformation equals distance between points
-bool angleInDeg = true;			// phi angle in output file is in degrees (left-handed machine angle), else in radiants (right-handed angle)
 
 // additional parameters for IO
 PAR.pv[0].name = "Max. Iterations";	PAR.pv[0].wert = PAR.itt;
@@ -130,11 +172,13 @@ PAR.pv[7].name = "Zmin";			PAR.pv[7].wert = PAR.Zmin;
 PAR.pv[8].name = "Rmax";			PAR.pv[8].wert = PAR.Rmax;
 PAR.pv[9].name = "Zmax";			PAR.pv[9].wert = PAR.Zmax;
 
+PAR.output_step_size = nstep;
+
 // Read pointfile 
 Array<double,2> initial;
 double dR,dZ,dN;
 int inputPoints_columns;
-if(usePointfile == 1) 
+if(usePointfile)
 {
 	// points in file are:    R[m]		phi[deg] (left-handed machine angle)	Z[m]
 	inputPoints_columns = count_column(pointname);
@@ -238,19 +282,12 @@ for(i=1;i<=PAR.N;i++)
 	}
 }
 
-// Copy results to filament.in file
-// interactive
-LA_STRING input;
-int FileNr;
-double Current;
-
 // Close previous output file and clear ofstream
 out.close();
 out.clear();
 
-// Get interactive input
-cout << "Save as filament.in file? (y;n): "; cin >> input;
-if(input[1] == 'n') 
+// If filament.in file is not requested, end here!
+if(not filaments)
 {
 	double now2 = zeit();
 	cout << "Program terminates normally, Time: " << now2-now  << " s" << endl;
@@ -258,6 +295,13 @@ if(input[1] == 'n')
 	return 0;
 }
 
+// Copy results to filament.in file
+// interactive
+int FileNr;
+double Current;
+
+// Get interactive input
+cout << endl << "Creating filament.in file" << endl;
 cout << "Enter File Number: "; cin >> FileNr;
 cout << "Enter Current[A]: "; cin >> Current;
 
@@ -273,6 +317,7 @@ out << "### Current[A]: " << Current << endl;
 out << "#-------------------------------------------------" << endl;
 out << "### Data:" << endl;
 out << "# ";
+var[4] = "phi[rad]";
 for(i=0;i<int(var.size());i++) out << var[i] << "     ";
 out << endl;
 out << "#" << endl;

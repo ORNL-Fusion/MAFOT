@@ -222,7 +222,7 @@ out << "# Charge number of particles (=-1:electrons, >=1:ions): " << Zq << endl;
 out << "# Boundary (0=Wall, 1=Box): " << simpleBndy << endl;
 out << "#-------------------------------------------------" << endl;
 out << "### Global Parameters:" << endl;
-out << "# Steps till Output (ilt): " << ilt << endl;
+out << "# Steps till Output (ilt): " << output_step_size << endl;
 out << "# Step size (dpinit): " << dpinit << endl;
 out << "# Boundary Rmin: " << bndy[0] << endl;
 out << "# Boundary Rmax: " << bndy[1] << endl;
