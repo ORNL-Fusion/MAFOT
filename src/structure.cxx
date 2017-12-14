@@ -83,15 +83,19 @@ bool filaments = false;
 int nstep = 10;					// Number of dpinit steps
 bool angleInDeg = false;			// phi angle in output file is in degrees (left-handed machine angle), else in radiants (right-handed angle)
 bool usePointfile = false;
+LA_STRING woutfile = "wout.nc";
+LA_STRING xpandfile = "xpand.dat";
+LA_STRING siestafile = "siesta.dat";
+LA_STRING islandfile = "fakeIslands.in";
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hafd:P:")) != -1)
+while ((c = getopt(argc, argv, "hafd:P:X:V:S:I:")) != -1)
 switch (c)
 {
 case 'h':
-	cout << "usage: dtstructure [-h] [-a] [-d step] [-f] [-P points] file [tag]" << endl << endl;
+	cout << "usage: dtstructure [-h] [-a] [-d step] [-f] [-I island] [-P points] [-S siesta] [-V wout] [-X xpand] file [tag]" << endl << endl;
 	cout << "Trace field lines in 3D and return the path every step d in toroidal angle." << endl << endl;
 	cout << "positional arguments:" << endl;
 	cout << "  file          Contol file (starts with '_')" << endl;
@@ -101,12 +105,27 @@ case 'h':
 	cout << "  -a            output angle in DIII-D angle (left-handed) in degrees, default = radiants and right-handed," << endl;
 	cout << "  -d            step size for output, default = 10 degrees" << endl;
 	cout << "  -f            create filament.in file, default = No" << endl;
+	cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
 	cout << "  -P            use separate input file for initial conditions; argument is the file name; default is None" << endl;
 	cout << "                File format of columns: R [m], phi [deg, right-handed coord.], Z [m]" << endl;
 	cout << "                Header lines start with '#'; no comment lines between/after data possible" << endl;
+	cout << "  -S            filename for SIESTA; default, see below" << endl;
+	cout << "  -V            filename for VMEC; default, see below" << endl;
+	cout << "  -X            filename for XPAND; default, see below" << endl;
 	cout << endl << "Examples:" << endl;
 	cout << "  dtstructure _struct.dat blabla" << endl;
 	cout << "  dtstructure _struct.dat testrun -P startpoints.dat -d 2 -a" << endl;
+	cout << endl << "Infos:" << endl;
+	cout << "  To use B-field from M3DC1, set response_field >= 0, and provide file in cwd:" << endl;
+	cout << "    m3dc1sup.in    ->  location and scale factor for M3DC1 output C1.h5" << endl;
+	cout << "  To use B-field from XPAND, set response_field = -3, and provide files in cwd:" << endl;
+	cout << "    xpand.dat      ->  B-field on 3D grid from XPAND; use option -X to specify other filename" << endl;
+	cout << "    wout.nc        ->  VMEC output; use option -V to specify other filename" << endl;
+	cout << "  To use B-field from SIESTA, set response_field = -2, and provide file in cwd:" << endl;
+	cout << "    siesta.dat     ->  B-field on 3D grid; use option -S to specify other filename" << endl;
+	cout << "  To use B-field for mock-up islands, set response_field = -10, and provide file in cwd:" << endl;
+	cout << "    fakeIslands.in ->  each line gives: Amplitude, pol. mode m, tor. mode n, phase [rad]" << endl;
+	cout << "                       use option -I to specify other filename" << endl;
 	return 0;
 case 'a':
 	angleInDeg = true;
@@ -120,6 +139,18 @@ case 'f':
 case 'P':
 	usePointfile = true;
 	pointname = optarg;
+	break;
+case 'I':
+	islandfile = optarg;
+	break;
+case 'S':
+	siestafile = optarg;
+	break;
+case 'V':
+	woutfile = optarg;
+	break;
+case 'X':
+	xpandfile = optarg;
 	break;
 case '?':
 	if (optopt == 'c')
@@ -152,7 +183,32 @@ ofs2 << "Read Parameterfile " << parfilename << endl;
 IO PAR(EQD,parfilename,10);
 
 // Read EFIT-data
-EQD.ReadData(EQD.Shot,EQD.Time);
+double Raxis = 0, Zaxis = 0;
+#ifdef USE_XFIELD
+if(PAR.response_field == -3)
+{
+	VMEC vmec;
+	cout << "Read VMEC file" << endl;
+	ofs2 << "Read VMEC file" << endl;
+	vmec.read(woutfile);
+	vmec.n0only = true;
+	vmec.get_axis(PAR.phistart/rTOd,Raxis,Zaxis);	// need axisymmetric axis only
+	vmec.n0only = false;
+}
+#endif
+
+#ifdef m3dc1
+if(PAR.response_field == 0 || PAR.response_field == 2)
+{
+	M3D.read_m3dc1sup();
+	M3D.open_source(PAR.response, PAR.response_field, -1);
+	Raxis = M3D.RmAxis;
+	Zaxis = M3D.ZmAxis;
+	M3D.unload();
+}
+#endif
+
+EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
 cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 
@@ -205,6 +261,7 @@ else	// or construct initial points from straight line between (Rmin,Zmin) and (
 //cout << initial << endl;
 
 // Prepare Perturbation
+prepare_common_perturbations(EQD,PAR,0,siestafile,xpandfile,islandfile);
 prep_perturbation(EQD,PAR);
 
 // Prepare particles

@@ -18,7 +18,6 @@
 // Include
 //--------
 #include <m3dc1_class.hxx>
-#include <fakeIsland_class.hxx>
 
 // --------------- Prototypes ---------------------------------------------------------------------------------------------
 //void IO::readiodata(char* name, int mpi_rank);								// declared in IO class, defined here
@@ -82,21 +81,20 @@ extern "C"
 // -------------- global Parameters ---------------------------------------------------------------------------------------
 int simpleBndy = 0;		// 0: use real wall as boundaries, 1: use simple boundary box
 double bndy[4] = {1.0, 2.4, -1.367, 1.36};	// Boundary
+M3DC1 M3D;
 
-Array<double,4> field;	// default constructed
-
+// extern
 #ifdef USE_SIESTA
-	SIESTA SIES;
+	extern SIESTA SIES;
 #endif
 #ifdef USE_XFIELD
-	XFIELD XPND;
+	extern XFIELD XPND;
 #endif
 
-M3DC1 M3D;
-fakeIsland FISLD;
+extern Array<double,4> field;
+extern fakeIsland FISLD;
 
-// ------------------ log file --------------------------------------------------------------------------------------------
-ofstream ofs2;
+extern ofstream ofs2;
 
 // ---------------------- IO Member functions -----------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------------------------------
@@ -468,27 +466,6 @@ else
 	ofs2 << "Using g-file!" << endl;
 }
 
-// Prepare SIESTA
-#ifdef USE_SIESTA
-	if(PAR.response_field == -2)
-	{
-		if(mpi_rank < 1) cout << "Read SIESTA file" << endl;
-		ofs2 << "Read SIESTA file" << endl;
-		SIES.read("siesta.dat");
-	}
-#endif
-
-// Prepare XFIELD
-#ifdef USE_XFIELD
-	if(PAR.response_field == -3)
-	{
-		if(mpi_rank < 1) cout << "Read XFIELD file" << endl;
-		ofs2 << "Read XFIELD file" << endl;
-		XPND.read("xpand.dat");
-		if(mpi_rank < 1) cout << "NR = " << XPND.NR << "\t Nphi = " << XPND.Np-1 << "\t NZ = " << XPND.NZ << endl;
-	}
-#endif
-
 if(mpi_rank < 1) cout << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
 ofs2 << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
 
@@ -520,68 +497,6 @@ if(PAR.useIcoil==1)
 	for(i=0;i<nIloops;i++) {if(d3icoil_.curntIc[i] != 0) kuseI[i]=1; else kuseI[i]=0;}
 	for(i=0;i<nIloops;i++) nicsegs[i] = nIsegs;
 	d3igeom_(&kuseI[0]);
-}
-
-// Prepare filaments
-if(PAR.useFilament>0)
-{
-	if(mpi_rank < 1) cout << "Interpolated filament field is used" << endl;
-	ofs2 << "Interpolated filament field is used" << endl;
-	in.open("filament_all.in");
-	if(in.fail()==1)
-	{
-		if(mpi_rank == 1) cout << "Unable to open filament_all.in file. Please run fi_prepare." << endl; 
-		EXIT;
-	}
-	else	// Read field on grid from file
-	{
-		// Set field size
-		field.resize(Range(1,3),Range(0,359),Range(0,EQD.NR+1),Range(0,EQD.NZ+1));
-
-		// Skip 3 lines
-		in >> line;	
-		if(mpi_rank < 1) cout << line.mid(3) << endl;
-		ofs2 << line.mid(3) << endl;
-		in >> line;	
-		if(mpi_rank < 1) cout << line.mid(3) << endl;
-		ofs2 << line.mid(3) << endl;
-		in >> line;	
-
-		// Read data
-		for(int k=0;k<360;k++)
-		{
-			for(i=0;i<=EQD.NR+1;i++)
-			{
-				for(int j=0;j<=EQD.NZ+1;j++)
-				{
-					in >> field(1,k,i,j);
-					in >> field(2,k,i,j);
-					in >> field(3,k,i,j);
-				}
-			}
-		}
-		in.close();
-	}
-	in.clear();
-	if(mpi_rank < 1) cout << endl;
-	ofs2 << endl;
-}
-
-// Prepare fake Islands
-if(PAR.response_field == -10)
-{
-	if(mpi_rank < 1) cout << "Read Fake Islands file" << endl;
-	ofs2 << "Read Fake Islands file" << endl;
-	FISLD.read("fakeIslands.in");
-	FISLD.get_surfaces(EQD);
-	if(mpi_rank < 1)
-	{
-		cout << "Amplitude: " << FISLD.A << endl;
-		cout << "m: " << FISLD.m << endl;
-		cout << "n: " << FISLD.n << endl;
-		cout << "Phase: " << FISLD.delta << endl;
-		cout << "Location: " << FISLD.psi0 << endl;
-	}
 }
 }
 

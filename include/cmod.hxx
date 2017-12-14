@@ -23,17 +23,18 @@ double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double
 int simpleBndy = 0;		// 0: use real wall as boundaries, 1: use simple boundary box
 double bndy[4] = {0.44, 0.91, -0.45, 0.45};	// Boundary
 
-Array<double,4> field;	// default constructed
-
+// extern
 #ifdef USE_SIESTA
-	SIESTA SIES;
+	extern SIESTA SIES;
 #endif
 #ifdef USE_XFIELD
-	XFIELD XPND;
+	extern XFIELD XPND;
 #endif
 
-// ------------------ log file --------------------------------------------------------------------------------------------
-ofstream ofs2;
+extern Array<double,4> field;
+extern fakeIsland FISLD;
+
+extern ofstream ofs2;
 
 // ---------------------- IO Member functions -----------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------------------------------
@@ -253,6 +254,15 @@ B_Z += bz;
 // Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
 B_R += B_X*cosp + B_Y*sinp;
 B_phi += -B_X*sinp + B_Y*cosp;
+
+if(PAR.response_field == -10)
+{
+	bx = 0;	bz = 0;
+	FISLD.get_B(R,phi,Z,bx,bz,EQD);
+	B_R += bx;
+	B_Z += bz;
+}
+
 return 0;
 }
 
@@ -263,70 +273,7 @@ int i;
 LA_STRING line;	// entire line is read by ifstream
 ifstream in;
 
-// Prepare SIESTA
-#ifdef USE_SIESTA
-	if(PAR.response_field == -2)
-	{
-		if(mpi_rank < 1) cout << "Read SIESTA file" << endl;
-		ofs2 << "Read SIESTA file" << endl;
-		SIES.read("siesta.dat");
-	}
-#endif
-
-// Prepare XFIELD
-#ifdef USE_XFIELD
-	if(PAR.response_field == -3)
-	{
-		if(mpi_rank < 1) cout << "Read XFIELD file" << endl;
-		ofs2 << "Read XFIELD file" << endl;
-		XPND.read("xpand.dat");
-	}
-#endif
-
-// Prepare filaments
-if(PAR.useFilament>0)
-{
-	if(mpi_rank < 1) cout << "Interpolated filament field is used" << endl;
-	ofs2 << "Interpolated filament field is used" << endl;
-	in.open("filament_all.in");
-	if(in.fail()==1)
-	{
-		if(mpi_rank == 1) cout << "Unable to open filament_all.in file. Please run fi_prepare." << endl; 
-		EXIT;
-	}
-	else	// Read field on grid from file
-	{
-		// Set field size
-		field.resize(Range(1,3),Range(0,359),Range(0,EQD.NR+1),Range(0,EQD.NZ+1));
-
-		// Skip 3 lines
-		in >> line;	
-		if(mpi_rank < 1) cout << line.mid(3) << endl;
-		ofs2 << line.mid(3) << endl;
-		in >> line;	
-		if(mpi_rank < 1) cout << line.mid(3) << endl;
-		ofs2 << line.mid(3) << endl;
-		in >> line;	
-
-		// Read data
-		for(int k=0;k<360;k++)
-		{
-			for(i=0;i<=EQD.NR+1;i++)
-			{
-				for(int j=0;j<=EQD.NZ+1;j++)
-				{
-					in >> field(1,k,i,j);
-					in >> field(2,k,i,j);
-					in >> field(3,k,i,j);
-				}
-			}
-		}
-		in.close();
-	}
-	in.clear();
-	if(mpi_rank < 1) cout << endl;
-	ofs2 << endl;
-}
+return;
 }
 
 //---------------- start_on_target ----------------------------------------------------------------------------------------

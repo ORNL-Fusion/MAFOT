@@ -23,8 +23,11 @@
 	#include <vmec_class.hxx>			// includes the VMEC interface
 #endif
 #include <particle_class.hxx>		// includes all particle/fieldline parameters and Runge-Kutta Integrator
+#include <fakeIsland_class.hxx>
 
 // --------------- Prototypes ---------------------------------------------------------------------------------------------
+void prepare_common_perturbations(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING siestafile = "siesta.dat", LA_STRING xpandfile = "xpand.dat",
+								  LA_STRING islandfile = "fakeIslands.in", LA_STRING filamentfile = "filament_all.in");
 bool outofRealBndy(double phi, double x, double y, EFIT& EQD);
 
 void get_filament_field(double R, double phi, double Z, Array<double,4>& field, double& bx, double& by, double& bz, EFIT& EQD);
@@ -33,8 +36,116 @@ void bcuderiv_square(Array<double,2>& y, int j, int k, double d1, double d2,
 void bcuint_square(Array<double,1>& Ra, Array<double,1>& Za, double dR, double dZ, Array<double,2>& field,
 			double R, double Z, double& y, double& y1, double& y2);
 
+// -------------- global Parameters ---------------------------------------------------------------------------------------
+// log file for errors
+ofstream ofs2;
+
+// structures to load in
+#ifdef USE_SIESTA
+	SIESTA SIES;
+#endif
+#ifdef USE_XFIELD
+	XFIELD XPND;
+#endif
+
+Array<double,4> field;	// for current filaments
+fakeIsland FISLD;
+
 //-------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+
+// ------------ prepare_common_perturbations ------------------------------------------------------------------------------
+// prepare all perturbations that are not machine specific
+void prepare_common_perturbations(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING siestafile, LA_STRING xpandfile, LA_STRING islandfile, LA_STRING filamentfile)
+{
+int i,j;
+int chk;
+LA_STRING line;	// entire line is read by ifstream
+ifstream in;
+
+// Prepare SIESTA
+#ifdef USE_SIESTA
+	if(PAR.response_field == -2)
+	{
+		if(mpi_rank < 1) cout << "Read SIESTA file" << endl;
+		ofs2 << "Read SIESTA file" << endl;
+		SIES.read(siestafile);
+	}
+#endif
+
+// Prepare XFIELD
+#ifdef USE_XFIELD
+	if(PAR.response_field == -3)
+	{
+		if(mpi_rank < 1) cout << "Read XFIELD file" << endl;
+		ofs2 << "Read XFIELD file" << endl;
+		XPND.read(xpandfile);
+		if(mpi_rank < 1) cout << "NR = " << XPND.NR << "\t Nphi = " << XPND.Np-1 << "\t NZ = " << XPND.NZ << endl;
+	}
+#endif
+
+// Prepare filaments
+if(PAR.useFilament>0)
+{
+	if(mpi_rank < 1) cout << "Interpolated filament field is used" << endl;
+	ofs2 << "Interpolated filament field is used" << endl;
+	in.open(filamentfile);
+	if(in.fail()==1)
+	{
+		if(mpi_rank == 1) cout << "Unable to open " << filamentfile << " file. Please run fi_prepare." << endl;
+		EXIT;
+	}
+	else	// Read field on grid from file
+	{
+		// Set field size
+		field.resize(Range(1,3),Range(0,359),Range(0,EQD.NR+1),Range(0,EQD.NZ+1));
+
+		// Skip 3 lines
+		in >> line;
+		if(mpi_rank < 1) cout << line.mid(3) << endl;
+		ofs2 << line.mid(3) << endl;
+		in >> line;
+		if(mpi_rank < 1) cout << line.mid(3) << endl;
+		ofs2 << line.mid(3) << endl;
+		in >> line;
+
+		// Read data
+		for(int k=0;k<360;k++)
+		{
+			for(i=0;i<=EQD.NR+1;i++)
+			{
+				for(int j=0;j<=EQD.NZ+1;j++)
+				{
+					in >> field(1,k,i,j);
+					in >> field(2,k,i,j);
+					in >> field(3,k,i,j);
+				}
+			}
+		}
+		in.close();
+	}
+	in.clear();
+	if(mpi_rank < 1) cout << endl;
+	ofs2 << endl;
+}
+
+// Prepare fake Islands
+if(PAR.response_field == -10)
+{
+	if(mpi_rank < 1) cout << "Read Fake Islands file" << endl;
+	ofs2 << "Read Fake Islands file" << endl;
+	FISLD.read(islandfile);
+	FISLD.get_surfaces(EQD);
+	if(mpi_rank < 1)
+	{
+		cout << "Amplitude: " << FISLD.A << endl;
+		cout << "m: " << FISLD.m << endl;
+		cout << "n: " << FISLD.n << endl;
+		cout << "Phase: " << FISLD.delta << endl;
+		cout << "Location: " << FISLD.psi0 << endl;
+	}
+}
+}
 
 //------------ outofRealBndy ----------------------------------------------------------------------------------------------
 // Check if (x,y) is out of the torus. It uses the jordan curve theorem with 

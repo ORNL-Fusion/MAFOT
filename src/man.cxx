@@ -91,15 +91,19 @@ int preventSmallSteps = 0;	// 0: code stops if step size dt < 1e-14	1: code cont
 int bndy_type = 0;			// 0: vessel wall   1: box around vessel wall   2: EFIT grid boundary
 double minabs = 0.001;		//0.001
 double maxabs = 0.005;		//0.005
+LA_STRING woutfile = "wout.nc";
+LA_STRING xpandfile = "xpand.dat";
+LA_STRING siestafile = "siesta.dat";
+LA_STRING islandfile = "fakeIslands.in";
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsm:b:N:X:")) != -1)
+while ((c = getopt(argc, argv, "hsm:b:n:x:X:V:S:I:")) != -1)
 switch (c)
 {
 case 'h':
-	cout << "usage: dtman [-h] [-s] [-m max] [-b bndy] [-N MIN] [-X MAX] file fix_file [tag]" << endl << endl;
+	cout << "usage: dtman [-h] [-s] [-m max] [-b bndy] [-N MIN] [-X MAX] [-I island] [-S siesta] [-V wout] [-X xpand] file fix_file [tag]" << endl << endl;
 	cout << "Calculate stable and unstable manifolds of the given x-point." << endl << endl;
 	cout << "positional arguments:" << endl;
 	cout << "  file          Contol file (starts with '_')" << endl;
@@ -113,11 +117,26 @@ case 'h':
 	cout << "                    wall = vacuum vessel wall (default), " << endl;
 	cout << "                    box  = simple rectangular box around vessel wall, " << endl;
 	cout << "                    efit = limit of EFIT grid, forces -s option" << endl;
-	cout << "  -N            Step-Size-Control: min step size, default = 0.001" << endl;
-	cout << "  -X            Step-Size-Control: max step size, default = 0.005" << endl;
+	cout << "  -n            Step-Size-Control: min step size, default = 0.001" << endl;
+	cout << "  -x            Step-Size-Control: max step size, default = 0.005" << endl;
+	cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
+	cout << "  -S            filename for SIESTA; default, see below" << endl;
+	cout << "  -V            filename for VMEC; default, see below" << endl;
+	cout << "  -X            filename for XPAND; default, see below" << endl;
 	cout << endl << "Examples:" << endl;
 	cout << "  dtman _fix.dat fix_1_lower.dat blabla" << endl;
 	cout << "  dtman -b efit _fix.dat fix_1_lower.dat testrun" << endl;
+	cout << endl << "Infos:" << endl;
+	cout << "  To use B-field from M3DC1, set response_field >= 0, and provide file in cwd:" << endl;
+	cout << "    m3dc1sup.in    ->  location and scale factor for M3DC1 output C1.h5" << endl;
+	cout << "  To use B-field from XPAND, set response_field = -3, and provide files in cwd:" << endl;
+	cout << "    xpand.dat      ->  B-field on 3D grid from XPAND; use option -X to specify other filename" << endl;
+	cout << "    wout.nc        ->  VMEC output; use option -V to specify other filename" << endl;
+	cout << "  To use B-field from SIESTA, set response_field = -2, and provide file in cwd:" << endl;
+	cout << "    siesta.dat     ->  B-field on 3D grid; use option -S to specify other filename" << endl;
+	cout << "  To use B-field for mock-up islands, set response_field = -10, and provide file in cwd:" << endl;
+	cout << "    fakeIslands.in ->  each line gives: Amplitude, pol. mode m, tor. mode n, phase [rad]" << endl;
+	cout << "                       use option -I to specify other filename" << endl;
 	return 0;
 case 's':
 	trytoskip = 0;
@@ -125,15 +144,27 @@ case 's':
 case 'm':
 	skipmax = atoi(optarg);
 	break;
-case 'N':
+case 'n':
 	minabs = atof(optarg);
 	break;
-case 'X':
+case 'x':
 	maxabs = atof(optarg);
 	break;
 case 'b':
 	if(LA_STRING(optarg) == "box") bndy_type = 1;
 	if(LA_STRING(optarg) == "efit") {bndy_type = 2; trytoskip = 0;}
+	break;
+case 'I':
+	islandfile = optarg;
+	break;
+case 'S':
+	siestafile = optarg;
+	break;
+case 'V':
+	woutfile = optarg;
+	break;
+case 'X':
+	xpandfile = optarg;
 	break;
 case '?':
 	if (optopt == 'c')
@@ -193,7 +224,32 @@ ofs2.open("log_" + LA_STRING(program_name) + type + dir + praefix + ".dat");
 ofs2 << "Read Parameterfile " << parfilename << endl;
 
 // Read EFIT-data
-EQD.ReadData(EQD.Shot,EQD.Time);
+double Raxis = 0, Zaxis = 0;
+#ifdef USE_XFIELD
+if(PAR.response_field == -3)
+{
+	VMEC vmec;
+	cout << "Read VMEC file" << endl;
+	ofs2 << "Read VMEC file" << endl;
+	vmec.read(woutfile);
+	vmec.n0only = true;
+	vmec.get_axis(PAR.phistart/rTOd,Raxis,Zaxis);	// need axisymmetric axis only
+	vmec.n0only = false;
+}
+#endif
+
+#ifdef m3dc1
+if(PAR.response_field == 0 || PAR.response_field == 2)
+{
+	M3D.read_m3dc1sup();
+	M3D.open_source(PAR.response, PAR.response_field, -1);
+	Raxis = M3D.RmAxis;
+	Zaxis = M3D.ZmAxis;
+	M3D.unload();
+}
+#endif
+
+EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
 cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 
@@ -215,6 +271,7 @@ cout << "Boundary (0 = Wall, 1 = Box, 2 = EFIT): " << bndy_type << endl;
 cout << "Box limits: " << bndy[0] << "\t" << bndy[1] << "\t" << bndy[2] << "\t" << bndy[3] << endl;
 
 // Prepare Perturbation
+prepare_common_perturbations(EQD,PAR,0,siestafile,xpandfile,islandfile);
 prep_perturbation(EQD,PAR);
 
 // Prepare particles

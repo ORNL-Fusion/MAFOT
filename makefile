@@ -85,7 +85,7 @@ FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 all : $(DIRS) d3d iter nstx mast gui xpand d3dplot
 
 .PHONY : d3d
-d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi
+d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi dtstructure
 
 .PHONY : iter
 iter : $(DIRS) iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi iterplot_mpi 

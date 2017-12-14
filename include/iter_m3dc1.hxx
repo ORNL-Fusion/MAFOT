@@ -63,8 +63,6 @@ extern "C"
 }
 
 // -------------- global Parameters ---------------------------------------------------------------------------------------
-Array<double,4> field;	// default constructed
-
 M3DC1 M3D;
 
 // Boundary Box
@@ -113,8 +111,18 @@ double bndy2[4] = { (bndy[2]-bndy[5])/(bndy[4]-bndy[1]),	// slope of line 1
 //int Nwall = 54;
 //Array<double,2> wall(wall_data,shape(Nwall,2),neverDeleteData);
 
-// ------------------ log file --------------------------------------------------------------------------------------------
-ofstream ofs2;
+// extern
+#ifdef USE_SIESTA
+	extern SIESTA SIES;
+#endif
+#ifdef USE_XFIELD
+	extern XFIELD XPND;
+#endif
+
+extern Array<double,4> field;
+extern fakeIsland FISLD;
+
+extern ofstream ofs2;
 
 // ---------------------- IO Member functions -----------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------------------------------
@@ -308,7 +316,17 @@ Y = R*sinp;
 // Equilibrium field
 switch(PAR.response_field)
 {
-case -1: case 1:	// Vacuum equilibrium field from g file
+#ifdef USE_XFIELD
+case -3:
+	XPND.get_B(R, phi, Z, B_R, B_phi, B_Z);
+	break;
+#endif
+#ifdef USE_SIESTA
+case -2:
+	SIES.get_B(R, phi, Z, B_R, B_phi, B_Z);
+	break;
+#endif
+case -1: case 1: case -10:	// Vacuum equilibrium field from g file
 	// get normalized poloidal Flux psi (should be chi in formulas!)
 	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
 	if(chk==-1) {ofs2 << "getBfield: Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
@@ -392,6 +410,15 @@ if(PAR.useFilament>0)
 // Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
 B_R += B_X*cosp + B_Y*sinp;
 B_phi += -B_X*sinp + B_Y*cosp;
+
+if(PAR.response_field == -10)
+{
+	bx = 0;	bz = 0;
+	FISLD.get_B(R,phi,Z,bx,bz,EQD);
+	B_R += bx;
+	B_Z += bz;
+}
+
 return 0;
 }
 
@@ -456,50 +483,6 @@ ofs2 << endl;
 // Set I-coil geometry
 if(PAR.useIcoil==1) iterigeom_(&kuse[0][0],&nbands,&nloops[0],&nsegs[0][0],&xs[0][0][0][0],&dvs[0][0][0][0],&curntw[0][0]);
 
-// Prepare filaments
-if(PAR.useFilament>0)
-{
-	if(mpi_rank < 1) cout << "Interpolated filament field is used" << endl;
-	ofs2 << "Interpolated filament field is used" << endl;
-	in.open("filament_all.in");
-	if(in.fail()==1)
-	{
-		if(mpi_rank == 1) cout << "Unable to open filament_all.in file. Please run fi_prepare." << endl; 
-		EXIT;
-	}
-	else	// Read field on grid from file
-	{
-		// Set field size
-		field.resize(Range(1,3),Range(0,359),Range(0,EQD.NR+1),Range(0,EQD.NZ+1));
-
-		// Skip 3 lines
-		in >> line;	
-		if(mpi_rank < 1) cout << line.mid(3) << endl;
-		ofs2 << line.mid(3) << endl;
-		in >> line;	
-		if(mpi_rank < 1) cout << line.mid(3) << endl;
-		ofs2 << line.mid(3) << endl;
-		in >> line;	
-
-		// Read data
-		for(int k=0;k<360;k++)
-		{
-			for(i=0;i<=EQD.NR+1;i++)
-			{
-				for(int j=0;j<=EQD.NZ+1;j++)
-				{
-					in >> field(1,k,i,j);
-					in >> field(2,k,i,j);
-					in >> field(3,k,i,j);
-				}
-			}
-		}
-		in.close();
-	}
-	in.clear();
-	if(mpi_rank < 1) cout << endl;
-	ofs2 << endl;
-}
 }
 
 //---------------- get_target ---------------------------------------------------------------------------------------------
