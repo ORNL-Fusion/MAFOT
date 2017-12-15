@@ -27,6 +27,8 @@ using namespace blitz;
 typedef struct {string name; double wert;} parstruct;
 
 // Golbal Parameters 
+extern int simpleBndy;
+extern const double dpinit;
 
 //--------- Begin Class PARTICLE ----------------------------------------------------------------------------------------------
 class IO
@@ -243,10 +245,10 @@ out << "useTprofile = " << PAR.useTprofile << endl;
 out << endl;
 
 #ifdef m3dc1
-out << "--- M3D-C1 ---" << endl;
-out << "response = " << PAR.response << endl;
-out << "response_field = " << PAR.response_field << endl;
-out << endl;
+	out << "--- M3D-C1 ---" << endl;
+	out << "response = " << PAR.response << endl;
+	out << "response_field = " << PAR.response_field << endl;
+	out << endl;
 #endif
 
 if(PAR.psize>0) 
@@ -259,7 +261,68 @@ return out;
 
 //--------------------- Member Functions ----------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
-// readiodata and writeiodata are defined in Machine specific header file
+// readiodata is defined in Machine specific header file
+
+// ------------------- writeiodata ----------------------------------------------------------------------------------------
+void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var)
+{
+int i;
+out << "# " << program_name << endl;
+out << "#-------------------------------------------------" << endl;
+out << "### Parameterfile: " << filename << endl;
+out << "# Shot: " << EQDr.Shot << endl;
+out << "# Time: " << EQDr.Time << endl;
+#ifdef m3dc1
+	out << "#-------------------------------------------------" << endl;
+	out << "### M3D-C1:" << endl;
+	out << "# Plasma response (0=no, >1=yes): " << response << endl;
+	out << "# Field (-1=M3D-C1 off, 0=Eq, 1=I-coil, 2=both): " << response_field << endl;
+#endif
+out << "#-------------------------------------------------" << endl;
+out << "### Switches:" << endl;
+#if defined(ITER)
+	out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
+#elif defined(NSTX)
+	out << "# EC-coil active (0=no, 1=yes): " << useIcoil << endl;
+#elif defined(MAST)
+	out << "# ECC-coil active (0=no, 1=yes): " << useCcoil << endl;
+	out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
+#elif defined(CMOD)
+#else
+	out << "# F-coil active (0=no, 1=yes): " << useFcoil << endl;
+	out << "# C-coil active (0=no, 1=yes): " << useCcoil << endl;
+	out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
+#endif
+out << "# No. of current filaments (0=none): " << useFilament << endl;
+out << "# Use Temperature Profile (0=off, 1=on): " << useTprofile << endl;
+out << "# Target (0=cp, 1=inner, 2=outer, 3=shelf): " << which_target_plate << endl;
+out << "# Create Points (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-random, 5=RZ-grid): " << create_flag << endl;
+out << "# Direction of particles (1=co-pass, -1=count-pass, 0=field lines): " << sigma << endl;
+out << "# Charge number of particles (=-1:electrons, >=1:ions): " << Zq << endl;
+out << "# Boundary (0=Wall, 1=Box): " << simpleBndy << endl;
+out << "#-------------------------------------------------" << endl;
+out << "### Global Parameters:" << endl;
+out << "# Steps till Output (ilt): " << output_step_size << endl;
+out << "# Step size (dpinit): " << dpinit << endl;
+out << "# Boundary Rmin: " << bndy[0] << endl;
+out << "# Boundary Rmax: " << bndy[1] << endl;
+out << "# Boundary Zmin: " << bndy[2] << endl;
+out << "# Boundary Zmax: " << bndy[3] << endl;
+out << "# Magnetic Axis: R0: " << EQDr.RmAxis << endl;
+out << "# Magnetic Axis: Z0: " << EQDr.ZmAxis << endl;
+out << "#-------------------------------------------------" << endl;
+out << "### additional Parameters:" << endl;
+for(i=0;i<psize;++i)
+{
+	out << "# " << pv[i].name << ": " << pv[i].wert << endl;
+}
+out << "#-------------------------------------------------" << endl;
+out << "### Data:" << endl;
+out << "# ";
+for(i=0;i<int(var.size());i++) out << var[i] << "     ";
+out << endl;
+out << "#" << endl;
+}
 
 // ------------------- set_pv ---------------------------------------------------------------------------------------------
 void IO::set_pv(int size)

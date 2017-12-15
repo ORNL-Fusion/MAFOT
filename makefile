@@ -20,15 +20,14 @@ endif
 
 
 # ---- Defines ----
-D3DDEFS = -DD3D
-CMODDEFS = -DCMOD
+#D3DDEFS = -DD3D
+#CMODDEFS = -DCMOD
 
 
 # ---- SIESTA support ----
 ifdef SIESTA
 ifeq ($(SIESTA),True)
-   D3DDEFS += -DUSE_SIESTA
-   CMODDEFS += -DUSE_SIESTA
+   DEFINES += -DUSE_SIESTA
    VMEC = True
 endif
 endif
@@ -39,8 +38,7 @@ ifdef VMEC
 ifeq ($(VMEC),True)
    LIBS += $(NETCDFLIBS)
    INCLUDE += $(NETCDFINCLUDE)
-   D3DDEFS += -DUSE_XFIELD
-   CMODDEFS += -DUSE_XFIELD
+   DEFINES += -DUSE_XFIELD
 endif
 endif
 
@@ -70,10 +68,12 @@ SEROBJS_D3D = $(addprefix $(OBJDIR)/d3d/, $(SEROBJS))
 SEROBJS_ITER = $(addprefix $(OBJDIR)/iter/, $(SEROBJS))
 SEROBJS_NSTX = $(addprefix $(OBJDIR)/nstx/, $(SEROBJS))
 SEROBJS_MAST = $(addprefix $(OBJDIR)/mast/, $(SEROBJS))
+SEROBJS_CMOD = $(addprefix $(OBJDIR)/cmod/, $(SEROBJS))
 SERDEPS_D3D = $(SEROBJS_D3D:.o=.d)
 SERDEPS_ITER = $(SEROBJS_ITER:.o=.d)
 SERDEPS_NSTX = $(SEROBJS_NSTX:.o=.d)
 SERDEPS_MAST = $(SEROBJS_MAST:.o=.d)
+SERDEPS_CMOD = $(SEROBJS_CMOD:.o=.d)
 
 FSRCS = biotloop.f circleb.f d3icoils.f nstxecgeom.f polygonb.f \
         d3ccoils.f d3pferr.f ellipints.f itericoilsgeom.f masteccoilsgeom.f masticoilsgeom.f
@@ -82,7 +82,7 @@ FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 
 
 # ---- Common Targets ----
-all : $(DIRS) d3d iter nstx mast gui xpand d3dplot
+all : $(DIRS) d3d iter nstx mast cmod gui xpand d3dplot
 
 .PHONY : d3d
 d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi dtstructure
@@ -97,7 +97,7 @@ nstx : $(DIRS) nstxplot nstxfix nstxman nstxlaminar_mpi nstxfoot_mpi nstxplot_mp
 mast : $(DIRS) mastplot mastfix mastman mastlaminar_mpi mastfoot_mpi mastplot_mpi 
 
 .PHONY : cmod 
-cmod : $(DIRS) cmodplot_mpi
+cmod : $(DIRS) cmodplot cmodfix cmodman cmodlaminar_mpi cmodfoot_mpi cmodplot_mpi
 
 .PHONY : gui
 gui : $(MAFOT_DIR)/python/mafot_gui.py
@@ -228,6 +228,21 @@ mastplot_mpi : $(OBJDIR)/mast/plot_mpi.o libla_string.a libtrip3d.a
 
 
 # ---- CMOD Targets ----
+cmodplot : $(OBJDIR)/cmod/plot.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/cmod/plot.o -o $(BIN_DIR)/$@ $(LIBS)
+
+cmodfix : $(OBJDIR)/cmod/fix.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/cmod/fix.o -o $(BIN_DIR)/$@ $(LIBS)
+
+cmodman : $(OBJDIR)/cmod/man.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/cmod/man.o -o $(BIN_DIR)/$@ $(LIBS)
+
+cmodlaminar_mpi : $(OBJDIR)/cmod/laminar_mpi.o libla_string.a libtrip3d.a
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/cmod/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
+cmodfoot_mpi : $(OBJDIR)/cmod/foot_mpi.o libla_string.a libtrip3d.a
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/cmod/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
 cmodplot_mpi : $(OBJDIR)/cmod/plot_mpi.o libla_string.a libtrip3d.a
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/cmod/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
@@ -238,6 +253,7 @@ cmodplot_mpi : $(OBJDIR)/cmod/plot_mpi.o libla_string.a libtrip3d.a
 -include $(SERDEPS_ITER)
 -include $(SERDEPS_NSTX)
 -include $(SERDEPS_MAST)
+-include $(SERDEPS_CMOD)
 -include $(MPIDEPS_D3D)
 -include $(MPIDEPS_ITER)
 -include $(MPIDEPS_NSTX)
@@ -253,7 +269,7 @@ $(FOBJS) : $(OBJDIR)/%.o : $(MAFOT_DIR)/src/libtrip3d/%.f
 	$(F90) -c $(F90FLAGS) $< -o $@
 
 $(MPIOBJS_D3D) : $(OBJDIR)/d3d/%.o : $(MAFOT_DIR)/src/%.cxx
-	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) $(D3DDEFS) $< -o $@
+	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DD3D $< -o $@
 
 $(MPIOBJS_ITER) : $(OBJDIR)/iter/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DITER $< -o $@
@@ -265,10 +281,10 @@ $(MPIOBJS_NSTX) : $(OBJDIR)/nstx/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DNSTX $< -o $@
 	
 $(MPIOBJS_CMOD) : $(OBJDIR)/cmod/%.o : $(MAFOT_DIR)/src/%.cxx
-	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) $(CMODDEFS) $< -o $@
+	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DCMOD $< -o $@
 
 $(SEROBJS_D3D) : $(OBJDIR)/d3d/%.o : $(MAFOT_DIR)/src/%.cxx
-	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) $(D3DDEFS) $< -o $@
+	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) -DD3D $< -o $@
 
 $(SEROBJS_ITER) : $(OBJDIR)/iter/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) -DITER $< -o $@
@@ -278,4 +294,7 @@ $(SEROBJS_MAST) : $(OBJDIR)/mast/%.o : $(MAFOT_DIR)/src/%.cxx
 
 $(SEROBJS_NSTX) : $(OBJDIR)/nstx/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) -DNSTX $< -o $@
+
+$(SEROBJS_CMOD) : $(OBJDIR)/cmod/%.o : $(MAFOT_DIR)/src/%.cxx
+	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) -DCMOD $< -o $@
 

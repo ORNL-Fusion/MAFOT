@@ -8,19 +8,18 @@
 #ifndef CMOD_INCLUDED
 #define CMOD_INCLUDED
 
+// Include
+//--------
+
 // --------------- Prototypes ---------------------------------------------------------------------------------------------
 //void IO::readiodata(char* name, int mpi_rank);								// declared in IO class, defined here
-//void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var);	// declared in IO class, defined here
-
-bool outofBndy(double phi, double x, double y, EFIT& EQD);
+int getBfield_general(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);	// declared here, defined in mafot.hxx
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
 					 EFIT& EQD, IO& PAR, PARTICLE& FLT);
 
-
 // -------------- global Parameters ---------------------------------------------------------------------------------------
-int simpleBndy = 0;		// 0: use real wall as boundaries, 1: use simple boundary box
 double bndy[4] = {0.44, 0.91, -0.45, 0.45};	// Boundary
 
 // extern
@@ -29,6 +28,9 @@ double bndy[4] = {0.44, 0.91, -0.45, 0.45};	// Boundary
 #endif
 #ifdef USE_XFIELD
 	extern XFIELD XPND;
+#endif
+#ifdef m3dc1
+	extern M3DC1 M3D;
 #endif
 
 extern Array<double,4> field;
@@ -123,156 +125,28 @@ sigma = int(vec[16]);
 Zq = int(vec[17]);
 useFilament = int(vec[20]);
 
-// M3D-C1/SIESTA parameter
+// External fields parameter
+response = int(vec[9]);
 response_field = int(vec[10]);
 
 if(vec[21]>1) useTprofile = 0;
 else useTprofile = int(vec[21]);
 }
 
-// ------------------- writeiodata ----------------------------------------------------------------------------------------
-void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var)
-{
-int i;
-out << "# " << program_name << endl;
-out << "#-------------------------------------------------" << endl;
-out << "### Parameterfile: " << filename << endl;
-out << "# Shot: " << EQDr.Shot << endl;
-out << "# Time: " << EQDr.Time << endl;
-out << "#-------------------------------------------------" << endl;
-out << "### Switches:" << endl;
-out << "# F-coil active (0=no, 1=yes): " << useFcoil << endl;
-out << "# C-coil active (0=no, 1=yes): " << useCcoil << endl;
-out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
-out << "# No. of current filaments (0=none): " << useFilament << endl;
-out << "# Use Temperature Profile (0=off, 1=on): " << useTprofile << endl;
-out << "# Target (0=cp, 1=inner, 2=outer, 3=shelf): " << which_target_plate << endl;
-out << "# Create Points (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-random, 5=RZ-grid): " << create_flag << endl;
-out << "# Direction of particles (1=co-pass, -1=count-pass, 0=field lines): " << sigma << endl;
-out << "# Charge number of particles (=-1:electrons, >=1:ions): " << Zq << endl;
-out << "# Boundary (0=Wall, 1=Box): " << simpleBndy << endl;
-out << "#-------------------------------------------------" << endl;
-out << "### Global Parameters:" << endl;
-out << "# Steps till Output (ilt): " << ilt << endl;
-out << "# Step size (dpinit): " << dpinit << endl;
-out << "# Boundary Rmin: " << bndy[0] << endl;
-out << "# Boundary Rmax: " << bndy[1] << endl;
-out << "# Boundary Zmin: " << bndy[2] << endl;
-out << "# Boundary Zmax: " << bndy[3] << endl;
-out << "# Magnetic Axis: R0: " << EQDr.RmAxis << endl;
-out << "# Magnetic Axis: Z0: " << EQDr.ZmAxis << endl;
-out << "#-------------------------------------------------" << endl;
-out << "### additional Parameters:" << endl;
-for(i=0;i<psize;++i)
-{
-	out << "# " << pv[i].name << ": " << pv[i].wert << endl;
-}
-out << "#-------------------------------------------------" << endl;
-out << "### Data:" << endl;
-out << "# ";
-for(i=0;i<int(var.size());i++) out << var[i] << "     ";
-out << endl;
-out << "#" << endl;
-}
-
 //------------ End of IO Member functions ---------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
-
-//----------- outofBndy ---------------------------------------------------------------------------------------------------
-// Check if (x,y) is out of the torus. Returns 0 if (x,y) 
-// is in boundary an 1 if (x,y) is out of boundary. 
-// simpleBndy = 0; use real wall as boundaries
-// simpleBndy = 1: use simple boundary box
-bool outofBndy(double phi, double x, double y, EFIT& EQD)
-{
-switch(simpleBndy)
-{
-case 0:
-	return outofRealBndy(phi,x,y,EQD);
-	break;
-case 1:
-	if(x<bndy[0] || x>bndy[1] || y<bndy[2] || y>bndy[3]) return true;	//  bndy[4];
-	break;
-default:
-    cout << "simpleBndy switch has a wrong value!" << endl;
-}
-return false;
-}
 
 //---------------- getBfield ----------------------------------------------------------------------------------------------
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
 {
 int chk;
-double psi,dpsidr,dpsidz;
-double F;
-double X,Y,bx,by,bz;
-double B_X,B_Y;
-double sinp,cosp;
-
-sinp = sin(phi);
-cosp = cos(phi);
-
-X = R*cosp;
-Y = R*sinp;
-
-switch(PAR.response_field)
-{
-#ifdef USE_XFIELD
-case -3:
-	XPND.get_B(R, phi, Z, B_R, B_phi, B_Z);
-	break;
-#endif
-#ifdef USE_SIESTA
-case -2:
-	SIES.get_B(R, phi, Z, B_R, B_phi, B_Z);
-	break;
-#endif
-default:
-	// get normalized poloidal Flux psi (should be chi in formulas!)
-	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
-	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
-
-	// Equilibrium field
-	F = EQD.get_Fpol(psi);
-	B_R = dpsidz/R;
-	B_phi = F/R;
-	//B_phi = EQD.Bt0*EQD.R0/R;
-	B_Z = -dpsidr/R;
-	break;
-}
-
-B_X = 0;	B_Y = 0;
-
-// Field of any current filament
-bx = 0;	by = 0;	bz = 0;
-if(PAR.useFilament>0) get_filament_field(R,phi,Z,field,bx,by,bz,EQD);
-
-B_X += bx;
-B_Y += by;
-B_Z += bz;
-
-// Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
-B_R += B_X*cosp + B_Y*sinp;
-B_phi += -B_X*sinp + B_Y*cosp;
-
-if(PAR.response_field == -10)
-{
-	bx = 0;	bz = 0;
-	FISLD.get_B(R,phi,Z,bx,bz,EQD);
-	B_R += bx;
-	B_Z += bz;
-}
-
-return 0;
+chk = getBfield_general(R,Z,phi,B_R,B_Z,B_phi,EQD,PAR);
+return chk;
 }
 
 //---------- prep_perturbation --------------------------------------------------------------------------------------------
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING supPath)
 {
-int i;
-LA_STRING line;	// entire line is read by ifstream
-ifstream in;
-
 return;
 }
 

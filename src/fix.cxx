@@ -24,31 +24,6 @@
 // Include
 //--------
 #include <mafot.hxx>
-#if defined(ITER)
-	#if defined(m3dc1)
-		#include <iter_m3dc1.hxx>
-	#else
-		#include <iter.hxx>
-	#endif
-#elif defined(NSTX)
-	#if defined(m3dc1)
-		#include <nstx_m3dc1.hxx>
-	#else
-		#include <nstx.hxx>
-	#endif
-#elif defined(MAST)
-	#if defined(m3dc1)
-		#include <mast_m3dc1.hxx>
-	#else
-		#include <mast.hxx>
-	#endif
-#else
-	#if defined(m3dc1)
-		#include <d3d_m3dc1.hxx>
-	#else
-		#include <d3d.hxx>
-	#endif
-#endif
 #include <unistd.h>
 
 // Prototypes  

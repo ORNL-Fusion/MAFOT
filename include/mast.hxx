@@ -1,5 +1,12 @@
 // Header-File for the MAST Programs
 // Only Machine specific subroutines
+// uses Nate Ferraro's M3D-C1 plasma response code output, fixed filename: C1.h5
+// Plasma response can be for Equilibrium, or I-coils, or both
+// ECC-coils are not yet included in Plasma response
+// ++++++ IMPORTANT +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// uses separate Libraries for the M3D-C1 routines by Nate Ferraro
+// use -Dm3dc1 when compiling -> this define activates this part of the code
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // uses arrays and multiple-arrays from blitz-Library
 // A.Wingen						12.2.13
 
@@ -13,9 +20,7 @@
 
 // --------------- Prototypes ---------------------------------------------------------------------------------------------
 //void IO::readiodata(char* name, int mpi_rank);								// declared in IO class, defined here
-//void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var);	// declared in IO class, defined here
-
-bool outofBndy(double phi, double x, double y, EFIT& EQD);
+int getBfield_general(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);	// declared here, defined in mafot.hxx
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
@@ -71,7 +76,6 @@ extern "C"
 }
 
 // -------------- global Parameters ---------------------------------------------------------------------------------------
-int simpleBndy = 0;		// 0: use real wall as boundaries, 1: use simple boundary box
 double bndy[4] = {0.195, 1.9, -1.8251, 1.8251};	// Boundary; EFIT boundary = {0.06, 2, -2, 2}
 
 // extern
@@ -80,6 +84,9 @@ double bndy[4] = {0.195, 1.9, -1.8251, 1.8251};	// Boundary; EFIT boundary = {0.
 #endif
 #ifdef USE_XFIELD
 	extern XFIELD XPND;
+#endif
+#ifdef m3dc1
+	extern M3DC1 M3D;
 #endif
 
 extern Array<double,4> field;
@@ -172,89 +179,27 @@ sigma = int(vec[16]);
 Zq = int(vec[17]);
 useFilament = int(vec[15]);
 
+// M3D-C1 parameter
+response = int(vec[9]);
+response_field = int(vec[10]);
+
 // Set unused Parameters to defaults
 useFcoil = 0;
 useTprofile = 0;
-response = 0;
-response_field = -1;
-}
-
-// ------------------- writeiodata ----------------------------------------------------------------------------------------
-void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var)
-{
-int i;
-out << "# " << program_name << endl;
-out << "#-------------------------------------------------" << endl;
-out << "### Parameterfile: " << filename << endl;
-out << "# Shot: " << EQDr.Shot << endl;
-out << "# Time: " << EQDr.Time << endl;
-out << "#-------------------------------------------------" << endl;
-out << "### Switches:" << endl;
-out << "# ECC-coil active (0=no, 1=yes): " << useCcoil << endl;
-out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
-out << "# No. of current filaments (0=none): " << useFilament << endl;
-out << "# Target (0=cp, 1=inner, 2=outer, 3=shelf): " << which_target_plate << endl;
-out << "# Create Points (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-random, 5=RZ-grid): " << create_flag << endl;
-out << "# Direction of particles (1=co-pass, -1=count-pass, 0=field lines): " << sigma << endl;
-out << "# Charge number of particles (=-1:electrons, >=1:ions): " << Zq << endl;
-out << "# Boundary (0=Wall, 1=Box): " << simpleBndy << endl;
-out << "#-------------------------------------------------" << endl;
-out << "### Global Parameters:" << endl;
-out << "# Steps till Output (ilt): " << ilt << endl;
-out << "# Step size (dpinit): " << dpinit << endl;
-out << "# Boundary Rmin: " << bndy[0] << endl;
-out << "# Boundary Rmax: " << bndy[1] << endl;
-out << "# Boundary Zmin: " << bndy[2] << endl;
-out << "# Boundary Zmax: " << bndy[3] << endl;
-out << "# Magnetic Axis: R0: " << EQDr.RmAxis << endl;
-out << "# Magnetic Axis: Z0: " << EQDr.ZmAxis << endl;
-out << "#-------------------------------------------------" << endl;
-out << "### additional Parameters:" << endl;
-for(i=0;i<psize;++i)
-{
-	out << "# " << pv[i].name << ": " << pv[i].wert << endl;
-}
-out << "#-------------------------------------------------" << endl;
-out << "### Data:" << endl;
-out << "# ";
-for(i=0;i<int(var.size());i++) out << var[i] << "     ";
-out << endl;
-out << "#" << endl;
 }
 
 //------------ End of IO Member functions ---------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
-//----------- outofBndy ---------------------------------------------------------------------------------------------------
-// Check if (x,y) is out of the torus. Returns 0 if (x,y) 
-// is in boundary an 1 if (x,y) is out of boundary. 
-// simpleBndy = 0; use real wall as boundaries
-// simpleBndy = 1: use simple boundary box
-bool outofBndy(double phi, double x, double y, EFIT& EQD)
-{
-switch(simpleBndy)
-{
-case 0:
-	return outofRealBndy(phi,x,y,EQD);
-	break;
-case 1:
-	if(x<bndy[0] || x>bndy[1] || y<bndy[2] || y>bndy[3]) return true;	//  bndy[4] = {1.0, 2.4, -1.367, 1.36};
-	break;
-default:
-    cout << "simpleBndy switch has a wrong value!" << endl;
-}
-return false;
-}
-
 //---------------- getBfield ----------------------------------------------------------------------------------------------
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
 {
 int chk;
-double psi,dpsidr,dpsidz;
-double F;
 double X,Y,bx,by,bz;
 double B_X,B_Y;
 double sinp,cosp;
+
+B_R = 0; B_phi = 0; B_Z = 0;
 
 sinp = sin(phi);
 cosp = cos(phi);
@@ -262,33 +207,10 @@ cosp = cos(phi);
 X = R*cosp;
 Y = R*sinp;
 
-switch(PAR.response_field)
-{
-#ifdef USE_XFIELD
-case -3:
-	XPND.get_B(R, phi, Z, B_R, B_phi, B_Z);
-	break;
-#endif
-#ifdef USE_SIESTA
-case -2:
-	SIES.get_B(R, phi, Z, B_R, B_phi, B_Z);
-	break;
-#endif
-default:
-	// get normalized poloidal Flux psi (should be chi in formulas!)
-	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
-	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
-
-	// Equilibrium field
-	F = EQD.get_Fpol(psi);
-	B_R = dpsidz/R;
-	B_phi = F/R;	//B_phi = EQD.Bt0*EQD.R0/R;
-	B_Z = -dpsidr/R;
-	break;
-}
+chk = getBfield_general(R,Z,phi,B_R,B_Z,B_phi,EQD,PAR);
+if(chk==-1) {return -1;}
 
 B_X = 0;	B_Y = 0;
-
 // ECC-coil perturbation field
 if(PAR.useCcoil==1)
 {
@@ -321,25 +243,9 @@ if(PAR.useIcoil==1)
 	}
 }
 
-// Field of any current filament
-bx = 0;	by = 0;	bz = 0;
-if(PAR.useFilament>0) get_filament_field(R,phi,Z,field,bx,by,bz,EQD);
-
-B_X += bx;
-B_Y += by;
-B_Z += bz;
-
 // Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
 B_R += B_X*cosp + B_Y*sinp;
 B_phi += -B_X*sinp + B_Y*cosp;
-
-if(PAR.response_field == -10)
-{
-	bx = 0;	bz = 0;
-	FISLD.get_B(R,phi,Z,bx,bz,EQD);
-	B_R += bx;
-	B_Z += bz;
-}
 
 return 0;
 }
@@ -352,9 +258,6 @@ int chk;
 LA_STRING line;	// entire line is read by ifstream
 ifstream in;
 
-if(mpi_rank < 1) cout << "ECC-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
-ofs2 << "ECC-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
-
 // Set common blocks parameters
 consts_.pi = pi;
 consts_.twopi = pi2;
@@ -362,8 +265,16 @@ consts_.cir = 360.0;
 consts_.rtd = 360.0/pi2;
 consts_.dtr = 1.0/consts_.rtd;
 
+#ifdef m3dc1
+	// Prepare loading M3D-C1
+	if(PAR.response_field >= 0) chk = M3D.read_m3dc1sup(supPath);
+	else chk = 0;
+#else
+	chk = 0;
+#endif
+
 // Read mastsub.in file, if coils or M3D-C1 are on
-if(PAR.useCcoil == 1 || PAR.useIcoil == 1)
+if(PAR.useCcoil == 1 || PAR.useIcoil == 1 || (PAR.response_field > 0 && chk == -1))
 {
 	in.open(supPath + "mastsup.in");
 	if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open mastsup.in file " << endl; EXIT;}
@@ -384,8 +295,39 @@ if(PAR.useCcoil == 1 || PAR.useIcoil == 1)
 	in.clear();	// reset ifstream for next use
 }
 
+#ifdef m3dc1
+	// Read C1.h5 file
+	if(PAR.response_field >= 0)
+	{
+		if(chk == -1) M3D.scale_from_coils(icurrents_.Icur[1], mxIloops, mxIloops*mxIbands, icurrents_.Iadj[1][3]);	// no m3dc1sup.in file found -> scale from mastsup.in file, use only the lower band for scaling
+		M3D.load(PAR, mpi_rank);
+	}
+	else
+	{
+		if(mpi_rank < 1) cout << "Using g-file!" << endl;
+		ofs2 << "Using g-file!" << endl;
+	}
+#else
+	if(mpi_rank < 1) cout << "Using g-file!" << endl;
+	ofs2 << "Using g-file!" << endl;
+#endif
+
+if(mpi_rank < 1) cout << "ECC-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
+ofs2 << "ECC-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
+
+// Write Currents to log files (Check if corretly read in)
+ofs2 << "EC-Currents:" << endl;
+for(i=0;i<mxECbands;i++) {for(j=0;j<mxECloops;j++) ofs2 << eccurrents_.ECcur[i][j] << "\t"; ofs2 << endl;}
+ofs2 << "EC-Adjustments:" << endl;
+for(i=0;i<mxECbands;i++) {for(j=0;j<3;j++) ofs2 << eccurrents_.ECadj[i][j] << "\t"; ofs2 << endl;}
+ofs2 << "I-Currents:" << endl;
+for(i=0;i<mxIbands;i++) {for(j=0;j<mxIloops;j++) ofs2 << icurrents_.Icur[i][j] << "\t"; ofs2 << endl;}
+ofs2 << "I-Adjustments:" << endl;
+for(i=0;i<mxIbands;i++) {for(j=0;j<4;j++) ofs2 << icurrents_.Iadj[i][j] << "\t"; ofs2 << endl;}
+ofs2 << endl;
+
 // Set EC-coil geometry
-if(PAR.useIcoil==1) mastecgeom_(&kuseEC[0][0],&nECbands,&nECloops[0],&nECsegs[0][0],&xsEC[0][0][0][0],&dvsEC[0][0][0][0],&curntwEC[0][0]);
+if(PAR.useCcoil==1) mastecgeom_(&kuseEC[0][0],&nECbands,&nECloops[0],&nECsegs[0][0],&xsEC[0][0][0][0],&dvsEC[0][0][0][0],&curntwEC[0][0]);
 
 // Set I-coil geometry
 if(PAR.useIcoil==1) mastigeom_(&kuseI[0][0],&nIbands,&nIloops[0],&nIsegs[0][0],&xsI[0][0][0][0],&dvsI[0][0][0][0],&curntwI[0][0]);

@@ -24,10 +24,26 @@
 #endif
 #include <particle_class.hxx>		// includes all particle/fieldline parameters and Runge-Kutta Integrator
 #include <fakeIsland_class.hxx>
+#ifdef m3dc1
+	#include <m3dc1_class.hxx>
+#endif
+#if defined(ITER)
+	#include <iter.hxx>
+#elif defined(NSTX)
+	#include <nstx.hxx>
+#elif defined(MAST)
+	#include <mast.hxx>
+#elif defined(CMOD)
+	#include <cmod.hxx>
+#else
+	#include <d3d.hxx>
+#endif
 
 // --------------- Prototypes ---------------------------------------------------------------------------------------------
+// int getBfield_general(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR); // declared in machine header, defined here
 void prepare_common_perturbations(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING siestafile = "siesta.dat", LA_STRING xpandfile = "xpand.dat",
 								  LA_STRING islandfile = "fakeIslands.in", LA_STRING filamentfile = "filament_all.in");
+bool outofBndy(double phi, double x, double y, EFIT& EQD);
 bool outofRealBndy(double phi, double x, double y, EFIT& EQD);
 
 void get_filament_field(double R, double phi, double Z, Array<double,4>& field, double& bx, double& by, double& bz, EFIT& EQD);
@@ -37,6 +53,9 @@ void bcuint_square(Array<double,1>& Ra, Array<double,1>& Za, double dR, double d
 			double R, double Z, double& y, double& y1, double& y2);
 
 // -------------- global Parameters ---------------------------------------------------------------------------------------
+// Boundary Box
+int simpleBndy = 0;		// 0: real wall boundary 	1: simple boundary box
+
 // log file for errors
 ofstream ofs2;
 
@@ -47,12 +66,131 @@ ofstream ofs2;
 #ifdef USE_XFIELD
 	XFIELD XPND;
 #endif
+#ifdef m3dc1
+	M3DC1 M3D;
+#endif
 
 Array<double,4> field;	// for current filaments
 fakeIsland FISLD;
 
 //-------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+
+//---------------- getBfield_general --------------------------------------------------------------------------------------
+// part of getBfield that is common to all machines
+int getBfield_general(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
+{
+int i, chk, chk2;
+double psi,dpsidr,dpsidz;
+double F;
+double X,Y,bx,by,bz;
+double B_X,B_Y;
+double sinp,cosp;
+double coord[3], b_field[3];
+
+coord[0] = R; coord[1] = phi; coord[2] = Z;
+B_R = 0; B_phi = 0; B_Z = 0;
+
+sinp = sin(phi);
+cosp = cos(phi);
+
+X = R*cosp;
+Y = R*sinp;
+
+// Equilibrium field
+switch(PAR.response_field)
+{
+#ifdef USE_XFIELD
+case -3:
+	XPND.get_B(R, phi, Z, B_R, B_phi, B_Z);
+	break;
+#endif
+#ifdef USE_SIESTA
+case -2:
+	SIES.get_B(R, phi, Z, B_R, B_phi, B_Z);
+	break;
+#endif
+case -1: case 1: case -10:	// Vacuum equilibrium field from g file
+	// get normalized poloidal Flux psi (should be chi in formulas!)
+	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
+	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
+
+	// Equilibrium field
+	F = EQD.get_Fpol(psi);
+	B_R = dpsidz/R;
+	B_phi = F/R;	//B_phi = EQD.Bt0*EQD.R0/R;
+	B_Z = -dpsidr/R;
+	break;
+
+#ifdef m3dc1
+case 0: case 2: 	// M3D-C1: equilibrium field or total field
+	for(i=0;i<M3D.nfiles;i++)
+	{
+		chk = fio_eval_field(M3D.imag[i], coord, b_field);
+		if(chk != 0) // field eval failed, probably outside of M3DC1 domain -> fall back to g-file equilibrium
+		{
+			chk2 = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
+			if(chk2 == -1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
+
+			// Equilibrium field
+			F = EQD.get_Fpol(psi);
+			B_R = dpsidz/R;
+			B_phi = F/R;	//B_phi = EQD.Bt0*EQD.R0/R;
+			B_Z = -dpsidr/R;
+			break;	// break the for loop
+		}
+		else
+		{
+			B_R += b_field[0];
+			B_phi += b_field[1];
+			B_Z += b_field[2];
+		}
+	}
+	break;
+#endif
+}
+
+#ifdef m3dc1
+// M3D-C1: I-coil perturbation field only, coils are turned off in prep_perturbation
+if(PAR.response_field == 1)
+{
+	for(i=0;i<M3D.nfiles;i++)
+	{
+		coord[1] = phi + M3D.phase[i];
+		chk = fio_eval_field(M3D.imag[i], coord, b_field);
+		if(chk != 0) {b_field[0] = 0; b_field[1] = 0; b_field[2] = 0; break;}
+		B_R += b_field[0];
+		B_phi += b_field[1];
+		B_Z += b_field[2];
+		//coord[1] = phi;
+	}
+}
+#endif
+
+B_X = 0;	B_Y = 0;
+
+// Field of any current filament
+bx = 0;	by = 0;	bz = 0;
+if(PAR.useFilament>0) get_filament_field(R,phi,Z,field,bx,by,bz,EQD);
+
+B_X += bx;
+B_Y += by;
+B_Z += bz;
+
+// Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
+B_R += B_X*cosp + B_Y*sinp;
+B_phi += -B_X*sinp + B_Y*cosp;
+
+if(PAR.response_field == -10)
+{
+	bx = 0;	bz = 0;
+	FISLD.get_B(R,phi,Z,bx,bz,EQD);
+	B_R += bx;
+	B_Z += bz;
+}
+
+return 0;
+}
 
 // ------------ prepare_common_perturbations ------------------------------------------------------------------------------
 // prepare all perturbations that are not machine specific
@@ -145,6 +283,31 @@ if(PAR.response_field == -10)
 		cout << "Location: " << FISLD.psi0 << endl;
 	}
 }
+}
+
+//----------- outofBndy ---------------------------------------------------------------------------------------------------
+// Check if (x,y) is out of the torus. Returns 0 if (x,y)
+// is in boundary an 1 if (x,y) is out of boundary.
+// simpleBndy = 0; use real wall as boundaries
+// simpleBndy = 1: use simple boundary box
+bool outofBndy(double phi, double x, double y, EFIT& EQD)
+{
+if(isnan(x) || isnan(y) || isinf(x) || isinf(y)) return false;
+switch(simpleBndy)
+{
+case 0:
+	return outofRealBndy(phi,x,y,EQD);
+	break;
+case 1:
+	if(x<bndy[0] || x>bndy[1] || y<bndy[2] || y>bndy[3]) return true;	// bndy defined in machine specific heade file
+#ifdef ITER
+	if(x>bndy[4] && (y<bndy2[0]*x+bndy2[1] || y>bndy2[2]*x+bndy2[3])) return true;
+#endif
+	break;
+default:
+    cout << "simpleBndy switch has a wrong value!" << endl;
+}
+return false;
 }
 
 //------------ outofRealBndy ----------------------------------------------------------------------------------------------
