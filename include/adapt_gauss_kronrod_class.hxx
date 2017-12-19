@@ -171,6 +171,11 @@ GaussKronrod::GaussKronrod(int m, int N)
 	chebyshev_coefs();
 	gauss_kronrod_abscissae();
 	gauss_kronrod_weights();
+	//cout << "GKabscissae: " << xgk_ << endl;
+	//cout << "GKweights: " << wgk_ << endl;
+	//cout << "LegendreWeights: " << wg_ << endl;
+	//cout << "ChebyshevCoefs: " << coefs << endl;
+	//cout << "LegendreZeros: " << zeros << endl;
 }
 
 
@@ -354,8 +359,9 @@ void GaussKronrod::gauss_kronrod_weights()
 void GaussKronrod::gauss_kronrod_abscissae()
 {
 	double delta, epsilon;
+	int nhalf = n_ / 2;	// Integer division on purpose
 
-	for(int k = 0; k < n_ / 2; ++k)
+	for(int k = 0; k < nhalf; ++k)
 	{
 		delta = 1;
 		// Newton's method for E_{n+1} :
@@ -371,6 +377,7 @@ void GaussKronrod::gauss_kronrod_abscissae()
 		// copy adjacent Legendre-zero into the array:
 		if(2*k+1 < n_) xgk_(2*k+1) = zeros(m_-k);
 	}
+	if(2*nhalf < n_) xgk_(2*nhalf) = 0;	// if n_ is odd, then the last element does not get set by for loop
 }
 
 
