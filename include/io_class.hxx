@@ -22,6 +22,7 @@
 using namespace blitz;
 
 // Prototypes  
+void readparfile_new(char* name, vector<double>& vec, int& shot, int& time, LA_STRING& path);
 
 // Typedef
 typedef struct {string name; double wert;} parstruct;
@@ -261,7 +262,164 @@ return out;
 
 //--------------------- Member Functions ----------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
-// readiodata is defined in Machine specific header file
+
+// ----------------- readiodata -------------------------------------------------------------------------------------------
+void IO::readiodata(char* name, int mpi_rank)
+{
+// Get Parameters
+vector<double> vec;
+int shot,time;
+readparfile_new(name,vec,shot,time,EQDr.Path);
+EQDr.Shot = LA_STRING(shot);
+EQDr.Time = LA_STRING(time);
+//if(vec.size()<22) {if(mpi_rank < 1) cout << "Fail to read all parameters, File incomplete" << endl; EXIT;}
+
+// private Variables
+filename = name;
+
+// Map Parameters
+itt = int(vec[1]);
+phistart = vec[7];
+MapDirection = int(vec[8]);
+
+// t grid (footprints only)
+Nt = int(vec[6]);
+tmin = vec[2];
+tmax = vec[3];
+
+// phi grid (footprints only)
+Nphi = int(vec[0]);
+phimin = vec[4];
+phimax = vec[5];
+
+// R grid (laminar only)
+NR = int(vec[6]);
+Rmin = vec[2];
+Rmax = vec[3];
+
+// Z grid (laminar only)
+NZ = int(vec[0]);
+Zmin = vec[4];
+Zmax = vec[5];
+
+// r grid
+N = int(vec[6]);
+Nr = int(sqrt(N));
+rmin = vec[2];
+rmax = vec[3];
+
+// theta grid
+Nth = int(sqrt(N));
+thmin = vec[4];
+thmax = vec[5];
+
+verschieb = vec[0];
+
+#if defined(ITER)
+	// Particle Parameters
+	Ekin = vec[16];
+	lambda = vec[17];
+
+	// Set switches
+	which_target_plate = int(vec[9]);
+	create_flag = int(vec[10]);
+	useFcoil = int(vec[11]);
+	useCcoil = int(vec[11]);
+	useIcoil = int(vec[11]);
+	useFilament = int(vec[12]);
+	useTprofile = int(vec[13]);
+	sigma = int(vec[14]);
+	Zq = int(vec[15]);
+
+	// External fields parameter
+	response = int(vec[18]);
+	response_field = int(vec[19]);
+	useTprofile = 0;
+#elif defined(NSTX)
+	// Particle Parameters
+	Ekin = vec[16];
+	lambda = vec[17];
+
+	// Set switches
+	which_target_plate = int(vec[9]);
+	create_flag = int(vec[10]);
+	useFcoil = int(vec[11]);
+	useCcoil = int(vec[11]);
+	useIcoil = int(vec[11]);
+	useFilament = int(vec[12]);
+	useTprofile = int(vec[13]);
+	sigma = int(vec[14]);
+	Zq = int(vec[15]);
+
+	// External fields parameter
+	response = int(vec[18]);
+	response_field = int(vec[19]);
+	useTprofile = 0;
+#elif defined(MAST)
+	// Particle Parameters
+	Ekin = vec[18];
+	lambda = vec[19];
+
+	// Set switches
+	which_target_plate = int(vec[11]);
+	create_flag = int(vec[12]);
+	useCcoil = int(vec[13]);
+	useIcoil = int(vec[14]);
+	sigma = int(vec[16]);
+	Zq = int(vec[17]);
+	useFilament = int(vec[15]);
+
+	// External fields parameter
+	response = int(vec[9]);
+	response_field = int(vec[10]);
+
+	// Set unused Parameters to defaults
+	useFcoil = 0;
+	useTprofile = 0;
+#elif defined(CMOD)
+	// Particle Parameters
+	Ekin = vec[18];
+	lambda = vec[19];
+
+	// Set switches
+	which_target_plate = int(vec[11]);
+	create_flag = int(vec[12]);
+	useFcoil = 0;
+	useCcoil = 0;
+	useIcoil = 0;
+	sigma = int(vec[16]);
+	Zq = int(vec[17]);
+	useFilament = int(vec[20]);
+
+	// External fields parameter
+	response = int(vec[9]);
+	response_field = int(vec[10]);
+
+	useTprofile = 0;
+#else
+	// Particle Parameters
+	Ekin = vec[18];
+	lambda = vec[19];
+
+	// Set switches
+	which_target_plate = int(vec[11]);
+	create_flag = int(vec[12]);
+	useFcoil = int(vec[13]);
+	useCcoil = int(vec[14]);
+	useIcoil = int(vec[15]);
+	sigma = int(vec[16]);
+	Zq = int(vec[17]);
+	useFilament = int(vec[20]);
+
+	// External fields parameter
+	response = int(vec[9]);
+	response_field = int(vec[10]);
+
+	if(vec[21]>1) useTprofile = 0;
+	else useTprofile = int(vec[21]);
+#endif
+}
+
 
 // ------------------- writeiodata ----------------------------------------------------------------------------------------
 void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var)
@@ -333,6 +491,82 @@ pv = new parstruct[psize];
 
 //----------------------- End of Member Functions -------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+
+// ------------- readparfile ---------------------------------------------------------------------------------------------
+void readparfile_new(char* name, vector<double>& vec, int& shot, int& time, LA_STRING& path)
+{
+// Variables
+int i;
+int shotfound,timefound;
+size_t found;
+double val;
+string parname;
+string line,word;
+vector<string> words;
+
+// Read file
+ifstream file;
+file.open(name);
+if(file.fail()==1) {cout << "Unable to open file " << name << endl; exit(0);}
+
+// Read data
+while(getline(file, line))
+{
+	if (line[0] == '#') // process and skip header lines
+	{
+		// split line into words
+		found = 0;
+		while ((found = line.find_first_of("\t ")) != std::string::npos)
+		{
+		    word = line.substr(0, found);
+		    line.erase(0, found + 1);
+		    if (word.length() == 0) continue;
+		    words.push_back(word);
+		}
+		words.push_back(line); // last word in line
+
+		// search for key words
+		shotfound = -1;
+		timefound = -1;
+		for(i=0;i<words.size();i++)
+		{
+			if (int(words[i].find("Shot")) > -1) shotfound = i;
+			if (int(words[i].find("Time")) > -1) timefound = i;
+			if ((shotfound > -1) && (timefound > -1))
+			{
+				shot = stoi(words[shotfound + 1]);
+				word = words[timefound + 1];
+				if (int(word.find("ms")) > -1) word.erase(word.find("ms")); // erase all from beginning of 'ms' to end of string
+				time = stoi(word);
+				break;
+			}
+			if (int(words[i].find("Path")) > -1)
+			{
+				word = words[i+1];
+				found = word.find_last_of("/");
+				if (found < word.length() -1) word += "/";
+				path = LA_STRING(word.c_str());
+				break;
+			}
+		}
+
+		words.clear();
+		continue;
+	}
+
+    if (int(line.find_first_of('#')) > -1)	// does the line include a comment after the data
+    {
+    	found = line.find_first_of('#');
+    	line = line.substr(0,found);
+    }
+
+    found = line.find_last_of("=");
+    parname = line.substr(0,found);
+    val = stod(line.substr(found+1));
+    vec.push_back(val);
+}
+file.close();
+}
 
 #endif //  IO_CLASS_INCLUDED
 //----------------------- End of File -------------------------------------------------------------------------------------

@@ -46,11 +46,21 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.9
+MAFOT 4.0
 GUI 1.43
 
 Version Notes: 
 ----------------
+MAFOT 4.0 -- Dec 2017
+- unification of M3DC1 and regular machine file -> *_m3dc1.hxx machine files no longer supported
+- simplification of machine specific files by moving larg pieces of common code to mafot.hxx
+- bug fix for xpand
+- CMOD now fully available (except target plate specification for footprints)
+- improved command line options for all tools, including file name support for SIESTA, VMEC and XPAND
+- new read-in routine for parameterfile
+- 3D field line tracing with structure tool now fully supported
+- c++ 2011 standard now required -> compiler flag -std=c++1 added in general
+
 MAFOT 3.9 -- July 2017
 - laminar can now compute Lc, psimin, etc. along an EFIT flux surface of constant psi
 - d3dplot.py can plot the new laminar plots

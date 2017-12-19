@@ -1,6 +1,8 @@
 # ---- include platform-specific options ----
 include ./make.inc
 
+CFLAGS += -std=c++11
+
 
 # ---- set directories ----
 OBJDIR := $(MAFOT_DIR)/release
@@ -88,16 +90,16 @@ all : $(DIRS) d3d iter nstx mast cmod gui xpand d3dplot
 d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi dtstructure
 
 .PHONY : iter
-iter : $(DIRS) iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi iterplot_mpi 
+iter : $(DIRS) iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi iterplot_mpi iterstructure
 
 .PHONY : nstx 
-nstx : $(DIRS) nstxplot nstxfix nstxman nstxlaminar_mpi nstxfoot_mpi nstxplot_mpi 
+nstx : $(DIRS) nstxplot nstxfix nstxman nstxlaminar_mpi nstxfoot_mpi nstxplot_mpi nstxstructure
 
 .PHONY : mast 
-mast : $(DIRS) mastplot mastfix mastman mastlaminar_mpi mastfoot_mpi mastplot_mpi 
+mast : $(DIRS) mastplot mastfix mastman mastlaminar_mpi mastfoot_mpi mastplot_mpi maststructure
 
 .PHONY : cmod 
-cmod : $(DIRS) cmodplot cmodfix cmodman cmodlaminar_mpi cmodfoot_mpi cmodplot_mpi
+cmod : $(DIRS) cmodplot cmodfix cmodman cmodlaminar_mpi cmodfoot_mpi cmodplot_mpi cmodstructure
 
 .PHONY : gui
 gui : $(MAFOT_DIR)/python/mafot_gui.py
@@ -136,7 +138,7 @@ $(DIRS) :
 # ---- Targets ----
 xpand_mpi : $(MAFOT_DIR)/src/xpand_mpi.cxx
 ifdef VMEC
-	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) $< -o $(OBJDIR)/xpand_mpi.o
+	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) -Dlinux $< -o $(OBJDIR)/xpand_mpi.o
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/xpand_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 else
 	@echo "-----------------------------------"
@@ -186,6 +188,9 @@ iterfoot_mpi : $(OBJDIR)/iter/foot_mpi.o libla_string.a libtrip3d.a
 iterplot_mpi : $(OBJDIR)/iter/plot_mpi.o libla_string.a libtrip3d.a
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/iter/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
+iterstructure : $(OBJDIR)/iter/structure.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/iter/structure.o -o $(BIN_DIR)/$@ $(LIBS)
+
 
 # ---- NSTX Targets ----
 nstxplot : $(OBJDIR)/nstx/plot.o libla_string.a libtrip3d.a
@@ -205,6 +210,9 @@ nstxfoot_mpi : $(OBJDIR)/nstx/foot_mpi.o libla_string.a libtrip3d.a
 
 nstxplot_mpi : $(OBJDIR)/nstx/plot_mpi.o libla_string.a libtrip3d.a
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/nstx/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
+nstxstructure : $(OBJDIR)/nstx/structure.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/nstx/structure.o -o $(BIN_DIR)/$@ $(LIBS)
 
 
 # ---- MAST Targets ----
@@ -226,6 +234,9 @@ mastfoot_mpi : $(OBJDIR)/mast/foot_mpi.o libla_string.a libtrip3d.a
 mastplot_mpi : $(OBJDIR)/mast/plot_mpi.o libla_string.a libtrip3d.a
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/mast/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
+maststructure : $(OBJDIR)/mast/structure.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/mast/structure.o -o $(BIN_DIR)/$@ $(LIBS)
+
 
 # ---- CMOD Targets ----
 cmodplot : $(OBJDIR)/cmod/plot.o libla_string.a libtrip3d.a
@@ -245,6 +256,9 @@ cmodfoot_mpi : $(OBJDIR)/cmod/foot_mpi.o libla_string.a libtrip3d.a
 
 cmodplot_mpi : $(OBJDIR)/cmod/plot_mpi.o libla_string.a libtrip3d.a
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/cmod/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
+cmodstructure : $(OBJDIR)/cmod/structure.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/cmod/structure.o -o $(BIN_DIR)/$@ $(LIBS)
 
 
 # ---- Include Dependencies ----

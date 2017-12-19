@@ -317,8 +317,6 @@ if(mpi_rank < 1)
 			//#pragma omp barrier	// Syncronize with Slave Thread
 			MPI::COMM_WORLD.Barrier();	// Master waits for Slaves
 
-			cout << "Target: " << PAR.which_target_plate << endl;
-			cout << "Start Tracer for " << N << " points ... " << endl;
 			//ofs2 << "Target (0=vertical, 1=45�, 2=horizontal, 3=shelf): " << which_target_plate << endl;
 			ofs3 << "Start Tracer for " << N << " points ... " << endl;
 
@@ -411,6 +409,8 @@ if(mpi_rank < 1)
 
 			//#pragma omp barrier	// Syncronize with Master Thread
 
+			cout << "Target: " << PAR.which_target_plate << endl;
+			cout << "Start Tracer for " << N << " points ... " << endl;
 			ofs2 << "Target: " << PAR.which_target_plate << endl;
 
 			// Start working...

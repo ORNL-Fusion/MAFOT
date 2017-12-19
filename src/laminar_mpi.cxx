@@ -361,8 +361,6 @@ if(mpi_rank < 1)
 			//#pragma omp barrier	// Syncronize with Slave Thread
 			MPI::COMM_WORLD.Barrier();	// Master waits for Slaves
 
-			cout << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
-			cout << "Start Tracer for " << N << " points ... " << endl;
 			//ofs3 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << MapDirection << endl;
 			ofs3 << "Start Tracer for " << N << " points ... " << endl;
 
@@ -462,6 +460,8 @@ if(mpi_rank < 1)
 
 			//#pragma omp barrier	// Syncronize with Master Thread
 
+			cout << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
+			cout << "Start Tracer for " << N << " points ... " << endl;
 			ofs2 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
 
 			// Start working...

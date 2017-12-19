@@ -19,7 +19,6 @@
 //--------
 
 // --------------- Prototypes ---------------------------------------------------------------------------------------------
-//void IO::readiodata(char* name, int mpi_rank);								// declared in IO class, defined here
 int getBfield_general(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);	// declared here, defined in mafot.hxx
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
@@ -93,103 +92,6 @@ extern Array<double,4> field;
 extern fakeIsland FISLD;
 
 extern ofstream ofs2;
-
-// ---------------------- IO Member functions -----------------------------------------------------------------------------
-// ------------------------------------------------------------------------------------------------------------------------
-
-// ----------------- readiodata -------------------------------------------------------------------------------------------
-void IO::readiodata(char* name, int mpi_rank)
-{
-LA_STRING input;	// !!! LA_STRING reads entire line, string reads only one word !!!
-
-// Get ShotNr and ShotTime from Parameterfile
-ifstream in;
-in.open(name);
-if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open file " << name << endl; EXIT;}
-in >> input;	// Skip first line
-in >> input;	// second line gives shot number and time
-EQDr.Shot = input.mid(9,6);	// 6 characters starting at index 9 of input string
-EQDr.Time = input.mid(22,4); // 4 characters starting at index 22 of input string
-
-// Get Path to g-File from Parameterfile (optional), Linux only!!!
-in >> input;	
-if(input[1] == '#') 
-{
-	input = input.mid(input.indexOf('/'));	// all characters of input string starting from index of first '/' in string
-	if(input.right(1) != '/') input = input.left(input.length()-1);			// last char in string can be '\r' (Carriage return) --> Error!;  this removes last char if necessary 
-	if(input.indexOf(' ') > 1) input = input.left(input.indexOf(' ')-1);		// blanks or comments that follow path are removed from string 
-	EQDr.Path = input;
-}
-in.close();
-
-// Get Parameters
-vector<double> vec;
-readparfile(name,vec);
-
-// private Variables
-filename = name;
-
-// Map Parameters
-itt = int(vec[1]);
-phistart = vec[7];
-MapDirection = int(vec[8]);
-
-// t grid (footprints only)
-Nt = int(vec[6]); 
-tmin = vec[2]; 
-tmax = vec[3];			
-
-// phi grid (footprints only)
-Nphi = int(vec[0]); 
-phimin = vec[4]; 
-phimax = vec[5];		
-
-// R grid (laminar only)
-NR = int(vec[6]); 
-Rmin = vec[2]; 
-Rmax = vec[3];		
-
-// Z grid (laminar only)
-NZ = int(vec[0]); 
-Zmin = vec[4]; 
-Zmax = vec[5];		
-
-// r grid
-N = int(vec[6]); 
-Nr = int(sqrt(N)); 
-rmin = vec[2]; 
-rmax = vec[3];		
-
-// theta grid
-Nth = int(sqrt(N)); 
-thmin = vec[4]; 
-thmax = vec[5];		
-
-// Particle Parameters
-Ekin = vec[18];
-lambda = vec[19];
-verschieb = vec[0];
-
-// Set switches
-which_target_plate = int(vec[11]);
-create_flag = int(vec[12]);
-useCcoil = int(vec[13]);
-useIcoil = int(vec[14]);
-sigma = int(vec[16]);
-Zq = int(vec[17]);
-useFilament = int(vec[15]);
-
-// M3D-C1 parameter
-response = int(vec[9]);
-response_field = int(vec[10]);
-
-// Set unused Parameters to defaults
-useFcoil = 0;
-useTprofile = 0;
-}
-
-//------------ End of IO Member functions ---------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------------------------------
 
 //---------------- getBfield ----------------------------------------------------------------------------------------------
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)

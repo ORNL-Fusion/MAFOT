@@ -292,7 +292,7 @@ if(PAR.response_field == -10)
 // simpleBndy = 1: use simple boundary box
 bool outofBndy(double phi, double x, double y, EFIT& EQD)
 {
-if(isnan(x) || isnan(y) || isinf(x) || isinf(y)) return false;
+if(std::isnan(x) || std::isnan(y) || std::isinf(x) || std::isinf(y)) return false;
 switch(simpleBndy)
 {
 case 0:

@@ -33,7 +33,7 @@ class SIESTA
 {
 private:
 // Parameter
-#if (__GNUC__ < 5)  // for GNU compiler version less than 5.0
+#if ((__GNUC__ < 5) && (__cplusplus <= 199711L))  // for GNU compiler version less than 5.0 and std support less than c++11
 	static const double smin = 0;
 	static const double smax = 1;
 #else
