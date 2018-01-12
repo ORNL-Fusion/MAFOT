@@ -1,5 +1,6 @@
 # Parameterfile for NSTX programs
 # Shot: 127317	Time: 0370ms
+# Path: /home/wingen/work/nstx/gfiles/
 free_Parameter(NZ)=	1320
 itt=	500
 Rmin=	0.17

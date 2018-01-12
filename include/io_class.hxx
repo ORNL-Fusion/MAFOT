@@ -54,6 +54,7 @@ public:
 	int which_target_plate;						// 0: center post(above inner target), 1: inner target(45deg), 2: outer target(horizontal), 3: shelf (right of outer target)
 	int create_flag;							// 0: fixed grid	1: random numbers	2: Start on target
 	int useIcoil; int useCcoil; int useFcoil;	// Perturbation coils:  0: off, 1: on
+	int useBuswork;								// Bus work error field:  0: off, 1: on
 	int useFilament;							// Current filaments: 0: off, >=1: Number of filaments to use
 	int Zq;										// Charge number: 1: ions are calculated	-1: electrons are calculated
 	int sigma;									// 1: co-passing particles		-1: count-passing particles		0: field lines only
@@ -159,6 +160,7 @@ create_flag = PAR.create_flag;
 useFcoil = PAR.useFcoil;
 useCcoil = PAR.useCcoil;
 useIcoil = PAR.useIcoil;
+useBuswork = PAR.useBuswork;
 sigma = PAR.sigma;
 Zq = PAR.Zq;
 useFilament = PAR.useFilament;
@@ -239,6 +241,7 @@ out << "create_flag = " << PAR.create_flag << endl;
 out << "useFcoil = " << PAR.useFcoil << endl;
 out << "useCcoil = " << PAR.useCcoil << endl;
 out << "useIcoil = " << PAR.useIcoil << endl;
+out << "useBuswork = " << PAR.useBuswork << endl;
 out << "sigma = " << PAR.sigma << endl;
 out << "Zq = " << PAR.Zq << endl;
 out << "useFilament = " << PAR.useFilament << endl;
@@ -415,8 +418,14 @@ verschieb = vec[0];
 	response = int(vec[9]);
 	response_field = int(vec[10]);
 
-	if(vec[21]>1) useTprofile = 0;
+	if(vec[21] > 1) useTprofile = 0;
 	else useTprofile = int(vec[21]);
+	if(vec.size() < 23) useBuswork = 0;
+	else
+	{
+		if(vec[22] > 1) useBuswork = 0;
+		else useBuswork = int(vec[22]);
+	}
 #endif
 }
 
@@ -450,6 +459,7 @@ out << "### Switches:" << endl;
 	out << "# F-coil active (0=no, 1=yes): " << useFcoil << endl;
 	out << "# C-coil active (0=no, 1=yes): " << useCcoil << endl;
 	out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
+	out << "# Bus work error field active (0=no, 1=yes): " << useBuswork << endl;
 #endif
 out << "# No. of current filaments (0=none): " << useFilament << endl;
 out << "# Use Temperature Profile (0=off, 1=on): " << useTprofile << endl;

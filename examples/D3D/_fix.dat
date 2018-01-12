@@ -1,6 +1,6 @@
 # Parameterfile for DIII-D Programs
 # Shot: 126006	Time: 3600ms
-# /home/wingen/work/d3d/gfiles/
+# Path: /home/wingen/work/d3d/gfiles/
 free_Parameter(verschieb)=	-1e-4
 itt=	0
 rmin=	1
@@ -22,5 +22,7 @@ PartileCharge(-1=electrons,>=1=ions)=	1
 Ekin[keV]=	100
 lambda=	0.1
 useFilament(0=no)=	0
+useTe_profile(0=no)=	0
+useBusError(0=no,1=yes)= 1
 pi=	3.141592653589793
 2*pi=	6.283185307179586

@@ -77,7 +77,7 @@ SERDEPS_NSTX = $(SEROBJS_NSTX:.o=.d)
 SERDEPS_MAST = $(SEROBJS_MAST:.o=.d)
 SERDEPS_CMOD = $(SEROBJS_CMOD:.o=.d)
 
-FSRCS = biotloop.f circleb.f d3icoils.f nstxecgeom.f polygonb.f \
+FSRCS = biotloop.f circleb.f d3icoils.f nstxecgeom.f polygonb.f d3busgeom.f\
         d3ccoils.f d3pferr.f ellipints.f itericoilsgeom.f masteccoilsgeom.f masticoilsgeom.f
 FOBJS = $(FSRCS:.f=.o)
 FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))

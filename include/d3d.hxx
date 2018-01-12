@@ -32,6 +32,10 @@ const int nIloops = 12;
 const int nIsegs = 14;
 const int nCloops = 6;
 const int nCsegs = 10;
+const int ntflimits = 4;
+const int nmaxBusloops = 30;
+const int nmaxBussegs = 30;
+const int nBusloops = 11;
 
 // Global Variables: have to be known during integration for perturbations, set in: prep_perturbation()
 int kuseF[nFlps];
@@ -39,8 +43,15 @@ int kuseC[nCloops];
 int kuseI[nIloops];
 int nccsegs[nCloops];
 int nicsegs[nIloops];
+struct{double xs[nmaxBusloops][nmaxBussegs][3];
+	   double dvs[nmaxBusloops][nmaxBussegs][4];
+	   double curnt[nmaxBusloops];
+	   int nsegs[nmaxBusloops];
+	   int kbus[nmaxBusloops];
+	   int nloops;} d3bus;	// nloops is a dummy and not used; see nBusloops
 
 // ------------------- Fortran Common Blocks ------------------------------------------------------------------------------
+// carefull, the order of the variables in the struct matters!
 extern "C" 
 {
 	extern struct{double pi,twopi,cir,rtd,dtr;} consts_;
@@ -60,6 +71,11 @@ extern "C"
 				  double addanglC, scaleC;} d3ccoil_;
 	extern struct{double xcs[nCloops][nCsegs][3];
 				  double dcvs[nCloops][nCsegs][4];} d3cloops_;
+	extern struct{double tflimits[ntflimits];
+				  double rma, bma, dsbtc, alfsbtc, dthbtc, alfthbtc;
+				  int ntfturns, ibcoil, lbtc, iripple;
+				  double bcoil;
+				  int usebcoilmds;} tfcoil_;
 }
 
 // ----------------- Fortran Routines -------------------------------------------------------------------------------------
@@ -69,6 +85,7 @@ extern "C"
 	void d3igeom_(int kuse[]);
 	void d3cgeom_(int kuse[]);
 	void d3pferrb_(int kuse[], double *x, double *y, double *z, double *bxf, double *byf, double *bzf);
+	void d3busnew2geom_(int kbus[], int *nloops, int nsegs[], double *xs, double *dvs, double curnt[]);
 	void polygonb_(const int *loopsdim, const int *segsdim, const int *nloops, int nsegs[], int kuse[],
 					double *xs, double *dvs, double curnt[], 
 					double *x, double *y, double *z, double *bx, double *by, double *bz);
@@ -118,29 +135,50 @@ if(chk==-1) {return -1;}
 
 B_X = 0;	B_Y = 0;
 // F-coil perturbation field
-bx = 0;	by = 0;	bz = 0;
-if(PAR.useFcoil==1) d3pferrb_(&kuseF[0], &X, &Y, &Z, &bx, &by, &bz);
-B_X += bx;
-B_Y += by;
-B_Z += bz;
+if(PAR.useFcoil==1)
+{
+	bx = 0;	by = 0;	bz = 0;
+	d3pferrb_(&kuseF[0], &X, &Y, &Z, &bx, &by, &bz);
+	B_X += bx;
+	B_Y += by;
+	B_Z += bz;
+}
 
 // C-coil perturbation field
-bx = 0;	by = 0;	bz = 0;
-if(PAR.useCcoil==1) polygonb_(&nCloops, &nCsegs, &nCloops, &nccsegs[0], &kuseC[0],
+if(PAR.useCcoil==1)
+{
+	bx = 0;	by = 0;	bz = 0;
+	polygonb_(&nCloops, &nCsegs, &nCloops, &nccsegs[0], &kuseC[0],
 						  &d3cloops_.xcs[0][0][0], &d3cloops_.dcvs[0][0][0], &d3ccoil_.curntw[0], 
 						  &X, &Y, &Z, &bx, &by, &bz);
-B_X += bx;
-B_Y += by;
-B_Z += bz;
+	B_X += bx;
+	B_Y += by;
+	B_Z += bz;
+}
 
 // I-coil perturbation field
-bx = 0;	by = 0;	bz = 0;
-if(PAR.useIcoil==1) polygonb_(&nIloops, &nIsegs, &nIloops, &nicsegs[0], &kuseI[0],
+if(PAR.useIcoil==1)
+{
+	bx = 0;	by = 0;	bz = 0;
+	polygonb_(&nIloops, &nIsegs, &nIloops, &nicsegs[0], &kuseI[0],
 						  &d3iloops_.xis[0][0][0], &d3iloops_.divs[0][0][0], &d3icoil_.curntIc[0], 
 						  &X, &Y, &Z, &bx, &by, &bz);
-B_X += bx;
-B_Y += by;
-B_Z += bz;
+	B_X += bx;
+	B_Y += by;
+	B_Z += bz;
+}
+
+// Buswork perturbation field
+if(PAR.useBuswork==1)
+{
+	bx = 0;	by = 0;	bz = 0;
+	polygonb_(&nmaxBusloops, &nmaxBussegs, &nBusloops, &d3bus.nsegs[0], &d3bus.kbus[0],
+						  &d3bus.xs[0][0][0], &d3bus.dvs[0][0][0], &d3bus.curnt[0],
+						  &X, &Y, &Z, &bx, &by, &bz);
+	B_X += bx;
+	B_Y += by;
+	B_Z += bz;
+}
 
 // Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
 B_R += B_X*cosp + B_Y*sinp;
@@ -177,6 +215,21 @@ d3icoil_.addanglIU = 0.0;
 d3icoil_.addanglIL = 0.0;
 d3icoil_.scaleIU = 1.0;
 d3icoil_.scaleIL = 1.0;
+
+tfcoil_.rma = EQD.R0;
+tfcoil_.ntfturns = 144;
+tfcoil_.bcoil = 0.5*1e+7*tfcoil_.rma*EQD.Bt0/tfcoil_.ntfturns;	// Magn. field at torus major radius: B = mu0 I*n/(2pi*R)
+// the rest of this extern struct is not used in any way by MAFOT
+for(i=0;i<ntflimits;i++) tfcoil_.tflimits[i] = 0;
+tfcoil_.ibcoil = 1;
+tfcoil_.usebcoilmds = 0;
+tfcoil_.bma = 0;
+tfcoil_.dsbtc = 0;
+tfcoil_.alfsbtc = 0;
+tfcoil_.dthbtc = 0;
+tfcoil_.alfthbtc = 0;
+tfcoil_.lbtc = 0;
+tfcoil_.iripple = 0;
 
 #ifdef m3dc1
 	// Prepare loading M3D-C1
@@ -224,8 +277,8 @@ if(PAR.useFcoil == 1 || PAR.useCcoil == 1 || PAR.useIcoil == 1 || (PAR.response_
 	ofs2 << "Using g-file!" << endl;
 #endif
 
-if(mpi_rank < 1) cout << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
-ofs2 << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << endl << endl;
+if(mpi_rank < 1) cout << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << "\t" << "Bus Error: " << PAR.useBuswork << endl << endl;
+ofs2 << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << "\t" << "Bus Error: " << PAR.useBuswork << endl << endl;
 
 // Write I-coil currents to log files (Check if corretly read in)
 ofs2 << "I-coil currents:" << endl;
@@ -256,6 +309,15 @@ if(PAR.useIcoil==1)
 	for(i=0;i<nIloops;i++) nicsegs[i] = nIsegs;
 	d3igeom_(&kuseI[0]);
 }
+
+// Set buswork geometry
+if(PAR.useBuswork==1)
+{
+	for(i=0;i<nBusloops;i++) d3bus.kbus[i] = 1;	// all loops are on
+	d3busnew2geom_(&d3bus.kbus[0], &d3bus.nloops, &d3bus.nsegs[0], &d3bus.xs[0][0][0], &d3bus.dvs[0][0][0], &d3bus.curnt[0]);	// latest geometry only, since 2006
+	ofs2 << "B-coil current [A] for Bus error field: " << tfcoil_.bcoil << endl;
+}
+
 }
 
 //---------------- start_on_target ----------------------------------------------------------------------------------------

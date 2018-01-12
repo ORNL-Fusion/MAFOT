@@ -46,11 +46,14 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 4.0
+MAFOT 4.01
 GUI 1.43
 
 Version Notes: 
 ----------------
+MAFOT 4.01 -- Jan 2018
+- Buswork error field added for DIII-D
+
 MAFOT 4.0 -- Dec 2017
 - unification of M3DC1 and regular machine file -> *_m3dc1.hxx machine files no longer supported
 - simplification of machine specific files by moving larg pieces of common code to mafot.hxx
