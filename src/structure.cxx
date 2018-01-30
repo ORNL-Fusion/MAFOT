@@ -62,15 +62,17 @@ LA_STRING woutfile = "wout.nc";
 LA_STRING xpandfile = "xpand.dat";
 LA_STRING siestafile = "siesta.dat";
 LA_STRING islandfile = "fakeIslands.in";
+bool use_3Dwall = false;
+LA_STRING wall_file = "none";
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hafd:P:X:V:S:I:")) != -1)
+while ((c = getopt(argc, argv, "hafd:P:X:V:S:I:W:")) != -1)
 switch (c)
 {
 case 'h':
-	cout << "usage: dtstructure [-h] [-a] [-d step] [-f] [-I island] [-P points] [-S siesta] [-V wout] [-X xpand] file [tag]" << endl << endl;
+	cout << "usage: dtstructure [-h] [-a] [-d step] [-f] [-I island] [-P points] [-S siesta] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
 	cout << "Trace field lines in 3D and return the path every step d in toroidal angle." << endl << endl;
 	cout << "positional arguments:" << endl;
 	cout << "  file          Contol file (starts with '_')" << endl;
@@ -86,6 +88,7 @@ case 'h':
 	cout << "                Header lines start with '#'; no comment lines between/after data possible" << endl;
 	cout << "  -S            filename for SIESTA; default, see below" << endl;
 	cout << "  -V            filename for VMEC; default, see below" << endl;
+	cout << "  -W            use separate 3D Wall-File; default is 2D wall from EFIT file" << endl;
 	cout << "  -X            filename for XPAND; default, see below" << endl;
 	cout << endl << "Examples:" << endl;
 	cout << "  dtstructure _struct.dat blabla" << endl;
@@ -123,6 +126,10 @@ case 'S':
 	break;
 case 'V':
 	woutfile = optarg;
+	break;
+case 'W':
+	use_3Dwall = true;
+	wall_file = optarg;
 	break;
 case 'X':
 	xpandfile = optarg;
@@ -187,6 +194,14 @@ EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
 cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 
+// Read 3D wall file and add to EQD
+if(use_3Dwall)
+{
+	cout << "Using 3D wall from file: " << wall_file << endl;
+	ofs2 << "Using 3D wall from file: " << wall_file << endl;
+	EQD.set3Dwall(wall_file);
+}
+
 // Set starting parameters
 double dphi = nstep*dpinit;		// in deg;  dpinit = 1.0 (default)
 double alpha = PAR.verschieb;	// Scales parabolic deformation of line between start and end point, alpha = 0: no deformation, alpha = 1: max deformation equals distance between points
@@ -211,7 +226,7 @@ double dR,dZ,dN;
 int inputPoints_columns;
 if(usePointfile)
 {
-	// points in file are:    R[m]		phi[deg] (left-handed machine angle)	Z[m]
+	// points in file are:    R[m]		phi[deg] (right-handed angle)	Z[m]
 	inputPoints_columns = count_column(pointname);
 	readfile(pointname,inputPoints_columns,initial);
 	PAR.N = initial.rows();
@@ -229,7 +244,7 @@ else	// or construct initial points from straight line between (Rmin,Zmin) and (
 	for(i=1;i<=PAR.N;i++) 
 	{
 		initial(i,1) = PAR.Rmin + (i-1)*(dR - 4*alpha*((i-1)*dN-1)*dZ);
-		initial(i,2) = -PAR.phistart;	// phistart is degrees, but right-handed, so initial is left-handed machine angle
+		initial(i,2) = PAR.phistart;	// phistart is degrees, right-handed
 		initial(i,3) = PAR.Zmin + (i-1)*(dZ + 4*alpha*((i-1)*dN-1)*dR);
 	}
 }
@@ -264,7 +279,7 @@ for(i=1;i<=PAR.N;i++)
 {
 	// Set initial conditions
 	FLT.R = initial(i,1);
-	PAR.phistart = -initial(i,2);
+	PAR.phistart = initial(i,2);
 	FLT.Z = initial(i,3);
 	FLT.phi = PAR.phistart;
 	FLT.get_psi(FLT.R,FLT.Z,FLT.psi);
@@ -290,7 +305,7 @@ for(i=1;i<=PAR.N;i++)
 
 	// Restore start values and write them
 	FLT.R = initial(i,1);
-	PAR.phistart = -initial(i,2);
+	PAR.phistart = initial(i,2);
 	FLT.Z = initial(i,3);
 	FLT.phi = PAR.phistart;
 	FLT.get_psi(FLT.R,FLT.Z,FLT.psi);

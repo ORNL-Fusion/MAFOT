@@ -53,6 +53,9 @@ Version Notes:
 ----------------
 MAFOT 4.01 -- Jan 2018
 - Buswork error field added for DIII-D
+- For backward compatibility: c++11 standard no longer required, but recommended
+- structure can now use the 3D wall
+- compile targets for "each tool in all machines" added to makefile
 
 MAFOT 4.0 -- Dec 2017
 - unification of M3DC1 and regular machine file -> *_m3dc1.hxx machine files no longer supported
