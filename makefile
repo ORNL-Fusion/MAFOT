@@ -1,7 +1,7 @@
 # ---- include platform-specific options ----
 include ./make.inc
 
-CFLAGS += -std=c++11
+#CFLAGS += -std=c++11
 
 
 # ---- set directories ----
@@ -100,6 +100,24 @@ mast : $(DIRS) mastplot mastfix mastman mastlaminar_mpi mastfoot_mpi mastplot_mp
 
 .PHONY : cmod 
 cmod : $(DIRS) cmodplot cmodfix cmodman cmodlaminar_mpi cmodfoot_mpi cmodplot_mpi cmodstructure
+
+.PHONY : plot
+plot : $(DIRS) dtplot_mpi iterplot_mpi nstxplot_mpi mastplot_mpi cmodplot_mpi
+
+.PHONY : fix
+fix : $(DIRS) dtfix iterfix nstxfix mastfix cmodfix
+
+.PHONY : man
+man : $(DIRS) dtman iterman nstxman mastman cmodman
+
+.PHONY : laminar
+laminar : $(DIRS) dtlaminar_mpi iterlaminar_mpi nstxlaminar_mpi mastlaminar_mpi cmodlaminar_mpi
+
+.PHONY : foot
+foot : $(DIRS) dtfoot_mpi iterfoot_mpi nstxfoot_mpi mastfoot_mpi cmodfoot_mpi
+
+.PHONY : structure
+structure : $(DIRS) dtstructure iterstructure nstxstructure maststructure cmodstructure
 
 .PHONY : gui
 gui : $(MAFOT_DIR)/python/mafot_gui.py

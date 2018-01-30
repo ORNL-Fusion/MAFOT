@@ -544,10 +544,10 @@ while(getline(file, line))
 			if (int(words[i].find("Time")) > -1) timefound = i;
 			if ((shotfound > -1) && (timefound > -1))
 			{
-				shot = stoi(words[shotfound + 1]);
+				shot = atoi(words[shotfound + 1].c_str());
 				word = words[timefound + 1];
 				if (int(word.find("ms")) > -1) word.erase(word.find("ms")); // erase all from beginning of 'ms' to end of string
-				time = stoi(word);
+				time = atoi(word.c_str());
 				break;
 			}
 			if (int(words[i].find("Path")) > -1)
@@ -572,7 +572,7 @@ while(getline(file, line))
 
     found = line.find_last_of("=");
     parname = line.substr(0,found);
-    val = stod(line.substr(found+1));
+    val = atof(line.substr(found+1).c_str());
     vec.push_back(val);
 }
 file.close();
