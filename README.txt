@@ -46,11 +46,14 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 4.01
+MAFOT 4.02
 GUI 1.43
 
 Version Notes: 
 ----------------
+MAFOT 4.02 -- Feb 2018
+- B-coil shift&tilt error added for DIII-D
+
 MAFOT 4.01 -- Jan 2018
 - Buswork error field added for DIII-D
 - For backward compatibility: c++11 standard no longer required, but recommended

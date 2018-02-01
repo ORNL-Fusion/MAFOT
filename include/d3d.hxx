@@ -22,6 +22,8 @@
 int getBfield_general(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);	// declared here, defined in mafot.hxx
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
+void prep_Bcoil_shiftTilt(void);
+void Bcoil_shiftTilt_field(double X, double Y, double Z, double& Bx, double& By, double& Bz, EFIT& EQD);
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
 					 EFIT& EQD, IO& PAR, PARTICLE& FLT);
 
@@ -93,6 +95,9 @@ extern "C"
 
 // -------------- global Parameters ---------------------------------------------------------------------------------------
 double bndy[4] = {1.0, 2.4, -1.367, 1.36};	// Boundary
+
+Array<double,2> Bcoil_Tilt_Matrix(Range(1,3),Range(1,3));
+Array<double,1> Bcoil_Shift_Vector(Range(1,3));
 
 // extern
 #ifdef USE_SIESTA
@@ -178,6 +183,17 @@ if(PAR.useBuswork==1)
 	B_X += bx;
 	B_Y += by;
 	B_Z += bz;
+}
+
+// shifted&tilted Bcoil perturbation field
+if(PAR.useBcoil==1)
+{
+	bx = 0;	by = 0;	bz = 0;
+	Bcoil_shiftTilt_field(X,Y,Z,bx,by,bz,EQD);
+	B_X += bx;
+	B_Y += by;
+	B_Z += bz;
+	B_phi -= EQD.Bt0*EQD.R0/R;	// subtract original B_phi component; new Bphi is in Bx & By
 }
 
 // Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
@@ -277,8 +293,8 @@ if(PAR.useFcoil == 1 || PAR.useCcoil == 1 || PAR.useIcoil == 1 || (PAR.response_
 	ofs2 << "Using g-file!" << endl;
 #endif
 
-if(mpi_rank < 1) cout << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << "\t" << "Bus Error: " << PAR.useBuswork << endl << endl;
-ofs2 << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << "\t" << "Bus Error: " << PAR.useBuswork << endl << endl;
+if(mpi_rank < 1) cout << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << "\t" << "Bus Error: " << PAR.useBuswork << "\t" << "B-coil Error: " << PAR.useBcoil << endl << endl;
+ofs2 << "F-coil: " << PAR.useFcoil << "\t" << "C-coil: " << PAR.useCcoil << "\t" << "I-coil: " << PAR.useIcoil << "\t" << "Bus Error: " << PAR.useBuswork << "\t" << "B-coil Error: " << PAR.useBcoil << endl << endl;
 
 // Write I-coil currents to log files (Check if corretly read in)
 ofs2 << "I-coil currents:" << endl;
@@ -318,6 +334,68 @@ if(PAR.useBuswork==1)
 	ofs2 << "B-coil current [A] for Bus error field: " << tfcoil_.bcoil << endl;
 }
 
+// set Bcoil shift&tilt
+if(PAR.useBcoil==1)
+{
+	prep_Bcoil_shiftTilt();
+}
+
+}
+
+//---------- prep_Bcoil_shiftTilt --------------------------------------------------------------------------------------------
+void prep_Bcoil_shiftTilt(void)
+{
+// inverse shift&tilt
+// we want the new coordinates, within the shifted&tilted system, of the same point from the old system
+// the forward shift&tilt would give the old coordinates (in the old system) of the shifted and tilted new system
+const double shiftR = -5.7e-3;  			// in m;  INVERSE!
+const double shift_tor_angle = -71 /rTOd;   // in deg, rhs
+const double tilt_angle = -0.06 /rTOd;   	// in deg, from z-axis;  INVERSE!
+const double tilt_tor_angle = -250 /rTOd;   // in deg, rhs
+
+// tilting
+Bcoil_Tilt_Matrix(1,1) = cos(tilt_tor_angle)*cos(tilt_tor_angle)*cos(tilt_angle) + sin(tilt_tor_angle)*sin(tilt_tor_angle);
+Bcoil_Tilt_Matrix(1,2) = sin(tilt_tor_angle)*cos(tilt_tor_angle)*(cos(tilt_angle)-1);
+Bcoil_Tilt_Matrix(1,3) = cos(tilt_tor_angle)*sin(tilt_angle);
+
+Bcoil_Tilt_Matrix(2,1) = Bcoil_Tilt_Matrix(1,2);
+Bcoil_Tilt_Matrix(2,2) = sin(tilt_tor_angle)*sin(tilt_tor_angle)*cos(tilt_angle) + cos(tilt_tor_angle)*cos(tilt_tor_angle);
+Bcoil_Tilt_Matrix(2,3) = sin(tilt_tor_angle)*sin(tilt_angle);
+
+Bcoil_Tilt_Matrix(3,1) = -Bcoil_Tilt_Matrix(1,3);
+Bcoil_Tilt_Matrix(3,2) = -Bcoil_Tilt_Matrix(2,3);
+Bcoil_Tilt_Matrix(3,3) = cos(tilt_angle);
+
+// shifting
+Bcoil_Shift_Vector(1) = shiftR*cos(shift_tor_angle);
+Bcoil_Shift_Vector(2) = shiftR*sin(shift_tor_angle);
+Bcoil_Shift_Vector(3) = 0;
+}
+
+//---------- Bcoil_shiftTilt_field --------------------------------------------------------------------------------------------
+void Bcoil_shiftTilt_field(double X, double Y, double Z, double& Bx, double& By, double& Bz, EFIT& EQD)
+{
+double Rnew,Xnew,Ynew,phinew;
+double B_phi_new,Bx_new,By_new;
+
+Xnew = Bcoil_Tilt_Matrix(1,1)*X + Bcoil_Tilt_Matrix(1,2)*Y + Bcoil_Tilt_Matrix(1,3)*Z + Bcoil_Shift_Vector(1);
+Ynew = Bcoil_Tilt_Matrix(2,1)*X + Bcoil_Tilt_Matrix(2,2)*Y + Bcoil_Tilt_Matrix(2,3)*Z + Bcoil_Shift_Vector(2);
+
+Rnew = sqrt(Xnew*Xnew + Ynew*Ynew);
+phinew = polar_phi(Xnew, Ynew);
+
+// B_phi in the new system
+B_phi_new = EQD.Bt0*EQD.R0/Rnew;
+
+// B_phi_new in cartesian
+Bx_new = -B_phi_new*sin(phinew);
+By_new = B_phi_new*cos(phinew);
+//Bz_new = 0;
+
+// Bphi in the old coordinate system
+Bx = Bcoil_Tilt_Matrix(1,1)*Bx_new + Bcoil_Tilt_Matrix(1,2)*By_new;
+By = Bcoil_Tilt_Matrix(2,1)*Bx_new + Bcoil_Tilt_Matrix(2,2)*By_new;
+Bz = Bcoil_Tilt_Matrix(3,1)*Bx_new + Bcoil_Tilt_Matrix(3,2)*By_new;
 }
 
 //---------------- start_on_target ----------------------------------------------------------------------------------------

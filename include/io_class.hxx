@@ -55,6 +55,7 @@ public:
 	int create_flag;							// 0: fixed grid	1: random numbers	2: Start on target
 	int useIcoil; int useCcoil; int useFcoil;	// Perturbation coils:  0: off, 1: on
 	int useBuswork;								// Bus work error field:  0: off, 1: on
+	int useBcoil;								// shifted&tilted B-coil error field:  0: off, 1: on
 	int useFilament;							// Current filaments: 0: off, >=1: Number of filaments to use
 	int Zq;										// Charge number: 1: ions are calculated	-1: electrons are calculated
 	int sigma;									// 1: co-passing particles		-1: count-passing particles		0: field lines only
@@ -161,6 +162,7 @@ useFcoil = PAR.useFcoil;
 useCcoil = PAR.useCcoil;
 useIcoil = PAR.useIcoil;
 useBuswork = PAR.useBuswork;
+useBcoil = PAR.useBcoil;
 sigma = PAR.sigma;
 Zq = PAR.Zq;
 useFilament = PAR.useFilament;
@@ -242,6 +244,7 @@ out << "useFcoil = " << PAR.useFcoil << endl;
 out << "useCcoil = " << PAR.useCcoil << endl;
 out << "useIcoil = " << PAR.useIcoil << endl;
 out << "useBuswork = " << PAR.useBuswork << endl;
+out << "useBcoil = " << PAR.useBcoil << endl;
 out << "sigma = " << PAR.sigma << endl;
 out << "Zq = " << PAR.Zq << endl;
 out << "useFilament = " << PAR.useFilament << endl;
@@ -326,8 +329,6 @@ verschieb = vec[0];
 	// Set switches
 	which_target_plate = int(vec[9]);
 	create_flag = int(vec[10]);
-	useFcoil = int(vec[11]);
-	useCcoil = int(vec[11]);
 	useIcoil = int(vec[11]);
 	useFilament = int(vec[12]);
 	useTprofile = int(vec[13]);
@@ -337,6 +338,12 @@ verschieb = vec[0];
 	// External fields parameter
 	response = int(vec[18]);
 	response_field = int(vec[19]);
+
+	// Set unused Parameters to defaults
+	useFcoil = 0;
+	useCcoil = 0;
+	useBuswork = 0;
+	useBcoil = 0;
 	useTprofile = 0;
 #elif defined(NSTX)
 	// Particle Parameters
@@ -346,8 +353,6 @@ verschieb = vec[0];
 	// Set switches
 	which_target_plate = int(vec[9]);
 	create_flag = int(vec[10]);
-	useFcoil = int(vec[11]);
-	useCcoil = int(vec[11]);
 	useIcoil = int(vec[11]);
 	useFilament = int(vec[12]);
 	useTprofile = int(vec[13]);
@@ -357,6 +362,12 @@ verschieb = vec[0];
 	// External fields parameter
 	response = int(vec[18]);
 	response_field = int(vec[19]);
+
+	// Set unused Parameters to defaults
+	useFcoil = 0;
+	useCcoil = 0;
+	useBuswork = 0;
+	useBcoil = 0;
 	useTprofile = 0;
 #elif defined(MAST)
 	// Particle Parameters
@@ -378,6 +389,8 @@ verschieb = vec[0];
 
 	// Set unused Parameters to defaults
 	useFcoil = 0;
+	useBuswork = 0;
+	useBcoil = 0;
 	useTprofile = 0;
 #elif defined(CMOD)
 	// Particle Parameters
@@ -387,9 +400,6 @@ verschieb = vec[0];
 	// Set switches
 	which_target_plate = int(vec[11]);
 	create_flag = int(vec[12]);
-	useFcoil = 0;
-	useCcoil = 0;
-	useIcoil = 0;
 	sigma = int(vec[16]);
 	Zq = int(vec[17]);
 	useFilament = int(vec[20]);
@@ -398,6 +408,12 @@ verschieb = vec[0];
 	response = int(vec[9]);
 	response_field = int(vec[10]);
 
+	// Set unused Parameters to defaults
+	useFcoil = 0;
+	useCcoil = 0;
+	useIcoil = 0;
+	useBuswork = 0;
+	useBcoil = 0;
 	useTprofile = 0;
 #else
 	// Particle Parameters
@@ -425,6 +441,12 @@ verschieb = vec[0];
 	{
 		if(vec[22] > 1) useBuswork = 0;
 		else useBuswork = int(vec[22]);
+	}
+	if(vec.size() < 24) useBcoil = 0;
+	else
+	{
+		if(vec[23] > 1) useBcoil = 0;
+		else useBcoil = int(vec[23]);
 	}
 #endif
 }
@@ -460,6 +482,7 @@ out << "### Switches:" << endl;
 	out << "# C-coil active (0=no, 1=yes): " << useCcoil << endl;
 	out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
 	out << "# Bus work error field active (0=no, 1=yes): " << useBuswork << endl;
+	out << "# B-coil shift&tilt error field active (0=no, 1=yes): " << useBcoil << endl;
 #endif
 out << "# No. of current filaments (0=none): " << useFilament << endl;
 out << "# Use Temperature Profile (0=off, 1=on): " << useTprofile << endl;
