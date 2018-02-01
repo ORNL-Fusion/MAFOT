@@ -57,6 +57,13 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			print 'cannot identify target'
 			return
 	else: target = None
+
+	# --- auto-set Poincare defaults from filename key-word ---
+	if(filename[0:4] == 'plot'):
+		typeOfPlot = 'poincare'
+		what = 'None'
+		physical = -1
+		target = 'None'
 	
 	# --- define reversed cmap ---
 	if cmap[-2::] == '_r': cmap_r = cmap[0:-2]
@@ -74,30 +81,32 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		
 	# --- read data -------------------
 	data = readfile(path + filename)
-	Nth, Npsi = gridSize(data)
-	if(coordinates == 'RZ') | (coordinates == 'phi'): Nth, Npsi = Npsi, Nth
-	x = data[:,0].reshape(Nth,Npsi)
-	if(coordinates == 'phiZ'): y = data[:,10].reshape(Nth,Npsi)
-	else: y = data[:,1].reshape(Nth,Npsi)
-	Lc = data[:,3].reshape(Nth,Npsi)
-	psimin = data[:,4].reshape(Nth,Npsi)
-	try:
-		psimax = data[:,5].reshape(Nth,Npsi)
-		psiav = data[:,6].reshape(Nth,Npsi)
-		use_psimaxav = True
-	except:
-		use_psimaxav = False
-	try:
-		pitch = data[:,7].reshape(Nth,Npsi)
-		yaw = data[:,8].reshape(Nth,Npsi)
-		use_pitch_yaw = True
-	except:
-		use_pitch_yaw = False
+	if not (typeOfPlot == 'poincare'):
+		Nth, Npsi = gridSize(data)
+		if(coordinates == 'RZ') | (coordinates == 'phi'): Nth, Npsi = Npsi, Nth
+		x = data[:,0].reshape(Nth,Npsi)
+		if(coordinates == 'phiZ'): y = data[:,10].reshape(Nth,Npsi)
+		else: y = data[:,1].reshape(Nth,Npsi)
+		Lc = data[:,3].reshape(Nth,Npsi)
+		psimin = data[:,4].reshape(Nth,Npsi)
+		try:
+			psimax = data[:,5].reshape(Nth,Npsi)
+			psiav = data[:,6].reshape(Nth,Npsi)
+			use_psimaxav = True
+		except:
+			use_psimaxav = False
+		try:
+			pitch = data[:,7].reshape(Nth,Npsi)
+			yaw = data[:,8].reshape(Nth,Npsi)
+			use_pitch_yaw = True
+		except:
+			use_pitch_yaw = False
 
 	# --- set xy data -----------------
 	if(coordinates == 'RZ'):
 		xLabel = 'R [m]'
 		yLabel = 'Z [m]'
+		if (typeOfPlot == 'poincare'): x,y = data[:,4],data[:,5]; x,y = x[:,np.newaxis],y[:,np.newaxis]
 
 	elif(coordinates == 'psi'):
 		if not latex:
@@ -106,6 +115,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		else:
 			xLabel = '$\\theta$ $\\mathrm{[rad]}$'
 			yLabel = '$\\psi$'
+		if (typeOfPlot == 'poincare'): x,y = data[:,0],data[:,3]; x,y = x[:,np.newaxis],y[:,np.newaxis]
 	
 	elif(coordinates == 'pest'):
 		if not latex:
@@ -114,6 +124,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		else:
 			xLabel = '$\\theta_p$ $\\mathrm{[rad]}$'
 			yLabel = '$\\psi$'
+		if (typeOfPlot == 'poincare'): x,y = data[:,0],data[:,3]; x,y = x[:,np.newaxis],y[:,np.newaxis]
 
 	elif(coordinates == 'phi'):
 		if('d3d' in machine):
@@ -149,7 +160,10 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 				x = x*180.0/np.pi
 				if not latex: xLabel = u'\u03C6' + ' [deg]'
 				else: xLabel = '$\\phi$ $\\mathrm{[deg]}$'							
-	
+		if (typeOfPlot == 'poincare'): 
+			x,y = data[:,2]%(2*np.pi),data[:,1]; x,y = x[:,np.newaxis],y[:,np.newaxis]
+			yLabel = 'r [m]'
+			
 	elif(coordinates == 'phitheta'):
 		if not latex:
 			xLabel = u'\u03C6' + ' [deg]'
@@ -157,6 +171,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		else:
 			xLabel = '$\\varphi$ $\\mathrm{[deg]}$'
 			yLabel = '$\\theta$ $\\mathrm{[rad]}$'
+		if (typeOfPlot == 'poincare'): x,y = data[:,2]%(2*np.pi),data[:,0]; x,y = x[:,np.newaxis],y[:,np.newaxis]
 
 	elif(coordinates == 'phiZ'):
 		if not latex:
@@ -165,7 +180,17 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		else:
 			xLabel = '$\\varphi$ $\\mathrm{[deg]}$'
 			yLabel = 'Z [m]'
+		if (typeOfPlot == 'poincare'): x,y = data[:,2]%(2*np.pi),data[:,5]; x,y = x[:,np.newaxis],y[:,np.newaxis]
 	
+	elif(coordinates == 'rtheta'):
+		if not latex:
+			xLabel = u'\u03B8' + ' [rad]'
+			yLabel = 'r [m]'
+		else:
+			xLabel = '$\\theta$ $\\mathrm{[rad]}$'
+			yLabel = 'r [m]'
+		if (typeOfPlot == 'poincare'): x,y = data[:,0],data[:,1]; x,y = x[:,np.newaxis],y[:,np.newaxis]
+
 	else:
 		print 'coordinates: Unknown input'
 		return
@@ -238,6 +263,12 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		else: C_label = '$\\alpha_{r}$  [deg]'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
 		cdict = plt.cm.get_cmap(cmap)._segmentdata
+	
+	elif(what == 'None'):
+		b = np.zeros(N)
+		z = np.zeros(x.shape)
+		C_label = 'None'
+		cdict = plt.cm.get_cmap(cmap)._segmentdata
 		
 	else: 
 		print 'what: Unknown input'
@@ -267,7 +298,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			z = z[::-1,:]	# reverse y-axis
 		
 	# correct orientation in RZ plot and footprint
-	if(coordinates == 'RZ') | (coordinates == 'phi'): x, y, z = x.T, y.T, z.T
+	if((coordinates == 'RZ') | (coordinates == 'phi')) & (not (typeOfPlot == 'poincare')): x, y, z = x.T, y.T, z.T
 	
 	# correct, if last x point is larger than 2pi -> x mod 2pi is very small
 	if(x[-1,0] < x[-2,0]): x = x[0:-1,:]; y = y[0:-1,:]; z = z[0:-1,:]
@@ -285,28 +316,36 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			import Misc.sfc_class as sfc_class
 			sfc = sfc_class.straight_field_line_coordinates(shot, time)
 			xp = sfc.ev(x,y)
-			for i in xrange(Npsi):
-				spline = inter.UnivariateSpline(xp[:,i], z[:,i], s = 0)
-				z[:,i] = spline(x[:,i])
+			if (typeOfPlot == 'poincare'): x = xp
+			else:
+				for i in xrange(Npsi):
+					spline = inter.UnivariateSpline(xp[:,i], z[:,i], s = 0)
+					z[:,i] = spline(x[:,i])
 		except:
 			raise ImportError('Pest coordinates not available. Choose other coordinates')
 
 
 	# --- shift x-axis ----------------------
 	if (xlimit is not None):
-		if (coordinates == 'psi'):
+		if (coordinates in ['psi','pest','rtheta']):
 			if (xlimit[0] < 0):
 				xlimit0 = xlimit[0] % (2*np.pi)
-				idx_xlimit0 = abs(x[:,0] - xlimit0).argmin()
-				x = np.append(x[idx_xlimit0:-1,:] - 2*np.pi, x[0:idx_xlimit0,:],0)
-				y = np.append(y[idx_xlimit0:-1,:], y[0:idx_xlimit0,:],0)
-				z = np.append(z[idx_xlimit0:-1,:], z[0:idx_xlimit0,:],0)
+				if (typeOfPlot == 'poincare'):
+					x[x >= xlimit0] -= 2*np.pi
+				else:
+					idx_xlimit0 = abs(x[:,0] - xlimit0).argmin()
+					x = np.append(x[idx_xlimit0:-1,:] - 2*np.pi, x[0:idx_xlimit0,:],0)
+					y = np.append(y[idx_xlimit0:-1,:], y[0:idx_xlimit0,:],0)
+					z = np.append(z[idx_xlimit0:-1,:], z[0:idx_xlimit0,:],0)
 			if (xlimit[1] > 2*np.pi):
 				xlimit0 = xlimit[1] % (2*np.pi)
-				idx_xlimit0 = abs(x[:,0] - xlimit0).argmin()
-				x = np.append(x[idx_xlimit0:-1,:], x[0:idx_xlimit0,:] + 2*np.pi,0)
-				y = np.append(y[idx_xlimit0:-1,:], y[0:idx_xlimit0,:],0)
-				z = np.append(z[idx_xlimit0:-1,:], z[0:idx_xlimit0,:],0)
+				if (typeOfPlot == 'poincare'):
+					x[x <= xlimit0] += 2*np.pi
+				else:
+					idx_xlimit0 = abs(x[:,0] - xlimit0).argmin()
+					x = np.append(x[idx_xlimit0:-1,:], x[0:idx_xlimit0,:] + 2*np.pi,0)
+					y = np.append(y[idx_xlimit0:-1,:], y[0:idx_xlimit0,:],0)
+					z = np.append(z[idx_xlimit0:-1,:], z[0:idx_xlimit0,:],0)
 		elif ('phi' in coordinates):
 			pass
 
@@ -326,8 +365,12 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	else: latexFontSize = 24
 
 	if(coordinates == 'RZ'): 
-		width = 9
-		height = 7
+		if (typeOfPlot == 'poincare'):
+			width = 6
+			height = 10
+		else:
+			width = 9
+			height = 7
 		xlabel_size = font['size']
 		ylabel_size = font['size']
 	else: 
@@ -348,6 +391,8 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	if(typeOfPlot == 'contourf'):
 		plt.contour(x, y, z, b, cmap = usecolormap, extend = 'both')
 		cs = plt.contourf(x, y, z, b, cmap = usecolormap, extend = 'both')
+	elif(typeOfPlot == 'poincare'):
+		plt.plot(x,y,'ko',markersize = 0.5)
 	else:
 		cs = plt.imshow(z.T, extent = [x.min(), x.max(), y.min(), y.max()], cmap = usecolormap, origin = 'lower', vmin = b.min(), vmax = b.max(), aspect = 'auto', interpolation = 'bilinear')
 
@@ -373,6 +418,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 				plt.plot([x.min(), x.max()], [30.11, 30.11], 'k--', linewidth = 1.5)			
 		else:	# plot the pump limit / edge of shelf nose location
 			if(physical == 1) & ('d3d' in machine): plt.plot([x.min(), x.max()], [1.372, 1.372], 'k--', linewidth = 1.5)
+			elif(typeOfPlot == 'poincare'): pass
 			else: plt.plot([x.min(), x.max()], [1, 1], 'k--', linewidth = 1.5)
 			
 	if(coordinates == 'RZ') & (what in ['pitch', 'yaw']): # plot plasma boundary
@@ -381,12 +427,17 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	# --- Axes  -----------------------
 	if(coordinates == 'RZ'): 
 		plt.axes().set_aspect('equal')
-		plt.xlim(x.min(),x.max())
-		plt.ylim(y.min(),y.max())
+		if(typeOfPlot == 'poincare'):
+			plt.xlim(wall[:,0].min(),wall[:,0].max())
+			plt.ylim(wall[:,1].min(),wall[:,1].max())
+		else:
+			plt.xlim(x.min(),x.max())
+			plt.ylim(y.min(),y.max())
 		try: plt.locator_params(axis = 'x', nbins = 5)
 		except: pass
 	elif(coordinates == 'pest'): 
 		plt.ylim(y.min(), min([y.max(), 1.0]))
+		if(typeOfPlot == 'poincare'): plt.xlim(x.min(),x.max())
 	else: 
 		plt.xlim(x.min(),x.max())
 		plt.ylim(y.min(),y.max())
@@ -406,50 +457,51 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	plt.gca().set_position(plt.matplotlib.transforms.Bbox(pos))
 	
 	# --- Colorbar --------------------
-	# set ticks
-	steps = (b.max() - b.min())/10.0
-	digit = int(np.floor(np.log10(steps)))
-	factor = 10**digit
-	steps = int(np.ceil(steps/factor))*factor
-	bmin = int(np.ceil(b.min()/factor))*factor
-	myticks = np.arange(bmin, b.max()+steps, steps)
-	if(coordinates == 'RZ') | ('phi' in coordinates): 
-		if('psi' in what): 
-			myticks = myticks[myticks <= b.max()]
-			myticks[-1] = b.max()
-		else:
-			myticks[0] = b.min()
+	if not (typeOfPlot == 'poincare'):
+		# set ticks
+		steps = (b.max() - b.min())/10.0
+		digit = int(np.floor(np.log10(steps)))
+		factor = 10**digit
+		steps = int(np.ceil(steps/factor))*factor
+		bmin = int(np.ceil(b.min()/factor))*factor
+		myticks = np.arange(bmin, b.max()+steps, steps)
+		if(coordinates == 'RZ') | ('phi' in coordinates): 
+			if('psi' in what): 
+				myticks = myticks[myticks <= b.max()]
+				myticks[-1] = b.max()
+			else:
+				myticks[0] = b.min()
 			
-	if 'Anaconda' in sys.version:
-		if('psi' in what): 
-			myticks = myticks[myticks <= b.max()]
+		if 'Anaconda' in sys.version:
+			if('psi' in what): 
+				myticks = myticks[myticks <= b.max()]
 	
-	myticks[np.abs(myticks) < 1e-10] = 0
+		myticks[np.abs(myticks) < 1e-10] = 0
 	
-	if (what == 'Lc') & (use_z_logscale): myticks = np.arange(np.floor(b.min()), np.ceil(b.max())+1,1)
+		if (what == 'Lc') & (use_z_logscale): myticks = np.arange(np.floor(b.min()), np.ceil(b.max())+1,1)
 	
-	# If the "extend" argument is given, contourf sets the data limits to some odd extension of the actual data.
-	# Resetting the data limits, after plotting the contours, forces set_over & set_under colors to show,
-	# once the colorbar is called after the reset.
-	if(typeOfPlot == 'contourf'): cs.set_clim(b.min(),b.max())
-	if(coordinates == 'RZ') | ('phi' in coordinates): 
-		if('psi' in what): cs.cmap.set_over('w')
-		elif(what == 'Lc'): cs.cmap.set_under('w')
+		# If the "extend" argument is given, contourf sets the data limits to some odd extension of the actual data.
+		# Resetting the data limits, after plotting the contours, forces set_over & set_under colors to show,
+		# once the colorbar is called after the reset.
+		if(typeOfPlot == 'contourf'): cs.set_clim(b.min(),b.max())
+		if(coordinates == 'RZ') | ('phi' in coordinates): 
+			if('psi' in what): cs.cmap.set_over('w')
+			elif(what == 'Lc'): cs.cmap.set_under('w')
 
-	# show colorbar
-	C = plt.colorbar(cs, pad = 0.01, extend = 'both', format = '%.3g', ticks = myticks)
-	if 'Anaconda' in sys.version: C.set_label(C_label, rotation = 270, size = C_label_size, va = 'bottom')	# anaconda
-	elif (HOST == 'head.cluster'): C.set_label(C_label, rotation = 270, size = C_label_size, va = 'bottom') # Drop Cluster
-	else: C.set_label(C_label, rotation = 270, size = C_label_size)	# enthought
+		# show colorbar
+		C = plt.colorbar(cs, pad = 0.01, extend = 'both', format = '%.3g', ticks = myticks)
+		if 'Anaconda' in sys.version: C.set_label(C_label, rotation = 270, size = C_label_size, va = 'bottom')	# anaconda
+		elif (HOST == 'head.cluster'): C.set_label(C_label, rotation = 270, size = C_label_size, va = 'bottom') # Drop Cluster
+		else: C.set_label(C_label, rotation = 270, size = C_label_size)	# enthought
 		
-	# add SOL label in RZ plot and footprint
-	if(coordinates == 'RZ') | (coordinates == 'phi'): 
-		myticklabels = [str(item) for item in myticks]
-		if('psi' in what) & (b[-2] <= 1) & (b[-1] >= 1): myticklabels[-1] = 'SOL'
-		elif(what == 'Lc') & (b[0] <= Lcmin) & (b[1] > Lcmin): myticklabels[0] = 'SOL'
-		C.ax.set_yticklabels(myticklabels)
+		# add SOL label in RZ plot and footprint
+		if(coordinates == 'RZ') | (coordinates == 'phi'): 
+			myticklabels = [str(item) for item in myticks]
+			if('psi' in what) & (b[-2] <= 1) & (b[-1] >= 1): myticklabels[-1] = 'SOL'
+			elif(what == 'Lc') & (b[0] <= Lcmin) & (b[1] > Lcmin): myticklabels[0] = 'SOL'
+			C.ax.set_yticklabels(myticklabels)
 	
-	if (what == 'Lc') & (use_z_logscale): C.ax.set_yticklabels(['10$^{' + str(int(item)) + '}$' for item in myticks])
+		if (what == 'Lc') & (use_z_logscale): C.ax.set_yticklabels(['10$^{' + str(int(item)) + '}$' for item in myticks])
 						
 	# --- Title -----------------------
 	if(Title == True): plt.title(str(shot) + ',  ' + str(time) + 'ms', size = 18)
@@ -603,39 +655,6 @@ def read_3Dwall(file):
 # ----------------------------------------------------------------------------------------
 # --- Launch main() ----------------------------------------------------------------------
 if __name__ == '__main__':
-	# this is the more modern way
-	"""
-	import argparse
-	import textwrap
-	parser = argparse.ArgumentParser(description = 'Plot MAFOT output', 
-				formatter_class = argparse.RawDescriptionHelpFormatter,
-				epilog = textwrap.dedent('''\
-                Examples: d3dplot.py foot_in_test.dat
-                          d3dplot.py /path/to/gfile/foot_in_test.dat -p -c RZ
-                          d3dplot.py lam_psi_nopr.dat -w Lc'''))
-
-	parser.add_argument('pathname', help = 'file name or (full or rel.) pathname', type = str)
-	parser.add_argument('-c','--coordinates', help = 'Coordinate sytem for plot, options are: RZ, psi (default), phi, pest', type = str, default = 'psi')
-	parser.add_argument('-w','--what', help = 'Data to plot, options are: Lc, psimin (default), psimax, psiav', type = str, default = 'psimin')
-	parser.add_argument('-m','--machine', help = 'Machine, options are: d3d (default), iter', type = str, default = 'd3d')
-	parser.add_argument('-p','--printme', help = 'Save to File', action = 'store_true', default = False)
-	parser.add_argument('-g','--graphic', help = 'Graphic extension, options are: png (default), eps, pdf', type = str, default = 'png')
-	parser.add_argument('-t','--tag', help = 'Arbitary string, attached to the file name of the saved figure', type = str, default = None)
-	parser.add_argument('-P','--physical', help = 'Type of y-Axis in fooprint. 0: native, 1: RZ (default), 2: t in cm', type = int, default = 1)
-	parser.add_argument('-N', help = 'Number of color levels in plot, default = 60', type = int, default = 60)
-	parser.add_argument('-T','--Title', help = 'Figure title, default = None', type = str, default = None)	
-	parser.add_argument('-i','--imshow', help = 'Use imshow instead of contourf (default)', action = 'store_true', default = False)
-	parser.add_argument('-W','--figwidth', help = 'Force width of figure from default to value', type = int, default = None)
-	parser.add_argument('-H','--figheight', help = 'Force height of figure from default to value', type = int, default = None)
-	
-	args = parser.parse_args()
-	if args.imshow: toP = 'imshow'
-	else: toP = 'contourf'
-	d3dplot(args.pathname, printme = args.printme, coordinates = args.coordinates, what = args.what, machine = args.machine, 
-			tag = args.tag, graphic = args.graphic, physical = args.physical, b = None, N = args.N, Title = args.Title,
-			typeOfPlot = toP, xlimit = None, ylimit = None, figwidth = args.figwidth, figheight = args.figheight)
-	"""	
-
 	# this is the classic way, used here for backwards compatibility with basic python installs
 	coordinates = 'psi'
 	what = 'psimin'
