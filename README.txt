@@ -47,10 +47,15 @@ or
 Current Version:
 ----------------
 MAFOT 4.02
-GUI 1.43
+GUI 2.0
 
 Version Notes: 
 ----------------
+GUI 2.0 -- Feb 2018
+- complete restructuring of ther code to unify common code segments
+- several new features, like use of shell Flags for VMEC/SIESTA, or dtlaminar
+- new autocomplete Entry widget for file names, that searches through the directory structure
+
 MAFOT 4.02 -- Feb 2018
 - B-coil shift&tilt error added for DIII-D
 

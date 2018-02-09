@@ -1,11 +1,11 @@
-import os
+import os, re
 import Tkinter as tk
 import ttk
 import socket
 import numpy as np
 from subprocess import call
 
-import autocompleteEntry as acE 
+#from Misc.autocompleteEntry import AutocompleteEntry 
 
 HOME = os.getenv('HOME')
 HOST = socket.gethostname()
@@ -678,7 +678,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		row = self.row_M3DC1
 		#self.specialFieldFile1_entry = tk.Entry(self.frame, width = 10, textvariable = self.specialFieldFile1, 
 		#	validate = 'focusout', validatecommand = (fileFound, '%d','%P'))
-		self.specialFieldFile1_entry = acE.AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
+		self.specialFieldFile1_entry = AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
 				width = 59, textvariable = self.specialFieldFile1)
 		self.specialFieldFile1_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W)
 		self.specialFieldFile1_label = tk.Label(self.frame, text = "VMEC wout: ")
@@ -689,7 +689,7 @@ class common_tab(set_machine):	# inherit set_machine class
 
 		#self.specialFieldFile2_entry = tk.Entry(self.frame, width = 10, textvariable = self.specialFieldFile2, 
 		#	validate = 'focusout', validatecommand = (fileFound, '%d','%P'))
-		self.specialFieldFile2_entry = acE.AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
+		self.specialFieldFile2_entry = AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
 				width = 59, textvariable = self.specialFieldFile2)
 		self.specialFieldFile2_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W)
 		self.specialFieldFile2_label = tk.Label(self.frame, text = "Xpand data: ")
@@ -700,7 +700,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		row = self.row_M3DC1
 		#self.specialFieldFile3_entry = tk.Entry(self.frame, width = 10, textvariable = self.specialFieldFile3, 
 		#	validate = 'focusout', validatecommand = (fileFound, '%d','%P'))
-		self.specialFieldFile3_entry = acE.AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
+		self.specialFieldFile3_entry = AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
 				width = 59, textvariable = self.specialFieldFile3)
 		self.specialFieldFile3_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W)
 		self.specialFieldFile3_label = tk.Label(self.frame, text = "SIESTA data: ")
@@ -1254,8 +1254,8 @@ class set_plot_tab(common_tab):		# inherit common tab class
 			data = [0, 300, 0.6, 0.95, 0, 0, 40, 0, 1, 1, 0, 1, 0, 0, 0, 1, 
 					100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'mast':
-			data = [0, 300, 0.6, 0.95, 0, 0, 40, 0, 1, 1, 0, 1, 1, 0, 0, 1, 
-					100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
+			data = [0, 300, 0.6, 0.95, 0, 0, 40, 0, 1, 0, -1, 1, 3, 1, 1, 0, 0, 1, 
+					100, 0.1, 3.141592653589793, 6.283185307179586]
 		else:
 			data = [0, 300, 0.6, 0.95, 0, 0, 40, 0, 1, 0, -1, 1, 3, 1, 1, 1, 0, 1, 
 					100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]
@@ -1444,8 +1444,8 @@ class set_fix_tab(common_tab):		# inherit common tab class
 			data = [1e-4, 0, 0.25, 0.55, -1.5, -1, 900, 0, 1, 1, 5, 1, 0, 0, 0, 1, 
 					100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'mast':
-			data = [1e-4, 0, 0.25, 0.55, -1.5, -1, 900, 0, 1, 1, 5, 1, 1, 0, 0, 1, 
-					100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
+			data = [1e-4, 0, 0.4, 0.9, -1.5, -1.0, 900, 0, 1, 0, -1, 1, 5, 1, 1, 0, 0, 1, 
+					100, 0.1, 3.141592653589793, 6.283185307179586]
 		else:
 			data = [1e-4, 0, 1.1, 1.6, -1.45, -0.8, 900, 0, 1, 0, -1, 1, 5, 1, 1, 1, 0, 1, 
 					100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]
@@ -1602,13 +1602,13 @@ class set_man_tab(common_tab):		# inherit common tab class
 			data = [1e-4, 0, 4, 5.85, -4.4, -3.3, 900, 0, 1, 1, 0, 1, 0, 0, 0, 1, 100, 0.1, 
 					0, -1, 3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'nstx':
-			data = [1e-4, 0, 1, 1.3, 4.1, 4.6, 900, 0, 1, 1, 0, 1, 0, 0, 0, 1, 
+			data = [1e-4, 0, 0.25, 0.55, -1.5, -1, 900, 0, 1, 1, 0, 1, 0, 0, 0, 1, 
 					100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'mast':
-			data = [1e-4, 0, 1, 1.3, 4.1, 4.6, 900, 0, 1, 1, 0, 1, 0, 0, 0, 1, 
+			data = [1e-4, 0, 0.4, 0.9, -1.5, -1.0, 900, 0, 1, 0, -1, 1, 5, 1, 1, 0, 0, 1, 
 					100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
 		else:
-			data = [1e-4, 0, 1, 1.3, 4.1, 4.6, 900, 0, 1, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
+			data = [1e-4, 0, 1.1, 1.6, -1.45, -0.8, 900, 0, 1, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
 					100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]
 		return data
 
@@ -1885,11 +1885,11 @@ class set_foot_tab(common_tab):		# inherit common tab class
 							0, -1, 3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'mast':
 			if(flag == 1):
-				data = [500, 500, -1.6835, -1.229, 0, 6.283185307179586, 400, 0, -1, 3, 2, 1, 1, 0, 0, 1, 100, 0.1, 
-							0, -1, 3.141592653589793, 6.283185307179586]
+				data = [500, 500, -1.6835, -1.229, 0, 6.283185307179586, 400, 0, -1, 0, -1, 1, 2, 1, 1, 0, 0, 1, 
+							100, 0.1, 3.141592653589793, 6.283185307179586]
 			elif(flag == 2):
-				data = [500, 500, 0.7835, 1.9, 0, 6.283185307179586, 400, 0, 1, 4, 2, 1, 1, 0, 0, 1, 100, 0.1, 
-							0, -1, 3.141592653589793, 6.283185307179586]
+				data = [500, 500, 0.7835, 1.9, 0, 6.283185307179586, 400, 0, 1, 0, -1, 2, 2, 1, 1, 0, 0, 1, 
+							100, 0.1, 3.141592653589793, 6.283185307179586]
 		else:	# d3d
 			if(flag == 3):
 				data = [500, 300, 0.0, 0.1, 0, 6.283185307179586, 100, 0, 1, 0, -1, 3, 2, 1, 1, 1, 0, 1, 
@@ -2014,7 +2014,7 @@ class set_lam_tab(common_tab):		# inherit common tab class
 		self.set_MinMax_elements(row)
 		
 		self.pointsFile = tk.StringVar()
-		self.pointsFile_entry = acE.AutocompleteEntry(os.listdir(self.path.get()), frame, listboxLength = 6, 
+		self.pointsFile_entry = AutocompleteEntry(os.listdir(self.path.get()), frame, listboxLength = 6, 
 				width = 59, textvariable = self.pointsFile)
 		self.pointsFile_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W)
 				
@@ -2125,11 +2125,11 @@ class set_lam_tab(common_tab):		# inherit common tab class
 						100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'mast':
 			if(flag == 'psi'):
-				data = [1200, 200, 0.88, 1.02, 0, 6.283185307179586, 700, 0, 0, 1, 3, 1, 0, 0, 0, 1, 100, 0.1, 
-						0, -1, 3.141592653589793, 6.283185307179586]
+				data = [1200, 200, 0.88, 1.02, 0, 6.283185307179586, 700, 0, 0, 0, -1, 1, 3, 1, 1, 0, 0, 1, 
+						100, 0.1, 3.141592653589793, 6.283185307179586]
 			else:
-				data = [100, 200, 0.7, 1.9, -1.65, -1.0, 100, 0, 0, 1, 0, 1, 0, 0, 0, 1, 
-						100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
+				data = [610, 200, 0.195, 1.9, -1.825, 0.6, 850, 0, 0, 0, -1, 1, 0, 1, 1, 0, 0, 1, 
+						100, 0.1, 3.141592653589793, 6.283185307179586]
 		else:
 			if(flag == 'psi'):
 				data = [1200, 200, 0.88, 1.02, 0, 6.283185307179586, 700, 0, 0, 0, -1, 1, 3, 1, 1, 1, 0, 1, 
@@ -2214,6 +2214,175 @@ class set_lam_tab(common_tab):		# inherit common tab class
 			if(self.createFlag.get() == 'psi'): f.write('createPoints(0=setR,3=setpsi)=\t3\n')
 			else: f.write('createPoints(0=setR,3=setpsi)=\t0\n')
 			self.write_Ctrl_bottom(f)
+
+
+# -------------------------------------------------------------------------------------------------------------
+# --- AutocompleteEntry ---------------------------------------------------------------------------------------
+class AutocompleteEntry(tk.Entry):
+	def __init__(self, autocompleteList, *args, **kwargs):
+		# set working dir
+		self.init_path = kwargs.pop('cwd', os.getcwd() + '/')
+		self.path = self.init_path
+		self.include_path = False
+
+		# Listbox length
+		self.listboxLength = kwargs.pop('listboxLength', 8)
+		
+		# Entry variable
+		self.var = kwargs.pop('textvariable', tk.StringVar())
+
+		# Custom matches function
+		if 'matchesFunction' in kwargs:
+			self.matchesFunction = kwargs['matchesFunction']
+			del kwargs['matchesFunction']
+		else:
+			def matches(fieldValue, acListEntry):
+				pattern = re.compile('.*' + re.escape(fieldValue) + '.*', re.IGNORECASE)
+				return re.match(pattern, acListEntry)
+				
+			self.matchesFunction = matches
+		
+		tk.Entry.__init__(self, *args, textvariable = self.var, **kwargs)
+		self.focus()
+
+		self.autocompleteList = autocompleteList
+		
+		self.var.trace('w', self.changed)
+		self.bind("<Right>", self.selection)
+		self.bind("<Return>", self.selection)
+		self.bind("<Up>", self.moveUp)
+		self.bind("<Down>", self.moveDown)
+		
+		self.listboxUp = False
+		
+		
+	def separate_dir(self):
+		var = self.var.get()
+		idx = var[::-1].find('/')	# returns location of last '/' in var or -1 if not found
+		if(idx == -1):
+			self.path = '.'
+		else:
+			idx *= -1
+			self.path = var[0:idx - 1] + '/'	# path with a final '/', works also if var[0:idx - 1] == '', which means var is like '/blabla'
+			var = var[idx::]
+		if not self.path[0] == '/':	# path is not absolute
+			self.path = os.path.abspath(self.init_path + self.path) + '/'
+		return var
+
+
+	def update_baseSearchPath(self, path):
+		self.init_path = os.path.abspath(path) + '/'
+		self.path = self.init_path
+		self.update_list()
+		
+		
+	def update_list(self, newList = None):
+		if newList is None:
+			self.autocompleteList = os.listdir(self.path)
+		else:
+			self.autocompleteList = newList
+
+
+	def changed(self, name, index, mode):
+		if self.var.get() == '':
+			if self.include_path:
+				self.path = self.init_path
+				self.update_list()
+				self.include_path = False
+			if self.listboxUp:
+				self.listbox.destroy()
+				self.tw.destroy()
+				self.listboxUp = False
+		else:
+			words = self.comparison()
+			if words:
+				if not self.listboxUp:
+					# creates a toplevel window
+					self.tw = tk.Toplevel(self)
+					x = y = 0
+					x, y, cx, cy = self.bbox("insert")
+					x += self.winfo_rootx()
+					y += self.winfo_rooty() + self.winfo_height()
+					# Leaves only the label and removes the app window
+					self.tw.wm_overrideredirect(True)
+					self.tw.wm_geometry("+%d+%d" % (x, y))
+					self.listbox = tk.Listbox(self.tw, width=self["width"], height=self.listboxLength)
+					self.listbox.bind("<Button-1>", self.selection)
+					self.listbox.bind("<Right>", self.selection)
+					self.listbox.bind("<Return>", self.selection)
+					self.listbox.pack(ipadx = 1)
+					self.listboxUp = True
+				
+				self.listbox.delete(0, tk.END)
+				for w in words:
+					self.listbox.insert(tk.END,w)
+				self.listbox.selection_set(first=0)
+				self.listbox.activate(0)
+			else:
+				if self.listboxUp:
+					self.listbox.destroy()
+					self.tw.destroy()
+					self.listboxUp = False
+
+		
+	def selection(self, event):
+		if self.listboxUp:
+			if event.type == '4':		# button press event
+				index = self.listbox.index("@%s,%s" % (event.x, event.y))
+				self.listbox.selection_set(first=index)
+				self.listbox.activate(index)
+			if self.include_path:
+				self.var.set(self.path + self.listbox.get(tk.ACTIVE))
+			else:
+				self.var.set(self.listbox.get(tk.ACTIVE))
+			self.listbox.destroy()
+			self.tw.destroy()
+			self.listboxUp = False
+			self.icursor(tk.END)
+
+
+	def moveUp(self, event):
+		if self.listboxUp:
+			if self.listbox.curselection() == ():
+				index = '0'
+			else:
+				index = self.listbox.curselection()[0]
+				
+			if index != '0':				
+				self.listbox.selection_clear(first=index)
+				index = str(int(index) - 1)
+				
+				self.listbox.see(index) # Scroll!
+				self.listbox.selection_set(first=index)
+				self.listbox.activate(index)
+
+
+	def moveDown(self, event):
+		if self.listboxUp:
+			if self.listbox.curselection() == ():
+				index = '0'
+			else:
+				index = self.listbox.curselection()[0]
+				
+			if index != tk.END:						
+				self.listbox.selection_clear(first=index)
+				index = str(int(index) + 1)
+				
+				self.listbox.see(index) # Scroll!
+				self.listbox.selection_set(first=index)
+				self.listbox.activate(index) 
+
+
+	def comparison(self):
+		var = self.var.get()
+		if '/' in var:
+			var = self.separate_dir()
+			self.update_list()
+			self.include_path = True
+		if self.var.get()[-1] == '/':
+			return [ w for w in self.autocompleteList]
+		else:
+			return [ w for w in self.autocompleteList if self.matchesFunction(var, w) ]
 
 
 # -------------------------------------------------------------------------------------------------------------
