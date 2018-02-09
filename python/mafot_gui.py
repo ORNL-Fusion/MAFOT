@@ -278,7 +278,6 @@ class Common_gui:
 		self.set_machine_elements()
 
 
-
 # -------------------------------------------------------------------------------------------------------------
 # --- machine specific elements -------------------------------------------------------------------------------
 class set_machine():
@@ -679,7 +678,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		#self.specialFieldFile1_entry = tk.Entry(self.frame, width = 10, textvariable = self.specialFieldFile1, 
 		#	validate = 'focusout', validatecommand = (fileFound, '%d','%P'))
 		self.specialFieldFile1_entry = AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
-				width = 59, textvariable = self.specialFieldFile1)
+				width = 50, textvariable = self.specialFieldFile1)
 		self.specialFieldFile1_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W)
 		self.specialFieldFile1_label = tk.Label(self.frame, text = "VMEC wout: ")
 		self.specialFieldFile1_label.grid(column = 1, row = row, sticky = tk.E )
@@ -690,7 +689,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		#self.specialFieldFile2_entry = tk.Entry(self.frame, width = 10, textvariable = self.specialFieldFile2, 
 		#	validate = 'focusout', validatecommand = (fileFound, '%d','%P'))
 		self.specialFieldFile2_entry = AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
-				width = 59, textvariable = self.specialFieldFile2)
+				width = 50, textvariable = self.specialFieldFile2)
 		self.specialFieldFile2_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W)
 		self.specialFieldFile2_label = tk.Label(self.frame, text = "Xpand data: ")
 		self.specialFieldFile2_label.grid(column = 1, row = row, sticky = tk.E )
@@ -701,7 +700,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		#self.specialFieldFile3_entry = tk.Entry(self.frame, width = 10, textvariable = self.specialFieldFile3, 
 		#	validate = 'focusout', validatecommand = (fileFound, '%d','%P'))
 		self.specialFieldFile3_entry = AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
-				width = 59, textvariable = self.specialFieldFile3)
+				width = 50, textvariable = self.specialFieldFile3)
 		self.specialFieldFile3_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W)
 		self.specialFieldFile3_label = tk.Label(self.frame, text = "SIESTA data: ")
 		self.specialFieldFile3_label.grid(column = 1, row = row, sticky = tk.E )
@@ -1072,12 +1071,12 @@ class common_tab(set_machine):	# inherit set_machine class
 		self.writeControlFile(name)
 		if(HOST == 'head.cluster'):		# Drop Cluster
 			self.write_qsub_file(data, self.tag.get(), shellFlags)
-			#call('qsub run_MAFOTjob', shell = True)
-			print 'qsub run_MAFOTjob'
+			call('qsub run_MAFOTjob', shell = True)
+			#print 'qsub run_MAFOTjob'
 		else:
-			#call(shellCall + shellFlags + ' &', shell = True)
-			print 'running in dir:', os.getcwd()
-			print shellCall + shellFlags + ' &'
+			call(shellCall + shellFlags + ' &', shell = True)
+			#print 'running in dir:', os.getcwd()
+			#print shellCall + shellFlags + ' &'
 		if chk: os.chdir(cwd)
 
 
@@ -2015,7 +2014,7 @@ class set_lam_tab(common_tab):		# inherit common tab class
 		
 		self.pointsFile = tk.StringVar()
 		self.pointsFile_entry = AutocompleteEntry(os.listdir(self.path.get()), frame, listboxLength = 6, 
-				width = 59, textvariable = self.pointsFile)
+				width = 50, textvariable = self.pointsFile)
 		self.pointsFile_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W)
 				
 		# --- y -> r, psi or Z ---
