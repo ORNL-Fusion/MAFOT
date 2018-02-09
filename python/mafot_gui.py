@@ -2,6 +2,7 @@ import os
 import Tkinter as tk
 import ttk
 import socket
+import numpy as np
 from subprocess import call
 
 HOME = os.getenv('HOME')
@@ -522,20 +523,35 @@ class dtplot_gui:
 		separator.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- coils ---
-		self.useFcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useFcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useFcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use F-coil").grid(column = 1, row = row, sticky = tk.E )
+		row += 1
+		
+		# --- 3D Fields Label ---
+		tk.Label(frame, text = "3-D Fields: ").grid(column = 1, row = row, sticky = tk.E)
 
-		self.useCcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useCcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useCcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use C-coil").grid(column = 1, row = row, sticky = tk.E )
+		# --- Icoil checkbox ---
+		self.useIcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' I-coils', variable = self.useIcoil).grid(column = 2, row = row, sticky = tk.E + tk.W)
 
-		self.useIcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useIcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useIcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use I-coil").grid(column = 1, row = row, sticky = tk.E )
+		# --- Ccoil checkbox ---
+		self.useCcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' C-coils', variable = self.useCcoil).grid(column = 3, row = row, sticky = tk.E + tk.W)
+
+		row += 1
+		
+		# --- Error Fields Label ---
+		tk.Label(frame, text = "Error Fields: ").grid(column = 1, row = row, sticky = tk.E)
+
+		# --- useEF checkbox ---
+		self.useFcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' F-coil', variable = self.useFcoil).grid(column = 2, row = row, sticky = tk.E + tk.W)
+
+		# --- useBus checkbox ---
+		self.useBus = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' Bus', variable = self.useBus).grid(column = 3, row = row, sticky = tk.E + tk.W)
+
+		# --- Bcoil checkbox ---
+		self.useBcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' B-coil', variable = self.useBcoil).grid(column = 4, row = row, sticky = tk.E + tk.W)
 
 		# --- separator ---
 		row += 1
@@ -645,9 +661,13 @@ class dtplot_gui:
 		# --- read parameterfile, if it is there ---
 		if os.path.isfile(self.path.get() + '_plot.dat'):
 			_,_,_, data = self.M.readControlFile(self.path.get() + '_plot.dat')
+			if len(data) < 26:
+				if len(data) == 23: data = np.append(data[0:21],[0, 0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 24: data = np.append(data[0:22],[0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 25: data = np.append(data[0:23],[0, 3.141592653589793, 6.283185307179586])
 		else: # defaults
 			data = [0, 300, 0.42, 0.57, 0, 0, 40, 0, 1, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
-					100, 0.1, 0, 3.141592653589793, 6.283185307179586]
+					100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]
 										
 		if(data[12] == 0) | (data[12] == 1): self.createFlag.set('polar')
 		elif(data[12] == 3) | (data[12] == 4): self.createFlag.set('psi')
@@ -674,6 +694,8 @@ class dtplot_gui:
 		self.useFcoil.set(int(data[13]))
 		self.useCcoil.set(int(data[14]))
 		self.useIcoil.set(int(data[15]))
+		self.useBus.set(int(data[22]))
+		self.useBcoil.set(int(data[23]))
 		
 		if (int(data[10]) >= 0):
 			self.selectField.set(0)
@@ -967,6 +989,9 @@ class dtplot_gui:
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
 			f.write('useFilament(0=no)=\t' + self.useFilament.get() + '\n')
+			f.write('useTe_profile(0=no)=	0\n')
+			f.write('useBusError(0=no,1=yes)=\t' + str(self.useBus.get()) + '\n')
+			f.write('useBcoilError(0=no,1=yes)=\t' + str(self.useBcoil.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
 		
@@ -1071,20 +1096,34 @@ class dtfix_gui:
 		separator.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- coils ---
-		self.useFcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useFcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useFcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use F-coil").grid(column = 1, row = row, sticky = tk.E )
+		row += 1
+		# --- 3D Fields Label ---
+		tk.Label(frame, text = "3-D Fields: ").grid(column = 1, row = row, sticky = tk.E)
 
-		self.useCcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useCcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useCcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use C-coil").grid(column = 1, row = row, sticky = tk.E )
+		# --- Icoil checkbox ---
+		self.useIcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' I-coils', variable = self.useIcoil).grid(column = 2, row = row, sticky = tk.E + tk.W)
 
-		self.useIcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useIcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useIcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use I-coil").grid(column = 1, row = row, sticky = tk.E )
+		# --- Ccoil checkbox ---
+		self.useCcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' C-coils', variable = self.useCcoil).grid(column = 3, row = row, sticky = tk.E + tk.W)
+
+		row += 1
+		
+		# --- Error Fields Label ---
+		tk.Label(frame, text = "Error Fields: ").grid(column = 1, row = row, sticky = tk.E)
+
+		# --- useEF checkbox ---
+		self.useFcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' F-coil', variable = self.useFcoil).grid(column = 2, row = row, sticky = tk.E + tk.W)
+
+		# --- useBus checkbox ---
+		self.useBus = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' Bus', variable = self.useBus).grid(column = 3, row = row, sticky = tk.E + tk.W)
+
+		# --- Bcoil checkbox ---
+		self.useBcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' B-coil', variable = self.useBcoil).grid(column = 4, row = row, sticky = tk.E + tk.W)
 
 		# --- separator ---
 		row += 1
@@ -1189,9 +1228,13 @@ class dtfix_gui:
 		# --- read parameterfile, if it is there ---
 		if os.path.isfile(self.path.get() + '_fix.dat'):
 			_,_,_, data = self.M.readControlFile(self.path.get() + '_fix.dat')
+			if len(data) < 26:
+				if len(data) == 23: data = np.append(data[0:21],[0, 0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 24: data = np.append(data[0:22],[0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 25: data = np.append(data[0:23],[0, 3.141592653589793, 6.283185307179586])
 		else: # defaults
 			data = [1e-4, 0, 1.1, 1.6, -1.45, -0.8, 900, 0, 1, 0, -1, 1, 5, 1, 1, 1, 0, 1, 
-					100, 0.1, 0, 3.141592653589793, 6.283185307179586]
+					100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]
 					
 		self.shift = data[0]
 		self.MapDirection = int(data[8]); 		
@@ -1205,6 +1248,8 @@ class dtfix_gui:
 		self.useFcoil.set(int(data[13])); 
 		self.useCcoil.set(int(data[14])); 
 		self.useIcoil.set(int(data[15])); 
+		self.useBus.set(int(data[22]))
+		self.useBcoil.set(int(data[23]))
 		
 		if (int(data[10]) >= 0):
 			self.selectField.set(0)
@@ -1445,6 +1490,9 @@ class dtfix_gui:
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
 			f.write('useFilament(0=no)=\t' + self.useFilament.get() + '\n')
+			f.write('useTe_profile(0=no)=	0\n')
+			f.write('useBusError(0=no,1=yes)=\t' + str(self.useBus.get()) + '\n')
+			f.write('useBcoilError(0=no,1=yes)=\t' + str(self.useBcoil.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
 		
@@ -1533,20 +1581,34 @@ class dtman_gui:
 		separator.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- coils ---
-		self.useFcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useFcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useFcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use F-coil").grid(column = 1, row = row, sticky = tk.E )
+		row += 1
+		# --- 3D Fields Label ---
+		tk.Label(frame, text = "3-D Fields: ").grid(column = 1, row = row, sticky = tk.E)
 
-		self.useCcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useCcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useCcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use C-coil").grid(column = 1, row = row, sticky = tk.E )
+		# --- Icoil checkbox ---
+		self.useIcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' I-coils', variable = self.useIcoil).grid(column = 2, row = row, sticky = tk.E + tk.W)
 
-		self.useIcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useIcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useIcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use I-coil").grid(column = 1, row = row, sticky = tk.E )
+		# --- Ccoil checkbox ---
+		self.useCcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' C-coils', variable = self.useCcoil).grid(column = 3, row = row, sticky = tk.E + tk.W)
+
+		row += 1
+		
+		# --- Error Fields Label ---
+		tk.Label(frame, text = "Error Fields: ").grid(column = 1, row = row, sticky = tk.E)
+
+		# --- useEF checkbox ---
+		self.useFcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' F-coil', variable = self.useFcoil).grid(column = 2, row = row, sticky = tk.E + tk.W)
+
+		# --- useBus checkbox ---
+		self.useBus = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' Bus', variable = self.useBus).grid(column = 3, row = row, sticky = tk.E + tk.W)
+
+		# --- Bcoil checkbox ---
+		self.useBcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' B-coil', variable = self.useBcoil).grid(column = 4, row = row, sticky = tk.E + tk.W)
 
 		# --- separator ---
 		row += 1
@@ -1652,9 +1714,13 @@ class dtman_gui:
 		# --- read parameterfile, if it is there ---
 		if os.path.isfile(self.path.get() + '_fix.dat'):
 			_,_,_, data = self.M.readControlFile(self.path.get() + '_fix.dat')
+			if len(data) < 26:
+				if len(data) == 23: data = np.append(data[0:21],[0, 0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 24: data = np.append(data[0:22],[0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 25: data = np.append(data[0:23],[0, 3.141592653589793, 6.283185307179586])
 		else: # defaults
 			data = [1e-4, 0, 1, 1.3, 4.1, 4.6, 900, 0, 1, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
-					100, 0.1, 0, 3.141592653589793, 6.283185307179586]
+					100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]
 	
 		self.xmin = data[4]
 		self.xmax = data[5]
@@ -1675,6 +1741,8 @@ class dtman_gui:
 		self.useFcoil.set(int(data[13])); 
 		self.useCcoil.set(int(data[14])); 
 		self.useIcoil.set(int(data[15])); 
+		self.useBus.set(int(data[22]))
+		self.useBcoil.set(int(data[23]))
 		
 		if (int(data[10]) >= 0):
 			self.selectField.set(0)
@@ -1915,6 +1983,9 @@ class dtman_gui:
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
 			f.write('useFilament(0=no)=\t' + self.useFilament.get() + '\n')
+			f.write('useTe_profile(0=no)=	0\n')
+			f.write('useBusError(0=no,1=yes)=\t' + str(self.useBus.get()) + '\n')
+			f.write('useBcoilError(0=no,1=yes)=\t' + str(self.useBcoil.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
 		
@@ -2018,20 +2089,34 @@ class dtfoot_gui:
 		separator.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- coils ---
-		self.useFcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useFcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useFcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use F-coil").grid(column = 1, row = row, sticky = tk.E )
+		row += 1
+		# --- 3D Fields Label ---
+		tk.Label(frame, text = "3-D Fields: ").grid(column = 1, row = row, sticky = tk.E)
 
-		self.useCcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useCcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useCcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use C-coil").grid(column = 1, row = row, sticky = tk.E )
+		# --- Icoil checkbox ---
+		self.useIcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' I-coils', variable = self.useIcoil).grid(column = 2, row = row, sticky = tk.E + tk.W)
 
-		self.useIcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useIcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useIcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use I-coil").grid(column = 1, row = row, sticky = tk.E )
+		# --- Ccoil checkbox ---
+		self.useCcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' C-coils', variable = self.useCcoil).grid(column = 3, row = row, sticky = tk.E + tk.W)
+
+		row += 1
+		
+		# --- Error Fields Label ---
+		tk.Label(frame, text = "Error Fields: ").grid(column = 1, row = row, sticky = tk.E)
+
+		# --- useEF checkbox ---
+		self.useFcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' F-coil', variable = self.useFcoil).grid(column = 2, row = row, sticky = tk.E + tk.W)
+
+		# --- useBus checkbox ---
+		self.useBus = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' Bus', variable = self.useBus).grid(column = 3, row = row, sticky = tk.E + tk.W)
+
+		# --- Bcoil checkbox ---
+		self.useBcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' B-coil', variable = self.useBcoil).grid(column = 4, row = row, sticky = tk.E + tk.W)
 
 		# --- separator ---
 		row += 1
@@ -2145,7 +2230,11 @@ class dtfoot_gui:
 				_,_,_, data = self.M.readControlFile(self.path.get() + '_inner.dat')
 			else: # defaults
 				data = [500, 300, -0.1, 0.3, 0, 6.283185307179586, 400, 0, -1, 0, -1, 1, 2, 1, 1, 1, 0, 1, 
-						100, 0.1, 0, 3.141592653589793, 6.283185307179586]
+						100, 0.1, 0, 0 ,0 ,0, 3.141592653589793, 6.283185307179586]
+			if len(data) < 26:
+				if len(data) == 23: data = np.append(data[0:21],[0, 0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 24: data = np.append(data[0:22],[0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 25: data = np.append(data[0:23],[0, 3.141592653589793, 6.283185307179586])
 		elif(self.TargetFlag.get() == 2):
 			self.y_label.configure(text = "t [0 <--> 1]")
 			self.Info.configure(text = "t > 0: Divertor Floor outwards, t = 0: Connection 45deg Tile, t = 1: Pump Entry")
@@ -2153,7 +2242,11 @@ class dtfoot_gui:
 				_,_,_, data = self.M.readControlFile(self.path.get() + '_outer.dat')
 			else: # defaults
 				data = [500, 300, 0.9, 1.0, 0, 6.283185307179586, 100, 0, 1, 0, -1, 2, 2, 1, 1, 1, 0, 1, 
-						100, 0.1, 0, 3.141592653589793, 6.283185307179586]
+						100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]
+			if len(data) < 26:
+				if len(data) == 23: data = np.append(data[0:21],[0, 0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 24: data = np.append(data[0:22],[0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 25: data = np.append(data[0:23],[0, 3.141592653589793, 6.283185307179586])
 		else:
 			self.y_label.configure(text = "t [0 <--> 1]")
 			self.Info.configure(text = "t > 0: Shelf outwards, t = 0: Nose edge")
@@ -2161,8 +2254,12 @@ class dtfoot_gui:
 				_,_,_, data = self.M.readControlFile(self.path.get() + '_shelf.dat')
 			else: # defaults
 				data = [500, 300, 0.0, 0.1, 0, 6.283185307179586, 100, 0, 1, 0, -1, 3, 2, 1, 1, 1, 0, 1, 
-						100, 0.1, 0, 3.141592653589793, 6.283185307179586]
-		
+						100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]		
+			if len(data) < 26:
+				if len(data) == 23: data = np.append(data[0:21],[0, 0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 24: data = np.append(data[0:22],[0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 25: data = np.append(data[0:23],[0, 3.141592653589793, 6.283185307179586])
+				
 		self.xmin.set(repr(data[4]))
 		self.xmax.set(repr(data[5]))
 		self.Nx.set(str(int(data[0])))
@@ -2174,6 +2271,8 @@ class dtfoot_gui:
 		self.useFcoil.set(int(data[13]))
 		self.useCcoil.set(int(data[14]))
 		self.useIcoil.set(int(data[15]))
+		self.useBus.set(int(data[22]))
+		self.useBcoil.set(int(data[23]))
 		
 		if (int(data[10]) >= 0):
 			self.selectField.set(0)
@@ -2407,6 +2506,9 @@ class dtfoot_gui:
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
 			f.write('useFilament(0=no)=\t' + self.useFilament.get() + '\n')
+			f.write('useTe_profile(0=no)=	0\n')
+			f.write('useBusError(0=no,1=yes)=\t' + str(self.useBus.get()) + '\n')
+			f.write('useBcoilError(0=no,1=yes)=\t' + str(self.useBcoil.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
 		
@@ -2512,20 +2614,34 @@ class dtlam_gui:
 		separator.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- coils ---
-		self.useFcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useFcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useFcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use F-coil").grid(column = 1, row = row, sticky = tk.E )
+		row += 1
+		# --- 3D Fields Label ---
+		tk.Label(frame, text = "3-D Fields: ").grid(column = 1, row = row, sticky = tk.E)
 
-		self.useCcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useCcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useCcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use C-coil").grid(column = 1, row = row, sticky = tk.E )
+		# --- Icoil checkbox ---
+		self.useIcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' I-coils', variable = self.useIcoil).grid(column = 2, row = row, sticky = tk.E + tk.W)
 
-		self.useIcoil = tk.IntVar(); row += 1
-		tk.Radiobutton(frame, text = 'Off', variable = self.useIcoil, value = 0).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(frame, text = 'On', variable = self.useIcoil, value = 1).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Label(frame, text = "use I-coil").grid(column = 1, row = row, sticky = tk.E )
+		# --- Ccoil checkbox ---
+		self.useCcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' C-coils', variable = self.useCcoil).grid(column = 3, row = row, sticky = tk.E + tk.W)
+
+		row += 1
+		
+		# --- Error Fields Label ---
+		tk.Label(frame, text = "Error Fields: ").grid(column = 1, row = row, sticky = tk.E)
+
+		# --- useEF checkbox ---
+		self.useFcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' F-coil', variable = self.useFcoil).grid(column = 2, row = row, sticky = tk.E + tk.W)
+
+		# --- useBus checkbox ---
+		self.useBus = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' Bus', variable = self.useBus).grid(column = 3, row = row, sticky = tk.E + tk.W)
+
+		# --- Bcoil checkbox ---
+		self.useBcoil = tk.IntVar(); 
+		tk.Checkbutton(frame, text = ' B-coil', variable = self.useBcoil).grid(column = 4, row = row, sticky = tk.E + tk.W)
 
 		# --- separator ---
 		row += 1
@@ -2635,11 +2751,19 @@ class dtlam_gui:
 		# --- read parameterfile, if it is there ---
 		if os.path.isfile(self.path.get() + '_lam_psi.dat'):
 			_,_,_, data = self.M.readControlFile(self.path.get() + '_lam_psi.dat')
+			if len(data) < 26:
+				if len(data) == 23: data = np.append(data[0:21],[0, 0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 24: data = np.append(data[0:22],[0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 25: data = np.append(data[0:23],[0, 3.141592653589793, 6.283185307179586])
 		elif os.path.isfile(self.path.get() + '_lam.dat'):
 			_,_,_, data = self.M.readControlFile(self.path.get() + '_lam.dat')
+			if len(data) < 26:
+				if len(data) == 23: data = np.append(data[0:21],[0, 0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 24: data = np.append(data[0:22],[0, 0, 3.141592653589793, 6.283185307179586])
+				elif len(data) == 25: data = np.append(data[0:23],[0, 3.141592653589793, 6.283185307179586])
 		else: # defaults
 			data = [930, 200, 1.0, 1.45, -1.367, -0.902, 900, 0, 0, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
-					100, 0.1, 0, 3.141592653589793, 6.283185307179586]
+					100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]
 					
 		if(data[12] == 3) | (data[12] == 4): self.createFlag.set('psi')
 		else: self.createFlag.set('RZ')
@@ -2665,6 +2789,8 @@ class dtlam_gui:
 		self.useFcoil.set(int(data[13])); 
 		self.useCcoil.set(int(data[14])); 
 		self.useIcoil.set(int(data[15]));
+		self.useBus.set(int(data[22]))
+		self.useBcoil.set(int(data[23]))
 		
 		if (int(data[10]) >= 0):
 			self.selectField.set(0)
@@ -2955,6 +3081,9 @@ class dtlam_gui:
 			f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
 			f.write('lambda=\t' + self.Lambda.get() + '\n')
 			f.write('useFilament(0=no)=\t' + self.useFilament.get() + '\n')
+			f.write('useTe_profile(0=no)=	0\n')
+			f.write('useBusError(0=no,1=yes)=\t' + str(self.useBus.get()) + '\n')
+			f.write('useBcoilError(0=no,1=yes)=\t' + str(self.useBcoil.get()) + '\n')
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
 		
@@ -7984,8 +8113,8 @@ class info_gui:
 		self.info_text.grid(column = 1, row = row, columnspan = 5, padx=10, pady=10); 
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
-		'MAFOT Version 4.0 \n'
-		'GUI Version 1.43 \n'
+		'MAFOT Version 4.02 \n'
+		'GUI Version 1.44 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'
