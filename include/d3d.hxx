@@ -348,10 +348,10 @@ void prep_Bcoil_shiftTilt(void)
 // inverse shift&tilt
 // we want the new coordinates, within the shifted&tilted system, of the same point from the old system
 // the forward shift&tilt would give the old coordinates (in the old system) of the shifted and tilted new system
-const double shiftR = -5.7e-3;  			// in m;  INVERSE!
-const double shift_tor_angle = -71 /rTOd;   // in deg, rhs
+const double shiftR = -4.5e-3;	//-5.7e-3;  			// in m;  INVERSE!
+const double shift_tor_angle = 86 /rTOd;	//-71 /rTOd;   // in deg, rhs
 const double tilt_angle = -0.06 /rTOd;   	// in deg, from z-axis;  INVERSE!
-const double tilt_tor_angle = -250 /rTOd;   // in deg, rhs
+const double tilt_tor_angle = 292 /rTOd;	//-250 /rTOd;   // in deg, rhs
 
 // tilting
 Bcoil_Tilt_Matrix(1,1) = cos(tilt_tor_angle)*cos(tilt_tor_angle)*cos(tilt_angle) + sin(tilt_tor_angle)*sin(tilt_tor_angle);
