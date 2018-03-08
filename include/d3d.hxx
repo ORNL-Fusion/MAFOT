@@ -345,12 +345,11 @@ if(PAR.useBcoil==1)
 //---------- prep_Bcoil_shiftTilt --------------------------------------------------------------------------------------------
 void prep_Bcoil_shiftTilt(void)
 {
-// inverse shift&tilt
-// we want the new coordinates, within the shifted&tilted system, of the same point from the old system
-// the forward shift&tilt would give the old coordinates (in the old system) of the shifted and tilted new system
-const double shiftR = -4.5e-3;	//-5.7e-3;  			// in m;  INVERSE!
+// shift&tilt:  x' = M*x + s
+// the forward shift&tilt gives the old coordinates (in the old system) of the shifted and tilted new system
+const double shiftR = 4.5e-3;	//5.7e-3;  			// in m;
 const double shift_tor_angle = 86 /rTOd;	//-71 /rTOd;   // in deg, rhs
-const double tilt_angle = -0.06 /rTOd;   	// in deg, from z-axis;  INVERSE!
+const double tilt_angle = 0.06 /rTOd;   	// in deg, from z-axis;
 const double tilt_tor_angle = 292 /rTOd;	//-250 /rTOd;   // in deg, rhs
 
 // tilting
@@ -378,8 +377,11 @@ void Bcoil_shiftTilt_field(double X, double Y, double Z, double& Bx, double& By,
 double Rnew,Xnew,Ynew,phinew;
 double B_phi_new,Bx_new,By_new;
 
-Xnew = Bcoil_Tilt_Matrix(1,1)*X + Bcoil_Tilt_Matrix(1,2)*Y + Bcoil_Tilt_Matrix(1,3)*Z + Bcoil_Shift_Vector(1);
-Ynew = Bcoil_Tilt_Matrix(2,1)*X + Bcoil_Tilt_Matrix(2,2)*Y + Bcoil_Tilt_Matrix(2,3)*Z + Bcoil_Shift_Vector(2);
+// Inverse transformation: M^T * (x-s)
+Xnew = X - Bcoil_Shift_Vector(1);
+Ynew = Y - Bcoil_Shift_Vector(2);
+Xnew = Bcoil_Tilt_Matrix(1,1)*Xnew + Bcoil_Tilt_Matrix(2,1)*Ynew + Bcoil_Tilt_Matrix(3,1)*Z;
+Ynew = Bcoil_Tilt_Matrix(1,2)*Xnew + Bcoil_Tilt_Matrix(2,2)*Ynew + Bcoil_Tilt_Matrix(3,2)*Z;
 
 Rnew = sqrt(Xnew*Xnew + Ynew*Ynew);
 phinew = polar_phi(Xnew, Ynew);
@@ -390,7 +392,6 @@ B_phi_new = EQD.Bt0*EQD.R0/Rnew;
 // B_phi_new in cartesian
 Bx_new = -B_phi_new*sin(phinew);
 By_new = B_phi_new*cos(phinew);
-//Bz_new = 0;
 
 // Bphi in the old coordinate system
 Bx = Bcoil_Tilt_Matrix(1,1)*Bx_new + Bcoil_Tilt_Matrix(1,2)*By_new;
