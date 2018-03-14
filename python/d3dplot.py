@@ -53,6 +53,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		elif(filename[5:7] == 'ou'): target = 'out'
 		elif(filename[5:7] == 'sh'): target = 'shelf'
 		elif(filename[5:7] == 'sa'): target = 'sas'
+		elif(filename[5:7] == 'wa'): target = 'wall'
 		else: 
 			print 'cannot identify target'
 			return
@@ -152,6 +153,13 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 					physical = 2
 					yLabel = 't [cm]'
 					y = y*101.693189
+				elif(target == 'wall'):
+					if(physical == 1):
+						y = psimax.copy()	# this is R
+						yLabel = 'R [m]'
+					else:
+						if not latex: yLabel = 'Swall [m]'
+						else: yLabel = 's$_{wall}$ [m]'
 		elif(machine == 'iter'):
 			if not latex: xLabel = u'\u03C6' + ' [rad]'
 			else: xLabel = '$\\varphi$ $\\mathrm{[rad]}$'

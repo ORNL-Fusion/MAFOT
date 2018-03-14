@@ -486,7 +486,17 @@ out << "### Switches:" << endl;
 #endif
 out << "# No. of current filaments (0=none): " << useFilament << endl;
 out << "# Use Temperature Profile (0=off, 1=on): " << useTprofile << endl;
-out << "# Target (0=cp, 1=inner, 2=outer, 3=shelf): " << which_target_plate << endl;
+#if defined(ITER)
+	out << "# Target (0=fullWall, 1=inner, 2=outer): " << which_target_plate << endl;
+#elif defined(NSTX)
+	out << "# Target (0=fullWall, 1=inner-up, 2=outer-up, 3=inner-dwn, 4=outerdwn): " << which_target_plate << endl;
+#elif defined(MAST)
+	out << "# Target (0=fullWall, 1=inner, 2=outer): " << which_target_plate << endl;
+#elif defined(CMOD)
+	out << "# Target (0=fullWall): " << which_target_plate << endl;
+#else
+	out << "# Target (0=fullWall, 1=inner, 2=outer, 3=shelf, 4=SAS): " << which_target_plate << endl;
+#endif
 out << "# Create Points (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-random, 5=RZ-grid): " << create_flag << endl;
 out << "# Direction of particles (1=co-pass, -1=count-pass, 0=field lines): " << sigma << endl;
 out << "# Charge number of particles (=-1:electrons, >=1:ions): " << Zq << endl;

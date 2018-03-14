@@ -17,6 +17,7 @@ int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& 
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
 					 EFIT& EQD, IO& PAR, PARTICLE& FLT);
+void point_along_wall(double swall, Array<double,1>& p, EFIT& EQD);	// defined in mafot.hxx
 
 // -------------- global Parameters ---------------------------------------------------------------------------------------
 double bndy[4] = {0.44, 0.91, -0.45, 0.45};	// Boundary
@@ -90,27 +91,31 @@ if(dp!=0 && dphi!=0)
 	i_p=int(double(i-1)/double(Nphi));
 }
 t=tmin+i_p*dp;
-if(PAR.which_target_plate==1 && t<0) target=0;
-else target=PAR.which_target_plate;
+target=PAR.which_target_plate;
 
 // Postion of Target-Plate
 double R1 = 0,Z1 = 0;	// upper or left Point
 double R2 = 0,Z2 = 0;	// lower or right Point
 switch(target)
 {
+case 0:
+	point_along_wall(t, p, EQD);
+	break;
 default:
 	ofs2 << "No target specified" << endl;
 	EXIT;
 	break;
 }
-p1(1) = R1;	 p1(2) = Z1;
-p2(1) = R2;	 p2(2) = Z2;
-d = p2 - p1;
-if(target == 0) d(2) *= -1;
 
-// Coordinates
-p = p1 + t*d;
+if(target > 0)
+{
+	p1(1) = R1;	 p1(2) = Z1;
+	p2(1) = R2;	 p2(2) = Z2;
+	d = p2 - p1;
 
+	// Coordinates
+	p = p1 + t*d;
+}
 FLT.R = p(1);
 FLT.Z = p(2);
 FLT.phi = (phimin + dphi*i_phi)*rTOd;	// phi in deg

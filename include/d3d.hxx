@@ -26,6 +26,7 @@ void prep_Bcoil_shiftTilt(void);
 void Bcoil_shiftTilt_field(double X, double Y, double Z, double& Bx, double& By, double& Bz, EFIT& EQD);
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
 					 EFIT& EQD, IO& PAR, PARTICLE& FLT);
+void point_along_wall(double swall, Array<double,1>& p, EFIT& EQD);	// defined in mafot.hxx
 
 // ------------ Set Parameters for fortran --------------------------------------------------------------------------------
 const int nFc = 18;
@@ -441,7 +442,7 @@ if(dp!=0 && dphi!=0)
 	i_p=int(double(i-1)/double(Nphi));
 }
 t=tmin+i_p*dp;
-if(PAR.which_target_plate==1 && t<0) target=0;
+if(PAR.which_target_plate==1 && t<0) target=-1;
 else target=PAR.which_target_plate;
 
 // Postion of Target-Plate
@@ -449,7 +450,7 @@ double R1 = 0,Z1 = 0;	// upper or left Point
 double R2 = 0,Z2 = 0;	// lower or right Point
 switch(target)
 {
-case 0:	// 19.59cm (same length as inner target) vertical wall above inner target, t = 0 -> -1, t=0 <=> P1 at inner target
+case -1:	// 19.59cm (same length as inner target) vertical wall above inner target, t = 0 -> -1, t=0 <=> P1 at inner target
 	R1=1.016;	Z1=-1.223;
 	R2=1.016;	Z2=-1.0271;
 	break;
@@ -500,18 +501,21 @@ case 4:	// SAS divertor at upper outer divertor;  here t is dimensionless length
 	x = (Smax*t - S(idx))/sqrt(d(1)*d(1)+d(2)*d(2));	// rescale t in m (like S); x is dimensionless in [0,1]
 	p = p1 + x*d;
 	break;
+case 0:
+	point_along_wall(t, p, EQD);
+	break;
 default:
 	ofs2 << "No target specified" << endl;
 	EXIT;
 	break;
 }
 
-if(target <= 3)
+if((target != 0) && (target != 4))
 {
 	p1(1) = R1;	 p1(2) = Z1;
 	p2(1) = R2;	 p2(2) = Z2;
 	d = p2 - p1;
-	if(target == 0) d(2) *= -1;
+	if(target == -1) d(2) *= -1;
 
 	// Coordinates
 	p = p1 + t*d;

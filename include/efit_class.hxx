@@ -100,6 +100,8 @@ public:
 	Array<double,1> lcfs;	// Position of the LCFS in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
 	Array<double,1> wall;	// Position of the Wall in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
 	Array<double,1> lcfs_th;// poloidal angles of lcfs
+	Array<double,1> Swall;	// length along the wall, Swall = 0 is the inner midplane; Swall goes ccw
+	double Swall_max;		// total length of wall
 
 	// Calculated in ReadData
 	double dR;		// grid distance in R direction
@@ -183,6 +185,7 @@ Nwall = 87;
 lcfs.resize(2*Nlcfs);	lcfs.reindexSelf(index);
 wall.resize(2*Nwall);	wall.reindexSelf(index);
 lcfs_th.resize(Nlcfs);	lcfs_th.reindexSelf(index);
+Swall.resize(Nwall);	Swall.reindexSelf(index);
 
 R.resize(NR);	R.reindexSelf(index);
 Z.resize(NZ);	Z.reindexSelf(index);
@@ -246,6 +249,8 @@ Nwall = EQD.Nwall;
 lcfs.reference(EQD.lcfs.copy());
 wall.reference(EQD.wall.copy());
 lcfs_th.reference(EQD.lcfs_th.copy());
+Swall.reference(EQD.Swall.copy());
+Swall_max = EQD.Swall_max;
 
 dR = EQD.dR;
 dZ = EQD.dZ;
@@ -485,9 +490,42 @@ if((Ip*Bt0 > 0 && helicity == -1) || (Ip*Bt0 < 0 && helicity == 1))
 //btSign = sign(Bt0)	// +1.0 or -1.0 (real)
 //bpSign = sign(Ip)	// +1.0 or -1.0 (real)
 
+// poloidal angle of LCFS
 lcfs_th.resize(Nlcfs);
 for(i=1;i<=Nlcfs;i++) lcfs_th(i) = polar_phi(lcfs(2*i-1) - RmAxis, lcfs(2*i) - ZmAxis);
 
+// length along the wall; Swall = 0 is the inner midplane; Swall goes ccw
+Swall.resize(Nwall);
+int dir = 1;
+double t,S0;
+Swall(1) = sqrt((wall(1)-wall(2*Nwall-1))*(wall(1)-wall(2*Nwall-1)) + (wall(2)-wall(2*Nwall))*(wall(2)-wall(2*Nwall)));
+if (Swall(1) > 0)
+{
+	S0 = wall(2*Nwall)/(wall(2*Nwall) - wall(2))*Swall(1);
+	if (wall(2) < wall(2*Nwall)) dir = 1;	// ccw
+	else dir = -1;							// cw
+}
+for(i=2;i<=Nwall;i++)
+{
+	Swall(i) = Swall(i-1) + sqrt((wall(2*i-1)-wall(2*(i-1)-1))*(wall(2*i-1)-wall(2*(i-1)-1)) + (wall(2*i)-wall(2*(i-1)))*(wall(2*i)-wall(2*(i-1))));	//length of curve in m
+	if ((wall(2*i)*wall(2*i-2) <= 0) && (wall(2*i-1) < R0))
+	{
+		t = wall(2*i-2)/(wall(2*i-2) - wall(2*i));
+		S0 = Swall(i-1) + t*(Swall(i) - Swall(i-1));
+		if (wall(2*i) < wall(2*i-2)) dir = 1;	// ccw
+		else dir = -1;							// cw
+	}
+}
+Swall_max = Swall(Nwall);
+
+// set direction and Swall = 0 location
+for(i=1;i<=Nwall;i++)
+{
+	Swall(i) = dir*(Swall(i) - S0);
+	if (Swall(i) < 0) Swall(i) += Swall_max;
+	if (Swall(i) > Swall_max) Swall(i) -= Swall_max;
+	if (fabs(Swall(i)) < 1e-12) Swall(i) = 0;
+}
 
 return;
 }

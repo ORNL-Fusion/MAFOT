@@ -25,6 +25,7 @@ void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./
 int get_target(EFIT& EQD, IO& PAR);
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
 					   EFIT& EQD, IO& PAR, PARTICLE& FLT);
+void point_along_wall(double swall, Array<double,1>& p, EFIT& EQD);	// defined in mafot.hxx
 
 // ------------ Set Parameters for fortran --------------------------------------------------------------------------------
 const int mxbands = 3;
@@ -343,39 +344,50 @@ case 2:	// outer target plate, linear part length 40.0237 cm, curved part length
 	if(tmin < -40.0237 || tmax > 175.0177) ofs2 << "start_on_target: Warning, t out of range" << endl; 
 	t *= -1;	// reverse t
 	break;
+case 0:
+	point_along_wall(t, p, EQD);
+	break;
 default:
 	ofs2 << "start_on_target: No target specified" << endl;
 	EXIT;
 	break;
 }
 
-p1(1) = R1;		p1(2) = Z1;
-p2(1) = R2;		p2(2) = Z2;
-d = p2 - p1;	// positive R direction for inner target, negative otherwise;	t would have to be dimensionless in [0,1] 
-d *= 0.01/sqrt(d(1)*d(1)+d(2)*d(2));	// d is now scaled for t in cm
+if(target > 0)
+{
+	p1(1) = R1;		p1(2) = Z1;
+	p2(1) = R2;		p2(2) = Z2;
+	d = p2 - p1;	// positive R direction for inner target, negative otherwise;	t would have to be dimensionless in [0,1]
+	d *= 0.01/sqrt(d(1)*d(1)+d(2)*d(2));	// d is now scaled for t in cm
 
-// Coordinates
-if(t>=0)
-{
-	p = p1 + t*d;
-	FLT.R = p(1);
-	FLT.Z = p(2);
-}
-else	// t < 0
-{
-	S(1) = 0;
-	index = 1;
-	for(int i=2;i<=N;i++) 
+	// Coordinates
+	if(t>=0)
 	{
-		S(i) = S(i-1) + sqrt((R(i)-R(i-1))*(R(i)-R(i-1)) + (Z(i)-Z(i-1))*(Z(i)-Z(i-1)));	//length of curve in m
-		if(S(i) < -0.01*t) index = i;
-		else break;
+		p = p1 + t*d;
+		FLT.R = p(1);
+		FLT.Z = p(2);
 	}
-	p1(1) = R(index);		p1(2) = Z(index);
-	p2(1) = R(index+1);		p2(2) = Z(index+1);
-	d = p2 - p1;	
-	x = (-0.01*t - S(index))/sqrt(d(1)*d(1)+d(2)*d(2));	// rescale t in m (like S); x is dimensionless in [0,1] 
-	p = p1 + x*d;
+	else	// t < 0
+	{
+		S(1) = 0;
+		index = 1;
+		for(int i=2;i<=N;i++)
+		{
+			S(i) = S(i-1) + sqrt((R(i)-R(i-1))*(R(i)-R(i-1)) + (Z(i)-Z(i-1))*(Z(i)-Z(i-1)));	//length of curve in m
+			if(S(i) < -0.01*t) index = i;
+			else break;
+		}
+		p1(1) = R(index);		p1(2) = Z(index);
+		p2(1) = R(index+1);		p2(2) = Z(index+1);
+		d = p2 - p1;
+		x = (-0.01*t - S(index))/sqrt(d(1)*d(1)+d(2)*d(2));	// rescale t in m (like S); x is dimensionless in [0,1]
+		p = p1 + x*d;
+		FLT.R = p(1);
+		FLT.Z = p(2);
+	}
+}
+else
+{
 	FLT.R = p(1);
 	FLT.Z = p(2);
 }

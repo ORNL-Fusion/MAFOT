@@ -17,6 +17,7 @@ int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& 
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
 					   EFIT& EQD, IO& PAR, PARTICLE& FLT);
+void point_along_wall(double swall, Array<double,1>& p, EFIT& EQD);	// defined in mafot.hxx
 
 // ------------ Set Parameters for fortran --------------------------------------------------------------------------------
 const int mxbands = 1;
@@ -311,6 +312,9 @@ case 80:	// NSTX-U upper inner inclined wall at R < 0.4
 	p(2) = t;
 	p(1) = (R2-R1)/(Z2-Z1)*t + (R1*Z2-Z1*R2)/(Z2-Z1);
 	if(t < Z2 || t > Z1){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
+	break;
+case 0:
+	point_along_wall(t, p, EQD);
 	break;
 default:
 	ofs2 << "start_on_target: No target specified" << endl;

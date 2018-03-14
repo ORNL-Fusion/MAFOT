@@ -45,6 +45,7 @@ void prepare_common_perturbations(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING si
 								  LA_STRING islandfile = "fakeIslands.in", LA_STRING filamentfile = "filament_all.in");
 bool outofBndy(double phi, double x, double y, EFIT& EQD);
 bool outofRealBndy(double phi, double x, double y, EFIT& EQD);
+void point_along_wall(double swall, Array<double,1>& p, EFIT& EQD);
 
 void get_filament_field(double R, double phi, double Z, Array<double,4>& field, double& bx, double& by, double& bz, EFIT& EQD);
 void bcuderiv_square(Array<double,2>& y, int j, int k, double d1, double d2, 
@@ -378,6 +379,77 @@ for(int i=3; i<(2*Nwall); i=i+2)
 }
 return wn == 0;
 } 
+
+//------------------ point_along_wall -----------------------------------------------------------------------------------
+// locates a point (R,Z) along the wall, based on the length along the wall swall.
+void point_along_wall(double swall, Array<double,1>& p, EFIT& EQD)
+{
+int i, idx, idx_jump;
+double x,s1,s0;
+Array<double,1> p1(Range(1,2)),p2(Range(1,2)),d(Range(1,2));
+
+swall = fmod(swall,EQD.Swall_max);
+if(swall < 0) swall += EQD.Swall_max;
+
+// locate discontinuity
+s0 = EQD.Swall(EQD.Nwall);
+for(i=1;i<=EQD.Nwall;i++)
+{
+	s1 = EQD.Swall(i);
+	if (fabs(s1 - s0) > 0.5*EQD.Swall_max)	idx_jump = i;	// discontinuity between idx_jump and idx_jump-1
+	s0 = s1;
+}
+
+// locate intervall that brackets swall
+if ((swall > max(EQD.Swall)) || (swall < min(EQD.Swall)))
+{
+	idx = idx_jump;
+	if (fabs(swall - EQD.Swall(idx)) > 0.5*EQD.Swall_max)
+	{
+		if (swall < EQD.Swall(idx)) swall += EQD.Swall_max;
+		else swall -= EQD.Swall_max;
+	}
+}
+else
+{
+	idx = 1;
+	s0 = EQD.Swall(EQD.Nwall);
+	for(i=1;i<=EQD.Nwall;i++)
+	{
+		s1 = EQD.Swall(i);
+
+		if (fabs(s1 - s0) > 0.5*EQD.Swall_max) // skip the jump around Swall = 0 point
+		{
+			s0 = s1;
+			continue;
+		}
+
+		if((s1 - swall) * (s0 - swall) <= 0)
+		{
+			idx = i;
+			break;
+		}
+		s0 = s1;
+	}
+}
+
+// set bracket points
+p1(1) = EQD.wall(2*idx-1);		p1(2) = EQD.wall(2*idx);
+if (idx == 1)
+{
+	p2(1) = EQD.wall(2*EQD.Nwall-1);		p2(2) = EQD.wall(2*EQD.Nwall);
+}
+else
+{
+	p2(1) = EQD.wall(2*idx-3);		p2(2) = EQD.wall(2*idx-2);
+}
+
+// linear interplation between bracket points
+d = p2 - p1;
+x = fabs(swall - EQD.Swall(idx))/sqrt(d(1)*d(1)+d(2)*d(2));	// x is dimensionless in [0,1]
+p = p1 + x*d;
+//cout << swall << "\t" << idx  << "\t" << s0 << "\t" << s1 << "\t" << x << endl;
+}
 
 //------------------ get_filament_field -----------------------------------------------------------------------------------
 // determines sum of magnetic fields of all current filaments at point (R,phi,Z) by interpolation
