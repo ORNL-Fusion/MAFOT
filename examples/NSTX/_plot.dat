@@ -10,7 +10,7 @@ thmax=	0
 N=	90
 phistart(Grad)=	0
 MapDirection=	1
-target(1=innerup,2=outerup,3=innerdwn,4=outerdwn)=	1
+target(0=fullWall,1=innerup,2=outerup,3=innerdwn,4=outerdwn)=	1
 createPoints(0=r-grid,1=r-random,2=target,3=psi-grid,4=psi-random,5=R-grid)=	3
 useECcoil(0=no,1=yes)= 1
 useFilament(0=no,1=yes)= 0

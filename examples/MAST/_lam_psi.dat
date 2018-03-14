@@ -12,7 +12,7 @@ phistart(Grad)=	0
 MapDirection=	0
 PlasmaResponse(0=no,1=yes)=	1
 Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=	1
-target(1=inner,2=outer)=	1
+target(0=fullWall,1=inner,2=outer)=	1
 createPoints(3=set,4=create)=	3
 useECcoils(0=no,1=yes)= 1
 useIcoil(0=no,1=yes)= 1

@@ -46,11 +46,14 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 4.02
+MAFOT 4.03
 GUI 2.0
 
 Version Notes: 
 ----------------
+MAFOT 4.03 -- Mar 2018
+- full wall now accessible for foot_mpi using the swall coordinate and target = 0
+
 GUI 2.0 -- Feb 2018
 - complete restructuring of ther code to unify common code segments
 - several new features, like use of shell Flags for VMEC/SIESTA, or dtlaminar
