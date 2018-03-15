@@ -353,7 +353,7 @@ default:
 	break;
 }
 
-if(target > 0)
+if(PAR.which_target_plate > 0)
 {
 	p1(1) = R1;		p1(2) = Z1;
 	p2(1) = R2;		p2(2) = Z2;
