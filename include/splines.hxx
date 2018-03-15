@@ -27,6 +27,9 @@ void bcucof(Array<double,1>& y, Array<double,1>& y1, Array<double,1>& y2, Array<
 int bcuint(Array<double,1>& Ra, Array<double,1>& Za, Array<double,4>& Ca, double dR, double dZ,
 			double R, double Z, double& y, double& y1, double& y2);
 
+#ifdef MAFOT_INCLUDED
+	extern ofstream ofs2;
+#endif
 
 // ------------------------ spline (mit Blitz-Arrays) -------------------------------------------------------------------
 //Given arrays x[1..n] and y[1..n] containing a tabulated function, i.e., yi = f(xi), with
@@ -278,7 +281,11 @@ j = int((R-Ra(1))/dR) + 1;
 k = int((Z-Za(1))/dZ) + 1;
 if(j == NR) j -= 1;	// exception: add outermost right boundary to square one to the left
 if(k == NZ) k -= 1;	// exception: add outermost top boundary to square one down
-if(j>NR || j<1 || k>NZ || k<1)	{cout << "bcuint: Point outside of grid" << endl; return -1;}
+#ifdef MAFOT_INCLUDED
+	if(j>NR || j<1 || k>NZ || k<1)	{ofs2 << "bcuint: Point outside of grid" << endl; return -1;}
+#else
+	if(j>NR || j<1 || k>NZ || k<1)	{cout << "bcuint: Point outside of grid" << endl; return -1;}
+#endif
 
 // Get the c's.
 c.reference(Ca(j,k,all,all));

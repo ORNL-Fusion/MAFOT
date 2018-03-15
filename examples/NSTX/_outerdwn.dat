@@ -1,5 +1,6 @@
 # Parameterfile for NSTX programs
 # Shot: 127317	Time: 0370ms
+# Path: /home/wingen/work/nstx/gfiles/
 free_Parameter(Nphi)=	1
 itt=	500
 Rmin(0.2979min)=	0.2979
@@ -9,7 +10,7 @@ phimax=	6.283185307179586
 NR=	400
 phistart(deg)=	0
 MapDirection=	1
-target(1=innerup,2=outerup,3=innerdwn,4=outerdwn)=	4
+target(0=fullWall,1=innerup,2=outerup,3=innerdwn,4=outerdwn)=	4
 createPoints(0=set,1=random,2=target)=	2
 useECcoil(0=no,1=yes)= 1
 useFilament(0=no,1=yes)= 0

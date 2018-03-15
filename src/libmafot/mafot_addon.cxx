@@ -89,11 +89,6 @@
 // Include
 //--------
 #include <mafot.hxx>
-#ifdef m3dc1
-#include <d3d_m3dc1.hxx>
-#else
-#include <d3d.hxx>
-#endif
 
 // Prototypes
 extern "C"	// this makes the function name in the dylib to be as it is here, otherwise the name is mangled (contains lots of strange characters, standard c++ style)

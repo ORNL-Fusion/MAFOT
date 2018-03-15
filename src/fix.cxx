@@ -24,31 +24,6 @@
 // Include
 //--------
 #include <mafot.hxx>
-#if defined(ITER)
-	#if defined(m3dc1)
-		#include <iter_m3dc1.hxx>
-	#else
-		#include <iter.hxx>
-	#endif
-#elif defined(NSTX)
-	#if defined(m3dc1)
-		#include <nstx_m3dc1.hxx>
-	#else
-		#include <nstx.hxx>
-	#endif
-#elif defined(MAST)
-	#if defined(m3dc1)
-		#include <mast_m3dc1.hxx>
-	#else
-		#include <mast.hxx>
-	#endif
-#else
-	#if defined(m3dc1)
-		#include <d3d_m3dc1.hxx>
-	#else
-		#include <d3d.hxx>
-	#endif
-#endif
 #include <unistd.h>
 
 // Prototypes  
@@ -77,15 +52,19 @@ EFIT EQD;
 int periode;
 
 // defaults
+LA_STRING woutfile = "wout.nc";
+LA_STRING xpandfile = "xpand.dat";
+LA_STRING siestafile = "siesta.dat";
+LA_STRING islandfile = "fakeIslands.in";
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "h")) != -1)
+while ((c = getopt(argc, argv, "hX:V:S:I:")) != -1)
 switch (c)
 {
 case 'h':
-	cout << "usage: dtfix [-h] file period [tag]" << endl << endl;
+	cout << "usage: dtfix [-h] [-I island] [-S siesta] [-V wout] [-X xpand] file period [tag]" << endl << endl;
 	cout << "Calculate the position of periodic points, like x-points and o-points." << endl << endl;
 	cout << "positional arguments:" << endl;
 	cout << "  file          Contol file (starts with '_')" << endl;
@@ -93,9 +72,36 @@ case 'h':
 	cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 	cout << endl << "optional arguments:" << endl;
 	cout << "  -h            show this help message and exit" << endl;
+	cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
+	cout << "  -S            filename for SIESTA; default, see below" << endl;
+	cout << "  -V            filename for VMEC; default, see below" << endl;
+	cout << "  -X            filename for XPAND; default, see below" << endl;
 	cout << endl << "Examples:" << endl;
 	cout << "  dtfix _fix.dat 1 blabla" << endl;
+	cout << endl << "Infos:" << endl;
+	cout << "  To use B-field from M3DC1, set response_field >= 0, and provide file in cwd:" << endl;
+	cout << "    m3dc1sup.in    ->  location and scale factor for M3DC1 output C1.h5" << endl;
+	cout << "  To use B-field from XPAND, set response_field = -3, and provide files in cwd:" << endl;
+	cout << "    xpand.dat      ->  B-field on 3D grid from XPAND; use option -X to specify other filename" << endl;
+	cout << "    wout.nc        ->  VMEC output; use option -V to specify other filename" << endl;
+	cout << "  To use B-field from SIESTA, set response_field = -2, and provide file in cwd:" << endl;
+	cout << "    siesta.dat     ->  B-field on 3D grid; use option -S to specify other filename" << endl;
+	cout << "  To use B-field for mock-up islands, set response_field = -10, and provide file in cwd:" << endl;
+	cout << "    fakeIslands.in ->  each line gives: Amplitude, pol. mode m, tor. mode n, phase [rad]" << endl;
+	cout << "                       use option -I to specify other filename" << endl;
 	return 0;
+case 'I':
+	islandfile = optarg;
+	break;
+case 'S':
+	siestafile = optarg;
+	break;
+case 'V':
+	woutfile = optarg;
+	break;
+case 'X':
+	xpandfile = optarg;
+	break;
 case '?':
 	if (optopt == 'c')
 		fprintf (stderr, "Option -%c requires an argument.\n", optopt);
@@ -174,11 +180,37 @@ default:
 }
 
 // Read EFIT-data
-EQD.ReadData(EQD.Shot,EQD.Time);
+double Raxis = 0, Zaxis = 0;
+#ifdef USE_XFIELD
+if(PAR.response_field == -3)
+{
+	VMEC vmec;
+	cout << "Read VMEC file" << endl;
+	ofs2 << "Read VMEC file" << endl;
+	vmec.read(woutfile);
+	vmec.n0only = true;
+	vmec.get_axis(PAR.phistart/rTOd,Raxis,Zaxis);	// need axisymmetric axis only
+	vmec.n0only = false;
+}
+#endif
+
+#ifdef m3dc1
+if(PAR.response_field == 0 || PAR.response_field == 2)
+{
+	M3D.read_m3dc1sup();
+	M3D.open_source(PAR.response, PAR.response_field, -1);
+	Raxis = M3D.RmAxis;
+	Zaxis = M3D.ZmAxis;
+	M3D.unload();
+}
+#endif
+
+EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
 cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 
 // Prepare Perturbation
+prepare_common_perturbations(EQD,PAR,0,siestafile,xpandfile,islandfile);
 prep_perturbation(EQD,PAR);
 
 // Prepare particles

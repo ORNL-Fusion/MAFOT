@@ -139,7 +139,7 @@ class xpand_class:
 			self.phi[0,:,:] = phi
 			self.Z[0,:,:]= Z
 		else:
-			if(self.pmin % (2*pi) == self.pmax % (2*pi)): # periodic
+			if(self.pmin % (2*np.pi) == self.pmax % (2*np.pi)): # periodic
 				phi = np.linspace(self.pmin, self.pmax, self.Np+1)[0:-1]	# last = first -> remove last
 			else: phi = np.linspace(self.pmin, self.pmax, self.Np)
 			R, Z, phi = np.broadcast_arrays(R, Z[:,np.newaxis], phi[:,np.newaxis,np.newaxis]) # 3-D meshgrid
@@ -527,14 +527,14 @@ class xpand_class:
 		plt.title(title_string, fontsize = 18)
 		
 	
-	def _init_vacuumBfield(self, mgrid = None):
+	def _init_vacuumBfield(self, mgrid = None, extcur = None):
 		""" 
 		constructs vacuum magnetic field interpolation; reads mgrid file, or 'mgrid_file' from wout 
 		returns lists BRvac_func[k], Bphivac_func[k], BZvac_func[k], k = 0,...,kp-1, 
 		which have interpolation functions for each toroidal plane k
 		"""
 		# read mgrid and set grid
-		if mgrid == None: mgrid = self.W.data['mgrid_file']
+		if mgrid is None: mgrid = self.W.data['mgrid_file']
 		print 'Read MGRID file:', mgrid
 		data = openNETCDF(mgrid)
 		R = np.linspace(data['rmin'], data['rmax'], data['ir'])
@@ -543,9 +543,12 @@ class xpand_class:
 		self.mgridNp = data['kp']
 	
 		# all fields from the coils
-		extcur = self.W.data['extcur']
+		if (self.W.data['nextcur'] == 0) & (extcur is None): 
+			print 'Fixed Boundary detected. Please provide extcur --> abort'
+			return
+		if extcur is None: extcur = self.W.data['extcur']
 		BRmgrid, Bphimgrid, BZmgrid = 0, 0, 0
-		for i in xrange(self.W.data['nextcur']):
+		for i in xrange(len(extcur)):
 			BRmgrid += extcur[i] * data['br_'+format(i+1,'03d')]
 			Bphimgrid += extcur[i] * data['bp_'+format(i+1,'03d')]
 			BZmgrid += extcur[i] * data['bz_'+format(i+1,'03d')]
@@ -568,10 +571,20 @@ class xpand_class:
 		"""
 		if not hasattr(self, 'BRvac_func'): self._init_vacuumBfield()
 		dphi = 2*np.pi / self.mgridNp
-		k = int(round(phi/dphi)) % self.mgridNp	# nearest neighbor approximation
+		#k = int(round(phi/dphi)) % self.mgridNp	# nearest neighbor approximation
+		k = int(phi/dphi)
+		t = phi/dphi - k
+		k = k % self.mgridNp
 		BR = self.BRvac_func[k].ev(R,Z)
 		Bphi = self.Bphivac_func[k].ev(R,Z)
 		BZ = self.BZvac_func[k].ev(R,Z)
+		
+		# linear interpolation
+		if t > 0:
+			k1 = (k+1) % self.mgridNp
+			BR += t*(self.BRvac_func[k1].ev(R,Z) - BR)
+			Bphi += t*(self.Bphivac_func[k1].ev(R,Z) - Bphi)
+			BZ += t*(self.BZvac_func[k1].ev(R,Z) - BZ)
 		return BR, Bphi, BZ
 		
 		

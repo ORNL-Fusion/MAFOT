@@ -50,7 +50,7 @@ private:
 	double ZmAxis_a[Nphi];				// Z array of magnetic axis at various phi
 
 	// Member-Functions
-	void chk_linear(void);
+	void chk_linear(int response);
 	int make_A(int response);
 	int make_psi(void);
 	int axis0(void);
@@ -70,6 +70,7 @@ public:
 	double ZmAxis;				// average Z of magnetic axis
 	double psi_axis_a[Nphi];	// array of poloidal flux on axis for various toroidal angles
 	double psi_lcfs_a[Nphi];	// array of poloidal flux on lcfs for various toroidal angles
+	double phase[nfiles_max];	// perturbation phase shift for linear runs
 
 	// Constructors
 	M3DC1();								// Default Constructor
@@ -82,6 +83,7 @@ public:
 	void load(IO& PAR, int mpi_rank);
 	void unload(void);
 	int open_source(int response, int response_field, int flag = 0);
+	void show_m3dc1sup_data(void);
 
 }; //end of class
 
@@ -114,6 +116,7 @@ chk = 0;
 Br = 0; Bp = 0; Bz = 0;
 for(i=0;i<nfiles;i++)
 {
+	coord[1] = phi + phase[i];
 	chk += fio_eval_field(imag[i], coord, B);
 	Br += B[0]; Bp += B[1]; Bz += B[2];
 }
@@ -137,8 +140,9 @@ return chk;
 int M3DC1::read_m3dc1sup(LA_STRING supPath)
 {
 int i;
-string file;
+string file, line;
 ifstream in;
+double ph;
 
 in.open(supPath + "m3dc1sup.in");
 if(in.fail()==1) // no m3dc1 control file found -> use default: scale by coils and filename = "C1.h5"
@@ -146,20 +150,30 @@ if(in.fail()==1) // no m3dc1 control file found -> use default: scale by coils a
 	nfiles = 1;
 	filenames[0] = "C1.h5";
 	scale[0] = 1;
+	phase[0] = 0;
 	in.close();
 	return -1;
 }
 else	// m3dc1 control file found
 {
 	i = 0;
-	while(in.eof()==0) // Last row is read twice --- can't be changed --- -> i-1 is actual number of rows in file
+	while(getline(in, line))
 	{
-		in >> file;
-		in >> scale[i];
+		if(line.length() < 1) continue; 	// blank lines anywhere don't matter
+		stringstream ss(line);
+		if( ss >> file >> scale[i] >> ph)	// assigns any one of file, scale and ph if possible
+		{
+			if(fabs(ph) > pi) ph /= rTOd;	// convert phase to radiants
+			phase[i] = ph;
+		}
+		else	// ph assignment was not possible, others are set though
+		{
+			phase[i] = 0;
+		}
 		filenames[i] = file.c_str();
 		i += 1;
 	}
-	nfiles = i - 1;
+	nfiles = i;
 }
 in.close();
 return 0;
@@ -187,6 +201,7 @@ ofs2 << "Loading M3D-C1 output file C1.h5" << endl;
 
 chk = open_source(PAR.response, PAR.response_field);	// load C1.h5
 if(chk != 0) {if(mpi_rank < 1) cout << "Error loding C1.h5 file" << endl; EXIT;}
+if(nonlinear) PAR.response_field = 2;	// nonlinear runs should only use the full field
 
 if(mpi_rank < 1) cout << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
 ofs2 << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
@@ -195,8 +210,8 @@ if(PAR.response_field > 0)		// Perturbation already included in M3D-C1 output
 {
 	for(j=0;j<nfiles;j++)
 	{
-		if(mpi_rank < 1) cout << "M3D-C1 file: " << filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << endl;
-		ofs2 << "M3D-C1 file: " << filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << endl;
+		if(mpi_rank < 1) cout << "M3D-C1 file: " << filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << "  and phase: " << phase[j] << endl;
+		ofs2 << "M3D-C1 file: " << filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << "  and phase: " << phase[j] << endl;
 	}
 
 	if(mpi_rank < 1) cout << "Coils turned off: perturbation (only) already included in M3D-C1 output" << endl;
@@ -227,11 +242,14 @@ int i, ierr, ierr2, ierr3;
 
 // open file(s)
 ierr =  fio_open_source(FIO_M3DC1_SOURCE, filenames[0], &(isrc[0]));
+if(ierr != 0) {cout << filenames[0] << " not found" << endl;}
 
 // Set options appropriate to this source
-chk_linear();
+chk_linear(response);
 ierr2 = fio_get_options(isrc[0]);
 ierr2 += fio_set_int_option(FIO_TIMESLICE, response);	// response = 1: plasma response solution; response = 0: vacuum field;
+
+if(nonlinear) response_field = 2;	// nonlinear runs should only use the full field
 
 switch(response_field)
 {
@@ -270,33 +288,51 @@ for(i=1;i<nfiles;i++)
     // set field handle
     ierr2 += fio_get_field(isrc[i], FIO_MAGNETIC_FIELD, &(imag[i]));
 }
+if(ierr2 != 0) {cout << "M3DC1: setting options failed" << endl;}
 
 // prepare vector potential
 ierr3 = make_A(response);
+if(ierr3 != 0) {cout << "M3DC1: Vector Potential setup failed" << endl;}
 
 // get magnetic axis
 if(RmAxis == 0 || not nonlinear) ierr3 += axis();
+if(ierr3 != 0) {cout << "M3DC1: Magn. Axis setup failed" << endl;}
 //ofs2 << endl << "Axis locations:" << endl;
 //for(i=0;i<Nphi;i++) ofs2 << i*pi2/Nphi << "\t" << RmAxis_a[i] << "\t" << ZmAxis_a[i] << endl;
 
 // get X-point location
-if(flag == 0 && nonlinear) ierr3 += Xpoint();
+//if(flag == 0 && nonlinear) ierr3 += Xpoint();
+//if(ierr3 != 0) {cout << "M3DC1: Locating Xpoint failed" << endl;}
 //ofs2 << endl << "X-point locations:" << endl;
 //for(i=0;i<Nphi;i++) ofs2 << i*pi2/Nphi << "\t" << RX[i] << "\t" << ZX[i] << endl;
 
 // prepare psi eval
 if(flag == 0) ierr3 += make_psi();
+if(ierr3 != 0) {cout << "M3DC1: poloidal flux setup failed" << endl;}
 
 return ierr+ierr2+ierr3;
+}
+
+
+void M3DC1::show_m3dc1sup_data(void)
+{
+int i;
+
+cout << "M3DC1 Files found: " << nfiles << endl;
+for(i=0;i<nfiles;i++)
+{
+	cout << "File: " << filenames[i] << ",  Scale: " << scale[i] << ",  Phase: " << phase[i] << endl;
+}
 }
 
 //--------------------- Private Member Functions --------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
 // ----------------- chk_linear -------------------------------------------------------------------------------------------
-void M3DC1::chk_linear(void)
+void M3DC1::chk_linear(int response)
 {
-	nonlinear = false;
+	if(response > 1) nonlinear = true;
+	else nonlinear = false;
 }
 
 // ----------------- make_A -----------------------------------------------------------------------------------------------
@@ -320,31 +356,34 @@ int M3DC1::make_psi(void)
 {
 int ierr,i;
 int ipsi_axis, ipsi_lcfs;
-double a, dummy, phi;
+//double a, dummy, phi;
 
 // get psi_axis and psi_sep
+// in a nonlinear run, this returns roughly a toroidally averaged value
+ierr = fio_get_series(isrc[0], FIO_MAGAXIS_PSI, &ipsi_axis);
+ierr += fio_get_series(isrc[0], FIO_LCFS_PSI, &ipsi_lcfs);
+ierr += fio_eval_series(ipsi_axis, 0., &psi_axis_a[0]);
+ierr += fio_eval_series(ipsi_lcfs, 0., &psi_lcfs_a[0]);
+ierr += fio_close_series(ipsi_axis);
+ierr += fio_close_series(ipsi_lcfs);
+
+// just make sure that the other array elements are something usefull, in case they are still used elsewhere
 if(nonlinear)
 {
-	ierr = 0;
-	for(i=0;i<Nphi;i++)
+	//ierr = 0;
+	for(i=1;i<Nphi;i++)
 	{
-		phi = i*pi2/Nphi;
-		ierr += getA(RmAxis_a[i],phi,ZmAxis_a[i],dummy,a,dummy);
-		psi_axis_a[i] = a*RmAxis_a[i];
+		//phi = i*pi2/Nphi;
+		//ierr += getA(RmAxis_a[i],phi,ZmAxis_a[i],dummy,a,dummy);
+		//psi_axis_a[i] = a*RmAxis_a[i];
+		psi_axis_a[i] = psi_axis_a[0];
 
-		ierr += getA(RX[i],phi,ZX[i],dummy,a,dummy);
-		psi_lcfs_a[i] = a*RX[i];
+		//ierr += getA(RX[i],phi,ZX[i],dummy,a,dummy);
+		//psi_lcfs_a[i] = a*RX[i];
+		psi_lcfs_a[i] = psi_lcfs_a[0];
 	}
 }
-else
-{
-	ierr = fio_get_series(isrc[0], FIO_MAGAXIS_PSI, &ipsi_axis);
-	ierr += fio_get_series(isrc[0], FIO_LCFS_PSI, &ipsi_lcfs);
-	ierr += fio_eval_series(ipsi_axis, 0., &psi_axis_a[0]);
-	ierr += fio_eval_series(ipsi_lcfs, 0., &psi_lcfs_a[0]);
-	ierr += fio_close_series(ipsi_axis);
-	ierr += fio_close_series(ipsi_lcfs);
-}
+
 return ierr;
 }
 

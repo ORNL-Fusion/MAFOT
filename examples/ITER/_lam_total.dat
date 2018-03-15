@@ -10,7 +10,7 @@ Zmax=	4.75
 NR=	890
 phistart(Grad)=	0
 MapDirection=	0
-target(1=inner,2=outer)=	1
+target(0=fullWall,1=inner,2=outer)=	1
 createPoints(0=set,1=random,2=target)=	0
 useIcoil(0=no,1=yes)= 1
 useFilament(0=no,1=yes)= 0

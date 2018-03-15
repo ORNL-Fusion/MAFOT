@@ -7,7 +7,7 @@
 // Define
 //--------
 #ifdef USE_MPI
-#define EXIT MPI::COMM_WORLD.Abort(0)
+#define EXIT {MPI::COMM_WORLD.Barrier(); MPI::COMM_WORLD.Abort(0);}
 #else
 #define EXIT exit(0)
 #endif
@@ -627,6 +627,17 @@ idum ^= MASK;		//Unmask before return.
 return ans;
 }
 
+//-------------- split ----------------------------------------------
+// splits a line into words, splits at blanks or taps between the words
+// words are stored in vector object
+vector<string> split(string str)
+{
+stringstream sstr(str);
+vector<string> vstr;
+string a;
+while(sstr >> a) vstr.push_back(a);
+return vstr;
+}
 
 #endif // ANDI_INCLUDED
 

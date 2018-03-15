@@ -26,6 +26,7 @@ using namespace blitz;
 // Prototypes
 //-----------
 void biot_savart(Array<double,2>& xc, Array<double,2>& dv, double I, Array<double,1>& x, Array<double,1>& b);
+int read_extcur(Array<double,1>& extcur, LA_STRING input_extension);
 
 // Golbal Parameters
 //------------------
@@ -637,11 +638,25 @@ return(*this);
 //--------------------- Public Member Functions ---------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
-// --- read ---------------------------------------------------------------------------------------------------------------
+// --- init ---------------------------------------------------------------------------------------------------------------
 void BFIELDVC::init(VMEC woutin, LA_STRING mgrid_file)
 {
+#ifdef USE_MPI
+int mpi_rank = MPI::COMM_WORLD.Get_rank();
+#else
+int mpi_rank = 0;
+#endif
+Array<double,1> extcur;
+int nextcur;
 wout = woutin;
 if(strcmp(mgrid_file,"None") == 0) mgrid_file = wout.mgrid_file;
+if(not wout.lfreeb)
+{
+	if(strcmp(mgrid_file,"None") == 0) {if(mpi_rank == 0) cout << "XPAND: provide mgrid file" << endl; EXIT;}
+	nextcur = read_extcur(extcur, wout.input_extension);
+	wout.nextcur = nextcur;
+	wout.extcur.reference(extcur);
+}
 mgrid.read(mgrid_file, wout.nextcur, wout.extcur);
 mgrid.prep_interpolation();
 
@@ -1117,7 +1132,7 @@ return nB;
 //-------------------------------------------------------------------------------------------------------------------------
 
 
-//------------------------- biot-savart -----------------------------------------------------------------------------------
+//------------------------- biot_savart -----------------------------------------------------------------------------------
 // Biot-Savart integrator for closed loop by segments in cartesian coordinates
 // The numerical method of Hanson & Hirshman, Phys. Plasmas vol.9 (2002) 4410 is used
 // xc(i,j), i=1,2,3 j=1...ns are (x,y,z) Cartesian position
@@ -1170,6 +1185,55 @@ for(j=1;j<=ns;j++)
 b *= 1e-7*I;	// mu0/4pi * I
 }
 
+
+//------------------------- read_extcur -----------------------------------------------------------------------------------
+// read coil currents from separate file, if VMEC is fixed boundary mode
+// checks VMEC input file first, if not then checks file "mgrid_coil_currents.in"
+// expects extcur input syntax as in a free boundary VMEC input file
+int read_extcur(Array<double,1>& extcur, LA_STRING input_extension)
+{
+#ifdef USE_MPI
+int mpi_rank = MPI::COMM_WORLD.Get_rank();
+#else
+int mpi_rank = 0;
+#endif
+
+string line,word,equal,index;
+double value;
+int pos1,i,nextcur = 0;
+TinyVector <int,1> index1(1);
+extcur.resize(100); extcur.reindexSelf(index1);
+
+LA_STRING inputfile = LA_STRING("input.") + input_extension;
+ifstream in;
+in.open(inputfile);
+if(in.fail() == 1)
+{
+	in.clear();
+	in.open("mgrid_coil_currents.in");
+	if(in.fail() == 1)  {if(mpi_rank == 0) cout << "XPAND: Unable to read coil currents" << endl; EXIT;}
+	else {if(mpi_rank == 0) cout << "XPAND: EXTCUR found in: mgrid_coil_currents.in" << endl;}
+}
+else {if(mpi_rank == 0) cout << "XPAND: EXTCUR found in: " << inputfile << endl;}
+while(getline(in, line))
+{
+	if(line.length() < 1) continue; 	// blank lines anywhere don't matter
+	if(line.find("EXTCUR") != std::string::npos)
+	{
+		stringstream ss(line);
+		while(ss >> word >> equal >> value)
+		{
+			pos1 = word.find("(");
+			index = word.substr(pos1 + 1, 2);
+			i = atoi(index.c_str());	// in c++ 11 (needs -std=c++11 flag for compiler) you can do:  stoi(index);
+			extcur(i) = value;
+			nextcur += 1;
+		}
+	}
+}
+extcur.resizeAndPreserve(nextcur);
+return nextcur;
+}
 
 
 #endif //  XPAND_CLASS_INCLUDED

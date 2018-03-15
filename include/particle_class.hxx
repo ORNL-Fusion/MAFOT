@@ -29,7 +29,7 @@ using namespace blitz;
 
 // extern Prototypes, defined in Machine-specific header
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
-bool outofBndy(double x, double y, EFIT& EQD);	
+bool outofBndy(double phi, double x, double y, EFIT& EQD);
 
 // Prototypes  
 void get_Energy(double psi, double& Enorm, double& dEnorm);
@@ -107,6 +107,7 @@ PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 
 	void set(int i, int N, double Rmin, double Rmax, double Zmin, double Zmax, int N_Z=1, int flag=0);
 	void create(long& idum, double Rmin, double Rmax, double Zmin, double Zmax, int flag=0);
+	void set_surface(int i, int N, double thmin, double thmax, double phimin, double phimax, int N_phi = 1);
 	void convertRZ(double theta, double r);
 	void getRZ(double x, double y, double& r, double &z);
 
@@ -285,9 +286,10 @@ if((PARr.response_field == 0) || (PARr.response_field == 2))
 			{
 				coord[1] = i*pi2/M3D.Np;
 				chk += fio_eval_field(M3D.ia, coord, A_field);
-				y += (A_field[1] * x1 - M3D.psi_axis_a[i]) / (M3D.psi_lcfs_a[i] - M3D.psi_axis_a[i]);
+				y += A_field[1] * x1;
 			}
 			y /= M3D.Np;
+			y = (y - M3D.psi_axis_a[0]) / (M3D.psi_lcfs_a[0] - M3D.psi_axis_a[0]);	// normalize; the psi_arrays hold only an average value in [0]
 		}
 		else	// vector-potential taken from equilibrium_only setup
 		{
@@ -480,7 +482,7 @@ return 0;
 // creates initial condition i: (R,Z) on a grid with N points
 // values taken from the intervals [Rmin,Rmax] and [Zmin,Zmax] respectively
 // if N_Z is spezified, N=N_Z*N_R has to be used -> Grid size is then N_Z X N_R
-// otherwise Grid size is about sqrt(N) X sqrt(N)
+// otherwise (N_Z = 1 by default) if Zmin not equal Zmax, Grid size is about sqrt(N) X sqrt(N)
 // R is varied first, Z second
 void PARTICLE::set(int i, int N, double Rmin, double Rmax, double Zmin, double Zmax, int N_Z, int flag)
 {
@@ -528,11 +530,13 @@ case 1:		// get R, Z from r and theta
 	R = x*cos(y) + EQDr.RmAxis;
 	Z = x*sin(y) + EQDr.ZmAxis;
 	get_psi(R,Z,psi);
+	theta = y;
 	break;
 default:
 	R = x;
 	Z = y;
 	get_psi(R,Z,psi);
+	theta = polar_phi(R-EQDr.RmAxis, Z-EQDr.ZmAxis);
 	break;
 }
 
@@ -580,13 +584,64 @@ case 1:		// get R, Z from r and theta
 	R = x*cos(y) + EQDr.RmAxis;
 	Z = x*sin(y) + EQDr.ZmAxis;
 	get_psi(R,Z,psi);
+	theta = y;
 	break;
 default:
 	R = x;
 	Z = y;
 	get_psi(R,Z,psi);
+	theta = polar_phi(R-EQDr.RmAxis, Z-EQDr.ZmAxis);
 	break;
 }
+
+Lc = 0;
+psimin = 10;
+psimax = 0;
+psiav = 0;
+steps = 0;
+
+if(sigma != 0 && PARr.useTprofile == 1) {set_Energy(); Lmfp_total = get_Lmfp(Ekin);}
+}
+
+//-------------- set_surface ------------------------------------------------------------------------------------------------------
+// creates initial condition i:  N points of (R,Z) on a flux surface given by theta and phi at psi = const.
+// psi = const is given by PAR.phistart
+// values taken from the intervals [phimin,phimax] and [thmin,thmax] respectively
+// if N_phi is spezified, N=N_phi*N_th has to be used -> Grid size is then N_phi X N_th
+// otherwise (N_phi = 1 by default) if phimin not equal phimax, Grid size is about sqrt(N) X sqrt(N)
+// theta is varied first, phi second
+void PARTICLE::set_surface(int i, int N, double thmin, double thmax, double phimin, double phimax, int N_phi)
+{
+double dphi,dth;
+double x,y;
+int i_phi=0,i_th=0;
+int N_th;
+
+if(N<=1) {dth=0; dphi=0;}
+else
+{
+	dth=(thmax-thmin)/(N-1);
+	dphi=(phimax-phimin)/(N-1);
+}
+
+if(dth==0) i_phi=i-1;
+if(dphi==0) i_th=i-1;
+if(dphi!=0 && dth!=0)
+{
+	if(N_phi<=1) N_phi=int(sqrt(double(N))+0.5);
+	N_th=int(double(N)/double(N_phi)+0.5);
+	i_th=(i-1)%N_th;
+	i_phi=int(double(i-1)/double(N_th));
+	dth=(thmax-thmin)/(N_th-1);
+	dphi=(phimax-phimin)/(N_phi-1);
+}
+x = phimin + i_phi*dphi;
+y = thmin + i_th*dth;
+
+psi = PARr.phistart;
+getRZ(psi, y, R, Z);
+phi = x;
+theta = y;
 
 Lc = 0;
 psimin = 10;
@@ -613,31 +668,33 @@ void PARTICLE::convertRZ(double theta, double r)
 // wall(Range(2,toEnd,2)) are all Z coordiantes of wall, same with lcfs
 void PARTICLE::getRZ(double x, double y, double& r, double &z)
 {
+y = modulo2pi(y);
 if(y < pi/4 || y > 7*pi/4)	// LFS
 {
 	// z = z(r,theta)
 	if(x <= 1) r = bisec(x, y, EQDr.RmAxis, max(EQDr.lcfs(Range(1,toEnd,2)))+EQDr.dR, 0);
-	else r = bisec(x, y, EQDr.RmAxis, max(EQDr.wall(Range(1,toEnd,2))), 0);
+	else r = bisec(x, y, EQDr.RmAxis, max(EQDr.R), 0);
 	z = (r - EQDr.RmAxis)*tan(y) + EQDr.ZmAxis;
 }
 if(y > 3*pi/4 && y < 5*pi/4)	// HFS, lcfs and wall are close together anyway, so here no distinction necessary
 {
 	// z = z(r,theta)
-	r = bisec(x, y, min(EQDr.wall(Range(1,toEnd,2))), EQDr.RmAxis, 0);
+	if(x <= 1) r = bisec(x, y, min(EQDr.lcfs(Range(1,toEnd,2)))-EQDr.dR, EQDr.RmAxis, 0);
+	else r = bisec(x, y, min(EQDr.R), EQDr.RmAxis, 0);
 	z = (r - EQDr.RmAxis)*tan(y) + EQDr.ZmAxis;
 }
 if(y >= pi/4 && y <= 3*pi/4)	// top
 {
 	// r = r(z,theta)
 	if(x <= 1) z = bisec(x, y, EQDr.ZmAxis, max(EQDr.lcfs(Range(2,toEnd,2)))+EQDr.dZ, 1);
-	else z = bisec(x, y, EQDr.ZmAxis, max(EQDr.wall(Range(2,toEnd,2))), 1);
+	else z = bisec(x, y, EQDr.ZmAxis, max(EQDr.Z), 1);
 	r = (z - EQDr.ZmAxis)/tan(y) + EQDr.RmAxis;
 }
 if(y >= 5*pi/4 && y <= 7*pi/4)	// bottom
 {
 	// r = r(z,theta)
 	if(x <= 1) z = bisec(x, y, min(EQDr.lcfs(Range(2,toEnd,2))), EQDr.ZmAxis, 1);
-	else z = bisec(x, y, min(EQDr.wall(Range(2,toEnd,2))), EQDr.ZmAxis, 1);
+	else z = bisec(x, y, min(EQDr.Z), EQDr.ZmAxis, 1);
 	r = (z - EQDr.ZmAxis)/tan(y) + EQDr.RmAxis;
 }
 }
@@ -662,22 +719,22 @@ x = a;
 if (flag == 0)	// z = z(r,th)
 {
 	z = (x - EQDr.RmAxis)*tan(th) + EQDr.ZmAxis;
-	if(outofBndy(x, z, EQDr)) f = 1.2;
+	if(x<min(EQDr.R) || x>max(EQDr.R) || z<min(EQDr.Z) || z>max(EQDr.Z)) f = 2;
 	else
 	{
 		chk = get_psi(x, z, f);
-		if(chk != 0) f = 1.2;
+		if(chk != 0) f = 2;
 	}
 	f -= p;
 }
 else			// r = r(z,th)
 {
 	r = (x - EQDr.ZmAxis)/tan(th) + EQDr.RmAxis;
-	if(outofBndy(r, x, EQDr)) f = 1.2;
+	if(r<min(EQDr.R) || r>max(EQDr.R) || x<min(EQDr.Z) || x>max(EQDr.Z)) f = 2;
 	else
 	{
 		chk = get_psi(r, x, f);
-		if(chk != 0) f = 1.2;
+		if(chk != 0) f = 2;
 	}
 	f -= p;
 }
@@ -699,22 +756,22 @@ while(fabs(xo-xu) > eps)
 	if (flag == 0)	// z = z(r,th)
 	{
 		z = (x - EQDr.RmAxis)*tan(th) + EQDr.ZmAxis;
-		if(outofBndy(x, z, EQDr)) f = 1.2;
+		if(x<min(EQDr.R) || x>max(EQDr.R) || z<min(EQDr.Z) || z>max(EQDr.Z)) f = 2;
 		else
 		{
 			chk = get_psi(x, z, f);
-			if(chk != 0) f = 1.2;
+			if(chk != 0) f = 2;
 		}
 		f -= p;
 	}
 	else			// r = r(z,th)
 	{
 		r = (x - EQDr.ZmAxis)/tan(th) + EQDr.RmAxis;
-		if(outofBndy(r, x, EQDr)) f = 1.2;
+		if(r<min(EQDr.R) || r>max(EQDr.R) || x<min(EQDr.Z) || x>max(EQDr.Z)) f = 2;
 		else
 		{
 			chk = get_psi(r, x, f);
-			if(chk != 0) f = 1.2;
+			if(chk != 0) f = 2;
 		}
 		f -= p;
 	}
@@ -771,7 +828,7 @@ for (k=1;k<=nstep;k++)
 	x = x1 + k*dx; // Better than x+=dx
 
 	// Integration terminates outside of boundary box
-	if(outofBndy(yout(0),yout(1),EQDr) == true) return -1;
+	if(outofBndy(x*rTOd,yout(0),yout(1),EQDr) == true) return -1;
 
 	// Get additional Parameter
 	Lc += sqrt((yout(0)-y(0))*(yout(0)-y(0)) + (yout(1)-y(1))*(yout(1)-y(1)) + 0.25*(yout(0)+y(0))*(yout(0)+y(0))*dx*dx);

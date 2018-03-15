@@ -43,9 +43,8 @@ public:
    LA_STRING(long);               		//  Konstruktor LA_STRING x=(long)12
    LA_STRING(const LA_STRING&);     		//  Kopierkonstruktor    LA_STRING x=y
    LA_STRING(unsigned long);
-   LA_STRING(float, char *f="%g");		//  Konstruktor LA_STRING x=1.2  (nicht IBM)
-   LA_STRING(double, char *f="%g");//Konstruktor LA_STRING x=(double)1.2
-                                //  (f ist Format-String fuer sprintf)
+   LA_STRING(float);			//  Konstruktor LA_STRING x=1.2  (nicht IBM)
+   LA_STRING(double);			//Konstruktor LA_STRING x=(double)1.2
 
 // Destruktor
    ~LA_STRING() {delete [] s; s=NULL; slen=0;} //  Destruktor

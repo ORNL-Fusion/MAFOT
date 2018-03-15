@@ -46,11 +46,52 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 3.74
-GUI 1.43
+MAFOT 4.03
+GUI 2.0
 
 Version Notes: 
 ----------------
+MAFOT 4.03 -- Mar 2018
+- full wall now accessible for foot_mpi using the swall coordinate and target = 0
+
+GUI 2.0 -- Feb 2018
+- complete restructuring of ther code to unify common code segments
+- several new features, like use of shell Flags for VMEC/SIESTA, or dtlaminar
+- new autocomplete Entry widget for file names, that searches through the directory structure
+
+MAFOT 4.02 -- Feb 2018
+- B-coil shift&tilt error added for DIII-D
+
+MAFOT 4.01 -- Jan 2018
+- Buswork error field added for DIII-D
+- For backward compatibility: c++11 standard no longer required, but recommended
+- structure can now use the 3D wall
+- compile targets for "each tool in all machines" added to makefile
+
+MAFOT 4.0 -- Dec 2017
+- unification of M3DC1 and regular machine file -> *_m3dc1.hxx machine files no longer supported
+- simplification of machine specific files by moving larg pieces of common code to mafot.hxx
+- bug fix for xpand
+- CMOD now fully available (except target plate specification for footprints)
+- improved command line options for all tools, including file name support for SIESTA, VMEC and XPAND
+- new read-in routine for parameterfile
+- 3D field line tracing with structure tool now fully supported
+- c++ 2011 standard now required -> compiler flag -std=c++1 added in general
+
+MAFOT 3.9 -- July 2017
+- laminar can now compute Lc, psimin, etc. along an EFIT flux surface of constant psi
+- d3dplot.py can plot the new laminar plots
+
+MAFOT 3.8 -- May 2017
+- C-Mod support added (only plot_mpi for now)
+- 3D wall added
+- Python "== None" warning fixed
+
+MAFOT 3.75 -- Jul 2016
+- divB correction in xpand does not work properly - DO NOT USE
+- use of multiple M3DC1 files now allows arbitrary relative phase
+- fake island perturbation added (D3D only) 
+
 MAFOT 3.74 -- Apr 2016
 - splines separated from EFIT_Class into own header
 - function added to read & store header lines from files

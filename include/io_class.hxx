@@ -22,11 +22,14 @@
 using namespace blitz;
 
 // Prototypes  
+void readparfile_new(char* name, vector<double>& vec, int& shot, int& time, LA_STRING& path);
 
 // Typedef
 typedef struct {string name; double wert;} parstruct;
 
 // Golbal Parameters 
+extern int simpleBndy;
+extern const double dpinit;
 
 //--------- Begin Class PARTICLE ----------------------------------------------------------------------------------------------
 class IO
@@ -51,6 +54,8 @@ public:
 	int which_target_plate;						// 0: center post(above inner target), 1: inner target(45deg), 2: outer target(horizontal), 3: shelf (right of outer target)
 	int create_flag;							// 0: fixed grid	1: random numbers	2: Start on target
 	int useIcoil; int useCcoil; int useFcoil;	// Perturbation coils:  0: off, 1: on
+	int useBuswork;								// Bus work error field:  0: off, 1: on
+	int useBcoil;								// shifted&tilted B-coil error field:  0: off, 1: on
 	int useFilament;							// Current filaments: 0: off, >=1: Number of filaments to use
 	int Zq;										// Charge number: 1: ions are calculated	-1: electrons are calculated
 	int sigma;									// 1: co-passing particles		-1: count-passing particles		0: field lines only
@@ -60,6 +65,7 @@ public:
 	double verschieb;							// parameter for mainfolds
 	int response;								// 1: use M3D-C1 plasma response solution; 0: no plasma response included -> vacuum field as used in M3D-C1
 	int response_field;							// -1: use vacuum field from g-file (= M3D-C1 off); 0: equilibrium only; 1: perturbation only; 2: total field
+	int output_step_size;
 
 	parstruct* pv;								// parstruct array
 
@@ -88,6 +94,7 @@ IO::IO(EFIT& EQD): EQDr(EQD)										// Default
 	filename = "";
 	psize = 0;
 	pv = 0;
+	output_step_size = 360;
 }					
 IO::IO(EFIT& EQD, LA_STRING name, int size, int mpi_rank): EQDr(EQD)	// with readiodata
 {
@@ -95,6 +102,7 @@ IO::IO(EFIT& EQD, LA_STRING name, int size, int mpi_rank): EQDr(EQD)	// with rea
 	readiodata(name, mpi_rank);
 	if(psize > 0) pv = new parstruct[psize];
 	else pv = 0;
+	output_step_size = 360;
 }	
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -153,6 +161,8 @@ create_flag = PAR.create_flag;
 useFcoil = PAR.useFcoil;
 useCcoil = PAR.useCcoil;
 useIcoil = PAR.useIcoil;
+useBuswork = PAR.useBuswork;
+useBcoil = PAR.useBcoil;
 sigma = PAR.sigma;
 Zq = PAR.Zq;
 useFilament = PAR.useFilament;
@@ -233,6 +243,8 @@ out << "create_flag = " << PAR.create_flag << endl;
 out << "useFcoil = " << PAR.useFcoil << endl;
 out << "useCcoil = " << PAR.useCcoil << endl;
 out << "useIcoil = " << PAR.useIcoil << endl;
+out << "useBuswork = " << PAR.useBuswork << endl;
+out << "useBcoil = " << PAR.useBcoil << endl;
 out << "sigma = " << PAR.sigma << endl;
 out << "Zq = " << PAR.Zq << endl;
 out << "useFilament = " << PAR.useFilament << endl;
@@ -240,10 +252,10 @@ out << "useTprofile = " << PAR.useTprofile << endl;
 out << endl;
 
 #ifdef m3dc1
-out << "--- M3D-C1 ---" << endl;
-out << "response = " << PAR.response << endl;
-out << "response_field = " << PAR.response_field << endl;
-out << endl;
+	out << "--- M3D-C1 ---" << endl;
+	out << "response = " << PAR.response << endl;
+	out << "response_field = " << PAR.response_field << endl;
+	out << endl;
 #endif
 
 if(PAR.psize>0) 
@@ -256,7 +268,262 @@ return out;
 
 //--------------------- Member Functions ----------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
-// readiodata and writeiodata are defined in Machine specific header file
+
+// ----------------- readiodata -------------------------------------------------------------------------------------------
+void IO::readiodata(char* name, int mpi_rank)
+{
+// Get Parameters
+vector<double> vec;
+int shot,time;
+readparfile_new(name,vec,shot,time,EQDr.Path);
+EQDr.Shot = LA_STRING(shot);
+EQDr.Time = LA_STRING(time);
+//if(vec.size()<22) {if(mpi_rank < 1) cout << "Fail to read all parameters, File incomplete" << endl; EXIT;}
+
+// private Variables
+filename = name;
+
+// Map Parameters
+itt = int(vec[1]);
+phistart = vec[7];
+MapDirection = int(vec[8]);
+
+// t grid (footprints only)
+Nt = int(vec[6]);
+tmin = vec[2];
+tmax = vec[3];
+
+// phi grid (footprints only)
+Nphi = int(vec[0]);
+phimin = vec[4];
+phimax = vec[5];
+
+// R grid (laminar only)
+NR = int(vec[6]);
+Rmin = vec[2];
+Rmax = vec[3];
+
+// Z grid (laminar only)
+NZ = int(vec[0]);
+Zmin = vec[4];
+Zmax = vec[5];
+
+// r grid
+N = int(vec[6]);
+Nr = int(sqrt(N));
+rmin = vec[2];
+rmax = vec[3];
+
+// theta grid
+Nth = int(sqrt(N));
+thmin = vec[4];
+thmax = vec[5];
+
+verschieb = vec[0];
+
+#if defined(ITER)
+	// Particle Parameters
+	Ekin = vec[16];
+	lambda = vec[17];
+
+	// Set switches
+	which_target_plate = int(vec[9]);
+	create_flag = int(vec[10]);
+	useIcoil = int(vec[11]);
+	useFilament = int(vec[12]);
+	useTprofile = int(vec[13]);
+	sigma = int(vec[14]);
+	Zq = int(vec[15]);
+
+	// External fields parameter
+	response = int(vec[18]);
+	response_field = int(vec[19]);
+
+	// Set unused Parameters to defaults
+	useFcoil = 0;
+	useCcoil = 0;
+	useBuswork = 0;
+	useBcoil = 0;
+	useTprofile = 0;
+#elif defined(NSTX)
+	// Particle Parameters
+	Ekin = vec[16];
+	lambda = vec[17];
+
+	// Set switches
+	which_target_plate = int(vec[9]);
+	create_flag = int(vec[10]);
+	useIcoil = int(vec[11]);
+	useFilament = int(vec[12]);
+	useTprofile = int(vec[13]);
+	sigma = int(vec[14]);
+	Zq = int(vec[15]);
+
+	// External fields parameter
+	response = int(vec[18]);
+	response_field = int(vec[19]);
+
+	// Set unused Parameters to defaults
+	useFcoil = 0;
+	useCcoil = 0;
+	useBuswork = 0;
+	useBcoil = 0;
+	useTprofile = 0;
+#elif defined(MAST)
+	// Particle Parameters
+	Ekin = vec[18];
+	lambda = vec[19];
+
+	// Set switches
+	which_target_plate = int(vec[11]);
+	create_flag = int(vec[12]);
+	useCcoil = int(vec[13]);
+	useIcoil = int(vec[14]);
+	sigma = int(vec[16]);
+	Zq = int(vec[17]);
+	useFilament = int(vec[15]);
+
+	// External fields parameter
+	response = int(vec[9]);
+	response_field = int(vec[10]);
+
+	// Set unused Parameters to defaults
+	useFcoil = 0;
+	useBuswork = 0;
+	useBcoil = 0;
+	useTprofile = 0;
+#elif defined(CMOD)
+	// Particle Parameters
+	Ekin = vec[18];
+	lambda = vec[19];
+
+	// Set switches
+	which_target_plate = int(vec[11]);
+	create_flag = int(vec[12]);
+	sigma = int(vec[16]);
+	Zq = int(vec[17]);
+	useFilament = int(vec[20]);
+
+	// External fields parameter
+	response = int(vec[9]);
+	response_field = int(vec[10]);
+
+	// Set unused Parameters to defaults
+	useFcoil = 0;
+	useCcoil = 0;
+	useIcoil = 0;
+	useBuswork = 0;
+	useBcoil = 0;
+	useTprofile = 0;
+#else
+	// Particle Parameters
+	Ekin = vec[18];
+	lambda = vec[19];
+
+	// Set switches
+	which_target_plate = int(vec[11]);
+	create_flag = int(vec[12]);
+	useFcoil = int(vec[13]);
+	useCcoil = int(vec[14]);
+	useIcoil = int(vec[15]);
+	sigma = int(vec[16]);
+	Zq = int(vec[17]);
+	useFilament = int(vec[20]);
+
+	// External fields parameter
+	response = int(vec[9]);
+	response_field = int(vec[10]);
+
+	if(vec[21] > 1) useTprofile = 0;
+	else useTprofile = int(vec[21]);
+	if(vec.size() < 23) useBuswork = 0;
+	else
+	{
+		if(vec[22] > 1) useBuswork = 0;
+		else useBuswork = int(vec[22]);
+	}
+	if(vec.size() < 24) useBcoil = 0;
+	else
+	{
+		if(vec[23] > 1) useBcoil = 0;
+		else useBcoil = int(vec[23]);
+	}
+#endif
+}
+
+
+// ------------------- writeiodata ----------------------------------------------------------------------------------------
+void IO::writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var)
+{
+int i;
+out << "# " << program_name << endl;
+out << "#-------------------------------------------------" << endl;
+out << "### Parameterfile: " << filename << endl;
+out << "# Shot: " << EQDr.Shot << endl;
+out << "# Time: " << EQDr.Time << endl;
+#ifdef m3dc1
+	out << "#-------------------------------------------------" << endl;
+	out << "### M3D-C1:" << endl;
+	out << "# Plasma response (0=no, >1=yes): " << response << endl;
+	out << "# Field (-1=M3D-C1 off, 0=Eq, 1=I-coil, 2=both): " << response_field << endl;
+#endif
+out << "#-------------------------------------------------" << endl;
+out << "### Switches:" << endl;
+#if defined(ITER)
+	out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
+#elif defined(NSTX)
+	out << "# EC-coil active (0=no, 1=yes): " << useIcoil << endl;
+#elif defined(MAST)
+	out << "# ECC-coil active (0=no, 1=yes): " << useCcoil << endl;
+	out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
+#elif defined(CMOD)
+#else
+	out << "# F-coil active (0=no, 1=yes): " << useFcoil << endl;
+	out << "# C-coil active (0=no, 1=yes): " << useCcoil << endl;
+	out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
+	out << "# Bus work error field active (0=no, 1=yes): " << useBuswork << endl;
+	out << "# B-coil shift&tilt error field active (0=no, 1=yes): " << useBcoil << endl;
+#endif
+out << "# No. of current filaments (0=none): " << useFilament << endl;
+out << "# Use Temperature Profile (0=off, 1=on): " << useTprofile << endl;
+#if defined(ITER)
+	out << "# Target (0=fullWall, 1=inner, 2=outer): " << which_target_plate << endl;
+#elif defined(NSTX)
+	out << "# Target (0=fullWall, 1=inner-up, 2=outer-up, 3=inner-dwn, 4=outerdwn): " << which_target_plate << endl;
+#elif defined(MAST)
+	out << "# Target (0=fullWall, 1=inner, 2=outer): " << which_target_plate << endl;
+#elif defined(CMOD)
+	out << "# Target (0=fullWall): " << which_target_plate << endl;
+#else
+	out << "# Target (0=fullWall, 1=inner, 2=outer, 3=shelf, 4=SAS): " << which_target_plate << endl;
+#endif
+out << "# Create Points (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-random, 5=RZ-grid): " << create_flag << endl;
+out << "# Direction of particles (1=co-pass, -1=count-pass, 0=field lines): " << sigma << endl;
+out << "# Charge number of particles (=-1:electrons, >=1:ions): " << Zq << endl;
+out << "# Boundary (0=Wall, 1=Box): " << simpleBndy << endl;
+out << "#-------------------------------------------------" << endl;
+out << "### Global Parameters:" << endl;
+out << "# Steps till Output (ilt): " << output_step_size << endl;
+out << "# Step size (dpinit): " << dpinit << endl;
+out << "# Boundary Rmin: " << bndy[0] << endl;
+out << "# Boundary Rmax: " << bndy[1] << endl;
+out << "# Boundary Zmin: " << bndy[2] << endl;
+out << "# Boundary Zmax: " << bndy[3] << endl;
+out << "# Magnetic Axis: R0: " << EQDr.RmAxis << endl;
+out << "# Magnetic Axis: Z0: " << EQDr.ZmAxis << endl;
+out << "#-------------------------------------------------" << endl;
+out << "### additional Parameters:" << endl;
+for(i=0;i<psize;++i)
+{
+	out << "# " << pv[i].name << ": " << pv[i].wert << endl;
+}
+out << "#-------------------------------------------------" << endl;
+out << "### Data:" << endl;
+out << "# ";
+for(i=0;i<int(var.size());i++) out << var[i] << "     ";
+out << endl;
+out << "#" << endl;
+}
 
 // ------------------- set_pv ---------------------------------------------------------------------------------------------
 void IO::set_pv(int size)
@@ -267,6 +534,82 @@ pv = new parstruct[psize];
 
 //----------------------- End of Member Functions -------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+
+// ------------- readparfile ---------------------------------------------------------------------------------------------
+void readparfile_new(char* name, vector<double>& vec, int& shot, int& time, LA_STRING& path)
+{
+// Variables
+int i;
+int shotfound,timefound;
+size_t found;
+double val;
+string parname;
+string line,word;
+vector<string> words;
+
+// Read file
+ifstream file;
+file.open(name);
+if(file.fail()==1) {cout << "Unable to open file " << name << endl; exit(0);}
+
+// Read data
+while(getline(file, line))
+{
+	if (line[0] == '#') // process and skip header lines
+	{
+		// split line into words
+		found = 0;
+		while ((found = line.find_first_of("\t ")) != std::string::npos)
+		{
+		    word = line.substr(0, found);
+		    line.erase(0, found + 1);
+		    if (word.length() == 0) continue;
+		    words.push_back(word);
+		}
+		words.push_back(line); // last word in line
+
+		// search for key words
+		shotfound = -1;
+		timefound = -1;
+		for(i=0;i<words.size();i++)
+		{
+			if (int(words[i].find("Shot")) > -1) shotfound = i;
+			if (int(words[i].find("Time")) > -1) timefound = i;
+			if ((shotfound > -1) && (timefound > -1))
+			{
+				shot = atoi(words[shotfound + 1].c_str());
+				word = words[timefound + 1];
+				if (int(word.find("ms")) > -1) word.erase(word.find("ms")); // erase all from beginning of 'ms' to end of string
+				time = atoi(word.c_str());
+				break;
+			}
+			if (int(words[i].find("Path")) > -1)
+			{
+				word = words[i+1];
+				found = word.find_last_of("/");
+				if (found < word.length() -1) word += "/";
+				path = LA_STRING(word.c_str());
+				break;
+			}
+		}
+
+		words.clear();
+		continue;
+	}
+
+    if (int(line.find_first_of('#')) > -1)	// does the line include a comment after the data
+    {
+    	found = line.find_first_of('#');
+    	line = line.substr(0,found);
+    }
+
+    found = line.find_last_of("=");
+    parname = line.substr(0,found);
+    val = atof(line.substr(found+1).c_str());
+    vec.push_back(val);
+}
+file.close();
+}
 
 #endif //  IO_CLASS_INCLUDED
 //----------------------- End of File -------------------------------------------------------------------------------------

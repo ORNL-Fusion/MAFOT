@@ -11,7 +11,7 @@ SIESTA = True
 
 # ---- Compiler ----
 CXX = g++
-CFLAGS = -O3 -fPIC
+CFLAGS = -O3 -fPIC -std=c++11
 OMPFLAGS = -fopenmp -w
 
 F90 = gfortran

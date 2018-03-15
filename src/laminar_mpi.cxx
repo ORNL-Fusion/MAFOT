@@ -30,31 +30,6 @@
 //--------
 #include <openmpi/ompi/mpi/cxx/mpicxx.h>
 #include <mafot.hxx>
-#if defined(ITER)
-	#if defined(m3dc1)
-		#include <iter_m3dc1.hxx>
-	#else
-		#include <iter.hxx>
-	#endif
-#elif defined(NSTX)
-	#if defined(m3dc1)
-		#include <nstx_m3dc1.hxx>
-	#else
-		#include <nstx.hxx>
-	#endif
-#elif defined(MAST)
-	#if defined(m3dc1)
-		#include <mast_m3dc1.hxx>
-	#else
-		#include <mast.hxx>
-	#endif
-#else
-	#if defined(m3dc1)
-		#include <d3d_m3dc1.hxx>
-	#else
-		#include <d3d.hxx>
-	#endif
-#endif
 #include <omp.h>
 #include <unistd.h>
 
@@ -83,6 +58,7 @@ int i,j;
 int chk,skip_connect;
 double ntor,length,psimin,psimax,psiav;
 double pitch,yaw;
+double xtmp,ytmp;
 Range all = Range::all();
 
 int tag,sender;
@@ -97,28 +73,61 @@ double now = zeit();
 // defaults
 int spare_interior = 0;					// 0: all points are calculated		1: inside psi = psi_interior_limit results are set to fixed values (code runs faster)
 double psi_interior_limit = 0.85;		// psi limit for spare_interior == 1
+bool use_3Dwall = false;
+LA_STRING wall_file = "none";
+double Raxis = 0, Zaxis = 0;
+LA_STRING new_axis_loc;
+int new_axis_loc_idx;
+bool use_inputPointsFile = false;
+LA_STRING inputPoints_file = "none";
+LA_STRING woutfile = "wout.nc";
+LA_STRING xpandfile = "xpand.dat";
+LA_STRING siestafile = "siesta.dat";
+LA_STRING islandfile = "fakeIslands.in";
+
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsl:")) != -1)
+while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-s] [-l limit] file [tag]" << endl << endl;
+		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-l limit] [-s] [-A Raxis,Zaxis] [-I island] " << endl;
+		cout << "                                       [-P points] [-S siesta] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
 		cout << "Calculate field line connection length and penetration depth in a poloidal cross-section." << endl << endl;
 		cout << "positional arguments:" << endl;
 		cout << "  file          Contol file (starts with '_')" << endl;
 		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 		cout << endl << "optional arguments:" << endl;
 		cout << "  -h            show this help message and exit" << endl;
-		cout << "  -s            spare calculation of interior, default = No" << endl;
 		cout << "  -l            flux limit for spare interior, default = 0.85" << endl;
+		cout << "  -s            spare calculation of interior, default = No" << endl;
+		cout << "  -A            force magnetic axis location, use: -A Raxis,Zaxis , default: use g-file" << endl;
+		cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
+		cout << "  -P            use separate input file for initial conditions; argument is the file name; default is None" << endl;
+		cout << "                File format of columns: R [m], phi [deg, right-handed coord.], Z [m]" << endl;
+		cout << "                Header lines start with '#'; no comment lines between/after data possible" << endl;
+		cout << "  -S            filename for SIESTA; default, see below" << endl;
+		cout << "  -V            filename for VMEC; default, see below" << endl;
+		cout << "  -W            use separate 3D Wall-File; default is 2D wall from EFIT file" << endl;
+		cout << "  -X            filename for XPAND; default, see below" << endl;
 		cout << endl << "Examples:" << endl;
 		cout << "  mpirun -n 4 dtlaminar_mpi _lam.dat blabla" << endl;
 		cout << "  mpirun -n 12 dtlaminar_mpi -s -l 0.7 _lam.dat skip_inside0.7" << endl;
+		cout << endl << "Infos:" << endl;
+		cout << "  To use B-field from M3DC1, set response_field >= 0, and provide file in cwd:" << endl;
+		cout << "    m3dc1sup.in    ->  location and scale factor for M3DC1 output C1.h5" << endl;
+		cout << "  To use B-field from XPAND, set response_field = -3, and provide files in cwd:" << endl;
+		cout << "    xpand.dat      ->  B-field on 3D grid from XPAND; use option -X to specify other filename" << endl;
+		cout << "    wout.nc        ->  VMEC output; use option -V to specify other filename" << endl;
+		cout << "  To use B-field from SIESTA, set response_field = -2, and provide file in cwd:" << endl;
+		cout << "    siesta.dat     ->  B-field on 3D grid; use option -S to specify other filename" << endl;
+		cout << "  To use B-field for mock-up islands, set response_field = -10, and provide file in cwd:" << endl;
+		cout << "    fakeIslands.in ->  each line gives: Amplitude, pol. mode m, tor. mode n, phase [rad]" << endl;
+		cout << "                       use option -I to specify other filename" << endl;
 	}
 	MPI::Finalize();
 	return 0;
@@ -127,6 +136,32 @@ case 's':
 	break;
 case 'l':
 	psi_interior_limit = atof(optarg);
+	break;
+case 'W':
+	use_3Dwall = true;
+	wall_file = optarg;
+	break;
+case 'A':
+	new_axis_loc = LA_STRING(optarg);
+	new_axis_loc_idx = new_axis_loc.indexOf(",");
+	Raxis = atof(new_axis_loc.left(new_axis_loc_idx-1));
+	Zaxis = atof(new_axis_loc.mid(new_axis_loc_idx+1));
+	break;
+case 'P':
+	use_inputPointsFile = true;
+	inputPoints_file = optarg;
+	break;
+case 'I':
+	islandfile = optarg;
+	break;
+case 'S':
+	siestafile = optarg;
+	break;
+case 'V':
+	woutfile = optarg;
+	break;
+case 'X':
+	xpandfile = optarg;
 	break;
 case '?':
 	if(mpi_rank < 1)
@@ -170,14 +205,13 @@ ofs2 << "Read Parameterfile " << parfilename << endl;
 IO PAR(EQD,parfilename,11,mpi_rank);
 
 // Read EFIT-data
-double Raxis = 0, Zaxis = 0;
 #ifdef USE_XFIELD
 if(PAR.response_field == -3)
 {
 	VMEC vmec;
 	if(mpi_rank < 1) cout << "Read VMEC file" << endl;
 	ofs2 << "Read VMEC file" << endl;
-	vmec.read("wout.nc");
+	vmec.read(woutfile);
 	vmec.get_axis(PAR.phistart/rTOd, Raxis, Zaxis);
 }
 #endif
@@ -194,16 +228,61 @@ if(PAR.response_field == 0 || PAR.response_field == 2)
 }
 #endif
 
+if(Raxis > 0)
+{
+	if(mpi_rank < 1) cout << "Shift Equilibrium to new axis: Raxis = " << Raxis << "     Zaxis = " << Zaxis << endl;
+	ofs2 << "Shift Equilibrium to new axis: Raxis = " << Raxis << "     Zaxis = " << Zaxis << endl;
+}
 EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
 if(mpi_rank < 1) cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 
+// Read input points file. Use format for columns: R [m], phi [deg, right-handed coord.], Z [m]
+Array<double,2> inputPoints;
+int inputPoints_columns;
+if(use_inputPointsFile)
+{
+	if(mpi_rank < 1) cout << "Using Points from file: " << inputPoints_file << endl;
+	ofs2 << "Using Points from file: " << inputPoints_file << endl;
+	inputPoints_columns = count_column(inputPoints_file);
+	readfile(inputPoints_file, inputPoints_columns, inputPoints);
+	PAR.create_flag = 0;	// set to "setRZ" mode by default
+}
+
+// Read 3D wall file and add to EQD
+if(use_3Dwall)
+{
+	if(mpi_rank < 1) cout << "Using 3D wall from file: " << wall_file << endl;
+	ofs2 << "Using 3D wall from file: " << wall_file << endl;
+	EQD.set3Dwall(wall_file);
+}
+
 // Set starting parameters
-int N_variables = 9;
+int N_variables = 11;
 int NZ_slave = 1;
 int N = PAR.NR*PAR.NZ;
 int N_slave = PAR.NR*NZ_slave;
 int NoOfPackages = int(PAR.NZ/NZ_slave);
+int N_slave_last = N_slave;
+
+if(use_inputPointsFile)
+{
+	N = inputPoints.rows();
+	if(N < 10*mpi_size) N_slave = 1;
+	else if(N < 100*mpi_size) N_slave = 10;
+	else N_slave = 100;
+	NoOfPackages = int(N/N_slave);
+	if(N_slave*NoOfPackages < N) // if not exact, work on one more package
+	{
+		N_slave_last = N - N_slave*NoOfPackages;
+		NoOfPackages += 1;
+	}
+	else N_slave_last = N_slave;
+	PAR.NR = int(N_slave/NZ_slave);
+	PAR.NZ = NZ_slave*NoOfPackages;
+}
+
+int N_slave_use = N_slave;	// set to private in omp section, so needs to be reinitialized in there.
 
 // Needed for storage of data while calculating
 Array<int,1> write_memory(Range(1,NoOfPackages)); //store which data is written to file (0: not calculated yet, 1: calculated, 2: written to file)
@@ -245,14 +324,18 @@ if(mpi_rank < 1)
 	PAR.pv[10].name = "Ekin";			PAR.pv[10].wert = PAR.Ekin;
 
 	if(PAR.create_flag == 3) {PAR.pv[1].name = "psi-grid"; PAR.pv[2].name = "theta-grid"; PAR.pv[3].name = "psimin"; PAR.pv[4].name = "psimax"; PAR.pv[5].name = "thetamin"; PAR.pv[6].name = "thetamax";}
+	if(PAR.create_flag == 6) {PAR.pv[1].name = "theta-grid"; PAR.pv[2].name = "phi-grid"; PAR.pv[3].name = "thetamin"; PAR.pv[4].name = "thetamax"; PAR.pv[5].name = "phimin"; PAR.pv[6].name = "phimax"; PAR.pv[7].name = "psi surface";}
 
 	// Output
 	ofstream out(filenameout);
 	out.precision(16);
 	vector<LA_STRING> var(N_variables);
 	var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";  var[5] = "psimax";  var[6] = "psiav";  var[7] = "FL pitch angle";  var[8] = "FL yaw angle";
-	if(PAR.create_flag == 3) {var[0] = "theta";  var[1] = "psi";}
+	var[9] = "theta";  var[10] = "psi";
+	if(PAR.create_flag == 3) {var[0] = "theta";  var[1] = "psi";  var[9] = "R[m]";  var[10] = "Z[m]";}
+	if(PAR.create_flag == 6) {var[0] = "phi";  var[1] = "theta";  var[9] = "R[m]";  var[10] = "Z[m]";}
 	if(PAR.response_field == -2) {var[0] = "u"; var[3] = "s";}
+	if(use_inputPointsFile) var[9] = "phi";
 	PAR.writeiodata(out,bndy,var);
 
 	// Result array:					Package ID,  Column Number,  Values
@@ -262,13 +345,14 @@ if(mpi_rank < 1)
 	tag = 1;	// first Package
 
 	// Z array
+	// if(use_inputPointsFile) Z_values is not used. Slave works on package 'tag', which already determines the indices of the points to work on in array "inputPoints"
 	Array<double,1> Z_values(Range(1,PAR.NZ));
 	for(i=1;i<=PAR.NZ;i++) Z_values(i) = PAR.Zmin + (i-1)*dz;
 
 	int sent_packages = 0;
 	int recieve_packages = 0;
 
-	#pragma omp parallel shared(results_all,Z_values,sent_packages,recieve_packages,write_memory) private(i,tag) num_threads(2)
+	#pragma omp parallel shared(results_all,Z_values,sent_packages,recieve_packages,write_memory) private(i,tag,N_slave_use) num_threads(2)
 	{
 		#pragma omp sections nowait
 		{
@@ -277,8 +361,6 @@ if(mpi_rank < 1)
 			//#pragma omp barrier	// Syncronize with Slave Thread
 			MPI::COMM_WORLD.Barrier();	// Master waits for Slaves
 
-			cout << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
-			cout << "Start Tracer for " << N << " points ... " << endl;
 			//ofs3 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << MapDirection << endl;
 			ofs3 << "Start Tracer for " << N << " points ... " << endl;
 
@@ -353,9 +435,16 @@ if(mpi_rank < 1)
 				while((write_memory(write_max+1) == 1) && (write_max < NoOfPackages)) write_max++;
 
 				// Write Output to file
+				N_slave_use = N_slave;
 				for(i=write_last+1; i<=write_max; i++)
 				{
-					for(j=1;j<=N_slave;j++)	out << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << "\t" << results_all(i,7,j) << "\t" << results_all(i,8,j) << "\t" << results_all(i,9,j) << endl;
+					if(i == NoOfPackages) N_slave_use = N_slave_last;	// size of last package may be smaller
+					for(j=1;j<=N_slave_use;j++)
+					{
+						out << results_all(i,1,j);
+						for(int k=2;k<=N_variables;k++) out << "\t" << results_all(i,k,j);
+						out << endl;
+					}
 					write_memory(i) = 2;
 				}
 				write_last = write_max;
@@ -366,10 +455,13 @@ if(mpi_rank < 1)
 		#pragma omp section	//------- Slave Thread on Master Node: does same calculations as Salve Nodes ----------------------------------------------------------------------------------
 		{
 			// Prepare Perturbation
+			prepare_common_perturbations(EQD,PAR,mpi_rank,siestafile,xpandfile,islandfile);
 			prep_perturbation(EQD,PAR,mpi_rank);
 
 			//#pragma omp barrier	// Syncronize with Master Thread
 
+			cout << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
+			cout << "Start Tracer for " << N << " points ... " << endl;
 			ofs2 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
 
 			// Start working...
@@ -382,6 +474,8 @@ if(mpi_rank < 1)
 					tag = sent_packages;
 				}
 				if(tag > NoOfPackages) break;	// Still work to do?  ->  tag > NoOfPackages: NO, stop working
+				if(tag == NoOfPackages) N_slave_use = N_slave_last;	// size of last package may be smaller
+				else N_slave_use = N_slave;		// this is a private variable so it is different from the one outside the omp section and needs initialization
 				ofs2 << endl;
 				ofs2 << "Node: " << mpi_rank << " works on Package: " << tag << endl;
 				ofs3 << "Node: " << mpi_rank << " works on Package: " << tag << endl;
@@ -389,11 +483,19 @@ if(mpi_rank < 1)
 				Zmin_slave = Z_values((tag-1)*NZ_slave+1);
 				Zmax_slave = Z_values(tag*NZ_slave);
 
-				ofs2 << "Start Tracer for " << N_slave << " points ... " << endl;
-				for(i=1;i<=N_slave;i++)
+				ofs2 << "Start Tracer for " << N_slave_use << " points ... " << endl;
+				for(i=1;i<=N_slave_use;i++)
 				{
 					// Set and store initial condition
-					if(PAR.create_flag == 3)	// creates regular grid from theta and psi
+					if(PAR.create_flag == 6)	// creates regular grid from theta and phi at psi = const.
+					{
+						FLT.set_surface(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave);	// here Rmin = thetamin and Zmin = phimin; max respectively
+						results_all(tag,1,i) = FLT.phi;
+						results_all(tag,2,i) = FLT.theta;
+						xtmp = FLT.R;
+						ytmp = FLT.Z;
+					}
+					else if(PAR.create_flag == 3)	// creates regular grid from theta and psi
 					{
 						FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave,2);	// here Rmin = psimin and Zmin = thetamin; max respectively
 #ifdef USE_SIESTA
@@ -403,15 +505,21 @@ if(mpi_rank < 1)
 							SIES.get_su(FLT.R, FLT.phi/rTOd, FLT.Z, s, u);
 							results_all(tag,1,i) = u;
 							results_all(tag,2,i) = s;
+							xtmp = FLT.R;
+							ytmp = FLT.Z;
 						}
 						else
 						{
 							results_all(tag,1,i) = FLT.theta;
 							results_all(tag,2,i) = FLT.psi;
+							xtmp = FLT.R;
+							ytmp = FLT.Z;
 						}
 #else
 						results_all(tag,1,i) = FLT.theta;
 						results_all(tag,2,i) = FLT.psi;
+						xtmp = FLT.R;
+						ytmp = FLT.Z;
 #endif
 					}
 					else						// creates regular grid from R and Z
@@ -419,11 +527,27 @@ if(mpi_rank < 1)
 						FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave);	// matlab requires R to vary first
 						results_all(tag,1,i) = FLT.R;
 						results_all(tag,2,i) = FLT.Z;
+						xtmp = FLT.theta;
+						ytmp = FLT.psi;
+					}
+
+					// Overwrite previous settings in case a file with initial points is used
+					if(use_inputPointsFile)
+					{
+						FLT.R = inputPoints((tag-1)*N_slave + i, 1);
+						FLT.phi = inputPoints((tag-1)*N_slave + i, 2);
+						FLT.Z = inputPoints((tag-1)*N_slave + i, 3);
+						FLT.get_psi(FLT.R,FLT.Z,FLT.psi);
+						FLT.theta = polar_phi(FLT.R-EQD.RmAxis, FLT.Z-EQD.ZmAxis);
+						results_all(tag,1,i) = FLT.R;
+						results_all(tag,2,i) = FLT.Z;
+						xtmp = FLT.phi;
+						ytmp = FLT.psi;
 					}
 
 					// Integration terminates outside of boundary box
 					skip_connect = 0;
-					if(outofBndy(FLT.R,FLT.Z,EQD) == true)
+					if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true)
 					{
 						ntor = 0;
 						length = 0;
@@ -458,6 +582,8 @@ if(mpi_rank < 1)
 					results_all(tag,7,i) = psiav;
 					results_all(tag,8,i) = pitch;
 					results_all(tag,9,i) = yaw;
+					results_all(tag,10,i) = xtmp;
+					results_all(tag,11,i) = ytmp;
 
 					if(i%100==0) ofs2 << "Trax: " << i << endl;
 				} // end for
@@ -475,9 +601,16 @@ if(mpi_rank < 1)
 	} // end omp parallel
 
 	// Write remaining Output to file
+	N_slave_use = N_slave;
 	for(i=write_last+1;i<=NoOfPackages;i++)
 	{
-		for(j=1;j<=N_slave;j++)	out << results_all(i,1,j) << "\t" << results_all(i,2,j) << "\t" << results_all(i,3,j) << "\t" << results_all(i,4,j) << "\t" << results_all(i,5,j) << "\t" << results_all(i,6,j) << "\t" << results_all(i,7,j) << "\t" << results_all(i,8,j) << "\t" << results_all(i,9,j) << endl;
+		if(i == NoOfPackages) N_slave_use = N_slave_last;	// size of last package may be smaller
+		for(j=1;j<=N_slave_use;j++)
+		{
+			out << results_all(i,1,j);
+			for(int k=2;k<=N_variables;k++) out << "\t" << results_all(i,k,j);
+			out << endl;
+		}
 	}
 } // end Master
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -488,6 +621,7 @@ if(mpi_rank < 1)
 if(mpi_rank > 0)
 {
 	// Prepare Perturbation
+	prepare_common_perturbations(EQD,PAR,mpi_rank,siestafile,xpandfile,islandfile);
 	prep_perturbation(EQD,PAR,mpi_rank);
 
 	MPI::COMM_WORLD.Barrier();	// Syncronize with Master
@@ -507,19 +641,26 @@ if(mpi_rank > 0)
 		ofs2 << endl;
 		ofs2 << "Node: " << mpi_rank << " works on Package: " << tag << endl;
 		if(tag == 0) break;	// Still work to do?  ->  tag = 0: NO, stop working
+		if(tag == NoOfPackages) N_slave_use = N_slave_last;	// size of last package may be smaller
 
 		Zmin_slave = send_Z_limits(1);
 		Zmax_slave = send_Z_limits(2);
 
-		ofs2 << "Start Tracer for " << N_slave << " points ... " << endl;
-		for(i=1;i<=N_slave;i++)
+		ofs2 << "Start Tracer for " << N_slave_use << " points ... " << endl;
+		for(i=1;i<=N_slave_use;i++)
 		{
 			// Set and store initial condition
-			if(PAR.create_flag == 3)	// creates regular grid from theta and psi
+			if(PAR.create_flag == 6)	// creates regular grid from theta and phi at psi = const.
+			{
+				FLT.set_surface(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave);	// here Rmin = thetamin and Zmin = phimin; max respectively
+				results(1,i) = FLT.phi;
+				results(2,i) = FLT.theta;
+				xtmp = FLT.R;
+				ytmp = FLT.Z;
+			}
+			else if(PAR.create_flag == 3)	// creates regular grid from theta and psi
 			{
 				FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave,2);	// here Rmin = psimin and Zmin = thetamin; max respectively
-				results(1,i) = FLT.theta;
-				results(2,i) = FLT.psi;
 #ifdef USE_SIESTA
 				if(PAR.response_field == -2)
 				{
@@ -527,15 +668,21 @@ if(mpi_rank > 0)
 					SIES.get_su(FLT.R, FLT.phi/rTOd, FLT.Z, s, u);
 					results(1,i) = u;
 					results(2,i) = s;
+					xtmp = FLT.R;
+					ytmp = FLT.Z;
 				}
 				else
 				{
 					results(1,i) = FLT.theta;
 					results(2,i) = FLT.psi;
+					xtmp = FLT.R;
+					ytmp = FLT.Z;
 				}
 #else
 				results(1,i) = FLT.theta;
 				results(2,i) = FLT.psi;
+				xtmp = FLT.R;
+				ytmp = FLT.Z;
 #endif
 			}
 			else						// creates regular grid from R and Z
@@ -543,11 +690,27 @@ if(mpi_rank > 0)
 				FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave);	// matlab requires R to vary first
 				results(1,i) = FLT.R;
 				results(2,i) = FLT.Z;
+				xtmp = FLT.theta;
+				ytmp = FLT.psi;
+			}
+
+			// Overwrite previous settings in case a file with initial points is used
+			if(use_inputPointsFile)
+			{
+				FLT.R = inputPoints((tag-1)*N_slave + i, 1);
+				FLT.phi = inputPoints((tag-1)*N_slave + i, 2);
+				FLT.Z = inputPoints((tag-1)*N_slave + i, 3);
+				FLT.get_psi(FLT.R,FLT.Z,FLT.psi);
+				FLT.theta = polar_phi(FLT.R-EQD.RmAxis, FLT.Z-EQD.ZmAxis);
+				results(1,i) = FLT.R;
+				results(2,i) = FLT.Z;
+				xtmp = FLT.phi;
+				ytmp = FLT.psi;
 			}
 
 			// Integration terminates outside of boundary box
 			skip_connect = 0;
-			if(outofBndy(FLT.R,FLT.Z,EQD) == true)
+			if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true)
 			{
 				ntor = 0;
 				length = 0;
@@ -582,6 +745,8 @@ if(mpi_rank > 0)
 			results(7,i) = psiav;
 			results(8,i) = pitch;
 			results(9,i) = yaw;
+			results(10,i) = xtmp;
+			results(11,i) = ytmp;
 
 			if(i%100==0) ofs2 << "Trax: " << i << endl;
 		} // end for

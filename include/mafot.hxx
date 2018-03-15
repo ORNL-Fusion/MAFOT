@@ -23,9 +23,29 @@
 	#include <vmec_class.hxx>			// includes the VMEC interface
 #endif
 #include <particle_class.hxx>		// includes all particle/fieldline parameters and Runge-Kutta Integrator
+#include <fakeIsland_class.hxx>
+#ifdef m3dc1
+	#include <m3dc1_class.hxx>
+#endif
+#if defined(ITER)
+	#include <iter.hxx>
+#elif defined(NSTX)
+	#include <nstx.hxx>
+#elif defined(MAST)
+	#include <mast.hxx>
+#elif defined(CMOD)
+	#include <cmod.hxx>
+#else
+	#include <d3d.hxx>
+#endif
 
 // --------------- Prototypes ---------------------------------------------------------------------------------------------
-bool outofRealBndy(double x, double y, EFIT& EQD);
+// int getBfield_general(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR); // declared in machine header, defined here
+void prepare_common_perturbations(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING siestafile = "siesta.dat", LA_STRING xpandfile = "xpand.dat",
+								  LA_STRING islandfile = "fakeIslands.in", LA_STRING filamentfile = "filament_all.in");
+bool outofBndy(double phi, double x, double y, EFIT& EQD);
+bool outofRealBndy(double phi, double x, double y, EFIT& EQD);
+void point_along_wall(double swall, Array<double,1>& p, EFIT& EQD);
 
 void get_filament_field(double R, double phi, double Z, Array<double,4>& field, double& bx, double& by, double& bz, EFIT& EQD);
 void bcuderiv_square(Array<double,2>& y, int j, int k, double d1, double d2, 
@@ -33,33 +53,306 @@ void bcuderiv_square(Array<double,2>& y, int j, int k, double d1, double d2,
 void bcuint_square(Array<double,1>& Ra, Array<double,1>& Za, double dR, double dZ, Array<double,2>& field,
 			double R, double Z, double& y, double& y1, double& y2);
 
+// -------------- global Parameters ---------------------------------------------------------------------------------------
+// Boundary Box
+int simpleBndy = 0;		// 0: real wall boundary 	1: simple boundary box
+
+// log file for errors
+ofstream ofs2;
+
+// structures to load in
+#ifdef USE_SIESTA
+	SIESTA SIES;
+#endif
+#ifdef USE_XFIELD
+	XFIELD XPND;
+#endif
+#ifdef m3dc1
+	M3DC1 M3D;
+#endif
+
+Array<double,4> field;	// for current filaments
+fakeIsland FISLD;
+
 //-------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+
+//---------------- getBfield_general --------------------------------------------------------------------------------------
+// part of getBfield that is common to all machines
+int getBfield_general(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR)
+{
+int i, chk, chk2;
+double psi,dpsidr,dpsidz;
+double F;
+double X,Y,bx,by,bz;
+double B_X,B_Y;
+double sinp,cosp;
+double coord[3], b_field[3];
+
+coord[0] = R; coord[1] = phi; coord[2] = Z;
+B_R = 0; B_phi = 0; B_Z = 0;
+
+sinp = sin(phi);
+cosp = cos(phi);
+
+X = R*cosp;
+Y = R*sinp;
+
+// Equilibrium field
+switch(PAR.response_field)
+{
+#ifdef USE_XFIELD
+case -3:
+	XPND.get_B(R, phi, Z, B_R, B_phi, B_Z);
+	break;
+#endif
+#ifdef USE_SIESTA
+case -2:
+	SIES.get_B(R, phi, Z, B_R, B_phi, B_Z);
+	break;
+#endif
+case -1: case 1: case -10:	// Vacuum equilibrium field from g file
+	// get normalized poloidal Flux psi (should be chi in formulas!)
+	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
+	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
+
+	// Equilibrium field
+	F = EQD.get_Fpol(psi);
+	B_R = dpsidz/R;
+	B_phi = F/R;	//B_phi = EQD.Bt0*EQD.R0/R;
+	B_Z = -dpsidr/R;
+	break;
+
+#ifdef m3dc1
+case 0: case 2: 	// M3D-C1: equilibrium field or total field
+	for(i=0;i<M3D.nfiles;i++)
+	{
+		chk = fio_eval_field(M3D.imag[i], coord, b_field);
+		if(chk != 0) // field eval failed, probably outside of M3DC1 domain -> fall back to g-file equilibrium
+		{
+			chk2 = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
+			if(chk2 == -1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
+
+			// Equilibrium field
+			F = EQD.get_Fpol(psi);
+			B_R = dpsidz/R;
+			B_phi = F/R;	//B_phi = EQD.Bt0*EQD.R0/R;
+			B_Z = -dpsidr/R;
+			break;	// break the for loop
+		}
+		else
+		{
+			B_R += b_field[0];
+			B_phi += b_field[1];
+			B_Z += b_field[2];
+		}
+	}
+	break;
+#endif
+}
+
+#ifdef m3dc1
+// M3D-C1: I-coil perturbation field only, coils are turned off in prep_perturbation
+if(PAR.response_field == 1)
+{
+	for(i=0;i<M3D.nfiles;i++)
+	{
+		coord[1] = phi + M3D.phase[i];
+		chk = fio_eval_field(M3D.imag[i], coord, b_field);
+		if(chk != 0) {b_field[0] = 0; b_field[1] = 0; b_field[2] = 0; break;}
+		B_R += b_field[0];
+		B_phi += b_field[1];
+		B_Z += b_field[2];
+		//coord[1] = phi;
+	}
+}
+#endif
+
+B_X = 0;	B_Y = 0;
+
+// Field of any current filament
+bx = 0;	by = 0;	bz = 0;
+if(PAR.useFilament>0) get_filament_field(R,phi,Z,field,bx,by,bz,EQD);
+
+B_X += bx;
+B_Y += by;
+B_Z += bz;
+
+// Transform B_perturbation = (B_X, B_Y, B_Z) to cylindrical coordinates and add
+B_R += B_X*cosp + B_Y*sinp;
+B_phi += -B_X*sinp + B_Y*cosp;
+
+if(PAR.response_field == -10)
+{
+	bx = 0;	bz = 0;
+	FISLD.get_B(R,phi,Z,bx,bz,EQD);
+	B_R += bx;
+	B_Z += bz;
+}
+
+return 0;
+}
+
+// ------------ prepare_common_perturbations ------------------------------------------------------------------------------
+// prepare all perturbations that are not machine specific
+void prepare_common_perturbations(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING siestafile, LA_STRING xpandfile, LA_STRING islandfile, LA_STRING filamentfile)
+{
+int i,j;
+int chk;
+LA_STRING line;	// entire line is read by ifstream
+ifstream in;
+
+// Prepare SIESTA
+#ifdef USE_SIESTA
+	if(PAR.response_field == -2)
+	{
+		if(mpi_rank < 1) cout << "Read SIESTA file" << endl;
+		ofs2 << "Read SIESTA file" << endl;
+		SIES.read(siestafile);
+	}
+#endif
+
+// Prepare XFIELD
+#ifdef USE_XFIELD
+	if(PAR.response_field == -3)
+	{
+		if(mpi_rank < 1) cout << "Read XFIELD file" << endl;
+		ofs2 << "Read XFIELD file" << endl;
+		XPND.read(xpandfile);
+		if(mpi_rank < 1) cout << "NR = " << XPND.NR << "\t Nphi = " << XPND.Np-1 << "\t NZ = " << XPND.NZ << endl;
+	}
+#endif
+
+// Prepare filaments
+if(PAR.useFilament>0)
+{
+	if(mpi_rank < 1) cout << "Interpolated filament field is used" << endl;
+	ofs2 << "Interpolated filament field is used" << endl;
+	in.open(filamentfile);
+	if(in.fail()==1)
+	{
+		if(mpi_rank == 1) cout << "Unable to open " << filamentfile << " file. Please run fi_prepare." << endl;
+		EXIT;
+	}
+	else	// Read field on grid from file
+	{
+		// Set field size
+		field.resize(Range(1,3),Range(0,359),Range(0,EQD.NR+1),Range(0,EQD.NZ+1));
+
+		// Skip 3 lines
+		in >> line;
+		if(mpi_rank < 1) cout << line.mid(3) << endl;
+		ofs2 << line.mid(3) << endl;
+		in >> line;
+		if(mpi_rank < 1) cout << line.mid(3) << endl;
+		ofs2 << line.mid(3) << endl;
+		in >> line;
+
+		// Read data
+		for(int k=0;k<360;k++)
+		{
+			for(i=0;i<=EQD.NR+1;i++)
+			{
+				for(int j=0;j<=EQD.NZ+1;j++)
+				{
+					in >> field(1,k,i,j);
+					in >> field(2,k,i,j);
+					in >> field(3,k,i,j);
+				}
+			}
+		}
+		in.close();
+	}
+	in.clear();
+	if(mpi_rank < 1) cout << endl;
+	ofs2 << endl;
+}
+
+// Prepare fake Islands
+if(PAR.response_field == -10)
+{
+	if(mpi_rank < 1) cout << "Read Fake Islands file" << endl;
+	ofs2 << "Read Fake Islands file" << endl;
+	FISLD.read(islandfile);
+	FISLD.get_surfaces(EQD);
+	if(mpi_rank < 1)
+	{
+		cout << "Amplitude: " << FISLD.A << endl;
+		cout << "m: " << FISLD.m << endl;
+		cout << "n: " << FISLD.n << endl;
+		cout << "Phase: " << FISLD.delta << endl;
+		cout << "Location: " << FISLD.psi0 << endl;
+	}
+}
+}
+
+//----------- outofBndy ---------------------------------------------------------------------------------------------------
+// Check if (x,y) is out of the torus. Returns 0 if (x,y)
+// is in boundary an 1 if (x,y) is out of boundary.
+// simpleBndy = 0; use real wall as boundaries
+// simpleBndy = 1: use simple boundary box
+bool outofBndy(double phi, double x, double y, EFIT& EQD)
+{
+if(std::isnan(x) || std::isnan(y) || std::isinf(x) || std::isinf(y)) return false;
+switch(simpleBndy)
+{
+case 0:
+	return outofRealBndy(phi,x,y,EQD);
+	break;
+case 1:
+	if(x<bndy[0] || x>bndy[1] || y<bndy[2] || y>bndy[3]) return true;	// bndy defined in machine specific heade file
+#ifdef ITER
+	if(x>bndy[4] && (y<bndy2[0]*x+bndy2[1] || y>bndy2[2]*x+bndy2[3])) return true;
+#endif
+	break;
+default:
+    cout << "simpleBndy switch has a wrong value!" << endl;
+}
+return false;
+}
 
 //------------ outofRealBndy ----------------------------------------------------------------------------------------------
 // Check if (x,y) is out of the torus. It uses the jordan curve theorem with 
 // additional detection if (x,y) is part of an edge. Edge is defined as inside
 // the torus.
-bool outofRealBndy(double x, double y, EFIT& EQD)
+// toroidal angle phi is in degrees and right-handed
+bool outofRealBndy(double phi, double x, double y, EFIT& EQD)
 {
 int wn = 0;
+int Nwall,p;
+Array<double,1> wall;
+Range all = Range::all();
+
+if(EQD.use_3Dwall) 	// use 3D wall
+{
+	p = int(phi + sign(phi)*0.5);	// round phi to nearest integer -> nearest neighbor approximation of 3D wall
+	p = p % 360;					// phi now between -359 and 359
+	if(p < 0) p += 360;				// phi is now between 0 and 359
+	Nwall = EQD.Nwall3D(p);
+	wall.reference(EQD.wall3D(all,p));
+}
+else				// use 2D wall from EFIT for every phi
+{
+	Nwall = EQD.Nwall;
+	wall.reference(EQD.wall);
+}
 
 double x1,y1;
-double x2 = EQD.wall(1);	//R1
-double y2 = EQD.wall(2);	//Z1
+double x2 = wall(1);	//R1
+double y2 = wall(2);	//Z1
 
 double a; 
 
 bool startUeber = (y2 >= y) ? 1 : 0;
-for(int i=3; i<(2*EQD.Nwall); i=i+2)
+for(int i=3; i<(2*Nwall); i=i+2)
 {
 	// Continue if two wall point are identical
-	if(x2 == EQD.wall(i) && y2 == EQD.wall(i+1)) continue;
+	if(x2 == wall(i) && y2 == wall(i+1)) continue;
 
 	x1 = x2;
 	y1 = y2;
-	x2 = EQD.wall(i);
-	y2 = EQD.wall(i+1);
+	x2 = wall(i);
+	y2 = wall(i+1);
 
 	if((y1==y2) && (y==y1))
 	{
@@ -86,6 +379,77 @@ for(int i=3; i<(2*EQD.Nwall); i=i+2)
 }
 return wn == 0;
 } 
+
+//------------------ point_along_wall -----------------------------------------------------------------------------------
+// locates a point (R,Z) along the wall, based on the length along the wall swall.
+void point_along_wall(double swall, Array<double,1>& p, EFIT& EQD)
+{
+int i, idx, idx_jump;
+double x,s1,s0;
+Array<double,1> p1(Range(1,2)),p2(Range(1,2)),d(Range(1,2));
+
+swall = fmod(swall,EQD.Swall_max);
+if(swall < 0) swall += EQD.Swall_max;
+
+// locate discontinuity
+s0 = EQD.Swall(EQD.Nwall);
+for(i=1;i<=EQD.Nwall;i++)
+{
+	s1 = EQD.Swall(i);
+	if (fabs(s1 - s0) > 0.5*EQD.Swall_max)	idx_jump = i;	// discontinuity between idx_jump and idx_jump-1
+	s0 = s1;
+}
+
+// locate intervall that brackets swall
+if ((swall > max(EQD.Swall)) || (swall < min(EQD.Swall)))
+{
+	idx = idx_jump;
+	if (fabs(swall - EQD.Swall(idx)) > 0.5*EQD.Swall_max)
+	{
+		if (swall < EQD.Swall(idx)) swall += EQD.Swall_max;
+		else swall -= EQD.Swall_max;
+	}
+}
+else
+{
+	idx = 1;
+	s0 = EQD.Swall(EQD.Nwall);
+	for(i=1;i<=EQD.Nwall;i++)
+	{
+		s1 = EQD.Swall(i);
+
+		if (fabs(s1 - s0) > 0.5*EQD.Swall_max) // skip the jump around Swall = 0 point
+		{
+			s0 = s1;
+			continue;
+		}
+
+		if((s1 - swall) * (s0 - swall) <= 0)
+		{
+			idx = i;
+			break;
+		}
+		s0 = s1;
+	}
+}
+
+// set bracket points
+p1(1) = EQD.wall(2*idx-1);		p1(2) = EQD.wall(2*idx);
+if (idx == 1)
+{
+	p2(1) = EQD.wall(2*EQD.Nwall-1);		p2(2) = EQD.wall(2*EQD.Nwall);
+}
+else
+{
+	p2(1) = EQD.wall(2*idx-3);		p2(2) = EQD.wall(2*idx-2);
+}
+
+// linear interplation between bracket points
+d = p2 - p1;
+x = fabs(swall - EQD.Swall(idx))/sqrt(d(1)*d(1)+d(2)*d(2));	// x is dimensionless in [0,1]
+p = p1 + x*d;
+//cout << swall << "\t" << idx  << "\t" << s0 << "\t" << s1 << "\t" << x << endl;
+}
 
 //------------------ get_filament_field -----------------------------------------------------------------------------------
 // determines sum of magnetic fields of all current filaments at point (R,phi,Z) by interpolation

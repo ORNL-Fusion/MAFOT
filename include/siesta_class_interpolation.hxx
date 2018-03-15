@@ -33,8 +33,13 @@ class SIESTA
 {
 private:
 // Parameter
+#if ((__GNUC__ < 5) && (__cplusplus <= 199711L))  // for GNU compiler version less than 5.0 and std support less than c++11
 	static const double smin = 0;
 	static const double smax = 1;
+#else
+	static constexpr double smin = 0;
+	static constexpr double smax = 1;
+#endif
 
 // Member Variables
 	double ds, du, dv;
@@ -363,7 +368,7 @@ if(t > 0)	// not exactly in the v-plane (k-1)*dv
 {
 	find_su(r, k+1, z, su, uu, s, u);
 
-	// u and uu can be ±2*pi apart
+	// u and uu can be +-2*pi apart
 	if((uu-u) > 6) uu -= pi2;
 	else if((uu-u) < -6) uu += pi2;
 

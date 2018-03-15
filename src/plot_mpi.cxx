@@ -20,6 +20,8 @@
 	#define program_name "nstxplot_mpi"
 #elif defined(MAST)
 	#define program_name "mastplot_mpi"
+#elif defined(CMOD)
+	#define program_name "cmodplot_mpi"
 #else
 	#define program_name "dtplot_mpi"
 #endif
@@ -28,31 +30,6 @@
 //--------
 #include <openmpi/ompi/mpi/cxx/mpicxx.h>
 #include <mafot.hxx>
-#if defined(ITER)
-	#if defined(m3dc1)
-		#include <iter_m3dc1.hxx>
-	#else
-		#include <iter.hxx>
-	#endif
-#elif defined(NSTX)
-	#if defined(m3dc1)
-		#include <nstx_m3dc1.hxx>
-	#else
-		#include <nstx.hxx>
-	#endif
-#elif defined(MAST)
-	#if defined(m3dc1)
-		#include <mast_m3dc1.hxx>
-	#else
-		#include <mast.hxx>
-	#endif
-#else
-	#if defined(m3dc1)
-		#include <d3d_m3dc1.hxx>
-	#else
-		#include <d3d.hxx>
-	#endif
-#endif
 #include <omp.h>
 #include <unistd.h>
 
@@ -90,36 +67,59 @@ MPI::Status status;
 double now=zeit();
 
 // defaults
+LA_STRING woutfile = "wout.nc";
+LA_STRING xpandfile = "xpand.dat";
+LA_STRING siestafile = "siesta.dat";
+LA_STRING islandfile = "fakeIslands.in";
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "h")) != -1)
+while ((c = getopt(argc, argv, "hX:V:S:I:")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> dtplot_mpi [-h] file [tag]" << endl << endl;
+		cout << "usage: mpirun -n <cores> dtplot_mpi [-h] [-I island] [-S siesta] [-V wout] [-X xpand] file [tag]" << endl << endl;
 		cout << "Calculate a Poincare plot." << endl << endl;
 		cout << "positional arguments:" << endl;
 		cout << "  file          Contol file (starts with '_')" << endl;
 		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 		cout << endl << "optional arguments:" << endl;
 		cout << "  -h            show this help message and exit" << endl;
+		cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
+		cout << "  -S            filename for SIESTA; default, see below" << endl;
+		cout << "  -V            filename for VMEC; default, see below" << endl;
+		cout << "  -X            filename for XPAND; default, see below" << endl;
 		cout << endl << "Examples:" << endl;
 		cout << "  mpirun -n 4 dtplot_mpi _plot.dat blabla" << endl;
 		cout << endl << "Infos:" << endl;
 		cout << "  To use B-field from M3DC1, set response_field >= 0, and provide file in cwd:" << endl;
-		cout << "    m3dc1sup.in  ->  location and scale factor for M3DC1 output C1.h5" << endl;
+		cout << "    m3dc1sup.in    ->  location and scale factor for M3DC1 output C1.h5" << endl;
 		cout << "  To use B-field from XPAND, set response_field = -3, and provide files in cwd:" << endl;
-		cout << "    xpand.dat    ->  B-field on 3D grid from XPAND" << endl;
-		cout << "    wout.nc      ->  VMEC output" << endl;
+		cout << "    xpand.dat      ->  B-field on 3D grid from XPAND; use option -X to specify other filename" << endl;
+		cout << "    wout.nc        ->  VMEC output; use option -V to specify other filename" << endl;
 		cout << "  To use B-field from SIESTA, set response_field = -2, and provide file in cwd:" << endl;
-		cout << "    siesta.dat   ->  B-field on 3D grid" << endl;
+		cout << "    siesta.dat     ->  B-field on 3D grid; use option -S to specify other filename" << endl;
+		cout << "  To use B-field for mock-up islands, set response_field = -10, and provide file in cwd:" << endl;
+		cout << "    fakeIslands.in ->  each line gives: Amplitude, pol. mode m, tor. mode n, phase [rad]" << endl;
+		cout << "                       use option -I to specify other filename" << endl;
 	}
 	MPI::Finalize();
 	return 0;
+case 'I':
+	islandfile = optarg;
+	break;
+case 'S':
+	siestafile = optarg;
+	break;
+case 'V':
+	woutfile = optarg;
+	break;
+case 'X':
+	xpandfile = optarg;
+	break;
 case '?':
 	if(mpi_rank < 1)
 	{
@@ -172,8 +172,10 @@ if(PAR.response_field == -3)
 	VMEC vmec;
 	if(mpi_rank < 1) cout << "Read VMEC file" << endl;
 	ofs2 << "Read VMEC file" << endl;
-	vmec.read("wout.nc");
-	vmec.get_axis(PAR.phistart/rTOd,Raxis,Zaxis);
+	vmec.read(woutfile);
+	vmec.n0only = true;
+	vmec.get_axis(PAR.phistart/rTOd,Raxis,Zaxis);	// need axisymmetric axis only
+	vmec.n0only = false;
 }
 #endif
 
@@ -288,8 +290,6 @@ if(mpi_rank < 1)
 			//#pragma omp barrier	// Syncronize with Slave Thread
 			MPI::COMM_WORLD.Barrier();	// Master waits for Slaves
 
-			cout << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
-			cout << "Start Tracer for " << N << " points ... " << endl;
 			ofs3 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
 			ofs3 << "Start Tracer for " << N << " points ... " << endl;
 
@@ -363,6 +363,7 @@ if(mpi_rank < 1)
 		#pragma omp section	//------- Slave Thread on Master Node: does same calculations as Salve Nodes ----------------------------------------------------------------------------------
 		{
 			// Prepare Perturbation
+			prepare_common_perturbations(EQD,PAR,mpi_rank,siestafile,xpandfile,islandfile);
 			prep_perturbation(EQD,PAR,mpi_rank);
 
 			// each process gets a different seed
@@ -370,6 +371,8 @@ if(mpi_rank < 1)
 
 			//#pragma omp barrier	// Syncronize with Master Thread
 
+			cout << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
+			cout << "Start Tracer for " << N << " points ... " << endl;
 			ofs2 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
 
 			// Start working...
@@ -474,6 +477,7 @@ if(mpi_rank < 1)
 if(mpi_rank > 0)
 {
 	// Prepare Perturbation
+	prepare_common_perturbations(EQD,PAR,mpi_rank,siestafile,xpandfile,islandfile);
 	prep_perturbation(EQD,PAR,mpi_rank);
 
 	// each process gets a different seed

@@ -34,8 +34,12 @@ class VMEC_SPECTRAL
 {
 private:
 	// Member Variables
+    bool half_grid;            // is this on half or full s-grid
 	Array<double,2> d2ymns;	// d^2/ds^2 ymns(s), output of spline and input of splint
 	Array<double,2> d2ymnc;	// d^2/ds^2 ymnc(s), output of spline and input of splint
+
+	// Member-Functions
+	void extrapolate2axis();	// linear extarpolates shalf-grid spectral data to s = 0
 
 public:
 	// Member Variables
@@ -87,6 +91,7 @@ ns = 0;
 id = "None";
 parity = 0;
 n0only = false;
+half_grid = false;
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -96,6 +101,7 @@ VMEC_SPECTRAL& VMEC_SPECTRAL::operator =(const VMEC_SPECTRAL& spec)
 if (this == &spec) return(*this);	    // if: x=x
 d2ymns.reference(spec.d2ymns);
 d2ymnc.reference(spec.d2ymnc);
+half_grid = spec.half_grid;
 
 id = spec.id;
 parity = spec.parity;
@@ -126,8 +132,11 @@ ns = ns0;
 mnmax = mnmax0;
 xn.reference(xn0);
 xm.reference(xm0);
-S.reference(S0);
+S.reference(S0.copy());	// this makes S unique in this class, so that it does not affect S in the main VMEC class or other SPECTRAL classes
 n0only = n0only0;
+
+if(S(ns) < 1) half_grid = true;
+else half_grid = false;
 }
 
 //-----------------------------------------------
@@ -177,6 +186,44 @@ if(parity <= 0)
 		spline(S, slice, ns, d1, dn, d2slice);
 	}
 }
+
+// Improve the accuracy between s = 0 and s = shalf(2) for half-grid spectral variables.
+// This extrapolates to s = 0 and adjusts the spline coeficients at the first grid point shalf(1).
+// Without this fix, an unphysical horizontal inward pinch occurs in Bphi inside the shalf(2) surface.
+// If spline is constructed after the extrapolation, a strange large wobble occurs around the shalf(3) surface in Bphi.
+// With this adjustment there is only a very small wobble around the shalf(2) surface, no issue at the shalf(3) surface and good extrapolation into s = 0.
+// +++ IMPORTANT: This fix results in a discontinuity in the first derivative with respect to s at the shalf(2) surface for all modes +++
+double u;
+if(half_grid)	// shift S(1) to s=0, and reset ymn(1) and d2ymn(1)
+{
+	extrapolate2axis();	// this sets ymn(1) and S(1) = 0 !!!
+	//cout << "Extrapolate to axis: " << id << endl;
+
+	// cosine series or both
+	if(parity >= 0)
+	{
+		for(i=0;i<mnmax;i++)
+		{
+			if(xm(i)%2 == 0) d1 = 0;
+			else d1 = ymnc(2,i) / S(2);	// dy(1) = 0.5*(y(2) - y(0)) / (s(2) - s(1)), with s(1) = 0 and y(0) = -y(2)
+			u = (3.0/(S(2)-S(1)))*((ymnc(2,i)-ymnc(1,i))/(S(2)-S(1))-d1);
+			d2ymnc(1,i) = -0.5*d2ymnc(2,i) + u;
+		}
+	}
+
+	// sine series or both
+	if(parity <= 0)
+	{
+		for(i=0;i<mnmax;i++)
+		{
+			if(xm(i)%2 == 0) d1 = 0;
+			else d1 = ymns(2,i) / S(2);	// dy(1) = 0.5*(y(2) - y(0)) / (s(2) - s(1)), with s(1) = 0 and y(0) = -y(2)
+			u = (3.0/(S(2)-S(1)))*((ymns(2,i)-ymns(1,i))/(S(2)-S(1))-d1);
+			d2ymns(1,i) = -0.5*d2ymns(2,i) + u;
+		}
+	}
+}
+
 }
 
 //---------------------------- splint -------------------------------------------------------------------------------------
@@ -460,6 +507,51 @@ get_sincos(u, v, sinuv, cosuv);
 return ev(s, u, v, dyds, dydu, dydv, dydudv, sinuv, cosuv, use_spline);
 }
 
+//---------------------------- extrapolate2axis ---------------------------------------------------------------------------
+// linear extrapolation of spectral modes to magnetic axis for half-grid quantities
+void VMEC_SPECTRAL::extrapolate2axis()
+{
+int i;
+double dy,a,c;
+
+// reset first grid point
+S(1) = 0;
+
+// cosine series or both
+if(parity >= 0)
+{
+	for(i=0;i<mnmax;i++)
+	{
+		if(xm(i) == 0)
+		{
+			// assume y(s) = a*s^2 + c   near s = 0
+			dy = (ymnc(3,i) - ymnc(2,i))/(S(3) - S(2));	// approximate derivative at s = S(2)
+			a = 0.5*dy/S(2);
+			c = ymnc(2,i) - 0.5*dy*S(2);
+			ymnc(1,i) = c;
+		}
+		else ymnc(1,i) = 0;
+	}
+}
+
+// sine series or both
+if(parity <= 0)
+{
+	for(i=0;i<mnmax;i++)
+	{
+		if(xm(i) == 0)
+		{
+			// assume y(s) = a*s^2 + c   near s = 0
+			dy = (ymns(3,i) - ymns(2,i))/(S(3) - S(2));	// approximate derivative at s = S(2)
+			a = 0.5*dy/S(2);
+			c = ymns(2,i) - 0.5*dy*S(2);
+			ymns(1,i) = c;
+		}
+		else ymns(1,i) = 0;
+	}
+}
+}
+
 //------------------------ End of Class VMEC_SPECTRAL----------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
@@ -603,6 +695,7 @@ public:
 	double wb;
 	double ctor;
 
+	bool lfreeb;
 	bool lasym;
 	bool lpot;		// potential spectral data available or not
 	bool n0only;	// use n = 0 components only
@@ -670,6 +763,7 @@ nextcur = 0;
 wb = 0;
 ctor = 0;
 
+lfreeb = true;
 lasym = false;
 lpot = false;
 n0only = false;
@@ -713,6 +807,7 @@ nextcur = V.nextcur;
 wb = V.wb;
 ctor = V.ctor;
 
+lfreeb = V.lfreeb;
 lasym = V.lasym;
 lpot = V.lpot;
 n0only = V.n0only;
@@ -784,6 +879,13 @@ chk = nc_get_var_int(ncid, varid, &ntor);	// read
 chk = nc_inq_varid(ncid, "mnmax", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: mnmax not found" << endl; EXIT;}	// get variable id
 chk = nc_get_var_int(ncid, varid, &mnmax);	// read
 nshalf = ns;
+
+// read lfreeb
+int lfreeb_in;
+chk = nc_inq_varid(ncid, "lfreeb__logical__", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: lfreeb__logical__ not found" << endl; EXIT;}		// get variable id
+chk = nc_get_var_int(ncid, varid, &lfreeb_in);	// read
+lfreeb = bool(lfreeb_in);
+if(not lfreeb) {if(mpi_rank == 0) cout << "Warning: VMEC fixed boundary mode -> MGRID_FILE and EXTCUR may not be available. Provide separately!" << endl;}
 
 // read lasym
 int lasym_in;
@@ -903,8 +1005,12 @@ chk = nc_inq_varid(ncid, "wb", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "V
 chk = nc_get_var_double(ncid, varid, &wb);
 chk = nc_inq_varid(ncid, "ctor", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: ctor not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, &ctor);
-chk = nc_inq_varid(ncid, "nextcur", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: nextcur not found" << endl; EXIT;}
-chk = nc_get_var_int(ncid, varid, &nextcur);
+if(lfreeb)
+{
+	chk = nc_inq_varid(ncid, "nextcur", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: nextcur not found" << endl; EXIT;}
+	chk = nc_get_var_int(ncid, varid, &nextcur);
+}
+else nextcur = 0;
 chk = nc_inq_varid(ncid, "mnmaxpot", &varid);
 if(chk!=0)
 {
@@ -922,10 +1028,20 @@ input_extension = text;
 chk = input_extension.indexOf(" ");
 if(chk > 1) input_extension = input_extension.left(chk - 1);
 input_extension = input_extension.strip();
+
 text[0] = 0;
-chk = nc_inq_varid(ncid, "mgrid_file", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: mgrid_file not found" << endl; EXIT;}
-chk = nc_get_var_text(ncid, varid, &text[0]);
-mgrid_file = text; mgrid_file = mgrid_file.left(mgrid_file.indexOf(".nc") + 2);
+chk = nc_inq_varid(ncid, "mgrid_file", &varid);
+if(chk!=0)
+{
+	if(lfreeb) {if(mpi_rank == 0) cout << "VMEC: mgrid_file not found" << endl; EXIT;}
+	else mgrid_file = "None";
+}
+else
+{
+	chk = nc_get_var_text(ncid, varid, &text[0]);
+	mgrid_file = text; mgrid_file = mgrid_file.left(mgrid_file.indexOf(".nc") + 2);
+	if(not lfreeb) {if(mpi_rank == 0) cout << "VMEC: MGRID_FILE found in wout: " << mgrid_file << endl;}
+}
 
 // read 1D-profiles s -mesh
 TinyVector <int,1> index1(1);
@@ -949,9 +1065,17 @@ chk = nc_get_var_double(ncid, varid, bvco.y.data());
 bvco.y(1) = bvco.y(2);	// expand beyond magnetic axis: 1-D profiles axisymmetric => y(-s) = y(s)
 
 // read other 1D-arrays
-extcur.resize(nextcur); extcur.reindexSelf(index1);
-chk = nc_inq_varid(ncid, "extcur", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: extcur not found" << endl; EXIT;}
-chk = nc_get_var_double(ncid, varid, extcur.data());
+if(lfreeb)
+{
+	extcur.resize(nextcur); extcur.reindexSelf(index1);
+	chk = nc_inq_varid(ncid, "extcur", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: extcur not found" << endl; EXIT;}
+	chk = nc_get_var_double(ncid, varid, extcur.data());
+}
+else
+{
+	extcur.resize(1); extcur.reindexSelf(index1);
+	extcur = 0;
+}
 
 if(lpot)
 {
@@ -1010,7 +1134,7 @@ Zaxis = 0;
 for(n=0;n<=ntor;n++)
 {
 	if(n0only && n > 0) break;	// only the n = 0 mode
-	sinnv = sin(n*v);
+	sinnv = -sin(n*v);		// sin(mu - nv) with m = 0
 	cosnv = cos(n*v);
 	Raxis += raxis_cc(n) * cosnv;
 	Zaxis += zaxis_cs(n) * sinnv;

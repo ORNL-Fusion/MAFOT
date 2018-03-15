@@ -228,7 +228,7 @@ if(NoOfPackages < mpi_size)
 	NoOfPackages = int(N/N_slave);
 }
 int N_rest = N - NoOfPackages*N_slave;
-const int N_transmit = 10;
+const int N_transmit = 12;
 
 // Needed for storage of data while calculating
 Array<int,1> write_memory(Range(1,NoOfPackages)); //store which data is written to file (0: not calculated yet, 1: calculated, 2: written to file)
@@ -247,8 +247,8 @@ if(mpi_rank < 1)
 	if(VMEC_n0only) out << "# Xpand results from axisymmetric VMEC file " << wout_name << endl;
 	else out << "# Xpand results from VMEC file " << wout_name << endl;
 	for(i=0;i<points_header_lines;i++) out << points_header[i] << endl;
-	if(VC_INSIDE) out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t Pressure[Pa] \t BRvac[T]   \t Bphivac[T] \t BZvac[T]   \t BRvci[T]   \t Bphivci[T] \t BZvci[T]" << endl;
-	else out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t Pressure[Pa] \t BRvac[T]   \t Bphivac[T] \t BZvac[T]" << endl;
+	if(VC_INSIDE) out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t Pressure[Pa] \t BRvac[T]   \t Bphivac[T] \t BZvac[T]   \t norm. toroidal flux \t VMEC pol. angle \t BRvci[T]   \t Bphivci[T] \t BZvci[T]" << endl;
+	else out << "# R[m]      \t phi[rad]   \t Z[m]       \t BR[T]      \t Bphi[T]    \t BZ[T]      \t Pressure[Pa] \t BRvac[T]   \t Bphivac[T] \t BZvac[T]   \t norm. toroidal flux \t VMEC pol. angle" << endl;
 
 	// log file
 	if(use_GK) logfile.open("log_" + LA_STRING(program_name) + praefix + "_GK" + ".dat");
@@ -362,7 +362,7 @@ if(mpi_rank < 1)
 						idx = N_values((i-1)*N_slave+j);
 						out << points(idx,1) << "\t" << points(idx,2) << "\t" << points(idx,3);
 						if(VC_INSIDE) {for(k=1;k<=N_transmit;k++) out << "\t" << results_all(i,k,j);}
-						else {for(k=1;k<=7;k++) out << "\t" << results_all(i,k,j);}
+						else {for(k=1;k<=9;k++) out << "\t" << results_all(i,k,j);}
 						out << endl;
 					}
 					write_memory(i) = 2;
@@ -423,6 +423,8 @@ if(mpi_rank < 1)
 						else B = bvc.ev(R, phi, Z);
 						B += Bvac;
 						Pres = wout.presf.y(wout.ns); // just the value of presf at LCFS; same as: wout.presf.ev(1.0)
+						s = -1;
+						u = 0;
 					}
 
 					// Store results
@@ -433,9 +435,11 @@ if(mpi_rank < 1)
 					results_all(tag,5,i) = Bvac(0);
 					results_all(tag,6,i) = Bvac(1);
 					results_all(tag,7,i) = Bvac(2);
-					results_all(tag,8,i) = Bvci(0);
-					results_all(tag,9,i) = Bvci(1);
-					results_all(tag,10,i) = Bvci(2);
+					results_all(tag,8,i) = s;
+					results_all(tag,9,i) = u;
+					results_all(tag,10,i) = Bvci(0);
+					results_all(tag,11,i) = Bvci(1);
+					results_all(tag,12,i) = Bvci(2);
 				} // end for
 
 				#pragma omp critical
@@ -459,7 +463,7 @@ if(mpi_rank < 1)
 			idx = N_values((i-1)*N_slave+j);
 			out << points(idx,1) << "\t" << points(idx,2) << "\t" << points(idx,3);
 			if(VC_INSIDE) {for(k=1;k<=N_transmit;k++) out << "\t" << results_all(i,k,j);}
-			else {for(k=1;k<=7;k++) out << "\t" << results_all(i,k,j);}
+			else {for(k=1;k<=9;k++) out << "\t" << results_all(i,k,j);}
 			out << endl;
 		}
 	}
@@ -497,13 +501,15 @@ if(mpi_rank < 1)
 			else B = bvc.ev(R, phi, Z);
 			B += Bvac;
 			Pres = wout.presf.y(wout.ns);
+			s = -1;
+			u = 0;
 		}
 		// show progress
 		count -= 1;
 		cout << "\rDone: " << int(10000*double(N-count)/double(N))/100.0 << "%   " << flush;
 		// Output
-		if(VC_INSIDE) out << R << "\t" << phi << "\t" << Z << "\t" << B(0) << "\t" << B(1) << "\t" << B(2) << "\t" << Pres << "\t" << Bvac(0) << "\t" << Bvac(1) << "\t" << Bvac(2) << "\t" << Bvci(0) << "\t" << Bvci(1) << "\t" << Bvci(2) << endl;
-		else out << R << "\t" << phi << "\t" << Z << "\t" << B(0) << "\t" << B(1) << "\t" << B(2) << "\t" << Pres << "\t" << Bvac(0) << "\t" << Bvac(1) << "\t" << Bvac(2) << endl;
+		if(VC_INSIDE) out << R << "\t" << phi << "\t" << Z << "\t" << B(0) << "\t" << B(1) << "\t" << B(2) << "\t" << Pres << "\t" << Bvac(0) << "\t" << Bvac(1) << "\t" << Bvac(2) << "\t" << s << "\t" << u << "\t" << Bvci(0) << "\t" << Bvci(1) << "\t" << Bvci(2) << endl;
+		else out << R << "\t" << phi << "\t" << Z << "\t" << B(0) << "\t" << B(1) << "\t" << B(2) << "\t" << Pres << "\t" << Bvac(0) << "\t" << Bvac(1) << "\t" << Bvac(2) << "\t" << s << "\t" << u << endl;
 	}
 } // end Master
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -563,6 +569,8 @@ if(mpi_rank > 0)
 				else B = bvc.ev(R, phi, Z);
 				B += Bvac;
 				Pres = wout.presf.y(wout.ns);
+				s = -1;
+				u = 0;
 			}
 
 			// Store results
@@ -573,9 +581,11 @@ if(mpi_rank > 0)
 			results(5,i) = Bvac(0);
 			results(6,i) = Bvac(1);
 			results(7,i) = Bvac(2);
-			results(8,i) = Bvci(0);
-			results(9,i) = Bvci(1);
-			results(10,i) = Bvci(2);
+			results(8,i) = s;
+			results(9,i) = u;
+			results(10,i) = Bvci(0);
+			results(11,i) = Bvci(1);
+			results(12,i) = Bvci(2);
 		} // end for
 
 		// Send results to Master

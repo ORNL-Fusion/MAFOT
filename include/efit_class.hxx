@@ -100,6 +100,8 @@ public:
 	Array<double,1> lcfs;	// Position of the LCFS in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
 	Array<double,1> wall;	// Position of the Wall in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
 	Array<double,1> lcfs_th;// poloidal angles of lcfs
+	Array<double,1> Swall;	// length along the wall, Swall = 0 is the inner midplane; Swall goes ccw
+	double Swall_max;		// total length of wall
 
 	// Calculated in ReadData
 	double dR;		// grid distance in R direction
@@ -125,6 +127,11 @@ public:
 
 	int helicity;	// +1 = right handed equlibrium		-1 = left handed
 
+	// external 3D wall
+	bool use_3Dwall;		// default is false
+	Array<int,1> Nwall3D;	// number of points for the Wall at each full integer toroidal angle phi = 0,...,359; each respective Array has twice the size!
+	Array<double,2> wall3D;	// for each toroidal angle: Position of the Wall in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
+
 // Konstruktoren
 	EFIT();		// Default Constructor
 
@@ -143,6 +150,7 @@ public:
 	double get_Pprime(const double x);		// Spline interpolates Pprime
 	double get_q(const double x);		// Spline interpolates qpsi
 	int lcfs_RZ_nn(const double th, double& r, double& z);
+	void set3Dwall(LA_STRING wall_file);	// read 3D wall and set arrays
 
 }; //end of class
 
@@ -154,6 +162,7 @@ EFIT::EFIT()
 {
 TinyVector <int,1> index(1);
 TinyVector <int,2> index2(1,1);
+TinyVector <int,2> index2_10(1,0);
 TinyVector <int,4> index4(1,1,1,1);
 
 Shot = "none";
@@ -176,6 +185,7 @@ Nwall = 87;
 lcfs.resize(2*Nlcfs);	lcfs.reindexSelf(index);
 wall.resize(2*Nwall);	wall.reindexSelf(index);
 lcfs_th.resize(Nlcfs);	lcfs_th.reindexSelf(index);
+Swall.resize(Nwall);	Swall.reindexSelf(index);
 
 R.resize(NR);	R.reindexSelf(index);
 Z.resize(NZ);	Z.reindexSelf(index);
@@ -196,6 +206,10 @@ Ca.resize(NR-1,NZ-1,4,4);	Ca.reindexSelf(index4);
 
 helicity = 1;
 helicity_adjust = 1;
+
+use_3Dwall = false;
+Nwall3D.resize(360);	// Nwall3D starts at index 0, which corresponds to angle phi = 0
+wall3D.resize(500,360);		wall3D.reindexSelf(index2_10);	// second index (= angle) starts with 0 again
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -235,6 +249,8 @@ Nwall = EQD.Nwall;
 lcfs.reference(EQD.lcfs.copy());
 wall.reference(EQD.wall.copy());
 lcfs_th.reference(EQD.lcfs_th.copy());
+Swall.reference(EQD.Swall.copy());
+Swall_max = EQD.Swall_max;
 
 dR = EQD.dR;
 dZ = EQD.dZ;
@@ -259,6 +275,10 @@ Ca.reference(EQD.Ca.copy());
 
 helicity = EQD.helicity;
 helicity_adjust = EQD.helicity_adjust;
+
+use_3Dwall = EQD.use_3Dwall;
+Nwall3D.reference(EQD.Nwall3D.copy());
+wall3D.reference(EQD.wall3D.copy());
 
 return(*this);
 }
@@ -291,14 +311,12 @@ ifstream in;
 in.open(Path + filename);
 if(in.fail()==1) {cout << "Unable to open file " << Path + filename << endl; exit(0);}
 
-// Read tags and dimension
-in >> stdummy;
-while (stdummy[0] != '#') in >> stdummy;
-in >> stdummy;
-in >> dummy;	
-in >> NR;	// Number of Points in R-direction
-in >> NZ;	// Number of Points in Z-direction
-//in >> stdummy;	// useless string: endHead 
+// Read dimensions, last two enties in first line
+getline(in, stdummy);
+vector<string> words;
+words = split(stdummy);
+NR = atoi(words[words.size()-2].c_str());	// Number of Points in R-direction
+NZ = atoi(words[words.size()-1].c_str());	// Number of Points in Z-direction
 
 // Rezize Arrays (if size = 129 nothing is done!); All Arrays start with index 1 
 Fpol.resize(NR);
@@ -472,9 +490,42 @@ if((Ip*Bt0 > 0 && helicity == -1) || (Ip*Bt0 < 0 && helicity == 1))
 //btSign = sign(Bt0)	// +1.0 or -1.0 (real)
 //bpSign = sign(Ip)	// +1.0 or -1.0 (real)
 
+// poloidal angle of LCFS
 lcfs_th.resize(Nlcfs);
 for(i=1;i<=Nlcfs;i++) lcfs_th(i) = polar_phi(lcfs(2*i-1) - RmAxis, lcfs(2*i) - ZmAxis);
 
+// length along the wall; Swall = 0 is the inner midplane; Swall goes ccw
+Swall.resize(Nwall);
+int dir = 1;
+double t,S0;
+Swall(1) = sqrt((wall(1)-wall(2*Nwall-1))*(wall(1)-wall(2*Nwall-1)) + (wall(2)-wall(2*Nwall))*(wall(2)-wall(2*Nwall)));
+if (Swall(1) > 0)
+{
+	S0 = wall(2*Nwall)/(wall(2*Nwall) - wall(2))*Swall(1);
+	if (wall(2) < wall(2*Nwall)) dir = 1;	// ccw
+	else dir = -1;							// cw
+}
+for(i=2;i<=Nwall;i++)
+{
+	Swall(i) = Swall(i-1) + sqrt((wall(2*i-1)-wall(2*(i-1)-1))*(wall(2*i-1)-wall(2*(i-1)-1)) + (wall(2*i)-wall(2*(i-1)))*(wall(2*i)-wall(2*(i-1))));	//length of curve in m
+	if ((wall(2*i)*wall(2*i-2) <= 0) && (wall(2*i-1) < R0))
+	{
+		t = wall(2*i-2)/(wall(2*i-2) - wall(2*i));
+		S0 = Swall(i-1) + t*(Swall(i) - Swall(i-1));
+		if (wall(2*i) < wall(2*i-2)) dir = 1;	// ccw
+		else dir = -1;							// cw
+	}
+}
+Swall_max = Swall(Nwall);
+
+// set direction and Swall = 0 location
+for(i=1;i<=Nwall;i++)
+{
+	Swall(i) = dir*(Swall(i) - S0);
+	if (Swall(i) < 0) Swall(i) += Swall_max;
+	if (Swall(i) > Swall_max) Swall(i) -= Swall_max;
+	if (fabs(Swall(i)) < 1e-12) Swall(i) = 0;
+}
 
 return;
 }
@@ -562,6 +613,54 @@ z = lcfs(2*i);
 return idx;
 }
 
+//-------------- set3Dwall ------------------------------------------------------------------------------------------------
+// Read 3D wall file
+void EFIT::set3Dwall(LA_STRING wall_file)
+{
+// Variables
+int i,k;
+LA_STRING line;
+int count = 0;
+int N,Nmax;
+
+// Input
+ifstream in;
+in.open(wall_file);
+if(in.fail()==1) {cout << "Unable to open file " << wall_file << endl; exit(0);}
+
+// Count the number of rows starting with #
+while(1)
+{
+	in >> line;
+	if(line[1]=='#') {count+=1; continue;}
+	else break;
+}
+
+in.close();	// Important to start reading from the beginning of the file
+in.clear(); // Important to clear EOF flag
+
+in.open(wall_file);	// Open file again
+for(i=1;i<=count;i++)	// Skip IO data rows
+{
+	in >> line;
+}
+
+// Read data
+in >> Nmax;
+wall3D.resize(2*Nmax,360);
+
+for(k=0;k<360;k++)
+{
+	in >> N;
+	Nwall3D(k) = N;
+	for(i=1;i<=2*N;i++) in >> wall3D(i,k);
+}
+
+in.close();
+
+// use the 3D wall now
+use_3Dwall = true;
+}
 
 //----------------------- End of Member Functions -------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
