@@ -158,7 +158,7 @@ LA_STRING type;
 switch(PAR.which_target_plate)
 {
 case 0:
-	type = "_cp";
+	type = "_wall";
 	break;
 case 1:
 	#if defined(NSTX)
@@ -188,8 +188,8 @@ case 4:
 		type = "_sas";
 	#endif
 	break;
-case 10:
-	type = "_wall";
+case 5:
+	type = "_bsas";
 	break;
 default:
 	type = "";

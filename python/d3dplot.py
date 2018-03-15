@@ -11,7 +11,8 @@ HOST = socket.gethostname()
 def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', machine = 'd3d', 
 			tag = None, graphic = 'png', physical = 1, b = None, N = 60, Title = None,
 			typeOfPlot = 'contourf', xlimit = None, ylimit = None, figwidth = None, figheight = None, 
-			latex = True, cmap = 'jet', toroidal_angle = 0, wall3Dfile = None, use_z_logscale = False):
+			latex = True, cmap = 'jet', toroidal_angle = 0, wall3Dfile = None, use_z_logscale = False,
+			reverse_y = False):
 	"""
 	plot MAFOT results
 	--- user input ------------------
@@ -54,6 +55,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		elif(filename[5:7] == 'sh'): target = 'shelf'
 		elif(filename[5:7] == 'sa'): target = 'sas'
 		elif(filename[5:7] == 'wa'): target = 'wall'
+		elif(filename[5:7] == 'bs'): target = 'bsas'
 		else: 
 			print 'cannot identify target'
 			return
@@ -154,12 +156,9 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 					yLabel = 't [cm]'
 					y = y*101.693189
 				elif(target == 'wall'):
-					if(physical == 1):
-						y = psimax.copy()	# this is R
-						yLabel = 'R [m]'
-					else:
-						if not latex: yLabel = 'Swall [m]'
-						else: yLabel = 's$_{wall}$ [m]'
+					if not latex: yLabel = 'Swall [m]'
+					else: yLabel = 's$_{wall}$ [m]'
+				elif(target == 'bsas'): y = 1.48157 + y*(1.49573 - 1.48157)
 		elif(machine == 'iter'):
 			if not latex: xLabel = u'\u03C6' + ' [rad]'
 			else: xLabel = '$\\varphi$ $\\mathrm{[rad]}$'
@@ -451,6 +450,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		plt.ylim(y.min(),y.max())
 	if(coordinates == 'phi') & (target== 'in') & (physical == 2): 
 		plt.gca().invert_yaxis()
+	if reverse_y: plt.gca().invert_yaxis()	# reverse y
 		
 	if not (xlimit is None): plt.xlim(xlimit)
 	if not (ylimit is None): plt.ylim(ylimit)
@@ -686,19 +686,22 @@ if __name__ == '__main__':
 	angle = 0
 	wall3Dfile = None
 	use_z_logscale = False
+	reverse_y = False
 	
 
-	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:C:T:iW:H:Ub:x:y:L:l", ["help", "coord=", "what=", 
+	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:C:T:iW:H:Ub:x:y:L:lR", ["help", "coord=", "what=", 
 																 "machine=", "printme", "graphic=", 
 																 "tag=", "physical=", "cmap=", "Title=", "imshow", 	 
 																 "figwidth=", "figheight=", "unicode",
-																 "range=", "xlim=", "ylim=", "wall="])
+																 "range=", "xlim=", "ylim=", "wall=", "log",
+																 "Reverse"])
 	for o, a in opts:
 		if o in ("-h", "--help"):
 			print "usage: d3dplot.py [-h] [-c COORDINATES] [-w WHAT] [-m MACHINE] [-p]"
 			print "                  [-g GRAPHIC] [-t TAG] [-P PHYSICAL] [-N N] [-C CMAP]"
 			print "                  [-T TITLE] [-i] [-W FIGWIDTH] [-H FIGHEIGHT] [-U] [-l]"
 			print "                  [-b MIN,MAX] [-x MIN,MAX] [-y MIN,MAX] [-L FILE,ANGLE]"
+			print "                  [-R]"
 			print "                  pathname"
 			print ""
 			print "Plot MAFOT output"
@@ -733,6 +736,7 @@ if __name__ == '__main__':
 			print "  -y, --ylim <Arg>      Y-Axis range: Min,Max (no spaces)"
 			print "  -L, --wall <Arg>      3D Wall info: filename,angle (no spaces)"
 			print "  -l, --log             Plot colorbar in log10 scale"
+			print "  -R, --Reverse         reverse the y-axis"
 			print ""
 			print "Examples: d3dplot.py foot_in_test.dat"
 			print "          d3dplot.py /path/to/gfile/foot_in_test.dat -p -c RZ"
@@ -781,6 +785,8 @@ if __name__ == '__main__':
 			wall3Dfile, angle = range[0], float(range[1])
 		elif o in ("-l", "--log"):
 			use_z_logscale = True
+		elif o in ("-R", "--Reverse"):
+			reverse_y = True
 		else:
 			raise AssertionError("unknown option")
 			
@@ -789,7 +795,8 @@ if __name__ == '__main__':
 	d3dplot(args[0], printme = printme, coordinates = coordinates, what = what, machine = machine, 
 			tag = tag, graphic = graphic, physical = physical, b = b, N = N, Title = Title,
 			typeOfPlot = toP, xlimit = xlim, ylimit = ylim, figwidth = figwidth, figheight = figheight,
-			latex = latex, cmap = cmap, toroidal_angle = angle, wall3Dfile = wall3Dfile, use_z_logscale = use_z_logscale)
+			latex = latex, cmap = cmap, toroidal_angle = angle, wall3Dfile = wall3Dfile, use_z_logscale = use_z_logscale,
+			reverse_y = reverse_y)
 
 	plt.show()
 

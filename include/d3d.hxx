@@ -501,6 +501,10 @@ case 4:	// SAS divertor at upper outer divertor;  here t is dimensionless length
 	x = (Smax*t - S(idx))/sqrt(d(1)*d(1)+d(2)*d(2));	// rescale t in m (like S); x is dimensionless in [0,1]
 	p = p1 + x*d;
 	break;
+case 5:	// bottom of the SAS
+	R1=1.48157;	Z1=1.24477;
+	R2=1.49573;	Z2=1.23714;
+	break;
 case 0:
 	point_along_wall(t, p, EQD);
 	break;
