@@ -15,9 +15,7 @@
 int getBfield_general(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);	// declared here, defined in mafot.hxx
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
-double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
-					   EFIT& EQD, IO& PAR, PARTICLE& FLT);
-void point_along_wall(double swall, Array<double,1>& p, EFIT& EQD);	// defined in mafot.hxx
+void point_along_target(int target, double t, Array<double,1>& p, EFIT& EQD);
 
 // ------------ Set Parameters for fortran --------------------------------------------------------------------------------
 const int mxbands = 1;
@@ -183,55 +181,24 @@ ofs2 << endl;
 if(PAR.useIcoil==1) nstxecgeom_(&kuse[0][0],&nbands,&nloops[0],&nsegs[0][0],&xs[0][0][0][0],&dvs[0][0][0][0],&curntw[0][0]);
 }
 
-//---------------- start_on_target ----------------------------------------------------------------------------------------
+//---------------- point_along_target ----------------------------------------------------------------------------------------
 // creates initial conditions on the target plate
 // t parametrizes the target with constant Phi and t in m
 // inner target: t = Z
 // outer target: t = R
 // points of targets are set to fixed values here
-// Position (R0,Z0) of magnetic axis is required
 // in the contrary to 'set', phi (representing the x coordinate) is varied first here, t second
-double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
-					   EFIT& EQD, IO& PAR, PARTICLE& FLT)
+void point_along_target(int target, double t, Array<double,1>& p, EFIT& EQD)
 {
-int i_p = 0;
-int i_phi = 0;
-int N = Np*Nphi;
-int target;
-double dp,dphi,t;
-Array<double,1> p1(Range(1,2)),p2(Range(1,2)),p(Range(1,2)),d(Range(1,2));
+double R1 = 0,Z1 = 0;	// upper or left Point
+double R2 = 0,Z2 = 0;	// lower or right Point
 
-// Grid stepsizes and t
-if(Np == 1) tmax = tmin;
-if(Nphi == 1) phimax = phimin;
-if(N<=1) {dp = 0; dphi = 0;}
-else
-{
-	dp = (tmax-tmin)/(N-1);
-	dphi = (phimax-phimin)/(N-1);
-}
-if(dp==0) i_phi = i-1;
-if(dphi==0) i_p = i-1;
-if(dp!=0 && dphi!=0) 
-{
-	dp = (tmax-tmin)/double(Np-1);
-	dphi = (phimax-phimin)/double(Nphi-1);
-	i_phi = (i-1)%Nphi;
-	i_p = int(double(i-1)/double(Nphi));
-}
-t = tmin + i_p*dp;	// t in m
-
-// Postion of Target-Plate
-double R1,Z1;	// (inner,lower) or (outer, left) target Corner
-double R2,Z2;	// (inner,upper) or (outer, right) target Corner
-
-target = PAR.which_target_plate;
-if(PAR.which_target_plate == 4 && t > 0.5712) target = 5;
-if(PAR.which_target_plate == 2 && t > 0.5712) target = 6;
-if(PAR.which_target_plate == 40 && t > 0.5712) target = 5;
-if(PAR.which_target_plate == 20 && t > 0.5712) target = 6;
-if(PAR.which_target_plate == 10 && t < 1.27) target = 80;
-if(PAR.which_target_plate == 30 && t > -1.27) target = 70;
+if(target == 4 && t > 0.5712) target = 5;
+if(target == 2 && t > 0.5712) target = 6;
+if(target == 40 && t > 0.5712) target = 5;
+if(target == 20 && t > 0.5712) target = 6;
+if(target == 10 && t < 1.27) target = 80;
+if(target == 30 && t > -1.27) target = 70;
 
 switch(target)
 {
@@ -313,26 +280,11 @@ case 80:	// NSTX-U upper inner inclined wall at R < 0.4
 	p(1) = (R2-R1)/(Z2-Z1)*t + (R1*Z2-Z1*R2)/(Z2-Z1);
 	if(t < Z2 || t > Z1){ofs2 << "start_on_target: Warning, Coordinates out of range" << endl; EXIT;};
 	break;
-case 0:
-	point_along_wall(t, p, EQD);
-	break;
 default:
 	ofs2 << "start_on_target: No target specified" << endl;
 	EXIT;
 	break;
 }
-
-// Coordinates
-FLT.R = p(1);
-FLT.Z = p(2);
-FLT.phi = (phimin + dphi*i_phi)*rTOd;	// phi in deg
-FLT.get_psi(p(1),p(2),FLT.psi);
-
-FLT.Lc = 0;
-FLT.psimin = 10;
-
-if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin);}
-return t;
 }
 
 #endif // NSTX_INCLUDED

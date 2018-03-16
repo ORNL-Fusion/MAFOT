@@ -24,9 +24,7 @@ int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& 
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
 void prep_Bcoil_shiftTilt(void);
 void Bcoil_shiftTilt_field(double X, double Y, double Z, double& Bx, double& By, double& Bz, EFIT& EQD);
-double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
-					 EFIT& EQD, IO& PAR, PARTICLE& FLT);
-void point_along_wall(double swall, Array<double,1>& p, EFIT& EQD);	// defined in mafot.hxx
+void point_along_target(int target, double t, Array<double,1>& p, EFIT& EQD);
 
 // ------------ Set Parameters for fortran --------------------------------------------------------------------------------
 const int nFc = 18;
@@ -400,54 +398,21 @@ By = Bcoil_Tilt_Matrix(2,1)*Bx_new + Bcoil_Tilt_Matrix(2,2)*By_new;
 Bz = Bcoil_Tilt_Matrix(3,1)*Bx_new + Bcoil_Tilt_Matrix(3,2)*By_new;
 }
 
-//---------------- start_on_target ----------------------------------------------------------------------------------------
+//---------------- point_along_target ----------------------------------------------------------------------------------------
 // creates initial conditions on the target plate
 // t parametrizes the target with constant Phi and t=[0 1]
 // end points of target are explicitly defined here
-// Position (R0,Z0) of magnetic axis is required
 // in the contrary to 'set', phi (representing the x coordinate) is varied first here, t second
-double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
-					 EFIT& EQD, IO& PAR, PARTICLE& FLT)
+void point_along_target(int target, double t, Array<double,1>& p, EFIT& EQD)
 {
-int i_p=0;
-int i_phi=0;
-int N=Np*Nphi;
-int target;
-double dp,dphi,t;
-Array<double,1> p1(Range(1,2)),p2(Range(1,2)),p(Range(1,2)),d(Range(1,2));
-Array<double,1> R,Z,S;	// Curve
-int idx;
+int N,idx;
 double x,Smax;
-
-// Magnetic Axis
-//const double R0=EQD.RmAxis;
-//const double Z0=EQD.ZmAxis;
-
-// Grid stepsizes and t
-if(Np == 1) tmax = tmin;
-if(Nphi == 1) phimax = phimin;
-if(N<=1) {dp=0; dphi=0;}
-else
-{
-	dp=(tmax-tmin)/(N-1);
-	dphi=(phimax-phimin)/(N-1);
-}
-if(dp==0) i_phi=i-1;
-if(dphi==0) i_p=i-1;
-if(dp!=0 && dphi!=0) 
-{
-	dp=(tmax-tmin)/double(Np-1);
-	dphi=(phimax-phimin)/double(Nphi-1);
-	i_phi=(i-1)%Nphi;
-	i_p=int(double(i-1)/double(Nphi));
-}
-t=tmin+i_p*dp;
-if(PAR.which_target_plate==1 && t<0) target=-1;
-else target=PAR.which_target_plate;
-
-// Postion of Target-Plate
+Array<double,1> p1(Range(1,2)),p2(Range(1,2)),d(Range(1,2));
+Array<double,1> R,Z,S;	// Curve
 double R1 = 0,Z1 = 0;	// upper or left Point
 double R2 = 0,Z2 = 0;	// lower or right Point
+
+if(target == 1 && t < 0) target = -1;
 switch(target)
 {
 case -1:	// 19.59cm (same length as inner target) vertical wall above inner target, t = 0 -> -1, t=0 <=> P1 at inner target
@@ -486,7 +451,7 @@ case 4:	// SAS divertor at upper outer divertor;  here t is dimensionless length
 	        1.09489,  1.0853 ,  1.07988,  1.077  ,  1.077  ,  1.04;
 	Smax = 1.01693189;
 
-	if(tmin < 0 || tmax > 1) ofs2 << "start_on_target: Warning, t out of range" << endl;
+	if(t < 0 || t > 1) ofs2 << "start_on_target: Warning, t out of range" << endl;
 	S(1) = 0;
 	idx = 1;
 	for(int i=2;i<=N;i++)
@@ -496,7 +461,7 @@ case 4:	// SAS divertor at upper outer divertor;  here t is dimensionless length
 		else break;
 	}
 	p1(1) = R(idx);		p1(2) = Z(idx);
-	p2(1) = R(idx+1);		p2(2) = Z(idx+1);
+	p2(1) = R(idx+1);	p2(2) = Z(idx+1);
 	d = p2 - p1;
 	x = (Smax*t - S(idx))/sqrt(d(1)*d(1)+d(2)*d(2));	// rescale t in m (like S); x is dimensionless in [0,1]
 	p = p1 + x*d;
@@ -505,16 +470,13 @@ case 5:	// bottom of the SAS
 	R1=1.48157;	Z1=1.24477;
 	R2=1.49573;	Z2=1.23714;
 	break;
-case 0:
-	point_along_wall(t, p, EQD);
-	break;
 default:
 	ofs2 << "No target specified" << endl;
 	EXIT;
 	break;
 }
 
-if((target != 0) && (target != 4))
+if(target != 4)
 {
 	p1(1) = R1;	 p1(2) = Z1;
 	p2(1) = R2;	 p2(2) = Z2;
@@ -524,17 +486,6 @@ if((target != 0) && (target != 4))
 	// Coordinates
 	p = p1 + t*d;
 }
-
-FLT.R = p(1);
-FLT.Z = p(2);
-FLT.phi = (phimin + dphi*i_phi)*rTOd;	// phi in deg
-FLT.get_psi(p(1),p(2),FLT.psi);
-
-FLT.Lc = 0;
-FLT.psimin = 10;
-
-if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin);}
-return t;
 }
 
 #endif // D3D_INCLUDED

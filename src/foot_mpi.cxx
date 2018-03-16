@@ -151,7 +151,7 @@ if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use mo
 // Read Parameterfile
 if(mpi_rank < 1) cout << "Read Parameterfile " << parfilename << endl;
 ofs2 << "Read Parameterfile " << parfilename << endl;
-IO PAR(EQD,parfilename,10,mpi_rank);
+IO PAR(EQD,parfilename,11,mpi_rank);
 
 // Set target type for output-filename
 LA_STRING type;
@@ -291,6 +291,7 @@ if(mpi_rank < 1)
 	PAR.pv[7].name = "MapDirection";	PAR.pv[7].wert = PAR.MapDirection;
 	PAR.pv[8].name = "Ekin";			PAR.pv[8].wert = PAR.Ekin;
 	PAR.pv[9].name = "energy ratio lambda";	PAR.pv[9].wert = PAR.lambda;
+	PAR.pv[10].name = "total length of wall";	PAR.pv[10].wert = EQD.Swall_max;
 
 	// Output
 	ofstream out(filenameout);

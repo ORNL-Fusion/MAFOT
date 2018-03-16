@@ -46,7 +46,8 @@ void prepare_common_perturbations(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING si
 bool outofBndy(double phi, double x, double y, EFIT& EQD);
 bool outofRealBndy(double phi, double x, double y, EFIT& EQD);
 void point_along_wall(double swall, Array<double,1>& p, EFIT& EQD);
-
+double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
+					 EFIT& EQD, IO& PAR, PARTICLE& FLT);
 void get_filament_field(double R, double phi, double Z, Array<double,4>& field, double& bx, double& by, double& bz, EFIT& EQD);
 void bcuderiv_square(Array<double,2>& y, int j, int k, double d1, double d2, 
 					 Array<double,1>& y1, Array<double,1>& y2, Array<double,1>& y12);
@@ -450,6 +451,63 @@ x = fabs(swall - EQD.Swall(idx))/sqrt(d(1)*d(1)+d(2)*d(2));	// x is dimensionles
 p = p1 + x*d;
 //cout << swall << "\t" << idx  << "\t" << s0 << "\t" << s1 << "\t" << x << endl;
 }
+
+
+
+//---------------- start_on_target ----------------------------------------------------------------------------------------
+// creates initial conditions on the target plate
+// generally t parameterizes the wall as length alomg the wall
+// starting at HFS midplane, advancing counter-clock-wise, alos known as s_wall
+// or
+// t parametrizes a special target with constant Phi and t=[0 1]
+// with points on target are explicitly defined here
+// in the contrary to 'set', phi (representing the x coordinate) is varied first here, t second
+double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
+					 EFIT& EQD, IO& PAR, PARTICLE& FLT)
+{
+int i_p = 0;
+int i_phi = 0;
+int N = Np*Nphi;
+double dp,dphi,t;
+Array<double,1> p(Range(1,2));
+
+// Grid stepsizes and t
+if(Np == 1) tmax = tmin;
+if(Nphi == 1) phimax = phimin;
+if(N <= 1) {dp = 0; dphi = 0;}
+else
+{
+	dp = (tmax - tmin)/(N-1);
+	dphi = (phimax - phimin)/(N-1);
+}
+if(dp == 0) i_phi = i - 1;
+if(dphi == 0) i_p = i - 1;
+if(dp != 0 && dphi != 0)
+{
+	dp = (tmax - tmin)/double(Np-1);
+	dphi = (phimax - phimin)/double(Nphi-1);
+	i_phi = (i - 1)%Nphi;
+	i_p = int(double(i-1)/double(Nphi));
+}
+t = tmin + i_p*dp;
+
+// get point (R,Z) that matches parameter t
+if(PAR.which_target_plate == 0) point_along_wall(t, p, EQD);
+else point_along_target(PAR.which_target_plate, t, p, EQD);
+
+// set initial condition
+FLT.R = p(1);
+FLT.Z = p(2);
+FLT.phi = (phimin + dphi*i_phi)*rTOd;	// phi in deg
+FLT.get_psi(p(1),p(2),FLT.psi);
+
+FLT.Lc = 0;
+FLT.psimin = 10;
+
+if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin);}
+return t;
+}
+
 
 //------------------ get_filament_field -----------------------------------------------------------------------------------
 // determines sum of magnetic fields of all current filaments at point (R,phi,Z) by interpolation

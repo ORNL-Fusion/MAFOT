@@ -22,10 +22,8 @@
 int getBfield_general(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);	// declared here, defined in mafot.hxx
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
-int get_target(EFIT& EQD, IO& PAR);
-double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
-					   EFIT& EQD, IO& PAR, PARTICLE& FLT);
-void point_along_wall(double swall, Array<double,1>& p, EFIT& EQD);	// defined in mafot.hxx
+int get_target(int target, EFIT& EQD);
+void point_along_target(int target, double t, Array<double,1>& p, EFIT& EQD);
 
 // ------------ Set Parameters for fortran --------------------------------------------------------------------------------
 const int mxbands = 3;
@@ -236,12 +234,12 @@ if(PAR.useIcoil==1) iterigeom_(&kuse[0][0],&nbands,&nloops[0],&nsegs[0][0],&xs[0
 
 //---------------- get_target ---------------------------------------------------------------------------------------------
 // finds target plate corners in EQD.wall data
-int get_target(EFIT& EQD, IO& PAR)
+int get_target(int target, EFIT& EQD)
 {
 int i;
 double R = 0;
 double Z = 0;
-switch(PAR.which_target_plate)
+switch(target)
 {
 case 1:			// Corner linear inner target and curve, t = 0 here
 	R = 4.1787;
@@ -263,51 +261,25 @@ EXIT;
 return -1;
 }
 
-//---------------- start_on_target ----------------------------------------------------------------------------------------
+//---------------- point_along_target ----------------------------------------------------------------------------------------
 // creates initial conditions on the target plate
 // t parametrizes the target with constant Phi and t in cm
 // inner target: t posivie on linear (right) part, negative on curve
 // outer target: t positive on curve, negative on linear (left) part
 // t = 0 specifies corner point where linear part and curve connect
 // points of targets are directly taken from EFIT file
-// Position (R0,Z0) of magnetic axis is required
 // in the contrary to 'set', phi (representing the x coordinate) is varied first here, t second
-double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
-					   EFIT& EQD, IO& PAR, PARTICLE& FLT)
+void point_along_target(int target, double t, Array<double,1>& p, EFIT& EQD)
 {
-int i_p = 0;
-int i_phi = 0;
-int N = Np*Nphi;
-int index;
-double dp,dphi,t,x;
-Array<double,1> p1(Range(1,2)),p2(Range(1,2)),p(Range(1,2)),d(Range(1,2));
-
-// Grid stepsizes and t
-if(Np == 1) tmax = tmin;
-if(Nphi == 1) phimax = phimin;
-if(N<=1) {dp = 0; dphi = 0;}
-else
-{
-	dp = (tmax-tmin)/(N-1);
-	dphi = (phimax-phimin)/(N-1);
-}
-if(dp==0) i_phi = i-1;
-if(dphi==0) i_p = i-1;
-if(dp!=0 && dphi!=0) 
-{
-	dp = (tmax-tmin)/double(Np-1);
-	dphi = (phimax-phimin)/double(Nphi-1);
-	i_phi = (i-1)%Nphi;
-	i_p = int(double(i-1)/double(Nphi));
-}
-t = tmin + i_p*dp;	// t in cm
-
-// Postion of Target-Plate
+int N;
+double x;
+Array<double,1> p1(Range(1,2)),p2(Range(1,2)),d(Range(1,2));
+Array<double,1> R,Z,S;	// Curve
 double R1 = 0, Z1 = 0;	// linear part left Corner
 double R2 = 0, Z2 = 0;	// linear part right Corner
-Array<double,1> R,Z,S;	// Curve
-index = get_target(EQD,PAR);	// Get target plate corner positions
-switch(PAR.which_target_plate)
+int index = get_target(target, EQD);	// Get target plate corner positions
+
+switch(target)
 {
 case 1:	// inner target plate, linear part length 30.7752 cm, curved part length 165.6735 cm
 	R1 = EQD.wall(index);	Z1 = EQD.wall(index+1);	// left Corner (4.1787, -3.8815)
@@ -324,7 +296,7 @@ case 1:	// inner target plate, linear part length 30.7752 cm, curved part length
 		EQD.wall(index-11), EQD.wall(index-13), EQD.wall(index-15), EQD.wall(index-17), EQD.wall(index-19), 
 		EQD.wall(index-21), EQD.wall(index-23);
 
-	if(tmin < -165.6735 || tmax > 30.7752) ofs2 << "start_on_target: Warning, t out of range" << endl; 
+	if(t < -165.6735 || t > 30.7752) ofs2 << "start_on_target: Warning, t out of range" << endl;
 	break;
 case 2:	// outer target plate, linear part length 40.0237 cm, curved part length 175.0177 cm
 	R2 = EQD.wall(index-2);	Z2 = EQD.wall(index-1);	// left Corner (5.2655, -4.2568) 
@@ -341,11 +313,8 @@ case 2:	// outer target plate, linear part length 40.0237 cm, curved part length
 		EQD.wall(index+13), EQD.wall(index+15), EQD.wall(index+17), EQD.wall(index+19), EQD.wall(index+21), 
 		EQD.wall(index+23), EQD.wall(index+25), EQD.wall(index+27);
 
-	if(tmin < -40.0237 || tmax > 175.0177) ofs2 << "start_on_target: Warning, t out of range" << endl; 
+	if(t < -40.0237 || t > 175.0177) ofs2 << "start_on_target: Warning, t out of range" << endl;
 	t *= -1;	// reverse t
-	break;
-case 0:
-	point_along_wall(t, p, EQD);
 	break;
 default:
 	ofs2 << "start_on_target: No target specified" << endl;
@@ -353,55 +322,34 @@ default:
 	break;
 }
 
-if(PAR.which_target_plate > 0)
+p1(1) = R1;		p1(2) = Z1;
+p2(1) = R2;		p2(2) = Z2;
+d = p2 - p1;	// positive R direction for inner target, negative otherwise;	t would have to be dimensionless in [0,1]
+d *= 0.01/sqrt(d(1)*d(1)+d(2)*d(2));	// d is now scaled for t in cm
+
+// Coordinates
+if(t>=0)
 {
-	p1(1) = R1;		p1(2) = Z1;
-	p2(1) = R2;		p2(2) = Z2;
-	d = p2 - p1;	// positive R direction for inner target, negative otherwise;	t would have to be dimensionless in [0,1]
-	d *= 0.01/sqrt(d(1)*d(1)+d(2)*d(2));	// d is now scaled for t in cm
-
-	// Coordinates
-	if(t>=0)
-	{
-		p = p1 + t*d;
-		FLT.R = p(1);
-		FLT.Z = p(2);
-	}
-	else	// t < 0
-	{
-		S(1) = 0;
-		index = 1;
-		for(int i=2;i<=N;i++)
-		{
-			S(i) = S(i-1) + sqrt((R(i)-R(i-1))*(R(i)-R(i-1)) + (Z(i)-Z(i-1))*(Z(i)-Z(i-1)));	//length of curve in m
-			if(S(i) < -0.01*t) index = i;
-			else break;
-		}
-		p1(1) = R(index);		p1(2) = Z(index);
-		p2(1) = R(index+1);		p2(2) = Z(index+1);
-		d = p2 - p1;
-		x = (-0.01*t - S(index))/sqrt(d(1)*d(1)+d(2)*d(2));	// rescale t in m (like S); x is dimensionless in [0,1]
-		p = p1 + x*d;
-		FLT.R = p(1);
-		FLT.Z = p(2);
-	}
+	p = p1 + t*d;
 }
-else
+else	// t < 0
 {
-	FLT.R = p(1);
-	FLT.Z = p(2);
+	S(1) = 0;
+	index = 1;
+	for(int i=2;i<=N;i++)
+	{
+		S(i) = S(i-1) + sqrt((R(i)-R(i-1))*(R(i)-R(i-1)) + (Z(i)-Z(i-1))*(Z(i)-Z(i-1)));	//length of curve in m
+		if(S(i) < -0.01*t) index = i;
+		else break;
+	}
+	p1(1) = R(index);		p1(2) = Z(index);
+	p2(1) = R(index+1);		p2(2) = Z(index+1);
+	d = p2 - p1;
+	x = (-0.01*t - S(index))/sqrt(d(1)*d(1)+d(2)*d(2));	// rescale t in m (like S); x is dimensionless in [0,1]
+	p = p1 + x*d;
 }
-FLT.phi = (phimin + dphi*i_phi)*rTOd;	// phi in deg
-FLT.get_psi(p(1),p(2),FLT.psi);
-
-FLT.Lc = 0;
-FLT.psimin = 10;
-
-if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin);}
-
-if(PAR.which_target_plate == 2) t *= -1;	// undo reverse t
-return t;
 }
+
 #endif // ITER_INCLUDED
 //----------------------- End of File -------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
