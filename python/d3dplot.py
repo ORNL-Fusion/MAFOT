@@ -636,7 +636,10 @@ def get_wall(machine, angle = 0, wall3Dfile = None):
 		if angle > 0: angle = int(angle + 0.5)
 		else: angle = int(angle - 0.5)
 		angle = angle%360
-		wall = wall3D[angle].T
+		try:
+			wall = wall3D[angle].T
+		except:
+			wall = np.array([np.zeros(1),np.zeros(1)])
 	
 	return np.array(wall)
 
@@ -650,7 +653,12 @@ def read_3Dwall(file):
 		else: break
 		
 	for i in xrange(360):
-		N = int(lines[idx].strip())
+		if idx >= len(lines): break
+		try:
+			N = int(lines[idx].strip())
+		except:
+			idx -= 1
+			N = int(lines[idx].strip())
 		idx += 1
 		wall[i] = np.array([np.zeros(N),np.zeros(N)])
 		for n in xrange(N):
@@ -734,7 +742,7 @@ if __name__ == '__main__':
 			print "  -b, --range <Arg>     ColorBar range: Min,Max (no spaces)"
 			print "  -x, --xlim <Arg>      X-Axis range: Min,Max (no spaces)"
 			print "  -y, --ylim <Arg>      Y-Axis range: Min,Max (no spaces)"
-			print "  -L, --wall <Arg>      3D Wall info: filename,angle (no spaces)"
+			print "  -L, --wall <Arg>      Wall info (can be 3D): filename,angle (no spaces)"
 			print "  -l, --log             Plot colorbar in log10 scale"
 			print "  -R, --Reverse         reverse the y-axis"
 			print ""
