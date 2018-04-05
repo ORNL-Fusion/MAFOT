@@ -524,6 +524,7 @@ private:
 	double epsabs; 			// absolute accuracy tolerance, default = 1e-6
 	double epsrel; 			// relative accuracy tolerance, default = 1e-4
 	int maxRecDepth; 		// max recursion in adaptive Simpson, defaut = 14
+	bool noVacuumField;		// True: ignore any vacuum fields -> Bvac = 0, False: use vacuum fields from Mgrid
 	MGRID mgrid;
 	VMEC wout;
 
@@ -555,8 +556,8 @@ public:
 	// Constructors
 	BFIELDVC();							// Default Constructor
 	BFIELDVC(const BFIELDVC& bvc);		// Copy Constructor
-	BFIELDVC(VMEC woutin, LA_STRING mgrid_file = "None");				// Standard Constructor, uses defaults
-	BFIELDVC(VMEC woutin, double epsabsin, double epsrelin, int maxRecDepthin, LA_STRING mgrid_file = "None"); // set all Constructor
+	BFIELDVC(VMEC woutin, LA_STRING mgrid_file = "None", bool useVacuum = true);				// Standard Constructor, uses defaults
+	BFIELDVC(VMEC woutin, double epsabsin, double epsrelin, int maxRecDepthin, LA_STRING mgrid_file = "None", bool useVacuum = true); // set all Constructor
 
 	// Member-Operators
 	BFIELDVC& operator =(const BFIELDVC& bvc);	// Operator =
@@ -564,6 +565,7 @@ public:
 	// Member-Functions
 	void init(VMEC woutin, LA_STRING mgrid_file = "None");				// load mgrid and prepare all interpolations
 	void setup_accuracy(double epsabsin = 1e-6, double epsrelin = 1e-4, int maxRecDepthin = 14);	// set control parameter for adaptive integration
+	void use_Vacuum(bool useVacuum);									// True: use Vacuum fields, False: ignore all Vacuum fields -> Bvac = 0
 	Array<double,1> ev(double R, double phi, double Z);					// evaluate magentic field by virtual casing, uses adaptive Simpson integration
 	Array<double,1> get_vacuumB(double Rs, double v, double Zs, bool n0only = false);		// returns vacuum B-field Bvac = Bmgrid = (BR,Bphi,BZ)
 	Array<double,1> integs(double u, double v);							// integrad for all three integrals: BR, Bphi and BZ
@@ -579,6 +581,7 @@ BFIELDVC::BFIELDVC()
 R = 0;
 phi = 0;
 Z = 0;
+noVacuumField = false;
 setup_accuracy();
 }
 
@@ -589,21 +592,23 @@ BFIELDVC::BFIELDVC(const BFIELDVC& bvc)
 }
 
 // Standard Constructor
-BFIELDVC::BFIELDVC(VMEC woutin, LA_STRING mgrid_file)
+BFIELDVC::BFIELDVC(VMEC woutin, LA_STRING mgrid_file, bool useVacuum)
 {
 R = 0;
 phi = 0;
 Z = 0;
+use_Vacuum(useVacuum);
 setup_accuracy();	// default values
 init(woutin, mgrid_file);
 }
 
 // set all Constructor
-BFIELDVC::BFIELDVC(VMEC woutin, double epsabsin, double epsrelin, int maxRecDepthin, LA_STRING mgrid_file)
+BFIELDVC::BFIELDVC(VMEC woutin, double epsabsin, double epsrelin, int maxRecDepthin, LA_STRING mgrid_file, bool useVacuum)
 {
 R = 0;
 phi = 0;
 Z = 0;
+use_Vacuum(useVacuum);
 setup_accuracy(epsabsin, epsrelin, maxRecDepthin);
 init(woutin, mgrid_file);
 }
@@ -615,6 +620,7 @@ if (this == &bvc) return(*this);	    // if: x=x
 epsabs = bvc.epsabs;
 epsrel = bvc.epsrel;
 maxRecDepth = bvc.maxRecDepth;
+noVacuumField = bvc.noVacuumField;
 wout = bvc.wout;
 mgrid = bvc.mgrid;
 R = bvc.R;
@@ -649,17 +655,19 @@ int mpi_rank = 0;
 Array<double,1> extcur;
 int nextcur;
 wout = woutin;
-if(strcmp(mgrid_file,"None") == 0) mgrid_file = wout.mgrid_file;
-if(not wout.lfreeb)
+if(not noVacuumField)
 {
-	if(strcmp(mgrid_file,"None") == 0) {if(mpi_rank == 0) cout << "XPAND: provide mgrid file" << endl; EXIT;}
-	nextcur = read_extcur(extcur, wout.input_extension);
-	wout.nextcur = nextcur;
-	wout.extcur.reference(extcur);
+	if(strcmp(mgrid_file,"None") == 0) mgrid_file = wout.mgrid_file;
+	if(not wout.lfreeb)
+	{
+		if(strcmp(mgrid_file,"None") == 0) {if(mpi_rank == 0) cout << "XPAND: provide mgrid file" << endl; EXIT;}
+		nextcur = read_extcur(extcur, wout.input_extension);
+		wout.nextcur = nextcur;
+		wout.extcur.reference(extcur);
+	}
+	mgrid.read(mgrid_file, wout.nextcur, wout.extcur);
+	mgrid.prep_interpolation();
 }
-mgrid.read(mgrid_file, wout.nextcur, wout.extcur);
-mgrid.prep_interpolation();
-
 // get s = 1 surface and prepare interpolation
 prep_sInterpolation();
 }
@@ -673,6 +681,12 @@ epsrel = epsrelin;
 maxRecDepth = maxRecDepthin;	// Simpson only
 }
 
+// --- use_Vacuum -------------------------------------------------------------------------------------------------------
+void BFIELDVC::use_Vacuum(bool useVacuum)
+{
+if(useVacuum) noVacuumField = false;
+else noVacuumField = true;
+}
 
 // --- ev -----------------------------------------------------------------------------------------------------------------
 Array<double,1> BFIELDVC::ev(double Rin, double phiin, double Zin)
@@ -695,7 +709,10 @@ return integ;
 // --- get_vacuumB --------------------------------------------------------------------------------------------------------
 Array<double,1> BFIELDVC::get_vacuumB(double Rs, double v, double Zs, bool n0only)
 {
-return mgrid.get_vacuumB(Rs, v, Zs, n0only);
+Array<double,1> B(3);
+if(noVacuumField) B = 0;
+else B = mgrid.get_vacuumB(Rs, v, Zs, n0only);
+return B;
 }
 
 
@@ -946,6 +963,7 @@ for(k=kstart;k<=kend;k++)
 		n = normal(Rs(i,j), sinv, cosv, dRdu(i,j), dRdv(i,j), dZdu(i,j), dZdv(i,j));	// carthesian
 
 		// Bvmec field components
+		if(wout.use_nyq) wout.get_sincos(U(i), V(j), sinuv, cosuv, true);
 		bsupu = wout.bsupumn.ev(s, U(i), V(j), sinuv, cosuv);
 		bsupv = wout.bsupvmn.ev(s, U(i), V(j), sinuv, cosuv);
 

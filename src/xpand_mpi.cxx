@@ -110,16 +110,17 @@ LA_STRING mgrid_file = "None";
 LA_STRING points_file = "points.dat";
 
 bool VC_INSIDE = false;	// also run virtual casing inside of VMEC LCFS
+bool useVacuum = true;	// True: use Vacuum fields, False: ignore all Vacuum fields -> Bvac = 0
 
 // Command line input parsing
 opterr = 0;
-while ((c = getopt(argc, argv, "hP:a:r:i:m:SM:AI")) != -1)
+while ((c = getopt(argc, argv, "hP:a:r:i:m:SM:AIV")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> xpand_mpi [-h] [-P pts] [-a epsabs] [-r epsrel] [-i limit] [-m degree] [-S] [-M mgrid] [-A] wout [tag]" << endl << endl;
+		cout << "usage: mpirun -n <cores> xpand_mpi [-h] [-P pts] [-a epsabs] [-r epsrel] [-i limit] [-m degree] [-S] [-M mgrid] [-A] [-V] wout [tag]" << endl << endl;
 		cout << "Calculate magnetic field outside of VMEC boundary." << endl << endl;
 		cout << "positional arguments:" << endl;
 		cout << "  wout          VMEC wout-file name" << endl;
@@ -135,6 +136,7 @@ case 'h':
 		cout << "  -M            use Mgrid-File mgrid; default: 'mgrid_file' from wout" << endl;
 		cout << "  -A            force axisymmetry -> use n=0 only in VMEC & toroidally average vacuum field" << endl;
 		cout << "  -I            also run virtual casing inside of VMEC LCFS" << endl;
+		cout << "  -V            ignore all Vacuum fields -> Bvac = 0" << endl;
 		cout << endl << "Examples:" << endl;
 		cout << "  mpirun -n 4 xpand_mpi wout.nc" << endl;
 		cout << "  mpirun -n 12 xpand_mpi -i 1500 -P ./here/my_points.dat wout.nc test" << endl;
@@ -169,6 +171,9 @@ case 'A':
 case 'I':
 	VC_INSIDE = true;
 	break;
+case 'V':
+	useVacuum = false;
+	break;
 case '?':
 	if(mpi_rank < 1)
 	{
@@ -202,7 +207,7 @@ if(mpi_rank < 1)
 AdaptiveGK GKx(limit, degree, 3);
 AdaptiveGK GKy(limit, degree, 3);
 VMEC wout(wout_name, VMEC_n0only);
-BFIELDVC bvc(wout, epsabs, epsrel, 14, mgrid_file);
+BFIELDVC bvc(wout, epsabs, epsrel, 14, mgrid_file, useVacuum);
 INSIDE_VMEC inside(wout);
 
 // read input
@@ -390,6 +395,7 @@ if(mpi_rank < 1)
 
 				// Prepare inside
 				inside.init(phi_old);
+
 				for(i=1;i<=N_slave;i++)
 				{
 					idx = N_values((tag-1)*N_slave+i);
@@ -536,6 +542,7 @@ if(mpi_rank > 0)
 
 		// Prepare inside
 		inside.init(phi_old);
+
 		for(i=1;i<=N_slave;i++)
 		{
 			idx = Nmin_slave + i - 1;

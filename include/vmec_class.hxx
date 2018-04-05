@@ -666,12 +666,15 @@ private:
 // Member Variables
 	int ntor;
 	int mnmax;
+	int mnmax_nyq;
 	int mnmaxpot;
 
 	Array<int,1> xnpot;
 	Array<int,1> xmpot;
 	Array<int,1> xn;
 	Array<int,1> xm;
+	Array<int,1> xn_nyq;
+	Array<int,1> xm_nyq;
 
 	Array<double,1> raxis_cc;
 	Array<double,1> raxis_cs;
@@ -691,6 +694,7 @@ public:
 	int nextcur;
 	int ns;
 	int nshalf;
+	bool use_nyq;
 
 	double wb;
 	double ctor;
@@ -742,7 +746,7 @@ public:
 	double get_r(double R, double Z, double Raxis, double Zaxis);
 	double get_theta(double R, double Z, double Raxis, double Zaxis);
 	void get_su(double R, double phi, double Z, double& s, double& u, double sstart = -1, double ustart = -1, int imax = 10);	// find s,u at any location (R,phi,Z) inside the VMEC boundary
-	void get_sincos(double u, double v, Array<double,1>& sinuv, Array<double,1>& cosuv);		// precalculates sin(mu-nv) and cos(mu-nv)
+	void get_sincos(double u, double v, Array<double,1>& sinuv, Array<double,1>& cosuv, bool nyq = false);		// precalculates sin(mu-nv) and cos(mu-nv)
 
 }; //end of class
 
@@ -757,6 +761,7 @@ ntor = 0;
 ns = 0;
 nshalf = 0;
 mnmax = 0;
+mnmax_nyq = 0;
 mnmaxpot = 0;
 nextcur = 0;
 
@@ -767,6 +772,7 @@ lfreeb = true;
 lasym = false;
 lpot = false;
 n0only = false;
+use_nyq = false;
 
 input_extension = "None";
 mgrid_file = "None";
@@ -801,6 +807,7 @@ ntor = V.ntor;
 ns = V.ns;
 nshalf = V.nshalf;
 mnmax = V.mnmax;
+mnmax_nyq = V.mnmax_nyq;
 mnmaxpot = V.mnmaxpot;
 nextcur = V.nextcur;
 
@@ -811,12 +818,15 @@ lfreeb = V.lfreeb;
 lasym = V.lasym;
 lpot = V.lpot;
 n0only = V.n0only;
+use_nyq = V.use_nyq;
 
 input_extension = V.input_extension;
 mgrid_file = V.mgrid_file;
 
 xn.reference(V.xn);
 xm.reference(V.xm);
+xn_nyq.reference(V.xn_nyq);
+xm_nyq.reference(V.xm_nyq);
 xnpot.reference(V.xnpot);
 xmpot.reference(V.xmpot);
 
@@ -878,6 +888,17 @@ chk = nc_inq_varid(ncid, "ntor", &varid); if(chk!=0) {if(mpi_rank == 0) cout << 
 chk = nc_get_var_int(ncid, varid, &ntor);	// read
 chk = nc_inq_varid(ncid, "mnmax", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: mnmax not found" << endl; EXIT;}	// get variable id
 chk = nc_get_var_int(ncid, varid, &mnmax);	// read
+chk = nc_inq_varid(ncid, "mnmax_nyq", &varid); // get variable id
+if(chk!=0)
+{
+	use_nyq = false;
+	mnmax_nyq = mnmax;
+}
+else
+{
+	use_nyq = true;
+	chk = nc_get_var_int(ncid, varid, &mnmax_nyq);	// read
+}
 nshalf = ns;
 
 // read lfreeb
@@ -900,19 +921,34 @@ chk = nc_get_var_int(ncid, varid, xn.data());
 xm.resize(mnmax);
 chk = nc_inq_varid(ncid, "xm", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: xm not found" << endl; EXIT;}
 chk = nc_get_var_int(ncid, varid, xm.data());
+if(use_nyq)
+{
+	xn_nyq.resize(mnmax_nyq);
+	chk = nc_inq_varid(ncid, "xn_nyq", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: xn_nyq not found" << endl; EXIT;}
+	chk = nc_get_var_int(ncid, varid, xn_nyq.data());
+	xm_nyq.resize(mnmax_nyq);
+	chk = nc_inq_varid(ncid, "xm_nyq", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: xm_nyq not found" << endl; EXIT;}
+	chk = nc_get_var_int(ncid, varid, xm_nyq.data());
+}
+else
+{
+	xn_nyq.reference(xn);
+	xm_nyq.reference(xm);
+}
 
 // set sign array for s < 0 entry in half-grid spectral variables
-Array<int,1> signhalf(mnmax);
-for(i=0;i<mnmax;i++) 	// signhalf = (-1)^xm
+Array<int,1> signhalf(mnmax_nyq);
+for(i=0;i<mnmax_nyq;i++) 	// signhalf = (-1)^xm
 {
-	if(xm(i)%2 == 0) signhalf(i) = 1;
+	if(xm_nyq(i)%2 == 0) signhalf(i) = 1;
 	else signhalf(i) = -1;
 }
 
 // read and reindex spectral data: full-mesh:(1 -> ns, 0 -> mnmax-1),  half-mesh:(1 -> nshalf, 0 -> mnmax-1)
 TinyVector <int,2> index2(1,0);	// Array range
-Array<double,2> input;
+Array<double,2> input, input_nyq;
 input.resize(ns, mnmax);
+input_nyq.resize(ns, mnmax_nyq);
 
 if(lasym)
 {
@@ -929,24 +965,24 @@ if(lasym)
 	zmn.ymnc = input.copy();							// move into place
 
 	chk = nc_inq_varid(ncid, "gmns", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: gmns not found" << endl; EXIT;}			// get variable id
-	chk = nc_get_var_double(ncid, varid, input.data());	// read
-	gmn.ymns.resize(nshalf, mnmax); 						// set size
+	chk = nc_get_var_double(ncid, varid, input_nyq.data());	// read
+	gmn.ymns.resize(nshalf, mnmax_nyq); 						// set size
 	gmn.ymns.reindexSelf(index2);							// set indices
-	gmn.ymns = input.copy();							// move into place
+	gmn.ymns = input_nyq.copy();							// move into place
 	gmn.ymns(1,all) = gmn.ymns(2,all) * signhalf;	// expand beyond magnetic axis: Shalf(1) = -Shalf(2) => Amn(-s)*sin(mu-nv) = Amn(s)*sin(m(u+pi)-nv) = (-1)^m * Amn(s)*sin(mu-nv); same for cos
 
 	chk = nc_inq_varid(ncid, "bsupumns", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: bsupumns not found" << endl; EXIT;}			// get variable id
-	chk = nc_get_var_double(ncid, varid, input.data());	// read
-	bsupumn.ymns.resize(nshalf, mnmax); 						// set size
+	chk = nc_get_var_double(ncid, varid, input_nyq.data());	// read
+	bsupumn.ymns.resize(nshalf, mnmax_nyq); 						// set size
 	bsupumn.ymns.reindexSelf(index2);							// set indices^n
-	bsupumn.ymns = input.copy();							// move into place
+	bsupumn.ymns = input_nyq.copy();							// move into place
 	bsupumn.ymns(1,all) = bsupumn.ymns(2,all) * signhalf;
 
 	chk = nc_inq_varid(ncid, "bsupvmns", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: bsupvmns not found" << endl; EXIT;}			// get variable id
-	chk = nc_get_var_double(ncid, varid, input.data());	// read
-	bsupvmn.ymns.resize(nshalf, mnmax); 						// set size
+	chk = nc_get_var_double(ncid, varid, input_nyq.data());	// read
+	bsupvmn.ymns.resize(nshalf, mnmax_nyq); 						// set size
 	bsupvmn.ymns.reindexSelf(index2);							// set indices
-	bsupvmn.ymns = input.copy();							// move into place
+	bsupvmn.ymns = input_nyq.copy();							// move into place
 	bsupvmn.ymns(1,all) = bsupvmn.ymns(2,all) * signhalf;
 }
 
@@ -963,24 +999,24 @@ zmn.ymns.reindexSelf(index2);							// set indices
 zmn.ymns = input.copy();								// move into place
 
 chk = nc_inq_varid(ncid, "gmnc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: gmnc not found" << endl; EXIT;}			// get variable id
-chk = nc_get_var_double(ncid, varid, input.data());	// read
-gmn.ymnc.resize(nshalf, mnmax); 						// set size
+chk = nc_get_var_double(ncid, varid, input_nyq.data());	// read
+gmn.ymnc.resize(nshalf, mnmax_nyq); 						// set size
 gmn.ymnc.reindexSelf(index2);							// set indices
-gmn.ymnc = input.copy();							// move into place
+gmn.ymnc = input_nyq.copy();							// move into place
 gmn.ymnc(1,all) = gmn.ymnc(2,all) * signhalf;
 
 chk = nc_inq_varid(ncid, "bsupumnc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: bsupumnc not found" << endl; EXIT;}			// get variable id
-chk = nc_get_var_double(ncid, varid, input.data());	// read
-bsupumn.ymnc.resize(nshalf, mnmax); 						// set size
+chk = nc_get_var_double(ncid, varid, input_nyq.data());	// read
+bsupumn.ymnc.resize(nshalf, mnmax_nyq); 						// set size
 bsupumn.ymnc.reindexSelf(index2);							// set indices
-bsupumn.ymnc = input.copy();							// move into place
+bsupumn.ymnc = input_nyq.copy();							// move into place
 bsupumn.ymnc(1,all) = bsupumn.ymnc(2,all) * signhalf;
 
 chk = nc_inq_varid(ncid, "bsupvmnc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: bsupvmnc not found" << endl; EXIT;}			// get variable id
-chk = nc_get_var_double(ncid, varid, input.data());	// read
-bsupvmn.ymnc.resize(nshalf, mnmax); 						// set size
+chk = nc_get_var_double(ncid, varid, input_nyq.data());	// read
+bsupvmn.ymnc.resize(nshalf, mnmax_nyq); 						// set size
 bsupvmn.ymnc.reindexSelf(index2);							// set indices
-bsupvmn.ymnc = input.copy();							// move into place
+bsupvmn.ymnc = input_nyq.copy();							// move into place
 bsupvmn.ymnc(1,all) = bsupvmn.ymnc(2,all) * signhalf;
 
 // read axis
@@ -992,13 +1028,14 @@ if(lasym)
 	zaxis_cc.resize(ntor+1);
 	chk = nc_inq_varid(ncid, "zaxis_cc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: zaxis_cc not found" << endl; EXIT;}
 	chk = nc_get_var_double(ncid, varid, zaxis_cc.data());
-	zaxis_cs.resize(ntor+1);
-	chk = nc_inq_varid(ncid, "zaxis_cs", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: zaxis_cs not found" << endl; EXIT;}
-	chk = nc_get_var_double(ncid, varid, zaxis_cs.data());
 }
 raxis_cc.resize(ntor+1);
 chk = nc_inq_varid(ncid, "raxis_cc", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: raxis_cc not found" << endl; EXIT;}
 chk = nc_get_var_double(ncid, varid, raxis_cc.data());
+zaxis_cs.resize(ntor+1);
+chk = nc_inq_varid(ncid, "zaxis_cs", &varid);
+if(chk!=0) zaxis_cs = 0;
+else chk = nc_get_var_double(ncid, varid, zaxis_cs.data());
 
 // read parameter
 chk = nc_inq_varid(ncid, "wb", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: wb not found" << endl; EXIT;}
@@ -1088,9 +1125,12 @@ if(lpot)
 	potsin.resize(mnmaxpot);
 	chk = nc_inq_varid(ncid, "potsin", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: potsin not found" << endl; EXIT;}
 	chk = nc_get_var_double(ncid, varid, potsin.data());
-	potcos.resize(mnmaxpot);
-	chk = nc_inq_varid(ncid, "potcos", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: potcos not found" << endl; EXIT;}
-	chk = nc_get_var_double(ncid, varid, potcos.data());
+	if(lasym)
+	{
+		potcos.resize(mnmaxpot);
+		chk = nc_inq_varid(ncid, "potcos", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: potcos not found" << endl; EXIT;}
+		chk = nc_get_var_double(ncid, varid, potcos.data());
+	}
 }
 
 // set S arrays
@@ -1190,7 +1230,8 @@ for(i=0;i<mnmaxpot;i++)
 {
 	if(n0only && xnpot(i) != 0) continue;	// only n = 0 modes
 	mu_nv = xmpot(i)*u - xnpot(i)*v;
-	out += potsin(i) * sin(mu_nv) + potcos(i) * cos(mu_nv);
+	out += potsin(i) * sin(mu_nv);
+	if(lasym) out += potcos(i) * cos(mu_nv);
 }
 return out;
 }
@@ -1213,10 +1254,17 @@ for(i=0;i<mnmaxpot;i++)
 	mu_nv = m*u - n*v;
 	sinuv = sin(mu_nv);
 	cosuv = cos(mu_nv);
-	out += potsin(i) * sinuv + potcos(i) * cosuv;
-	dpdu += m*(potsin(i) * cosuv - potcos(i) * sinuv);
-	dpdv += n*(-potsin(i) * cosuv + potcos(i) * sinuv);
-	dpdu += m*n*(potsin(i) * sinuv + potcos(i) * cosuv);
+	out += potsin(i) * sinuv;
+	dpdu += m*(potsin(i) * cosuv);
+	dpdv += -n*(potsin(i) * cosuv);
+	dpdu += m*n*(potsin(i) * sinuv);
+	if(lasym)
+	{
+		out += potcos(i) * cos(mu_nv);
+		dpdu += -m*(potcos(i) * sinuv);
+		dpdv += n*(potcos(i) * sinuv);
+		dpdu += m*n*(potcos(i) * cosuv);
+	}
 }
 return out;
 }
@@ -1263,9 +1311,10 @@ if(err > 0) cout << "VMEC Newton2D: no convergence; remaining error: " << err <<
 
 //------------------------- get_sincos ------------------------------------------------------------------------------------
 // precalculates sin(mu-nv) and cos(mu-nv)
-void VMEC::get_sincos(double u, double v, Array<double,1>& sinuv, Array<double,1>& cosuv)
+void VMEC::get_sincos(double u, double v, Array<double,1>& sinuv, Array<double,1>& cosuv, bool nyq)
 {
-rmn.get_sincos(u,v,sinuv,cosuv);
+if(nyq) gmn.get_sincos(u,v,sinuv,cosuv);
+else rmn.get_sincos(u,v,sinuv,cosuv);
 }
 
 //----------------------- Private Member Functions ------------------------------------------------------------------------
@@ -1280,17 +1329,17 @@ if(lasym)
 {
 	rmn.set("rmn", 0, ns, mnmax, xn, xm, S, n0only);
 	zmn.set("zmn", 0, ns, mnmax, xn, xm, S, n0only);
-	gmn.set("gmn", 0, nshalf, mnmax, xn, xm, Shalf, n0only);
-	bsupumn.set("bsupumn", 0, nshalf, mnmax, xn, xm, Shalf, n0only);
-	bsupvmn.set("bsupvmn", 0, nshalf, mnmax, xn, xm, Shalf, n0only);
+	gmn.set("gmn", 0, nshalf, mnmax_nyq, xn_nyq, xm_nyq, Shalf, n0only);
+	bsupumn.set("bsupumn", 0, nshalf, mnmax_nyq, xn_nyq, xm_nyq, Shalf, n0only);
+	bsupvmn.set("bsupvmn", 0, nshalf, mnmax_nyq, xn_nyq, xm_nyq, Shalf, n0only);
 }
 else
 {
 	rmn.set("rmnc", 1, ns, mnmax, xn, xm, S, n0only);
 	zmn.set("zmns", -1, ns, mnmax, xn, xm, S, n0only);
-	gmn.set("gmnc", 1, nshalf, mnmax, xn, xm, Shalf, n0only);
-	bsupumn.set("bsupumnc", 1, nshalf, mnmax, xn, xm, Shalf, n0only);
-	bsupvmn.set("bsupvmnc", 1, nshalf, mnmax, xn, xm, Shalf, n0only);
+	gmn.set("gmnc", 1, nshalf, mnmax_nyq, xn_nyq, xm_nyq, Shalf, n0only);
+	bsupumn.set("bsupumnc", 1, nshalf, mnmax_nyq, xn_nyq, xm_nyq, Shalf, n0only);
+	bsupvmn.set("bsupvmnc", 1, nshalf, mnmax_nyq, xn_nyq, xm_nyq, Shalf, n0only);
 }
 
 rmn.Vspline();
