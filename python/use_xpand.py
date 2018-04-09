@@ -1,3 +1,4 @@
+#!/usr/bin/env python2.7
 import sys,os
 import numpy as np
 import h5py
@@ -82,7 +83,7 @@ class xpand_class:
 	   xpand.heal_all(eps = 1)   # Heal all bad grid points
 
 	Write results back to file for distribution
-	   xpand.wite(filename)
+	   xpand.write(filename)
 	"""
 	def __init__(self, wout, Rmin = 1, Rmax = 2.4, NR = 2, Zmin = -1.5, Zmax = 1.5, 
 				 NZ = 2, pmin = 0, pmax = 2*np.pi, Np = 1):
@@ -633,9 +634,120 @@ def openNETCDF(Filename):
 				DATA[n] = data.variables[n][:]
 	return DATA
 
+# ----------------------------------------------------------------------------------------
 	
+def main(wout, Rmin = 1, Rmax = 2.4, NR = 2, Zmin = -1.5, Zmax = 1.5, 
+				 NZ = 2, pmin = 0, pmax = 2*np.pi, Np = 1, 
+				 file = None, angle = None):
+	xpand = xpand_class(wout, Rmin, Rmax, NR, Zmin, Zmax, NZ, pmin, pmax, Np)
+
+	if file is None: 
+		print 'Grid: R =',format(Rmin,' .3f'),' ->',format(Rmax,' .3f'),'\t   NR =',NR
+		print '    phi =',format(pmin,' .3f'),' ->',format(pmax,' .3f'),'\t Nphi =',Np
+		print '      Z =',format(Zmin,' .3f'),' ->',format(Zmax,' .3f'),'\t   NZ =',NZ
+		xpand.write_points()	# To write points.dat file for xpand run
+	else: 
+		xpand.load(file)	# To start, read results:
+ 
+ 		# Show fields for angle self.phi[k,0,0] and mark miscalculated grid points.
+		# Run several times to find the proper eps that identifies all the bad grid points and no more.
+		# Then heal them
+		if angle is None: heal = True
+		else:
+			heal = False
+			print 'Showing B-field for angle:', angle
+			k = int((angle%360)*xpand.Np/360.0)
+			xpand.view(k, eps = 1)
+			plt.show()
+		
+		# Heal all bad grid points
+		# Write results back to file for distribution
+		if heal: 
+			xpand.heal_all(eps = 1)
+			xpand.write(file[0:-4] + '_healed.dat')
+
 	
+# ----------------------------------------------------------------------------------------
+# --- Launch main() ----------------------------------------------------------------------
+if __name__ == '__main__':
+	import getopt
 	
+	Rmin = 1
+	Rmax = 2.4
+	NR = 128
+	Zmin = -1.5
+	Zmax = 1.5
+	NZ = 128
+	pmin = 0
+	pmax = 2*np.pi
+	Np = 1
+	file = None
+	angle = None	
+
+	opts, args = getopt.gnu_getopt(sys.argv[1:], "hr:z:p:f:a:", ["help", "Rgrid=", "Zgrid=", 
+																 "phigrid=", "file=", 
+																 "angle="])
+	for o, a in opts:
+		if o in ("-h", "--help"):
+			print "usage: use_xpand.py [-h] [-r Rgrid] [-z Zgrid] [-p Phigrid]"
+			print "                  [-f FILE] [-a ANGLE]"
+			print "                  wout-file"
+			print ""
+			print "Create Xpand points file and/or post-process Xpand output."
+			print "If -f file is given, grid is set by file data,"
+			print "and all possible damaged grid points are corrected."
+			print "If -f file is not given, points.dat file is created."
+			print "If -a angle is given, no correction action is done"
+			print ""
+			print "positional arguments:"
+			print "  wout-file             file name or (full or rel.) pathname of VMEC wout"
+			print ""
+			print "optional arguments:"
+			print "  -h, --help            show this help message and exit"
+			print "  -r, --Rgrid <Arg>     Set grid parameters for R. <Arg> = "
+			print "                        Rmin,Rmax,NR (no spaces)"
+			print "                        Defaults: 1,2.4,128"
+			print "                        If -f file is given, grid is set by file data."
+			print "  -z, --Zgrid <Arg>     Set grid parameters for Z. <Arg> = "
+			print "                        Zmin,Zmax,NZ (no spaces)"
+			print "                        Defaults: -1.5,1-5,128"
+			print "  -p, --phigrid <Arg>   Set grid parameters for toroidal angle phi. <Arg> = "
+			print "                        phimin,phimax,Nphi (no spaces)"
+			print "                        Keywords: pi and 2pi are possible for phimin and phimax"
+			print "                        Defaults: 0,2pi,1"
+			print "  -f, --file <Arg>      Filename of Xpand output to load."
+			print "                        If no angle is given, default action is to heal"
+			print "                        all possible damaged grid points."
+			print "                        Healed grid is returned in <file>_heald.dat"
+			print "                        If no file is given, points file is created."
+			print "  -a, --angle <Arg>     View results of Xpand at toroidal angle in degrees."
+			print "                        No healing action is done"
+			print ""
+			print "Examples: use_xpand.py -p 0,2pi,48 wout.nc"
+			print "          use_xpand.py -f xpand_result.dat wout.nc"
+			print "          use_xpand.py -f xpand_result.dat -a 10 wout.nc"
+			sys.exit()
+		elif o in ("-r", "--Rgrid"):
+			grid = a.split(',')
+			Rmin,Rmax,NR = (float(grid[0]), float(grid[1]), int(grid[2]))
+		elif o in ("-z", "--Zgrid"):
+			grid = a.split(',')
+			Zmin,Zmax,NZ = (float(grid[0]), float(grid[1]), int(grid[2]))
+		elif o in ("-p", "--phigrid"):
+			grid = a.split(',')
+			if grid[0] in ['pi']: grid[0] = np.pi
+			if grid[0] in ['2pi']: grid[0] = 2*np.pi
+			if grid[1] in ['pi']: grid[1] = np.pi
+			if grid[1] in ['2pi']: grid[1] = 2*np.pi
+			pmin,pmax,Np = (float(grid[0]), float(grid[1]), int(grid[2]))
+		elif o in ("-f", "--file"):
+			file = a
+		elif o in ("-a", "--angle"):
+			angle = float(a)
+		else:
+			raise AssertionError("unknown option")
+			
+	main(args[0], Rmin, Rmax, NR, Zmin, Zmax, NZ, pmin, pmax, Np, file, angle)	
 	
 	
 	
