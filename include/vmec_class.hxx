@@ -1298,15 +1298,29 @@ double err, Raxis, Zaxis;
 if((ustart == -1) || (sstart == -1)) get_axis(phi, Raxis, Zaxis);
 
 // set initial guesses
-if(ustart == -1) u = get_theta(R, Z, Raxis, Zaxis);
+if(ustart == -1)
+{
+	u = get_theta(R, Z, Raxis, Zaxis);
+	ustart = modulo2pi(u);
+}
 else u = ustart;
-if(sstart == -1) s = bisec(R, phi, Z, u, Raxis, Zaxis, 0, 1, imax);
+if(sstart == -1)
+{
+	s = bisec(R, phi, Z, u, Raxis, Zaxis, 0, 1, imax);
+	sstart = s;
+}
 else s = sstart;
 
 // run Newton
 u = modulo2pi(u);	// make sure u in [0, 2pi]
 err = newton2D(R,phi,Z,s,u);
-if(err > 0) cout << "VMEC Newton2D: no convergence; remaining error: " << err << endl;
+if((err > 0) || (s < 0) || (s > 1))
+{
+	s = 0.9; u = ustart;
+	err = newton2D(R,phi,Z,s,u);
+	if(err > 0) cout << "VMEC Newton2D: no convergence; remaining error: " << err << endl;
+	if((s < 0) || (s > 1)) cout << "VMEC Newton2D: warning, point outside of VMEC grid: s = " << s << endl;
+}
 }
 
 //------------------------- get_sincos ------------------------------------------------------------------------------------
@@ -1450,7 +1464,7 @@ public:
 	// Member-Functions
 	void set_VMEC(VMEC woutin);
 	void set_N(int Nin = 200);
-	void init(double phiin);
+	void init(double phiin, bool shalf = false);
 	bool check(double R, double Z);
 
 }; //end of class
@@ -1532,7 +1546,7 @@ d2r.resize(2*N);
 }
 
 //--------- init ----------------------------------------------------------------------------------------------------------
-void INSIDE_VMEC::init(double phiin)
+void INSIDE_VMEC::init(double phiin, bool shalf)
 {
 int i;
 double u, Rs, Zs;
@@ -1541,13 +1555,18 @@ phi = phiin;	// v = phi
 // magnetic axis
 wout.get_axis(phi, Raxis, Zaxis);
 
-// s = 1 surface; ra(N+1) = ra(1); tha(N+1) = tha(1) + pi2; tha & ra have length 2N
+// LCFS
+double s;
+if(shalf) s = wout.Shalf(wout.nshalf);
+else s = 1.0;
+
+// LCFS surface; ra(N+1) = ra(1); tha(N+1) = tha(1) + pi2; tha & ra have length 2N
 double thaold = 0;
 for(i=1;i<=N;i++)
 {
 	u = (i-1)*pi2/N;
-	Rs = wout.rmn.ev(1.0, u, phi);
-	Zs = wout.zmn.ev(1.0, u, phi);
+	Rs = wout.rmn.ev(s, u, phi);
+	Zs = wout.zmn.ev(s, u, phi);
 	ra(i) = wout.get_r(Rs, Zs, Raxis, Zaxis);
 	ra(N+i) = ra(i);
 	tha(i) = wout.get_theta(Rs, Zs, Raxis, Zaxis);

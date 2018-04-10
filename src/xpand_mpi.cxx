@@ -394,7 +394,7 @@ if(mpi_rank < 1)
 				ofs3 << "Node: " << mpi_rank << " works on Package: " << tag << endl;
 
 				// Prepare inside
-				inside.init(phi_old);
+				inside.init(phi_old,true);
 
 				for(i=1;i<=N_slave;i++)
 				{
@@ -404,7 +404,7 @@ if(mpi_rank < 1)
 					Z = points(idx,3);
 					if(phi != phi_old)
 					{
-						inside.init(phi);
+						inside.init(phi,true);
 						phi_old = phi;
 					}
 
@@ -482,7 +482,7 @@ if(mpi_rank < 1)
 		Z = points(i,3);
 		if(phi != phi_old)
 		{
-			inside.init(phi);
+			inside.init(phi,true);
 			phi_old = phi;
 		}
 
@@ -541,7 +541,7 @@ if(mpi_rank > 0)
 		Nmax_slave = send_N_limits(2);
 
 		// Prepare inside
-		inside.init(phi_old);
+		inside.init(phi_old,true);
 
 		for(i=1;i<=N_slave;i++)
 		{
@@ -551,7 +551,7 @@ if(mpi_rank > 0)
 			Z = points(idx,3);
 			if(phi != phi_old)
 			{
-				inside.init(phi);
+				inside.init(phi,true);
 				phi_old = phi;
 			}
 
