@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.7
 import sys,os
 import numpy as np
-import h5py
+#import h5py
 import scipy.interpolate as interp
 from netCDF4 import Dataset
 import pylab as plt
@@ -373,6 +373,7 @@ class xpand_class:
 		"save R, phi, Z, BR, Bphi, BZ in file; '.h5' creates hdf5; ascii otherwise"
 		# hdf5 file
 		if '.h5' in filename:
+			import h5py
 			# reverse phi direction to make it right handed increasing
 			R = self.R
 			v = self.phi
@@ -429,6 +430,7 @@ class xpand_class:
 	def load(self, filename = 'xpand.dat'):
 		"load R, phi, Z, BR, Bphi, BZ from file"
 		if '.h5' in filename:
+			import h5py
 			with h5py.File(filename, 'r') as f:
 				dset = f['R']; R = np.zeros((dset.shape)); dset.read_direct(R);
 				dset = f['phi']; v = np.zeros((dset.shape)); dset.read_direct(v);

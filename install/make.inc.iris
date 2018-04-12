@@ -1,0 +1,41 @@
+# ---- Folder ----
+MAFOT_DIR = /fusion/projects/codes/mafot/src
+BIN_DIR = /fusion/projects/codes/mafot/bin
+LIB_DIR = /fusion/projects/codes/mafot/lib
+
+# ---- Support codes ----
+# True or False
+M3DC1 = False
+VMEC = True
+SIESTA = True
+
+# ---- Compiler ----
+CXX = g++
+CFLAGS = -O3 -fPIC -std=c++11
+OMPFLAGS = -fopenmp -w
+
+F90 = gfortran
+F90FLAGS = -O3 -fPIC
+
+# ---- Linker ----
+ARCH = ar crus
+
+LDD = g++ --shared
+LDFLAGS =
+
+# ---- external Libraries ---- 
+BLITZLIBS = -L/fusion/projects/codes/mafot/lib/blitz/lib -lblitz
+FLIBS = -L/act/gcc-4.7.2/lib64 -lgfortran
+OMPLIBS = -L/act/openmpi-1.8/gcc/lib -lmpi -lmpi_cxx
+#M3DC1LIBS = -L/usr/local/m3dc1/lib -lfusionio -lm3dc1
+HDF5LIBS = -L/fusion/usc/opt/hdf5/hdf5-1.8.14-gxx-4.4.7-pgf-13.2/lib -lhdf5 -lz -Wl,-rpath,/fusion/usc/opt/hdf5/hdf5-1.8.14-gxx-4.4.7-pgf-13.2/lib -lstdc++
+NETCDFLIBS = -L/fusion/usc/opt/netcdf/netcdf-4.3.3.1-netcdff-4.4.2-gxx-4.4.7-pgf-13.2/lib -lnetcdf
+
+# ---- external Includes ----
+BLITZINCLUDE = -I/fusion/projects/codes/mafot/lib/blitz/include
+OMPINCLUDE = -I/act/openmpi-1.8/gcc/include -I/act/openmpi-1.8/gcc/include/openmpi
+#M3DC1INCLUDE = -I/usr/local/m3dc1/include
+NETCDFINCLUDE = -I/fusion/usc/opt/netcdf/netcdf-4.3.3.1-netcdff-4.4.2-gxx-4.4.7-pgf-13.2/include
+
+# ---- build GUI with python (optional) ----
+#PYINSTALLER = /usr/local/enthought/bin/pyinstaller

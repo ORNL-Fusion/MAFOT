@@ -130,15 +130,20 @@ else
 	@echo "-----------------------------------"
 	rm -f $(BIN_DIR)/mafot_gui.py
 	ln $(MAFOT_DIR)/python/mafot_gui.py $(BIN_DIR)/mafot_gui.py
+	chmod +x $(BIN_DIR)/mafot_gui.py
 endif
 
 .PHONY : xpand
-xpand : $(DIRS) xpand_mpi
+xpand : $(DIRS) xpand_mpi $(MAFOT_DIR)/python/use_xpand.py
+	rm -f $(BIN_DIR)/use_xpand.py
+	ln $(MAFOT_DIR)/python/use_xpand.py $(BIN_DIR)/use_xpand.py
+	chmod +x $(BIN_DIR)/use_xpand.py
 
 .PHONY : d3dplot
 d3dplot : $(MAFOT_DIR)/python/d3dplot.py
 	rm -f $(BIN_DIR)/d3dplot.py
 	ln $(MAFOT_DIR)/python/d3dplot.py $(BIN_DIR)/d3dplot.py
+	chmod +x $(BIN_DIR)/d3dplot.py
 
 libtrip3d.a : $(DIRS) $(FOBJS) 
 	$(ARCH) $(LIB_DIR)/$@ $(FOBJS)
