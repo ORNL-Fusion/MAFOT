@@ -278,6 +278,7 @@ int shot,time;
 readparfile_new(name,vec,shot,time,EQDr.Path);
 EQDr.Shot = LA_STRING(shot);
 EQDr.Time = LA_STRING(time);
+while(EQDr.Time.length() < 4) EQDr.Time = "0" + EQDr.Time;
 //if(vec.size()<22) {if(mpi_rank < 1) cout << "Fail to read all parameters, File incomplete" << endl; EXIT;}
 
 // private Variables
