@@ -50,7 +50,7 @@ extern "C"
 }
 
 // -------------- global Parameters ---------------------------------------------------------------------------------------
-double bndy[4] = {0.185, 1.57, -1.63, 1.63};	// Boundary Box: Rmin, Rmax, Zmin, Zmax	
+double bndy[4] = {0.28, 1.6, -1.63, 1.63};	// Boundary Box: Rmin, Rmax, Zmin, Zmax
 
 // extern
 #ifdef USE_SIESTA
