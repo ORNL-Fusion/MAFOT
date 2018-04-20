@@ -547,6 +547,7 @@ if(mpi_rank < 1)
 
 					// Integration terminates outside of boundary box
 					skip_connect = 0;
+					simpleBndy = 1;
 					if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true)
 					{
 						ntor = 0;
@@ -556,6 +557,7 @@ if(mpi_rank < 1)
 						psiav = 0;
 						skip_connect = 1;
 					}
+					simpleBndy = 0;
 
 					// Spare the calculation of the interior
 					if(spare_interior == 1 && FLT.psi <= psi_interior_limit && FLT.Z > -1.25)
@@ -710,6 +712,7 @@ if(mpi_rank > 0)
 
 			// Integration terminates outside of boundary box
 			skip_connect = 0;
+			simpleBndy = 1;
 			if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true)
 			{
 				ntor = 0;
@@ -719,6 +722,7 @@ if(mpi_rank > 0)
 				psiav = 0;
 				skip_connect = 1;
 			}
+			simpleBndy = 0;
 
 			// Spare the calculation of the interior
 			if(spare_interior == 1 && FLT.psi <= psi_interior_limit && FLT.Z > -1.25)
