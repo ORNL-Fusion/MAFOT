@@ -8,7 +8,11 @@
 
 // Include
 //--------
-#include <openmpi/ompi/mpi/cxx/mpicxx.h>
+#ifdef USE_MPICH
+	#include <mpi.h>
+#else
+	#include <openmpi/ompi/mpi/cxx/mpicxx.h>
+#endif
 #include <omp.h>
 #include <unistd.h>
 #include <andi.hxx>

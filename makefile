@@ -21,9 +21,10 @@ else
 endif
 
 
-# ---- Defines ----
-#D3DDEFS = -DD3D
-#CMODDEFS = -DCMOD
+# ---- Other Defines ----
+ifdef DEFS
+   DEFINES += $(DEFS)
+endif
 
 
 # ---- SIESTA support ----

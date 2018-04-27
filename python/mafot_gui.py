@@ -1073,30 +1073,56 @@ class common_tab(set_machine):	# inherit set_machine class
 		if(HOST == 'head.cluster'):		# Drop Cluster
 			self.write_qsub_file(data, self.tag.get(), shellFlags)
 			call('qsub run_MAFOTjob', shell = True)
-			#print 'qsub run_MAFOTjob'
+			#print 'To run, type: qsub run_MAFOTjob'
+		elif('iris' in HOST):			# Iris Cluster
+			self.write_qsub_file(data, self.tag.get(), shellFlags)
+			#call('sbatch ./mafot.sbatch', shell = True)
+			print 'To run, type: sbatch ./mafot.sbatch'			
 		else:
 			call(shellCall + shellFlags + ' &', shell = True)
 			#print 'running in dir:', os.getcwd()
-			#print shellCall + shellFlags + ' &'
+			#print 'To run, type: ' + shellCall + shellFlags + ' &'
 		if chk: os.chdir(cwd)
 
 
 	# --- Write qsub File on Drop Cluster ---
 	# here: shellFlags already embedded in shellCall
 	def write_common_qsub_file(self, tooltag, nproc, tag, shellCall, mpi = True):
-		with open('run_MAFOTjob', 'w') as f:
-			f.write('#$ -N ' + tooltag + tag.translate(None, '_+- ') + '\n')
-			f.write('#$ -cwd \n')
-			f.write('#$ -o ' + HOME + '/work/batch.out \n')
-			f.write('#$ -e ' + HOME + '/work/batch.err \n')
-			f.write('#$ -S /bin/bash \n')
-			f.write('#$ -V \n')
-			f.write('#$ -q all.q \n')
-			if mpi:
-				f.write('#$ -pe mpi ' + str(nproc) + ' \n')
-				f.write('source /etc/profile.d/modules.sh\n')
-				f.write('module load openmpi-1.6/gcc \n')
-			f.write(shellCall + '\n')
+		if(HOST == 'head.cluster'):		# Drop Cluster
+			with open('run_MAFOTjob', 'w') as f:
+				f.write('#$ -N ' + tooltag + tag.translate(None, '_+- ') + '\n')
+				f.write('#$ -cwd \n')
+				f.write('#$ -o ' + HOME + '/work/batch.out \n')
+				f.write('#$ -e ' + HOME + '/work/batch.err \n')
+				f.write('#$ -S /bin/bash \n')
+				f.write('#$ -V \n')
+				f.write('#$ -q all.q \n')
+				if mpi:
+					f.write('#$ -pe mpi ' + str(nproc) + ' \n')
+					f.write('source /etc/profile.d/modules.sh\n')
+					f.write('module load openmpi-1.6/gcc \n')
+				f.write(shellCall + '\n')
+		elif('iris' in HOST):			# Iris Cluster
+			import getpass
+			with open('mafot.sbatch', 'w') as f:
+				f.write('#!/bin/bash' + '\n')
+				f.write('#SBATCH -p preemptable' + '\n')
+				f.write('#SBATCH --job-name=mafot' + tooltag + tag.translate(None, '_+- ') + '\n')
+				f.write('#SBATCH -o batch_mafot.out' + '\n')
+				if mpi:
+					f.write('#SBATCH -n ' + str(nproc) + ' \n')
+				f.write('#SBATCH -t 120' + '\n')
+				f.write('#SBATCH --mem-per-cpu=1G' + '\n')
+				f.write('#SBATCH --mail-user=' + getpass.getuser() + '@fusion.gat.com' + '\n')
+				f.write('#SBATCH --mail-type=FAIL  ## or BEGIN,END,FAIL,ALL ' + '\n')
+				f.write('#SBATCH --export=ALL' + '\n')
+				f.write('##module purge' + '\n')
+				f.write('module load default-paths' + '\n')
+				f.write('module load mafot' + '\n')
+				f.write('module list' + '\n')
+				f.write(shellCall + '\n')
+		else:
+			print 'Unknown Host. No Queue submission file created'
 
 
 	# --- write common Control File parts ------------------------------------------------
