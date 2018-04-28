@@ -499,10 +499,9 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 		# show colorbar
 		C = plt.colorbar(cs, pad = 0.01, extend = 'both', format = '%.3g', ticks = myticks)
-		if 'Anaconda' in sys.version: C.set_label(C_label, rotation = 270, size = C_label_size, va = 'bottom')	# anaconda
-		elif (HOST == 'head.cluster'): C.set_label(C_label, rotation = 270, size = C_label_size, va = 'bottom') # Drop Cluster
-		else: C.set_label(C_label, rotation = 270, size = C_label_size)	# enthought
-		
+		if ('10-220-8-24' in HOST):: C.set_label(C_label, rotation = 270, size = C_label_size)	# Pegasus
+		else: C.set_label(C_label, rotation = 270, size = C_label_size, va = 'bottom')
+
 		# add SOL label in RZ plot and footprint
 		if(coordinates == 'RZ') | (coordinates == 'phi'): 
 			myticklabels = [str(item) for item in myticks]
