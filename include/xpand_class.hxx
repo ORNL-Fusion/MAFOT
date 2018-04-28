@@ -10,7 +10,11 @@
 // Include
 //--------
 #ifdef USE_MPI
+#ifdef USE_MPICH
+	#include <mpi.h>
+#else
 	#include <openmpi/ompi/mpi/cxx/mpicxx.h>
+#endif
 #endif
 #include <la_string.hxx>
 #include <fstream>

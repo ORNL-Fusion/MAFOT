@@ -162,7 +162,7 @@ $(DIRS) :
 # ---- Targets ----
 xpand_mpi : $(MAFOT_DIR)/src/xpand_mpi.cxx
 ifdef VMEC
-	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) -Dlinux $< -o $(OBJDIR)/xpand_mpi.o
+	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) $< -o $(OBJDIR)/xpand_mpi.o
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/xpand_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 else
 	@echo "-----------------------------------"
