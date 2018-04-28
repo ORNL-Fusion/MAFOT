@@ -122,17 +122,9 @@ structure : $(DIRS) dtstructure iterstructure nstxstructure maststructure cmodst
 
 .PHONY : gui
 gui : $(MAFOT_DIR)/python/mafot_gui.py
-ifdef PYINSTALLER
-	$(PYINSTALLER) -F --distpath=$(OBJDIR) --specpath=$(OBJDIR)/gui --workpath=$(OBJDIR)/gui $<
-	mv $(OBJDIR)/mafot_gui $(BIN_DIR)
-else
-	@echo "-----------------------------------"
-	@echo "PYINSTALLER not supported"
-	@echo "-----------------------------------"
 	rm -f $(BIN_DIR)/mafot_gui.py
 	ln $(MAFOT_DIR)/python/mafot_gui.py $(BIN_DIR)/mafot_gui.py
 	chmod +x $(BIN_DIR)/mafot_gui.py
-endif
 
 .PHONY : xpand
 xpand : $(DIRS) xpand_mpi $(MAFOT_DIR)/python/use_xpand.py
