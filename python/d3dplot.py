@@ -499,7 +499,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 		# show colorbar
 		C = plt.colorbar(cs, pad = 0.01, extend = 'both', format = '%.3g', ticks = myticks)
-		if ('10-220-8-24' in HOST):: C.set_label(C_label, rotation = 270, size = C_label_size)	# Pegasus
+		if ('10-220-8-24' in HOST): C.set_label(C_label, rotation = 270, size = C_label_size)	# Pegasus
 		else: C.set_label(C_label, rotation = 270, size = C_label_size, va = 'bottom')
 
 		# add SOL label in RZ plot and footprint
