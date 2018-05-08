@@ -218,7 +218,9 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			if not latex: C_label = '$L_{c}$ [km]'
 			else: C_label = '$L_{c}$ $\\mathrm{[km]}$'
 		#usecolormap = cm.jet	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = plt.cm.get_cmap(cmap)._segmentdata
+		#cdict = plt.cm.get_cmap(cmap)._segmentdata		# 'ListedColormap' do not have _segmentdata attribute
+		base = plt.cm.get_cmap(cmap)					# this method works on 'ListedColormap' and 'LinearSegmented'
+		cdict = base(np.linspace(0,1,len(b)))
 		
 	elif(what == 'psimin'):
 		if(b is None): b = np.linspace(0.88,1.02,N)
@@ -226,7 +228,9 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03c8' + '$_{Min}$'
 		else: C_label = '$\\psi_{Min}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = plt.cm.get_cmap(cmap_r)._segmentdata
+		#cdict = plt.cm.get_cmap(cmap_r)._segmentdata
+		base = plt.cm.get_cmap(cmap_r)
+		cdict = base(np.linspace(0,1,len(b)))
 
 	elif(what == 'psimax'):
 		if not use_psimaxav:
@@ -237,7 +241,9 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03c8' + '$_{Max}$'
 		else: C_label = '$\\psi_{Max}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = plt.cm.get_cmap(cmap_r)._segmentdata
+		#cdict = plt.cm.get_cmap(cmap_r)._segmentdata
+		base = plt.cm.get_cmap(cmap_r)
+		cdict = base(np.linspace(0,1,len(b)))
 		
 	elif(what == 'psiav'):
 		if not use_psimaxav:
@@ -248,7 +254,9 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03c8' + '$_{av}$'
 		else: C_label = '$\\psi_{av}$'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = plt.cm.get_cmap(cmap_r)._segmentdata
+		#cdict = plt.cm.get_cmap(cmap_r)._segmentdata
+		base = plt.cm.get_cmap(cmap_r)
+		cdict = base(np.linspace(0,1,len(b)))
 
 	elif(what == 'pitch'):
 		if not use_pitch_yaw:
@@ -259,7 +267,9 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03b1' + '$_{p}$ [deg]'
 		else: C_label = '$\\alpha_{p}$ [deg]'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = plt.cm.get_cmap(cmap)._segmentdata
+		#cdict = plt.cm.get_cmap(cmap)._segmentdata
+		base = plt.cm.get_cmap(cmap)
+		cdict = base(np.linspace(0,1,len(b)))
 
 	elif(what == 'yaw'):
 		if not use_pitch_yaw:
@@ -270,13 +280,17 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if not latex: C_label = u'\u03b1' + '$_{r}$  [deg]'
 		else: C_label = '$\\alpha_{r}$  [deg]'
 		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
-		cdict = plt.cm.get_cmap(cmap)._segmentdata
+		#cdict = plt.cm.get_cmap(cmap)._segmentdata
+		base = plt.cm.get_cmap(cmap)
+		cdict = base(np.linspace(0,1,len(b)))
 	
 	elif(what == 'None'):
 		b = np.zeros(N)
 		z = np.zeros(x.shape)
 		C_label = 'None'
-		cdict = plt.cm.get_cmap(cmap)._segmentdata
+		#cdict = plt.cm.get_cmap(cmap)._segmentdata
+		base = plt.cm.get_cmap(cmap)
+		cdict = base(np.linspace(0,1,len(b)))
 		
 	else: 
 		print 'what: Unknown input'
@@ -286,7 +300,8 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	if all(b == 0) & (not use_z_logscale): b = np.linspace(z[np.isfinite(z)].min(), z[np.isfinite(z)].max(), N)
 	
 	# set colormap based on b
-	usecolormap = LinearSegmentedColormap('my_cmap', cdict, len(b))
+	#usecolormap = LinearSegmentedColormap('my_cmap', cdict, len(b))
+	usecolormap = LinearSegmentedColormap.from_list('my_cmap', cdict, len(b))
 	
 	# correct for PFR
 	if('d3d' in machine): Lcmin = 0.075
