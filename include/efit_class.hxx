@@ -621,7 +621,8 @@ void EFIT::set3Dwall(LA_STRING wall_file)
 int i,k;
 LA_STRING line;
 int count = 0;
-int N,Nmax;
+int N,Nmax,Nangles;
+vector<string> words;
 
 // Input
 ifstream in;
@@ -646,10 +647,15 @@ for(i=1;i<=count;i++)	// Skip IO data rows
 }
 
 // Read data
-in >> Nmax;
-wall3D.resize(2*Nmax,360);
+in >> line;
+words = split(string(line));
+Nmax = atoi(words[0].c_str());
+if(words.size() > 1) Nangles = atoi(words[1].c_str());
+else Nangles = 360;
+Nwall3D.resize(Nangles);
+wall3D.resize(2*Nmax,Nangles);
 
-for(k=0;k<360;k++)
+for(k=0;k<Nangles;k++)
 {
 	in >> N;
 	Nwall3D(k) = N;

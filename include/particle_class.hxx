@@ -27,9 +27,10 @@
 #endif
 using namespace blitz;
 
-// extern Prototypes, defined in Machine-specific header
+// extern Prototypes, defined in mafot header
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 bool outofBndy(double phi, double x, double y, EFIT& EQD);
+bool outofBndyInBetween(double phi0, double x0, double y0, double phi1, double x1, double y1, EFIT& EQD);
 
 // Prototypes  
 void get_Energy(double psi, double& Enorm, double& dEnorm);
@@ -65,7 +66,7 @@ private:
 
 // Member-Functions
 	int dgls(double x, Array<double,1> y, Array<double,1>& dydx);
-	int rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x);
+	int rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate = false);
 	int rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout);
 	double bisec(double p, double th, double a, double b, int flag);
 
@@ -101,7 +102,7 @@ PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 	int get_psi(const double x1, const double x2, double& y, double p = 0);
 	void set_Energy();
 	int mapit(const int itt,int MapDirection=1);
-	int mapstep(int MapDirection=1, int nstep=ilt);
+	int mapstep(int MapDirection=1, int nstep=ilt, bool checkBndyInBetween = false);
 	int connect(double& ntor, double& length, double& psimintotal, double& psimaxtotal, double& psiavtotal, const int itt, int MapDirection=0);	// with psimax
 	int connect(double& ntor, double& length, double& psimintotal, const int itt, int MapDirection=0);						// without psimax (old version, kept for compatibility reasons)
 
@@ -336,7 +337,7 @@ return chk;
 }
 
 //---------------- mapstep ------------------------------------------------------------------------------------------------
-int PARTICLE::mapstep(int MapDirection, int nstep)
+int PARTICLE::mapstep(int MapDirection, int nstep, bool flag)
 {
 int chk;
 double phi_rad = phi/rTOd;	// phi in rad
@@ -346,9 +347,16 @@ Array<double,1> y(nvar); // Array to set initial conditions
 y(0) = R;
 y(1) = Z;
 
-// integrate one full toroidal turn
-chk = rkint(nvar,nstep,dphi,y,phi_rad);	
+// integrate nstep steps of dphi, default: nstep = 360, so one full toroidal turn
+chk = rkint(nvar,nstep,dphi,y,phi_rad,flag);
 if(chk<0) return -1;	// particle has left system
+
+// check if particle has left system during integration step
+if(flag)
+{
+	if(outofBndyInBetween(phi,R,Z,phi_rad*rTOd,y(0),y(1),EQDr)) return -1;
+	else return 0;
+}
 
 R = y(0);
 Z = y(1);
@@ -811,7 +819,7 @@ return 0;
 //Starting from initial values y[0..nvar-1] known at x=x1 use Runge-Kutta
 //to advance nstep equal increments to x2=x1+nstep*dx. The user-supplied routine dgls(x,v,dvdx)
 //evaluates derivatives. Results after nstep Steps are stored in y[0..nvar-1]
-int PARTICLE::rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x)
+int PARTICLE::rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate)
 {
 int k, chk;
 double x1 = x;	//Store first value (helps reduce Error in x)
@@ -829,6 +837,13 @@ for (k=1;k<=nstep;k++)
 
 	// Integration terminates outside of boundary box
 	if(outofBndy(x*rTOd,yout(0),yout(1),EQDr) == true) return -1;
+
+	// set additional Parameter or not
+	if(doNotUpdate)
+	{
+		y = yout;
+		continue;
+	}
 
 	// Get additional Parameter
 	Lc += sqrt((yout(0)-y(0))*(yout(0)-y(0)) + (yout(1)-y(1))*(yout(1)-y(1)) + 0.25*(yout(0)+y(0))*(yout(0)+y(0))*dx*dx);

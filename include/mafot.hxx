@@ -44,6 +44,7 @@
 void prepare_common_perturbations(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING siestafile = "siesta.dat", LA_STRING xpandfile = "xpand.dat",
 								  LA_STRING islandfile = "fakeIslands.in", LA_STRING filamentfile = "filament_all.in");
 bool outofBndy(double phi, double x, double y, EFIT& EQD);
+bool outofBndyInBetween(double phi0, double x0, double y0, double phi1, double x1, double y1, EFIT& EQD);
 bool outofRealBndy(double phi, double x, double y, EFIT& EQD);
 void point_along_wall(double swall, Array<double,1>& p, EFIT& EQD);
 double start_on_target(int i, int Np, int Nphi, double tmin, double tmax, double phimin, double phimax,
@@ -312,6 +313,35 @@ default:
 return false;
 }
 
+//------------ outofBndyInBetween -----------------------------------------------------------------------------------------
+// Check if line between (x0,y0) at phi0 and (x1,y1) at phi1 is out of the torus.
+// toroidal angles phi0 and phi1 are continuous (no modulo), in degrees and right-handed
+bool outofBndyInBetween(double phi0, double x0, double y0, double phi1, double x1, double y1, EFIT& EQD)
+{
+int i;
+double x,y,phi,t,step;
+int Nangle = EQD.Nwall3D.rows();
+double dphi = 360.0/double(Nangle);
+
+double delta = phi1 - phi0;
+int N = int(fabs(delta)/dphi);	// number of dphi steps in between
+int dir = sign(delta);
+
+for(i=1;i<=N;i++)
+{
+	step = i*dir*dphi;
+	t = step/delta;
+	phi = phi0 + step;
+	if((t<0) || (t>1)) cout << "Wrong R,Z point in outofBndyInBetween" << endl;
+	if((phi1 > phi0) && ((phi < phi0) || (phi > phi1))) cout << "Wrong phi angle in outofBndyInBetween: " << phi0 << "\t" << phi << "\t" << phi1 << endl;
+	if((phi1 < phi0) && ((phi > phi0) || (phi < phi1))) cout << "Wrong phi angle in outofBndyInBetween: " << phi1 << "\t" << phi << "\t" << phi0 << endl;
+	x = x0 + t*(x1-x0);
+	y = y0 + t*(y1-y0);
+	if(outofBndy(phi,x,y,EQD)) return true;
+}
+return false;
+}
+
 //------------ outofRealBndy ----------------------------------------------------------------------------------------------
 // Check if (x,y) is out of the torus. It uses the jordan curve theorem with 
 // additional detection if (x,y) is part of an edge. Edge is defined as inside
@@ -320,15 +350,25 @@ return false;
 bool outofRealBndy(double phi, double x, double y, EFIT& EQD)
 {
 int wn = 0;
-int Nwall,p;
+int Nwall,p,Nangle;
+double pd,dphi,phimod;
 Array<double,1> wall;
 Range all = Range::all();
 
 if(EQD.use_3Dwall) 	// use 3D wall
 {
-	p = int(phi + sign(phi)*0.5);	// round phi to nearest integer -> nearest neighbor approximation of 3D wall
-	p = p % 360;					// phi now between -359 and 359
-	if(p < 0) p += 360;				// phi is now between 0 and 359
+	Nangle = EQD.Nwall3D.rows();
+	dphi = 360.0/double(Nangle);
+	pd = phi/dphi;
+	p = int(pd + sign(pd)*0.5);		// round pd to nearest integer -> nearest neighbor approximation of 3D wall
+	p = p % Nangle;					// p now between -Nangle+1 and +Nangle-1
+	if(p < 0) p += Nangle;			// p is now between 0 and +Nangle-1
+
+	phimod = fmod(phi,double(360));
+	if(phimod < 0) phimod += 360;
+	if((p == 0) && (phimod > 360-dphi)) phimod -= 360;
+	if(fabs(p*dphi - phimod) > dphi) cout << "Warning, wrong 3D wall plane: " << p << "\t" << phi << endl;
+
 	Nwall = EQD.Nwall3D(p);
 	wall.reference(EQD.wall3D(all,p));
 }

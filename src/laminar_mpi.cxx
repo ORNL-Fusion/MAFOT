@@ -59,7 +59,7 @@ int mpi_size = MPI::COMM_WORLD.Get_size();
 // Variables
 EFIT EQD;
 int i,j;
-int chk,skip_connect;
+int chk,skip_connect,chk2;
 double ntor,length,psimin,psimax,psiav;
 double pitch,yaw;
 double xtmp,ytmp;
@@ -88,18 +88,18 @@ LA_STRING woutfile = "wout.nc";
 LA_STRING xpandfile = "xpand.dat";
 LA_STRING siestafile = "siesta.dat";
 LA_STRING islandfile = "fakeIslands.in";
-
+bool checkFistStep = false;
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:")) != -1)
+while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:c")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-l limit] [-s] [-A Raxis,Zaxis] [-I island] " << endl;
+		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-c] [-l limit] [-s] [-A Raxis,Zaxis] [-I island] " << endl;
 		cout << "                                       [-P points] [-S siesta] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
 		cout << "Calculate field line connection length and penetration depth in a poloidal cross-section." << endl << endl;
 		cout << "positional arguments:" << endl;
@@ -107,6 +107,7 @@ case 'h':
 		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 		cout << endl << "optional arguments:" << endl;
 		cout << "  -h            show this help message and exit" << endl;
+		cout << "  -c            check if field line crosses wall during first step; only with 3D wall, default = No" << endl;
 		cout << "  -l            flux limit for spare interior, default = 0.85" << endl;
 		cout << "  -s            spare calculation of interior, default = No" << endl;
 		cout << "  -A            force magnetic axis location, use: -A Raxis,Zaxis , default: use g-file" << endl;
@@ -135,6 +136,9 @@ case 'h':
 	}
 	MPI::Finalize();
 	return 0;
+case 'c':
+	checkFistStep = true;
+	break;
 case 's':
 	spare_interior = 1;
 	break;
@@ -256,10 +260,16 @@ if(use_inputPointsFile)
 // Read 3D wall file and add to EQD
 if(use_3Dwall)
 {
-	if(mpi_rank < 1) cout << "Using 3D wall from file: " << wall_file << endl;
+	if(mpi_rank < 1)
+	{
+		cout << "Using 3D wall from file: " << wall_file << endl;
+		if(checkFistStep) cout << "Checking wall crossings during first integration step" << endl;
+	}
 	ofs2 << "Using 3D wall from file: " << wall_file << endl;
+	if(checkFistStep) ofs2 << "Checking wall crossings during first integration step" << endl;
 	EQD.set3Dwall(wall_file);
 }
+else checkFistStep = false;
 
 // Set starting parameters
 int N_variables = 11;
@@ -549,18 +559,17 @@ if(mpi_rank < 1)
 						ytmp = FLT.psi;
 					}
 
-					// Integration terminates outside of boundary box
+					// set defaults
 					skip_connect = 0;
+					ntor = 0;
+					length = 0;
+					psimin = 10;
+					psimax = 0;
+					psiav = 0;
+
+					// Integration terminates outside of boundary box
 					simpleBndy = 1;
-					if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true)
-					{
-						ntor = 0;
-						length = 0;
-						psimin = 10;
-						psimax = 0;
-						psiav = 0;
-						skip_connect = 1;
-					}
+					if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true) skip_connect = 1;
 					simpleBndy = 0;
 
 					// Spare the calculation of the interior
@@ -576,6 +585,25 @@ if(mpi_rank < 1)
 
 					chk = pitch_angles(FLT.R, FLT.Z, FLT.phi/rTOd, pitch, yaw, EQD, PAR);
 					if(chk == -1) {pitch = 0; yaw = 0;}
+
+					// check if particle/field line left the system during the first integration step
+					// this does not update/change any FLT parameters
+					if(checkFistStep)
+					{
+						if(PAR.MapDirection == 0)
+						{
+							chk2 = FLT.mapstep(1, 1, true);		// one step in forward MapDirection
+							chk = FLT.mapstep(-1, 1, true);		// one step in backward MapDirection
+							if(chk + chk2 == -2) skip_connect = 1;
+						}
+						else
+						{
+							chk = FLT.mapstep(PAR.MapDirection, 1, true);	// one step in MapDirection
+							if(chk == -1) skip_connect = 1;
+						}
+						if ((fabs(results_all(tag,1,i) - FLT.R) > 0) || (fabs(results_all(tag,2,i) - FLT.Z) > 0) || (fabs(xtmp - FLT.phi) > 0))
+							cout << mpi_rank << "\t" << results_all(tag,1,i) - FLT.R << "\t" << results_all(tag,2,i) - FLT.Z << "\t" << xtmp - FLT.phi << "\t" << psimin << endl;
+					}
 
 					// Follow fieldline to walls
 					if(skip_connect == 0) chk = FLT.connect(ntor,length,psimin,psimax,psiav,PAR.itt,PAR.MapDirection);
@@ -714,18 +742,17 @@ if(mpi_rank > 0)
 				ytmp = FLT.psi;
 			}
 
-			// Integration terminates outside of boundary box
+			// set defaults
 			skip_connect = 0;
+			ntor = 0;
+			length = 0;
+			psimin = 10;
+			psimax = 0;
+			psiav = 0;
+
+			// Integration terminates outside of boundary box
 			simpleBndy = 1;
-			if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true)
-			{
-				ntor = 0;
-				length = 0;
-				psimin = 10;
-				psimax = 0;
-				psiav = 0;
-				skip_connect = 1;
-			}
+			if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true) skip_connect = 1;
 			simpleBndy = 0;
 
 			// Spare the calculation of the interior
@@ -742,7 +769,26 @@ if(mpi_rank > 0)
 			chk = pitch_angles(FLT.R, FLT.Z, FLT.phi/rTOd, pitch, yaw, EQD, PAR);
 			if(chk == -1) {pitch = 0; yaw = 0;}
 
-			// Follow fieldline to walls
+			// check if particle/field line left the system during the first integration step
+			// this does not update/change any FLT parameters
+			if(checkFistStep)
+			{
+				if(PAR.MapDirection == 0)
+				{
+					chk2 = FLT.mapstep(1, 1, true);		// one step in forward MapDirection
+					chk = FLT.mapstep(-1, 1, true);		// one step in backward MapDirection
+					if(chk + chk2 == -2) skip_connect = 1;
+				}
+				else
+				{
+					chk = FLT.mapstep(PAR.MapDirection, 1, true);	// one step in backward MapDirection
+					if(chk == -1) skip_connect = 1;
+				}
+				if ((fabs(results(1,i) - FLT.R) > 0) || (fabs(results(2,i) - FLT.Z) > 0) || (fabs(xtmp - FLT.phi) > 0))
+					cout << mpi_rank << "\t" << results(1,i) - FLT.R << "\t" << results(2,i) - FLT.Z << "\t" << xtmp - FLT.phi << "\t" << psimin << endl;
+			}
+
+			// Follow field line to wall
 			if(skip_connect == 0) chk = FLT.connect(ntor,length,psimin,psimax,psiav,PAR.itt,PAR.MapDirection);
 
 			// Store results
