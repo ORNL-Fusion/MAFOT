@@ -503,6 +503,18 @@ in.close();
 return row;
 }
 
+//-------------- split ----------------------------------------------
+// splits a line into words, splits at blanks or taps between the words
+// words are stored in vector object
+vector<string> split(string str)
+{
+stringstream sstr(str);
+vector<string> vstr;
+string a;
+while(sstr >> a) vstr.push_back(a);
+return vstr;
+}
+
 //----------------------- count_column -----------------------------------------------------------------------------------------
 // counts number of columns in file, separated by taps
 int count_column(char* name)
@@ -511,6 +523,7 @@ int i;
 int count = 0;
 int column = 1;
 LA_STRING line;
+vector<string> words;
 
 // read file
 ifstream in;
@@ -524,11 +537,9 @@ while(1)
 	if(line[1] == '#') {count += 1; continue;}
 	else break;
 }
-for(i=1;i<=int(line.length());i++)
-{
-	if(line[i] == '\t') column += 1;
-	//if(a[i]==cout.widen('\n')) break; // doesn't work!???!
-}
+
+words = split(string(line));
+column = words.size();
 
 in.close();	// nessecary to start reading at top of file again
 return column;
@@ -625,18 +636,6 @@ if(idum < 0) idum += IM;
 ans=AM*idum;		//Convert idum to a floating result.
 idum ^= MASK;		//Unmask before return.
 return ans;
-}
-
-//-------------- split ----------------------------------------------
-// splits a line into words, splits at blanks or taps between the words
-// words are stored in vector object
-vector<string> split(string str)
-{
-stringstream sstr(str);
-vector<string> vstr;
-string a;
-while(sstr >> a) vstr.push_back(a);
-return vstr;
 }
 
 #endif // ANDI_INCLUDED

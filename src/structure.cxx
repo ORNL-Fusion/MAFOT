@@ -44,7 +44,7 @@ inline double modulo(double x, double y);
 int main(int argc, char *argv[])
 {
 // Variables
-int i,j,k,chk;
+int i,j,k,chk,chk2,skip_connect;
 //double dummy;
 EFIT EQD;
 
@@ -64,15 +64,16 @@ LA_STRING siestafile = "siesta.dat";
 LA_STRING islandfile = "fakeIslands.in";
 bool use_3Dwall = false;
 LA_STRING wall_file = "none";
+bool checkFistStep = false;
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hafd:P:X:V:S:I:W:")) != -1)
+while ((c = getopt(argc, argv, "hafd:P:X:V:S:I:W:c")) != -1)
 switch (c)
 {
 case 'h':
-	cout << "usage: dtstructure [-h] [-a] [-d step] [-f] [-I island] [-P points] [-S siesta] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
+	cout << "usage: dtstructure [-h] [-a] [-c] [-d step] [-f] [-I island] [-P points] [-S siesta] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
 	cout << "Trace field lines in 3D and return the path every step d in toroidal angle." << endl << endl;
 	cout << "positional arguments:" << endl;
 	cout << "  file          Contol file (starts with '_')" << endl;
@@ -80,6 +81,7 @@ case 'h':
 	cout << endl << "optional arguments:" << endl;
 	cout << "  -h            show this help message and exit" << endl;
 	cout << "  -a            output angle in DIII-D angle (left-handed) in degrees, default = radiants and right-handed," << endl;
+	cout << "  -c            check if field line crosses wall during first step; only with 3D wall, default = No" << endl;
 	cout << "  -d            step size for output, default = 10 degrees" << endl;
 	cout << "  -f            create filament.in file, default = No" << endl;
 	cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
@@ -107,6 +109,9 @@ case 'h':
 	return 0;
 case 'a':
 	angleInDeg = true;
+	break;
+case 'c':
+	checkFistStep = true;
 	break;
 case 'd':
 	nstep = atoi(optarg);
@@ -201,6 +206,7 @@ if(use_3Dwall)
 	ofs2 << "Using 3D wall from file: " << wall_file << endl;
 	EQD.set3Dwall(wall_file);
 }
+else checkFistStep = false;
 
 // Set starting parameters
 double dphi = nstep*dpinit;		// in deg;  dpinit = 1.0 (default)
@@ -228,6 +234,7 @@ if(usePointfile)
 {
 	// points in file are:    R[m]		phi[deg] (right-handed angle)	Z[m]
 	inputPoints_columns = count_column(pointname);
+	if(inputPoints_columns < 3) {cout << "Less than 3 columns of data in points file. -> Abort!" << endl; EXIT;}
 	readfile(pointname,inputPoints_columns,initial);
 	PAR.N = initial.rows();
 	PAR.pv[5].wert = PAR.N;
@@ -284,6 +291,29 @@ for(i=1;i<=PAR.N;i++)
 	FLT.phi = PAR.phistart;
 	FLT.get_psi(FLT.R,FLT.Z,FLT.psi);
 	if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin);}
+
+
+	// check if particle/field line left the system during the first integration step
+	// this does not update/change any FLT parameters
+	skip_connect = 0;
+	if(checkFistStep)
+	{
+		if(PAR.MapDirection == 0)
+		{
+			chk2 = FLT.mapstep(1, 1, true);		// one step in forward MapDirection
+			chk = FLT.mapstep(-1, 1, true);		// one step in backward MapDirection
+			if(chk + chk2 == -2) skip_connect = 1;
+		}
+		else
+		{
+			chk = FLT.mapstep(PAR.MapDirection, 1, true);	// one step in backward MapDirection
+			if(chk == -1) skip_connect = 1;
+		}
+		if ((fabs(initial(i,1) - FLT.R) > 0) || (fabs(initial(i,3) - FLT.Z) > 0) || (fabs(initial(i,2) - FLT.phi) > 0))
+			cout << initial(i,1) - FLT.R << "\t" << initial(i,3) - FLT.Z << "\t" << initial(i,2) - FLT.phi << endl;
+		cout << "Field line exits during first step (0 = No, 1 = Yes): " << skip_connect << endl;
+	}
+
 
 	// negative direction
 	if(PAR.MapDirection <= 0)
