@@ -254,7 +254,7 @@ if(use_inputPointsFile)
 	ofs2 << "Using Points from file: " << inputPoints_file << endl;
 	inputPoints_columns = count_column(inputPoints_file);
 	readfile(inputPoints_file, inputPoints_columns, inputPoints);
-	PAR.create_flag = 0;	// set to "setRZ" mode by default
+	//PAR.create_flag = 0;	// set to "setRZ" mode by default
 }
 
 // Read 3D wall file and add to EQD
@@ -337,6 +337,7 @@ if(mpi_rank < 1)
 	PAR.pv[9].name = "energy ratio lambda";	PAR.pv[9].wert = PAR.lambda;
 	PAR.pv[10].name = "Ekin";			PAR.pv[10].wert = PAR.Ekin;
 
+	if(PAR.create_flag == 2) {PAR.pv[1].name = "phi-grid"; PAR.pv[1].wert = PAR.Nphi; PAR.pv[2].name = "Swall-grid"; PAR.pv[2].wert = PAR.Nt; PAR.pv[3].name = "Smin"; PAR.pv[4].name = "Smax"; PAR.pv[5].name = "phimin"; PAR.pv[6].name = "phimax";}
 	if(PAR.create_flag == 3) {PAR.pv[1].name = "psi-grid"; PAR.pv[2].name = "theta-grid"; PAR.pv[3].name = "psimin"; PAR.pv[4].name = "psimax"; PAR.pv[5].name = "thetamin"; PAR.pv[6].name = "thetamax";}
 	if(PAR.create_flag == 6) {PAR.pv[1].name = "theta-grid"; PAR.pv[2].name = "phi-grid"; PAR.pv[3].name = "thetamin"; PAR.pv[4].name = "thetamax"; PAR.pv[5].name = "phimin"; PAR.pv[6].name = "phimax"; PAR.pv[7].name = "psi surface";}
 
