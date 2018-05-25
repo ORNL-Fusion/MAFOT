@@ -26,6 +26,8 @@ class Common_gui:
 		self.previousPath = None
 		self.translateMachFlag = {'dt':'DIII-D', 'iter':'ITER', 'nstx':'NSTX', 
 									'mast':'MAST', 'cmod':'C-Mod'}
+		self.labelFont = None
+		self.textFont = None
 	
 		okayCommand = self.frame.register(self.isOkay)
 		notOkayCommand = self.frame.register(self.isNotOkay)
@@ -288,6 +290,8 @@ class set_machine():
 		self.gPath = M.gPath
 		self.path = M.path
 		self.translateMachFlag = M.translateMachFlag
+		self.labelFont = None
+		self.textFont = None
 
 
 	def define_machine_elements(self):
@@ -298,19 +302,19 @@ class set_machine():
 		self.useBcoil = tk.IntVar()
 
 		# --- 3D Fields Label ---
-		self.machine_3D_Label = tk.Label(self.frame)
+		self.machine_3D_Label = tk.Label(self.frame, font = self.labelFont)
 		# --- Icoil checkbox ---
-		self.machine_3D_chk1 = tk.Checkbutton(self.frame, variable = self.useIcoil)
+		self.machine_3D_chk1 = tk.Checkbutton(self.frame, variable = self.useIcoil, font = self.labelFont)
 		# --- Ccoil checkbox ---
-		self.machine_3D_chk2 = tk.Checkbutton(self.frame, variable = self.useCcoil)
+		self.machine_3D_chk2 = tk.Checkbutton(self.frame, variable = self.useCcoil, font = self.labelFont)
 		# --- Error Fields Label ---
-		self.machine_ef_Label = tk.Label(self.frame)
+		self.machine_ef_Label = tk.Label(self.frame, font = self.labelFont)
 		# --- useEF checkbox ---
-		self.machine_ef_chk1 = tk.Checkbutton(self.frame, variable = self.useFcoil)
+		self.machine_ef_chk1 = tk.Checkbutton(self.frame, variable = self.useFcoil, font = self.labelFont)
 		# --- useBus checkbox ---
-		self.machine_ef_chk2 = tk.Checkbutton(self.frame, variable = self.useBus)
+		self.machine_ef_chk2 = tk.Checkbutton(self.frame, variable = self.useBus, font = self.labelFont)
 		# --- Bcoil checkbox ---
-		self.machine_ef_chk3 = tk.Checkbutton(self.frame, variable = self.useBcoil)
+		self.machine_ef_chk3 = tk.Checkbutton(self.frame, variable = self.useBcoil, font = self.labelFont)
 
 
 	def set_machine_elements(self, MachFlag, row = 10):
@@ -538,6 +542,8 @@ class common_tab(set_machine):	# inherit set_machine class
 		self.tag = M.tag
 		self.path = M.path
 		self.translateMachFlag = M.translateMachFlag
+		self.labelFont = None
+		self.textFont = None
 
 
 	def set_MinMax_elements(self, row):
@@ -549,20 +555,20 @@ class common_tab(set_machine):	# inherit set_machine class
 		self.Ny = tk.StringVar(); 
 		
 		# Min
-		self.xmin_entry = tk.Entry(self.frame, width = 17, textvariable = self.xmin)
+		self.xmin_entry = tk.Entry(self.frame, width = 17, textvariable = self.xmin, font = self.textFont)
 		self.xmin_entry.grid(column = 2, row = row, columnspan = 2)
-		tk.Label(self.frame, text = "  Min").grid(column = 2, row = row, sticky = tk.W )
+		tk.Label(self.frame, text = "  Min", font = self.labelFont).grid(column = 2, row = row, sticky = tk.W )
 		
 		# Max
-		self.xmax_entry = tk.Entry(self.frame, width = 17, textvariable = self.xmax)
+		self.xmax_entry = tk.Entry(self.frame, width = 17, textvariable = self.xmax, font = self.textFont)
 		self.xmax_entry.grid(column = 4, row = row, columnspan = 2)
-		tk.Label(self.frame, text = "Max").grid(column = 4, row = row, sticky = tk.W )
+		tk.Label(self.frame, text = "Max", font = self.labelFont).grid(column = 4, row = row, sticky = tk.W )
 
 		# Nx -> Nth
 		row += 1
-		self.Nx_entry = tk.Entry(self.frame, width = 17, textvariable = self.Nx)
+		self.Nx_entry = tk.Entry(self.frame, width = 17, textvariable = self.Nx, font = self.textFont)
 		self.Nx_entry.grid(column = 2, row = row, columnspan = 2)
-		tk.Label(self.frame, text = "     #").grid(column = 2, row = row, sticky = tk.W )
+		tk.Label(self.frame, text = "     #", font = self.labelFont).grid(column = 2, row = row, sticky = tk.W )
 		
 		self.pi_text = tk.Text(self.frame, height= 1, width = 30, bd  = 0, takefocus = 0, bg = self.frame.cget('bg'), relief = tk.FLAT)
 		self.pi_text.grid(column = 4, row = row, columnspan = 2); self.pi_row = row
@@ -572,46 +578,45 @@ class common_tab(set_machine):	# inherit set_machine class
 		row += 1
 		
 		# Min
-		self.ymin_entry = tk.Entry(self.frame, width = 17, textvariable = self.ymin)
+		self.ymin_entry = tk.Entry(self.frame, width = 17, textvariable = self.ymin, font = self.textFont)
 		self.ymin_entry.grid(column = 2, row = row, columnspan = 2 )
-		tk.Label(self.frame, text = "  Min").grid(column = 2, row = row, sticky = tk.W )
+		tk.Label(self.frame, text = "  Min", font = self.labelFont).grid(column = 2, row = row, sticky = tk.W )
 
 		# Max
-		self.ymax = tk.StringVar(); 
-		self.ymax_entry = tk.Entry(self.frame, width = 17, textvariable = self.ymax)
+		self.ymax_entry = tk.Entry(self.frame, width = 17, textvariable = self.ymax, font = self.textFont)
 		self.ymax_entry.grid(column = 4, row = row, columnspan = 2 )
-		tk.Label(self.frame, text = "Max").grid(column = 4, row = row, sticky = tk.W )
+		tk.Label(self.frame, text = "Max", font = self.labelFont).grid(column = 4, row = row, sticky = tk.W )
 
 		# Ny -> Nr
-		self.Ny = tk.StringVar(); row += 1
-		self.Ny_entry = tk.Entry(self.frame, width = 17, textvariable = self.Ny)
+		row += 1
+		self.Ny_entry = tk.Entry(self.frame, width = 17, textvariable = self.Ny, font = self.textFont)
 		self.Ny_entry.grid(column = 2, row = row, columnspan = 2 )
-		tk.Label(self.frame, text = "     #").grid(column = 2, row = row, sticky = tk.W )
+		tk.Label(self.frame, text = "     #", font = self.labelFont).grid(column = 2, row = row, sticky = tk.W )
 
 
 	def set_toroidatTurn_element(self, row):
 		# --- toroidal turns ---
 		self.itt = tk.StringVar()
-		tk.Entry(self.frame, width = 7, textvariable = self.itt).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Label(self.frame, text = "tor. Iterations").grid(column = 1, row = row, sticky = tk.E )
+		tk.Entry(self.frame, width = 7, textvariable = self.itt, font = self.textFont).grid(column = 2, row = row, sticky = tk.W + tk.E )
+		tk.Label(self.frame, text = "tor. Iterations", font = self.labelFont).grid(column = 1, row = row, sticky = tk.E )
 		return row + 1
 	
 
 	def set_phistart_element(self, row):
 		# --- phistart ---
 		self.phistart = tk.StringVar()
-		tk.Entry(self.frame, width = 7, textvariable = self.phistart).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Label(self.frame, text = "tor. Angle [deg]").grid(column = 1, row = row, sticky = tk.E )
-		tk.Label(self.frame, text = "For Machine coord. use negative angles").grid(column = 3, row = row, columnspan = 3, sticky = tk.W )
+		tk.Entry(self.frame, width = 7, textvariable = self.phistart, font = self.textFont).grid(column = 2, row = row, sticky = tk.W + tk.E )
+		tk.Label(self.frame, text = "tor. Angle [deg]", font = self.labelFont).grid(column = 1, row = row, sticky = tk.E )
+		tk.Label(self.frame, text = "For Machine coord. use negative angles", font = self.labelFont).grid(column = 3, row = row, columnspan = 3, sticky = tk.W )
 		return row + 1
 
 
 	def set_MapDirection_element(self, row, state = tk.NORMAL):
 		self.MapDirection = tk.IntVar()
-		tk.Radiobutton(self.frame, text = '+1', variable = self.MapDirection, value = 1, state = state).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(self.frame, text = '-1', variable = self.MapDirection, value = -1, state = state).grid(column = 3, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(self.frame, text = 'both', variable = self.MapDirection, value = 0, state = state).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		tk.Label(self.frame, text = "Map Direction").grid(column = 1, row = row, sticky = tk.E )
+		tk.Radiobutton(self.frame, text = '+1', variable = self.MapDirection, value = 1, state = state, font = self.labelFont).grid(column = 2, row = row, sticky = tk.W + tk.E )
+		tk.Radiobutton(self.frame, text = '-1', variable = self.MapDirection, value = -1, state = state, font = self.labelFont).grid(column = 3, row = row, sticky = tk.W + tk.E )
+		tk.Radiobutton(self.frame, text = 'both', variable = self.MapDirection, value = 0, state = state, font = self.labelFont).grid(column = 4, row = row, sticky = tk.W + tk.E )
+		tk.Label(self.frame, text = "Map Direction", font = self.labelFont).grid(column = 1, row = row, sticky = tk.E )
 		return row + 1
 		
 		
@@ -631,47 +636,47 @@ class common_tab(set_machine):	# inherit set_machine class
 		self.specialFieldFile3 = tk.StringVar()
 
 		# --- separator ---
-		separator2 = tk.Label(self.frame, text = "---------------------------------------------------------------------------------------")
+		separator2 = tk.Label(self.frame, text = "---------------------------------------------------------------------------------------", font = self.labelFont)
 		separator2.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- magnetic field ---
 		row += 1
 		tk.Radiobutton(self.frame, text = 'g-file Vacuum', variable = self.selectField, value = -1,
-			command = self.activate_response).grid(column = 2, row = row, sticky = tk.W + tk.E )
+			command = self.activate_response, font = self.labelFont).grid(column = 2, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(self.frame, width = 8, text = 'M3D-C1', variable = self.selectField, value = 0,
-			command = self.activate_response).grid(column = 3, row = row, sticky = tk.W + tk.E )
+			command = self.activate_response, font = self.labelFont).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(self.frame, text = 'VMEC', variable = self.selectField, value = -3,
-			command = self.activate_response).grid(column = 4, row = row, sticky = tk.W + tk.E )
+			command = self.activate_response, font = self.labelFont).grid(column = 4, row = row, sticky = tk.W + tk.E )
 		rb = tk.Radiobutton(self.frame, width = 9, text = 'SIESTA', variable = self.selectField, value = -2,
-			command = self.activate_response)
+			command = self.activate_response, font = self.labelFont)
 		rb.grid(column = 5, row = row, sticky = tk.W + tk.E )
-		tk.Label(self.frame, text = "Field").grid(column = 1, row = row, sticky = tk.E )
+		tk.Label(self.frame, text = "Field", font = self.labelFont).grid(column = 1, row = row, sticky = tk.E )
 		if not self.SIESTA: rb.configure(state = tk.DISABLED)
 
 		# --- M3DC1 ---
 		row += 1; self.row_M3DC1 = row
-		self.useM3DC1_R1 = tk.Radiobutton(self.frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0)
+		self.useM3DC1_R1 = tk.Radiobutton(self.frame, text = 'Equilibrium', variable = self.useM3DC1, value = 0, font = self.labelFont)
 		self.useM3DC1_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.useM3DC1_R2 = tk.Radiobutton(self.frame, text = 'Pert.', variable = self.useM3DC1, value = 1)
+		self.useM3DC1_R2 = tk.Radiobutton(self.frame, text = 'Pert.', variable = self.useM3DC1, value = 1, font = self.labelFont)
 		self.useM3DC1_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-		self.useM3DC1_R3 = tk.Radiobutton(self.frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2)
+		self.useM3DC1_R3 = tk.Radiobutton(self.frame, text = 'Eq + Pert', variable = self.useM3DC1, value = 2, font = self.labelFont)
 		self.useM3DC1_R3.grid(column = 4, row = row, sticky = tk.W + tk.E )
-		self.useM3DC1_label = tk.Label(self.frame, text = "use M3DC1")
+		self.useM3DC1_label = tk.Label(self.frame, text = "use M3DC1", font = self.labelFont)
 		self.useM3DC1_label.grid(column = 1, row = row, sticky = tk.E )
 
 		row += 1
-		self.response_R1 = tk.Radiobutton(self.frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response)
+		self.response_R1 = tk.Radiobutton(self.frame, text = 'Off', variable = self.resp, value = 0, command = self.make_response, font = self.labelFont)
 		self.response_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.response_R2 = tk.Radiobutton(self.frame, text = 'On', variable = self.resp, value = 1, command = self.make_response)
+		self.response_R2 = tk.Radiobutton(self.frame, text = 'On', variable = self.resp, value = 1, command = self.make_response, font = self.labelFont)
 		self.response_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-		self.response_label = tk.Label(self.frame, text = "Plasma response")
+		self.response_label = tk.Label(self.frame, text = "Plasma response", font = self.labelFont)
 		self.response_label.grid(column = 1, row = row, sticky = tk.E )
 
 		self.nresp.set('0');
 		self.nresp_entry = tk.Entry(self.frame, width = 4, textvariable = self.nresp, validate = 'all',
-        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand)
+        	validatecommand = (okayCommand, '%P'), invalidcommand = notOkayCommand, font = self.textFont)
 		self.nresp_entry.grid(column = 4, row = row, sticky = tk.E)
-		self.nresp_label = tk.Label(self.frame, text = "       Time")
+		self.nresp_label = tk.Label(self.frame, text = "       Time", font = self.labelFont)
 		self.nresp_label.grid(column = 4, row = row, sticky = tk.W )
 
 		# --- VMEC ---
@@ -679,9 +684,9 @@ class common_tab(set_machine):	# inherit set_machine class
 		#self.specialFieldFile1_entry = tk.Entry(self.frame, width = 10, textvariable = self.specialFieldFile1, 
 		#	validate = 'focusout', validatecommand = (fileFound, '%d','%P'))
 		self.specialFieldFile1_entry = AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
-				width = 50, textvariable = self.specialFieldFile1)
+				width = 50, textvariable = self.specialFieldFile1, font = self.textFont)
 		self.specialFieldFile1_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W)
-		self.specialFieldFile1_label = tk.Label(self.frame, text = "VMEC wout: ")
+		self.specialFieldFile1_label = tk.Label(self.frame, text = "VMEC wout: ", font = self.labelFont)
 		self.specialFieldFile1_label.grid(column = 1, row = row, sticky = tk.E )
 		#self.specialFieldFile1_entry.bind('<Return>', lambda event: self.file_Found(event,self.specialFieldFile1.get()))
 		
@@ -690,9 +695,9 @@ class common_tab(set_machine):	# inherit set_machine class
 		#self.specialFieldFile2_entry = tk.Entry(self.frame, width = 10, textvariable = self.specialFieldFile2, 
 		#	validate = 'focusout', validatecommand = (fileFound, '%d','%P'))
 		self.specialFieldFile2_entry = AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
-				width = 50, textvariable = self.specialFieldFile2)
+				width = 50, textvariable = self.specialFieldFile2, font = self.textFont)
 		self.specialFieldFile2_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W)
-		self.specialFieldFile2_label = tk.Label(self.frame, text = "Xpand data: ")
+		self.specialFieldFile2_label = tk.Label(self.frame, text = "Xpand data: ", font = self.labelFont)
 		self.specialFieldFile2_label.grid(column = 1, row = row, sticky = tk.E )
 		#self.specialFieldFile2_entry.bind('<Return>', lambda event: self.file_Found(event,self.specialFieldFile2.get()))
 
@@ -701,9 +706,9 @@ class common_tab(set_machine):	# inherit set_machine class
 		#self.specialFieldFile3_entry = tk.Entry(self.frame, width = 10, textvariable = self.specialFieldFile3, 
 		#	validate = 'focusout', validatecommand = (fileFound, '%d','%P'))
 		self.specialFieldFile3_entry = AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
-				width = 50, textvariable = self.specialFieldFile3)
+				width = 50, textvariable = self.specialFieldFile3, font = self.textFont)
 		self.specialFieldFile3_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W)
-		self.specialFieldFile3_label = tk.Label(self.frame, text = "SIESTA data: ")
+		self.specialFieldFile3_label = tk.Label(self.frame, text = "SIESTA data: ", font = self.labelFont)
 		self.specialFieldFile3_label.grid(column = 1, row = row, sticky = tk.E )
 		#self.specialFieldFile3_entry.bind('<Return>', lambda event: self.file_Found(event,self.specialFieldFile3.get()))
 
@@ -719,47 +724,47 @@ class common_tab(set_machine):	# inherit set_machine class
 		self.nproc = tk.StringVar()
 
 		# --- separator ---
-		separator3 = tk.Label(self.frame, text = "---------------------------------------------------------------------------------------")
+		separator3 = tk.Label(self.frame, text = "---------------------------------------------------------------------------------------", font = self.labelFont)
 		separator3.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- particles ---
 		row += 1
 		tk.Radiobutton(self.frame, text = 'Field lines', variable = self.sigma, value = 0, 
-			command = self.show_particle_params).grid(column = 2, row = row, sticky = tk.W + tk.E + tk.N)
+			command = self.show_particle_params, font = self.labelFont).grid(column = 2, row = row, sticky = tk.W + tk.E + tk.N)
 		tk.Radiobutton(self.frame, text = 'Co pass', variable = self.sigma, value = 1,
-			command = self.show_particle_params).grid(column = 3, row = row, sticky = tk.W + tk.E + tk.N)
+			command = self.show_particle_params, font = self.labelFont).grid(column = 3, row = row, sticky = tk.W + tk.E + tk.N)
 		tk.Radiobutton(self.frame, text = 'Counter pass', variable = self.sigma, value = -1,
-			command = self.show_particle_params).grid(column = 4, row = row, sticky = tk.W + tk.E + tk.N)
-		tk.Label(self.frame, text = "Orbits").grid(column = 1, row = row, sticky = tk.E + tk.N)
+			command = self.show_particle_params, font = self.labelFont).grid(column = 4, row = row, sticky = tk.W + tk.E + tk.N)
+		tk.Label(self.frame, text = "Orbits", font = self.labelFont).grid(column = 1, row = row, sticky = tk.E + tk.N)
 
 		row += 1; self.row_particle = row
-		self.charge_R1 = tk.Radiobutton(self.frame, text = 'Electrons', variable = self.charge, value = -1)
+		self.charge_R1 = tk.Radiobutton(self.frame, text = 'Electrons', variable = self.charge, value = -1, font = self.labelFont)
 		self.charge_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.charge_R2 = tk.Radiobutton(self.frame, text = 'Ions', variable = self.charge, value = 1)
+		self.charge_R2 = tk.Radiobutton(self.frame, text = 'Ions', variable = self.charge, value = 1, font = self.labelFont)
 		self.charge_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-		self.charge_label = tk.Label(self.frame, text = "Species")
+		self.charge_label = tk.Label(self.frame, text = "Species", font = self.labelFont)
 		self.charge_label.grid(column = 1, row = row, sticky = tk.E )
 
 		row += 1
-		self.Ekin_entry = tk.Entry(self.frame, width = 7, textvariable = self.Ekin)
+		self.Ekin_entry = tk.Entry(self.frame, width = 7, textvariable = self.Ekin, font = self.textFont)
 		self.Ekin_entry.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.Ekin_label = tk.Label(self.frame, text = "kin Energy [keV]")
+		self.Ekin_label = tk.Label(self.frame, text = "kin Energy [keV]", font = self.labelFont)
 		self.Ekin_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.Lambda_entry = tk.Entry(self.frame, width = 7, textvariable = self.Lambda)
+		self.Lambda_entry = tk.Entry(self.frame, width = 7, textvariable = self.Lambda, font = self.textFont)
 		self.Lambda_entry.grid(column = 4, row = row, sticky = tk.W + tk.E )
-		self.Lambda_label = tk.Label(self.frame, text = "Energy ratio")	
+		self.Lambda_label = tk.Label(self.frame, text = "Energy ratio", font = self.labelFont)	
 		self.Lambda_label.grid(column = 3, row = row, sticky = tk.E )
 
 		# --- separator ---
 		row += 1
-		separator4 = tk.Label(self.frame, text = "---------------------------------------------------------------------------------------")
+		separator4 = tk.Label(self.frame, text = "---------------------------------------------------------------------------------------", font = self.labelFont)
 		separator4.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		# --- Filament ---
 		row += 1
-		tk.Entry(self.frame, width = 7, textvariable = self.useFilament).grid(column = 2, row = row, sticky = tk.W + tk.E )
-		tk.Label(self.frame, text = "# current Filaments").grid(column = 1, row = row, sticky = tk.E )
+		tk.Entry(self.frame, width = 7, textvariable = self.useFilament, font = self.textFont).grid(column = 2, row = row, sticky = tk.W + tk.E )
+		tk.Label(self.frame, text = "# current Filaments", font = self.labelFont).grid(column = 1, row = row, sticky = tk.E )
 
 		return row + 1
 		
@@ -767,14 +772,14 @@ class common_tab(set_machine):	# inherit set_machine class
 	def set_run_mpi_elements(self, row):
 		# --- number of processes for mpi ---
 		self.nproc.set(str(4))
-		self.nproc_entry = tk.Entry(self.frame, width = 4, textvariable = self.nproc)
+		self.nproc_entry = tk.Entry(self.frame, width = 4, textvariable = self.nproc, font = self.textFont)
 		self.nproc_entry.grid(column = 1, row = row, sticky = tk.E)
-		tk.Label(self.frame, text = "       # Procs").grid(column = 1, row = row, sticky = tk.W )
+		tk.Label(self.frame, text = "       # Procs", font = self.labelFont).grid(column = 1, row = row, sticky = tk.W )
 
 
 	def set_bottom_elements(self, row, SIESTA = True):
 		# --- separator ---
-		separator = tk.Label(self.frame, text = "---------------------------------------------------------------------------------------")
+		separator = tk.Label(self.frame, text = "---------------------------------------------------------------------------------------", font = self.labelFont)
 		separator.grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W )
 
 		row += 4
@@ -1198,6 +1203,8 @@ class set_plot_tab(common_tab):		# inherit common tab class
 		self.tag = M.tag
 		self.path = M.path
 		self.translateMachFlag = M.translateMachFlag
+		self.labelFont = None
+		self.textFont = None
 
 		# --- grid  type ---
 		# define... 
@@ -1377,6 +1384,8 @@ class set_fix_tab(common_tab):		# inherit common tab class
 		self.tag = M.tag
 		self.path = M.path
 		self.translateMachFlag = M.translateMachFlag
+		self.labelFont = None
+		self.textFont = None
 		
 		# --- unused Variables ---
 		self.itt = tk.StringVar(); self.itt.set('0')
@@ -1532,6 +1541,8 @@ class set_man_tab(common_tab):		# inherit common tab class
 		self.tag = M.tag
 		self.path = M.path
 		self.translateMachFlag = M.translateMachFlag
+		self.labelFont = None
+		self.textFont = None
 
 		okayCommand = self.frame.register(M.isOkay)
 		notOkayCommand = self.frame.register(M.isNotOkay)
@@ -1710,6 +1721,8 @@ class set_foot_tab(common_tab):		# inherit common tab class
 		self.tag = M.tag
 		self.path = M.path
 		self.translateMachFlag = M.translateMachFlag
+		self.labelFont = None
+		self.textFont = None
 
 		# --- unused Variables ---
 		self.phistart = tk.StringVar(); self.phistart.set('0')
@@ -2012,6 +2025,8 @@ class set_lam_tab(common_tab):		# inherit common tab class
 		self.tag = M.tag
 		self.path = M.path
 		self.translateMachFlag = M.translateMachFlag
+		self.labelFont = None
+		self.textFont = None
 		
 		fileFound = self.frame.register(self.file_Found)
 		
