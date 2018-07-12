@@ -688,6 +688,10 @@ private:
 	void prepare_splines(void);		// prepare all 1D splines in s by calling spline from efit_class
 	int newton2D(double r, double phi, double z, double& s, double& u);	// 2D Newton procedure to find s,u from a given R,Z
 	double bisec(double r0, double phi, double z0, double u, double Raxis, double Zaxis, double a = 0, double b = 1, int imax = 10);	// preconditioner to give a rough estimate of s to use as initial condition in newton2D
+	double find_su(double R0, double v, double Z0, double& s, double& u); // find s,u through bisection, used in get_su if Newton fails
+	double distance(double s, double v, double R0, double Z0, double& u); // used in find_su
+	double minimize(double s, double v, double R0, double Z0);	// used in find_su
+	double getRZgrad(double s, double u, double v, double R0, double Z0, double& delta, double& ds);	// used in find_su
 
 public: 
 // Member Variables
@@ -1294,6 +1298,7 @@ return theta;
 void VMEC::get_su(double R, double phi, double Z, double& s, double& u, double sstart, double ustart, int imax)
 {
 double err, Raxis, Zaxis;
+double R0,Z0;
 
 if((ustart == -1) || (sstart == -1)) get_axis(phi, Raxis, Zaxis);
 
@@ -1316,10 +1321,17 @@ u = modulo2pi(u);	// make sure u in [0, 2pi]
 err = newton2D(R,phi,Z,s,u);
 if((err > 0) || (s < 0) || (s > 1))
 {
-	s = 0.9; u = ustart;
-	err = newton2D(R,phi,Z,s,u);
-	if(err > 0) cout << "VMEC Newton2D: no convergence; remaining error: " << err << endl;
-	if((s < 0) || (s > 1)) cout << "VMEC Newton2D: warning, point outside of VMEC grid: s = " << s << endl;
+	//s = 0.9; u = ustart;
+	//err = newton2D(R,phi,Z,s,u);
+	//if(err > 0) cout << "VMEC Newton2D: no convergence; remaining error: " << err << endl;
+	//if((s < 0) || (s > 1)) cout << "VMEC Newton2D: warning, point outside of VMEC grid: s = " << s << endl;
+	err = find_su(R,phi,Z,s,u);
+	if(err > 1e-5)
+	{
+		R0 = rmn.ev(s, u, phi);
+		Z0 = zmn.ev(s, u, phi);
+		cout << "VMEC find_su: no convergence; remaining error: " << err << ", grid point: " << s << "\t" << u << "\t Difference in R,Z: " << fabs(R-R0) << "\t" << fabs(Z-Z0) << endl;
+	}
 }
 }
 
@@ -1383,6 +1395,33 @@ double det,delta_s,delta_u,fr,fz,err;
 
 for(i=0;i<imax;i++)
 {
+	// try to limit in s
+	/*
+	if (s < -1)
+	{
+		r = rmn.ev(1, u+pi, phi0, drds, drdu, drdv);
+		z = zmn.ev(1, u+pi, phi0, dzds, dzdu, dzdv);
+		r += (-s-1)*drds;
+		z += (-s-1)*dzds;
+	}
+	else if ((s < 0) && (s >= -1))
+	{
+		r = rmn.ev(-s, u+pi, phi0, drds, drdu, drdv);
+		z = zmn.ev(-s, u+pi, phi0, dzds, dzdu, dzdv);
+	}
+	else if (s > 1)
+	{
+		r = rmn.ev(1, u, phi0, drds, drdu, drdv);
+		z = zmn.ev(1, u, phi0, dzds, dzdu, dzdv);
+		r += (s-1)*drds;
+		z += (s-1)*dzds;
+	}
+	else
+	{
+		r = rmn.ev(s, u, phi0, drds, drdu, drdv);
+		z = zmn.ev(s, u, phi0, dzds, dzdu, dzdv);
+	}
+	*/
 	r = rmn.ev(s, u, phi0, drds, drdu, drdv);
 	z = zmn.ev(s, u, phi0, dzds, dzdu, dzdv);
 
@@ -1431,6 +1470,102 @@ for(i=1;i<=imax;i++)
 }
 return s;
 }
+
+//------------------------ find_su ----------------------------------------------------------------------------------------
+// find s,u for a fixed v from R0,Z0 through bisection
+double VMEC::find_su(double R0, double v, double Z0, double& s, double& u)
+{
+int i;
+double s0,s1,f;
+const double eps = 1e-10;
+s0 = 0;
+s1 = 1;
+for(i=0;i<40;i++)
+{
+	s = 0.5*(s0+s1);
+	f = distance(s,v,R0,Z0,u);
+	//cout << i << "\t" << s << "\t" << u << "\t" << f << endl;
+	if (fabs(s0-s1) < eps) return fabs(f);
+	if(f < 0) s0 = s;
+	else s1 = s;
+}
+return fabs(f);
+}
+
+//------------------------ distance ----------------------------------------------------------------------------------------
+// get the signed distance of s-surface from R0,Z0 at minimized u
+// distance < 0 if R0,Z0 is outside of s-surface, distance > 0 if inside
+double VMEC::distance(double s, double v, double R0, double Z0, double& u)
+{
+double f,fp,delta,ds;
+u = minimize(s,v,R0,Z0);
+f = getRZgrad(s,u,v,R0,Z0,delta,ds);
+if(ds < 0) delta *= -1;
+return delta;
+}
+
+//------------------------ minimize ----------------------------------------------------------------------------------------
+// get u for minimal distance of s-surface from R0,Z0 at fixed s and v
+double VMEC::minimize(double s, double v, double R0, double Z0)
+{
+const int N = 6;
+const double du = pi2/N;
+int i;
+double u,f,delta,dummy;
+double u0,u1,dmin;
+int dmin_idx;
+const double eps = 1e-6;
+Array<double,1> fa(N),da(N);
+
+dmin = 1e+20;
+for(i=0;i<N;i++)
+{
+	u = i*du;
+	fa(i) = getRZgrad(s,u,v,R0,Z0,da(i),dummy);
+	if (da(i) < dmin) {dmin_idx = i; dmin = da(i);}
+}
+
+u0 = (dmin_idx-1)*du;
+u1 = (dmin_idx+1)*du;
+
+u = dmin_idx*du;
+f = fa(dmin_idx);
+if(f < 0) u0 = u;
+else u1 = u;
+
+for(i=0;i<40;i++)
+{
+	u = 0.5*(u0+u1);
+	f = getRZgrad(s,u,v,R0,Z0,delta,dummy);
+	//cout << i << "\t" << u << "\t" << f << "\t" << delta << "\t" << u0 << "\t" << u1 << "\t" << fabs(u0-u1) << endl;
+	if (fabs(u0-u1) < eps) break;
+	if(f < 0) u0 = u;
+	else u1 = u;
+}
+return modulo2pi(u);
+}
+
+//------------------------ getRZgrad ----------------------------------------------------------------------------------------
+// return ddelta/du with delta the distance of R,Z(s,u) to R0,Z0
+// also get delta and ddelta/ds
+double VMEC::getRZgrad(double s, double u, double v, double R0, double Z0, double& delta, double& ds)
+{
+double R,Z,dr,dz,f;
+double drds,drdu,drdv,dzds,dzdu,dzdv;
+
+R = rmn.ev(s,u,v,drds,drdu,drdv);
+Z = zmn.ev(s,u,v,dzds,dzdu,dzdv);
+
+dr = R - R0;
+dz = Z - Z0;
+delta = sqrt(dr*dr + dz*dz);
+f = (dr*drdu + dz*dzdu)/delta;
+ds = (dr*drds + dz*dzds)/delta;
+return f;
+}
+
+
+
 //------------------------ End of Class VMEC-------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
