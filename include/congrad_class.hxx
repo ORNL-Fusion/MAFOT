@@ -223,13 +223,15 @@ public:
 	Array<double,1> x;		// solution
 
 	// Constructors
+	congradNR();					// default
 	congradNR(Array<double,1>& x0);	// initial guess x = x0
 
 	// Member-Operators
 	congradNR& operator =(const congradNR& cg);	// Operator =
 
 	// Member-Functions
-	void iterate(congradFtn_f& func, congradFtn& dfunc, int itmax, double ftol);
+	void set(Array<double,1>& x0);	// reset initial guess
+	void iterate(congradFtn_f& func, congradFtn& dfunc, int itmax = 100, double ftol = 1e-12);
 
 }; //end of class
 
@@ -238,13 +240,21 @@ public:
 
 //--------- Constructors --------------------------------------------------------------------------------------------------
 // Default Constructor
+congradNR::congradNR()
+{
+TinyVector <int,1> index(1);
+n = 1;
+x.resize(n);	x.reindexSelf(index);
+xi.resize(n);	xi.reindexSelf(index);
+}
+
+// Standard Constructor
 congradNR::congradNR(Array<double,1>& x0)
 {
 TinyVector <int,1> index(1);
-n = x0.rows();
-x.resize(n);	x.reindexSelf(index);
-xi.resize(n);	xi.reindexSelf(index);
-x = x0.copy();
+set(x0);
+x.reindexSelf(index);
+xi.reindexSelf(index);
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -260,6 +270,14 @@ return(*this);
 
 //--------------------- Member Functions ----------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+
+void congradNR::set(Array<double,1>& x0)
+{
+n = x0.rows();
+x.resize(n);
+xi.resize(n);
+x = x0.copy();
+}
 
 // Given a starting point p[1..n], Fletcher-Reeves-Polak-Ribiere minimization is performed on a
 // function func, using its gradient as calculated by a routine dfunc. The convergence tolerance
