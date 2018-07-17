@@ -496,8 +496,8 @@ p = p1 + x*d;
 
 //---------------- start_on_target ----------------------------------------------------------------------------------------
 // creates initial conditions on the target plate
-// generally t parameterizes the wall as length alomg the wall
-// starting at HFS midplane, advancing counter-clock-wise, alos known as s_wall
+// generally t parameterizes the wall as length alomg the wall in m
+// starting at HFS midplane, advancing counter-clock-wise, also known as s_wall
 // or
 // t parametrizes a special target with constant Phi and t=[0 1]
 // with points on target are explicitly defined here

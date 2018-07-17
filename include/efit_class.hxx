@@ -100,8 +100,8 @@ public:
 	Array<double,1> lcfs;	// Position of the LCFS in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
 	Array<double,1> wall;	// Position of the Wall in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
 	Array<double,1> lcfs_th;// poloidal angles of lcfs
-	Array<double,1> Swall;	// length along the wall, Swall = 0 is the inner midplane; Swall goes ccw
-	double Swall_max;		// total length of wall
+	Array<double,1> Swall;	// length along the wall in m, Swall = 0 is the inner midplane; Swall goes ccw
+	double Swall_max;		// total length of wall in m
 
 	// Calculated in ReadData
 	double dR;		// grid distance in R direction

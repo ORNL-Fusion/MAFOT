@@ -1737,6 +1737,7 @@ class set_foot_tab(common_tab):		# inherit common tab class
 		self.target_RB2 = tk.Radiobutton(frame, variable = self.TargetFlag, value = 2, command = self.refresh_grid_labels)
 		self.target_RB3 = tk.Radiobutton(frame, variable = self.TargetFlag, value = 3, command = self.refresh_grid_labels)
 		self.target_RB4 = tk.Radiobutton(frame, variable = self.TargetFlag, value = 4, command = self.refresh_grid_labels)
+		self.target_RB0 = tk.Radiobutton(frame, variable = self.TargetFlag, value = 0, command = self.refresh_grid_labels)
 		tk.Label(frame, text = "Target").grid(column = 1, row = row, sticky = tk.W + tk.E )
 		
 		self.UpgradeFlag = tk.IntVar()
@@ -1765,7 +1766,7 @@ class set_foot_tab(common_tab):		# inherit common tab class
 		row = self.set_toroidatTurn_element(row)
 		
 		# --- MapDirection ---
-		row = self.set_MapDirection_element(row, state = tk.DISABLED)
+		row = self.set_MapDirection_element(row, state = tk.NORMAL)
 
 		# --- Coils & Mode & Particles ---
 		row = self.set_bottom_elements(row, SIESTA = False)		
@@ -1784,38 +1785,46 @@ class set_foot_tab(common_tab):		# inherit common tab class
 	def set_target_elements(self):
 		row = 0
 		if self.MachFlag.get() == 'iter':
+			self.target_RB0.configure(text = 'Full Wall')		
 			self.target_RB1.configure(text = 'Inner')
 			self.target_RB2.configure(text = 'Outer')
-			self.target_RB1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-			self.target_RB2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+			self.target_RB0.grid(column = 2, row = row, sticky = tk.W + tk.E )
+			self.target_RB1.grid(column = 3, row = row, sticky = tk.W + tk.E )
+			self.target_RB2.grid(column = 4, row = row, sticky = tk.W + tk.E )
 			self.target_RB3.grid_forget()
 			self.target_RB4.grid_forget()
 			self.U_chkBtn.grid_forget()
 		elif self.MachFlag.get() == 'nstx':
+			self.target_RB0.configure(text = 'Full Wall')
 			self.target_RB1.configure(text = 'Inn-up')
 			self.target_RB2.configure(text = 'Out-up')
-			self.target_RB3.configure(text = 'In-dwn')
+			self.target_RB3.configure(text = 'Inn-dwn')
 			self.target_RB4.configure(text = 'Out-dwn')
-			self.target_RB1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-			self.target_RB2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-			self.target_RB3.grid(column = 4, row = row, sticky = tk.W + tk.E )
+			self.target_RB0.grid(column = 2, row = row, sticky = tk.W + tk.E )
+			self.target_RB1.grid(column = 3, row = row, sticky = tk.W + tk.E )
+			self.target_RB2.grid(column = 4, row = row, sticky = tk.W + tk.E )
+			self.target_RB3.grid_forget()
 			self.target_RB4.grid(column = 5, row = row, sticky = tk.W + tk.E )
 			self.U_chkBtn.grid(column = 1, row = row, sticky = tk.E)
 		elif self.MachFlag.get() == 'mast':
+			self.target_RB0.configure(text = 'Full Wall')		
 			self.target_RB1.configure(text = 'Inner')
 			self.target_RB2.configure(text = 'Outer')
-			self.target_RB1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-			self.target_RB2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+			self.target_RB0.grid(column = 2, row = row, sticky = tk.W + tk.E )
+			self.target_RB1.grid(column = 3, row = row, sticky = tk.W + tk.E )
+			self.target_RB2.grid(column = 4, row = row, sticky = tk.W + tk.E )
 			self.target_RB3.grid_forget()
 			self.target_RB4.grid_forget()
 			self.U_chkBtn.grid_forget()
 		else:
+			self.target_RB0.configure(text = 'Full Wall')		
 			self.target_RB1.configure(text = 'Inner')
 			self.target_RB2.configure(text = 'Outer')
-			self.target_RB3.configure(text = 'Shelf')		
-			self.target_RB1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-			self.target_RB2.grid(column = 3, row = row, sticky = tk.W + tk.E )
-			self.target_RB3.grid(column = 4, row = row, sticky = tk.W + tk.E )
+			self.target_RB3.configure(text = 'Shelf')
+			self.target_RB0.grid(column = 2, row = row, sticky = tk.W + tk.E )
+			self.target_RB1.grid(column = 3, row = row, sticky = tk.W + tk.E )
+			self.target_RB2.grid(column = 4, row = row, sticky = tk.W + tk.E )
+			self.target_RB3.grid(column = 5, row = row, sticky = tk.W + tk.E )
 			self.target_RB4.grid_forget()
 			self.U_chkBtn.grid_forget()
 		
@@ -1829,6 +1838,9 @@ class set_foot_tab(common_tab):		# inherit common tab class
 			elif(self.TargetFlag.get() == 2):
 				self.y_label.configure(text = "t [cm]")
 				self.Info.configure(text = "t in [-39 <--> 163] is length along the wall; t < 0: linear inwards, t > 0: curve upwards")
+			else:
+				self.y_label.configure(text = "Swall [m]")
+				self.Info.configure(text = "s = 0: Centerpost midplane, s > 0: counter clock wise")
 		elif self.MachFlag.get() == 'nstx':
 			if(self.TargetFlag.get() == 1):
 				self.y_label.configure(text = "Z [m]")
@@ -1854,6 +1866,9 @@ class set_foot_tab(common_tab):		# inherit common tab class
 					self.Info.configure(text = "NSTX-U outer target, lower divertor, R in [0.435 <--> 1.0433]")
 				else:
 					self.Info.configure(text = "outer target, lower divertor, R in [0.2979 <--> 1.0433]")
+			else:
+				self.y_label.configure(text = "Swall [m]")
+				self.Info.configure(text = "s = 0: Centerpost midplane, s > 0: counter clock wise")
 		elif self.MachFlag.get() == 'mast':
 			if(self.TargetFlag.get() == 1):
 				self.y_label.configure(text = "Z [m]")
@@ -1861,6 +1876,9 @@ class set_foot_tab(common_tab):		# inherit common tab class
 			elif(self.TargetFlag.get() == 2):
 				self.y_label.configure(text = "R [m]")
 				self.Info.configure(text = "outer target, R in [0.7835 <--> 1.9]")
+			else:
+				self.y_label.configure(text = "Swall [m]")
+				self.Info.configure(text = "s = 0: Centerpost midplane, s > 0: counter clock wise")
 		else:	# d3d
 			if(self.TargetFlag.get() == 3):
 				self.y_label.configure(text = "t [0 <--> 1]")
@@ -1868,9 +1886,12 @@ class set_foot_tab(common_tab):		# inherit common tab class
 			elif(self.TargetFlag.get() == 2):
 				self.y_label.configure(text = "t [0 <--> 1]")
 				self.Info.configure(text = "t > 0: Divertor Floor outwards, t = 0: Connection 45deg Tile, t = 1: Pump Entry")
-			else:
+			elif(self.TargetFlag.get() == 1):
 				self.y_label.configure(text = "t [-1 <--> 1]")
 				self.Info.configure(text = "t < 0: Centerpost upwards, t > 0: 45deg Tile downwards, t = 0: Connection point")
+			else:
+				self.y_label.configure(text = "Swall [m]")
+				self.Info.configure(text = "s = 0: Centerpost midplane, s > 0: counter clock wise")
 
 		name = self.set_name()
 		data = self.read_par_file([name])
@@ -1892,6 +1913,9 @@ class set_foot_tab(common_tab):		# inherit common tab class
 						0, -1, 3.141592653589793, 6.283185307179586]
 			elif(flag == 2):
 				data = [500, 300, -10, 80, 0, 6.283185307179586, 900, 0, -1, 2, 2, 1, 0, 0, 0, 1, 100, 0.1, 
+						0, -1, 3.141592653589793, 6.283185307179586]
+			else:
+				data = [500, 300, 10, 80, 0, 6.283185307179586, 900, 0, -1, 2, 2, 1, 0, 0, 0, 1, 100, 0.1, 
 						0, -1, 3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'nstx':
 			if(flag == 1):
@@ -1922,11 +1946,17 @@ class set_foot_tab(common_tab):		# inherit common tab class
 				else:
 					data = [500, 500, 0.2979, 1.0433, 0, 6.283185307179586, 400, 0, 1, 4, 2, 1, 0, 0, 0, 1, 100, 0.1, 
 							0, -1, 3.141592653589793, 6.283185307179586]
+			else:
+				data = [500, 500, 0.3, 1.0, 0, 6.283185307179586, 400, 0, 1, 4, 2, 1, 0, 0, 0, 1, 100, 0.1, 
+						0, -1, 3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'mast':
 			if(flag == 1):
 				data = [500, 500, -1.6835, -1.229, 0, 6.283185307179586, 400, 0, -1, 0, -1, 1, 2, 1, 1, 0, 0, 1, 
 							100, 0.1, 3.141592653589793, 6.283185307179586]
 			elif(flag == 2):
+				data = [500, 500, 0.7835, 1.9, 0, 6.283185307179586, 400, 0, 1, 0, -1, 2, 2, 1, 1, 0, 0, 1, 
+							100, 0.1, 3.141592653589793, 6.283185307179586]
+			else:
 				data = [500, 500, 0.7835, 1.9, 0, 6.283185307179586, 400, 0, 1, 0, -1, 2, 2, 1, 1, 0, 0, 1, 
 							100, 0.1, 3.141592653589793, 6.283185307179586]
 		else:	# d3d
@@ -1936,8 +1966,11 @@ class set_foot_tab(common_tab):		# inherit common tab class
 			elif(flag == 2):
 				data = [500, 300, 0.9, 1.0, 0, 6.283185307179586, 100, 0, 1, 0, -1, 2, 2, 1, 1, 1, 0, 1, 
 							100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]
-			else:
+			elif(flag == 1):
 				data = [500, 300, -0.1, 0.3, 0, 6.283185307179586, 400, 0, -1, 0, -1, 1, 2, 1, 1, 1, 0, 1, 
+							100, 0.1, 0, 0 ,0 ,0, 3.141592653589793, 6.283185307179586]
+			else:
+				data = [500, 300, 0.0, 0.1, 0, 6.283185307179586, 400, 0, -1, 0, -1, 1, 2, 1, 1, 1, 0, 1, 
 							100, 0.1, 0, 0 ,0 ,0, 3.141592653589793, 6.283185307179586]
 		return data
 
@@ -1945,37 +1978,37 @@ class set_foot_tab(common_tab):		# inherit common tab class
 	# --- set default values ---
 	def set_defaults(self):
 		if self.MachFlag.get() == 'iter':
-			data = self.read_par_file(['_inner.dat','_outer.dat'])
+			data = self.read_par_file(['_foot.dat','_inner.dat','_outer.dat'])
 		elif self.MachFlag.get() == 'nstx':
-			data = self.read_par_file(['_innerup.dat','_outerup.dat','_innerdwn.dat','_outerdwn.dat'])
+			data = self.read_par_file(['_foot.dat','_innerup.dat','_outerup.dat','_innerdwn.dat','_outerdwn.dat'])
 		elif self.MachFlag.get() == 'mast':
-			data = self.read_par_file(['_inner.dat','_outer.dat'])
+			data = self.read_par_file(['_foot.dat','_inner.dat','_outer.dat'])
 		else:
-			data = self.read_par_file(['_inner.dat','_outer.dat', '_shelf.dat'])
+			data = self.read_par_file(['_foot.dat','_inner.dat','_outer.dat', '_shelf.dat'])
 		data = self.set_machine_defaults(data, self.MachFlag.get(), flag = 1)
-		if(data['target'] == 0): self.TargetFlag.set(1)
-		else: self.TargetFlag.set(int(data['target']))
+		self.TargetFlag.set(int(data['target']))
 		self.UpgradeFlag.set(0)
 		self.refresh_grid_labels()
 
 
 	# --- set control file name ---
 	def set_name(self):
+		if(self.TargetFlag.get() == 0): name = '_foot.dat'
 		if self.MachFlag.get() == 'iter':
 			if(self.TargetFlag.get() == 2): name = '_outer.dat'
-			else: name = '_inner.dat'
+			elif(self.TargetFlag.get() == 1): name = '_inner.dat'
 		elif self.MachFlag.get() == 'nstx':
 			if(self.TargetFlag.get() == 4): name = '_outerdwn.dat'
 			elif(self.TargetFlag.get() == 3): name = '_innerdwn.dat'
 			elif(self.TargetFlag.get() == 2): name = '_outerup.dat'
-			else: name = '_innerup.dat'
+			elif(self.TargetFlag.get() == 1): name = '_innerup.dat'
 		elif self.MachFlag.get() == 'mast':
 			if(self.TargetFlag.get() == 2): name = '_outer.dat'
-			else: name = '_inner.dat'
+			elif(self.TargetFlag.get() == 1): name = '_inner.dat'
 		else:
 			if(self.TargetFlag.get() == 3): name = '_shelf.dat'
 			elif(self.TargetFlag.get() == 2): name = '_outer.dat'
-			else: name = '_inner.dat'
+			elif(self.TargetFlag.get() == 1): name = '_inner.dat'
 		return name
 		
 
@@ -2008,7 +2041,7 @@ class set_foot_tab(common_tab):		# inherit common tab class
 			f.write('phimax=\t' + self.xmax.get() + '\n')
 			f.write('Nt=\t' + self.Ny.get() + '\n')
 			self.write_Ctrl_center(f)
-			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t' + str(self.TargetFlag.get()) + '\n')			
+			f.write('target(0=wall,1=inner,2=outer,3=shelf)=\t' + str(self.TargetFlag.get()) + '\n')			
 			f.write('createPoints(2=target)=\t2\n')	
 			self.write_Ctrl_bottom(f)
 		
