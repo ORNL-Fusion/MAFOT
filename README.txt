@@ -46,11 +46,23 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 4.03
-GUI 2.0
+MAFOT 4.11
+GUI 2.1
 
 Version Notes: 
 ----------------
+GUI 2.1 -- Jul 2018
+- support for full wall outline in foot, using Swall
+- Mapdirection now selectable in foot, because of reversed Bt cases
+
+MAFOT 4.11 -- Jul 2018
+- special 2D bisection method added to support s,u calculation from R,Z in xpand
+
+MAFOT 4.1 -- May 2018
+- laminar now set up to work with Sheft toolkit on NSTX. Several fixes for NSTX
+- 3D wall with any number of toroidal slices
+- check for wall crossing within first integration step
+
 MAFOT 4.03 -- Mar 2018
 - full wall now accessible for foot_mpi using the swall coordinate and target = 0
 
