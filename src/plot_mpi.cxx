@@ -72,7 +72,7 @@ double now=zeit();
 
 // defaults
 LA_STRING woutfile = "wout.nc";
-LA_STRING xpandfile = "xpand.dat";
+LA_STRING xpandfile = "None";
 LA_STRING siestafile = "siesta.dat";
 LA_STRING islandfile = "fakeIslands.in";
 
@@ -95,14 +95,16 @@ case 'h':
 		cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
 		cout << "  -S            filename for SIESTA; default, see below" << endl;
 		cout << "  -V            filename for VMEC; default, see below" << endl;
-		cout << "  -X            filename for XPAND; default, see below" << endl;
+		cout << "  -X            filename for XPAND; default is None" << endl;
 		cout << endl << "Examples:" << endl;
 		cout << "  mpirun -n 4 dtplot_mpi _plot.dat blabla" << endl;
 		cout << endl << "Infos:" << endl;
 		cout << "  To use B-field from M3DC1, set response_field >= 0, and provide file in cwd:" << endl;
 		cout << "    m3dc1sup.in    ->  location and scale factor for M3DC1 output C1.h5" << endl;
 		cout << "  To use B-field from XPAND, set response_field = -3, and provide files in cwd:" << endl;
-		cout << "    xpand.dat      ->  B-field on 3D grid from XPAND; use option -X to specify other filename" << endl;
+		cout << "    xpand.dat      ->  B-field on 3D grid from XPAND; use option -X to specify a filename (default is None -> inside VMEC only)" << endl;
+		cout << "    wout.nc        ->  VMEC output; use option -V to specify other filename" << endl;
+		cout << "  To use B-field from VMEC, inside only (no xpand file given), set response_field = -3, and provide file in cwd:" << endl;
 		cout << "    wout.nc        ->  VMEC output; use option -V to specify other filename" << endl;
 		cout << "  To use B-field from SIESTA, set response_field = -2, and provide file in cwd:" << endl;
 		cout << "    siesta.dat     ->  B-field on 3D grid; use option -S to specify other filename" << endl;
@@ -173,7 +175,6 @@ double Raxis = 0, Zaxis = 0;
 #ifdef USE_XFIELD
 if(PAR.response_field == -3)
 {
-	VMEC vmec;
 	if(mpi_rank < 1) cout << "Read VMEC file" << endl;
 	ofs2 << "Read VMEC file" << endl;
 	vmec.read(woutfile);
