@@ -53,12 +53,6 @@ extern "C"
 double bndy[4] = {0.28, 1.6, -1.63, 1.63};	// Boundary Box: Rmin, Rmax, Zmin, Zmax
 
 // extern
-#ifdef USE_SIESTA
-	extern SIESTA SIES;
-#endif
-#ifdef USE_XFIELD
-	extern XFIELD XPND;
-#endif
 #ifdef m3dc1
 	extern M3DC1 M3D;
 #endif

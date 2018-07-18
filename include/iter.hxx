@@ -103,12 +103,6 @@ double bndy2[4] = { (bndy[2]-bndy[5])/(bndy[4]-bndy[1]),	// slope of line 1
 //Array<double,2> wall(wall_data,shape(Nwall,2),neverDeleteData);
 
 // extern
-#ifdef USE_SIESTA
-	extern SIESTA SIES;
-#endif
-#ifdef USE_XFIELD
-	extern XFIELD XPND;
-#endif
 #ifdef m3dc1
 	extern M3DC1 M3D;
 #endif

@@ -99,12 +99,6 @@ Array<double,2> Bcoil_Tilt_Matrix(Range(1,3),Range(1,3));
 Array<double,1> Bcoil_Shift_Vector(Range(1,3));
 
 // extern
-#ifdef USE_SIESTA
-	extern SIESTA SIES;
-#endif
-#ifdef USE_XFIELD
-	extern XFIELD XPND;
-#endif
 #ifdef m3dc1
 	extern M3DC1 M3D;
 #endif

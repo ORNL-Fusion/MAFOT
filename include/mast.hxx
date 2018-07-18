@@ -77,12 +77,6 @@ extern "C"
 double bndy[4] = {0.195, 1.9, -1.8251, 1.8251};	// Boundary; EFIT boundary = {0.06, 2, -2, 2}
 
 // extern
-#ifdef USE_SIESTA
-	extern SIESTA SIES;
-#endif
-#ifdef USE_XFIELD
-	extern XFIELD XPND;
-#endif
 #ifdef m3dc1
 	extern M3DC1 M3D;
 #endif

@@ -21,12 +21,6 @@ void point_along_target(int target, double t, Array<double,1>& p, EFIT& EQD);
 double bndy[4] = {0.44, 0.91, -0.45, 0.45};	// Boundary
 
 // extern
-#ifdef USE_SIESTA
-	extern SIESTA SIES;
-#endif
-#ifdef USE_XFIELD
-	extern XFIELD XPND;
-#endif
 #ifdef m3dc1
 	extern M3DC1 M3D;
 #endif
