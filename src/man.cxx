@@ -203,7 +203,6 @@ double Raxis = 0, Zaxis = 0;
 #ifdef USE_XFIELD
 if(PAR.response_field == -3)
 {
-	VMEC vmec;
 	cout << "Read VMEC file" << endl;
 	ofs2 << "Read VMEC file" << endl;
 	vmec.read(woutfile);
