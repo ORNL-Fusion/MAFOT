@@ -46,6 +46,7 @@ public:
 	// Member Variables
 	int NR, NZ, Np;
 	double Rmin, Rmax, Zmin, Zmax;
+	bool useit;
 
 	Array<double,3> BR;
 	Array<double,3> BPHI;
@@ -77,6 +78,8 @@ TinyVector <int,5> index5(1,1,1,1,1);
 NR = 129;
 NZ = 129;
 Np = 48;
+
+useit = false;
 
 Rmin = 1; 		Rmax = 2.4;
 Zmin = -1.5; 	Zmax = 1.5;
@@ -118,6 +121,8 @@ if (this == &dia) return(*this);	    // if: x=x
 NR = dia.NR;
 NZ = dia.NZ;
 Np = dia.Np;
+
+useit = dia.useit;
 
 Rmin = dia.Rmin; 	Rmax = dia.Rmax;
 Zmin = dia.Zmin; 	Zmax = dia.Zmax;
@@ -167,6 +172,8 @@ Array<double,2> data;
 Range all = Range::all();
 
 // Input
+if (filename == "None") {useit = false; return;}
+else useit = true;
 int M = count_column(filename);
 readfile(filename, M, data);
 
