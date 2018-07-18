@@ -67,6 +67,7 @@ ofstream ofs2;
 	SIESTA SIES;
 #endif
 #ifdef USE_XFIELD
+	VMEC vmec;
 	XFIELD XPND;
 #endif
 #ifdef m3dc1
@@ -105,7 +106,8 @@ switch(PAR.response_field)
 {
 #ifdef USE_XFIELD
 case -3:
-	XPND.get_B(R, phi, Z, B_R, B_phi, B_Z);
+	if (XPND.useit) XPND.get_B(R, phi, Z, B_R, B_phi, B_Z);
+	else vmec.get_B(R, phi, Z, B_R, B_phi, B_Z);
 	break;
 #endif
 #ifdef USE_SIESTA
@@ -218,10 +220,18 @@ ifstream in;
 #ifdef USE_XFIELD
 	if(PAR.response_field == -3)
 	{
-		if(mpi_rank < 1) cout << "Read XFIELD file" << endl;
-		ofs2 << "Read XFIELD file" << endl;
-		XPND.read(xpandfile);
-		if(mpi_rank < 1) cout << "NR = " << XPND.NR << "\t Nphi = " << XPND.Np-1 << "\t NZ = " << XPND.NZ << endl;
+		if (xpandfile == "None")
+		{
+			XPND.useit = false;
+			if(mpi_rank < 1) cout << "No XPAND data. Only inside VMEC last-closed-flux-surface available." << endl;
+		}
+		else
+		{
+			if(mpi_rank < 1) cout << "Read XPAND file" << endl;
+			ofs2 << "Read XPAND file" << endl;
+			XPND.read(xpandfile);
+			if(mpi_rank < 1) cout << "NR = " << XPND.NR << "\t Nphi = " << XPND.Np-1 << "\t NZ = " << XPND.NZ << endl;
+		}
 	}
 #endif
 
