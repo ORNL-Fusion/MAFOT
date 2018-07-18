@@ -745,6 +745,7 @@ public:
 	void get_axis(double v, double& Raxis, double& Zaxis);	// get magnetic axis
 	double get_jpar(double s);	// get parallel current density in [10^6 A / m^2]
 	void get_B2D(double s, double u, double v, double& BR, double& Bphi, double& BZ);	// get B-field at (s,u,v)
+	void get_B(double R, double phi, double Z, double& BR, double& Bphi, double& BZ);	// evaluate B at any location (R,phi,Z)
 	double pot(double u, double v);			// magnetic scalar potental on s = 1 surface
 	double pot(double u, double v, double& dpdu, double& dpdv, double& dpdudv);	// ...with 1st and mixed derivatives
 	double get_r(double R, double Z, double Raxis, double Zaxis);
@@ -1195,6 +1196,16 @@ for(n=0;n<=ntor;n++)
 double VMEC::get_jpar(double s)
 {
 return raxis_cc(0) * jdotb.ev(s) / bvco.ev(s) / 1e+6;
+}
+
+//------------------------ get_B ------------------------------------------------------------------------------------------
+// get B at any location (R,phi,Z) inside the LCFS
+// assume phi = v;
+void VMEC::get_B(double R, double phi, double Z, double& BR, double& Bphi, double& BZ)
+{
+double s,u;
+get_su(R, phi, Z, s, u);
+get_B2D(s, u, phi, BR, Bphi, BZ);
 }
 
 //------------------------ get_B2D ----------------------------------------------------------------------------------------
