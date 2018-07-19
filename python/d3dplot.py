@@ -50,6 +50,9 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 	# --- auto-set footprint defaults from filename key-word ---
 	if(filename[0:4] == 'foot'):
+		if(coordinates == 'phiZ'): forceY = 'Z'
+		elif(coordinates == 'phiR'): forceY = 'R'
+		else: forceY = None
 		coordinates = 'phi'
 		if(filename[5:7] == 'in'): target = 'in'
 		elif(filename[5:7] == 'ou'): target = 'out'
@@ -91,6 +94,9 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		x = data[:,0].reshape(Nth,Npsi)
 		if(coordinates == 'phiZ'): y = data[:,10].reshape(Nth,Npsi)
 		else: y = data[:,1].reshape(Nth,Npsi)
+		if(filename[0:4] == 'foot'):
+			if(forceY == 'Z'): y = data[:,6].reshape(Nth,Npsi)
+			elif(forceY == 'R'): y = data[:,5].reshape(Nth,Npsi)
 		Lc = data[:,3].reshape(Nth,Npsi)
 		psimin = data[:,4].reshape(Nth,Npsi)
 		try:
@@ -157,8 +163,11 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 					yLabel = 't [cm]'
 					y = y*101.693189
 				elif(target == 'wall'):
-					if not latex: yLabel = 'Swall [m]'
-					else: yLabel = 's$_{wall}$ [m]'
+					if(forceY == 'Z'): yLabel = 'Z [m]'
+					elif(forceY == 'R'): yLabel = 'R [m]'
+					else:
+						if not latex: yLabel = 'Swall [m]'
+						else: yLabel = 's$_{wall}$ [m]'
 				elif(target == 'bsas'): y = 1.48157 + y*(1.49573 - 1.48157)
 		elif(machine == 'iter'):
 			if not latex: xLabel = u'\u03C6' + ' [rad]'
@@ -417,7 +426,8 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	elif(typeOfPlot == 'poincare'):
 		plt.plot(x,y,'ko',markersize = 0.5)
 	else:
-		cs = plt.imshow(z.T, extent = [x.min(), x.max(), y.min(), y.max()], cmap = usecolormap, origin = 'lower', vmin = b.min(), vmax = b.max(), aspect = 'auto', interpolation = 'bilinear')
+		#cs = plt.imshow(z.T, extent = [x.min(), x.max(), y.min(), y.max()], cmap = usecolormap, origin = 'lower', vmin = b.min(), vmax = b.max(), aspect = 'auto', interpolation = 'bilinear')
+		cs = plt.pcolormesh(x, y, z, cmap = usecolormap, vmin = b.min(), vmax = b.max(), shading = 'gouraud')
 
 	# --- additional plots ------------
 	if(coordinates == 'RZ'): # plot wall
