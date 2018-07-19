@@ -49,6 +49,10 @@ extern ofstream ofs2;
 #ifdef USE_SIESTA
 	extern SIESTA SIES;
 #endif
+#ifdef USE_XFIELD
+	extern VMEC vmec;
+	extern XFIELD XPND;
+#endif
 
 //--------- Begin Class PARTICLE ----------------------------------------------------------------------------------------------
 class PARTICLE
@@ -525,12 +529,24 @@ phi = PARr.phistart;
 switch(flag)
 {
 case 2:		// get R, Z from x = psi and y = theta
+	if(PARr.response_field == -2)
+	{
 #ifdef USE_SIESTA
-	if(PARr.response_field == -2) SIES.get_RZ(x, y, phi/rTOd, R, Z);	// x = s and y = u
-	else getRZ(x, y, R, Z);
+		SIES.get_RZ(x, y, phi/rTOd, R, Z);	// x = s and y = u
 #else
-	getRZ(x, y, R, Z);
+		getRZ(x, y, R, Z);
 #endif
+	}
+	else if(PARr.response_field == -3)
+	{
+#ifdef USE_XFIELD
+		R = vmec.rmn.ev(x, y, phi/rTOd); // x = s and y = u
+		Z = vmec.zmn.ev(x, y, phi/rTOd);
+#else
+		getRZ(x, y, R, Z);
+#endif
+	}
+	else getRZ(x, y, R, Z);
 	psi = x;
 	theta = y;
 	break;
@@ -579,12 +595,24 @@ phi = PARr.phistart;
 switch(flag)
 {
 case 2:		// get R, Z from psi and theta
+	if(PARr.response_field == -2)
+	{
 #ifdef USE_SIESTA
-	if(PARr.response_field == -2) SIES.get_RZ(x, y, phi/rTOd, R, Z);	// x = s and y = u
-	else getRZ(x, y, R, Z);
+		SIES.get_RZ(x, y, phi/rTOd, R, Z);	// x = s and y = u
 #else
-	getRZ(x, y, R, Z);
+		getRZ(x, y, R, Z);
 #endif
+	}
+	else if(PARr.response_field == -3)
+	{
+#ifdef USE_XFIELD
+		R = vmec.rmn.ev(x, y, phi/rTOd); // x = s and y = u
+		Z = vmec.zmn.ev(x, y, phi/rTOd);
+#else
+		getRZ(x, y, R, Z);
+#endif
+	}
+	else getRZ(x, y, R, Z);
 	psi = x;
 	theta = y;
 	break;
@@ -847,17 +875,36 @@ for (k=1;k<=nstep;k++)
 
 	// Get additional Parameter
 	Lc += sqrt((yout(0)-y(0))*(yout(0)-y(0)) + (yout(1)-y(1))*(yout(1)-y(1)) + 0.25*(yout(0)+y(0))*(yout(0)+y(0))*dx*dx);
+
+	if(PARr.response_field == -2)
+	{
 #ifdef USE_SIESTA
-	if(PARr.response_field == -2) SIES.get_su(yout(0),x,yout(1),psi,theta);
+		SIES.get_su(yout(0),x,yout(1),psi,theta);
+#else
+		chk = get_psi(yout(0),yout(1),psi,x);
+		if (chk == -1) return -1;
+#endif
+	}
+	else if(PARr.response_field == -3)
+	{
+#ifdef USE_XFIELD
+		if (XPND.useit)
+		{
+			chk = get_psi(yout(0),yout(1),psi,x);
+			if (chk == -1) return -1;
+		}
+		else vmec.get_su(yout(0),x,yout(1),psi,theta);
+#else
+		chk = get_psi(yout(0),yout(1),psi,x);
+		if (chk == -1) return -1;
+#endif
+	}
 	else
 	{
 		chk = get_psi(yout(0),yout(1),psi,x);
 		if (chk == -1) return -1;
 	}
-#else
-	chk = get_psi(yout(0),yout(1),psi,x);
-	if (chk == -1) return -1;
-#endif
+
 	if(psi < psimin) psimin = psi;
 	if(psi > psimax) psimax = psi;
 	psiav += psi;
