@@ -502,6 +502,7 @@ double dZ,dR;
 double x,y;
 int i_Z=0,i_R=0;
 int N_R;
+bool old_n0only;
 
 if(N<=1) {dR=0; dZ=0;}
 else
@@ -540,8 +541,11 @@ case 2:		// get R, Z from x = psi and y = theta
 	else if(PARr.response_field == -3)
 	{
 #ifdef USE_XFIELD
+		old_n0only = vmec.n0only;
+		vmec.set_n0only(true);
 		R = vmec.rmn.ev(x, y, phi/rTOd); // x = s and y = u
 		Z = vmec.zmn.ev(x, y, phi/rTOd);
+		vmec.set_n0only(old_n0only);
 #else
 		getRZ(x, y, R, Z);
 #endif
@@ -583,6 +587,7 @@ const double dR=Rmax-Rmin;
 const double dZ=Zmax-Zmin;
 double v;
 double x,y;
+bool old_n0only;
 
 v=ran0(idum);
 x=Rmin+v*dR;
@@ -606,8 +611,11 @@ case 2:		// get R, Z from psi and theta
 	else if(PARr.response_field == -3)
 	{
 #ifdef USE_XFIELD
+		old_n0only = vmec.n0only;
+		vmec.set_n0only(true);
 		R = vmec.rmn.ev(x, y, phi/rTOd); // x = s and y = u
 		Z = vmec.zmn.ev(x, y, phi/rTOd);
+		vmec.set_n0only(old_n0only);
 #else
 		getRZ(x, y, R, Z);
 #endif
@@ -850,6 +858,7 @@ return 0;
 int PARTICLE::rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate)
 {
 int k, chk;
+bool old_n0only;
 double x1 = x;	//Store first value (helps reduce Error in x)
 double Lmfp;
 Array<double,1> yout(nvar),dydx(nvar);
@@ -893,7 +902,13 @@ for (k=1;k<=nstep;k++)
 			chk = get_psi(yout(0),yout(1),psi,x);
 			if (chk == -1) return -1;
 		}
-		else vmec.get_su(yout(0),x,yout(1),psi,theta);
+		else
+		{
+			old_n0only = vmec.n0only;
+			vmec.set_n0only(true);
+			vmec.get_su(yout(0),x,yout(1),psi,theta);
+			vmec.set_n0only(old_n0only);
+		}
 #else
 		chk = get_psi(yout(0),yout(1),psi,x);
 		if (chk == -1) return -1;
