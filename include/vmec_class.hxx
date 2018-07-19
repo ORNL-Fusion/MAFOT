@@ -1304,7 +1304,7 @@ return theta;
 }
 
 //------------------------- get_su ---------------------------------------------------------------------------------------
-// find s,u at any location (r,phi,z) inside the SIESTA boundary
+// find s,u at any location (r,phi,z) inside the VMEC boundary
 // sstart and ustart are optional initial guesses of s and u
 void VMEC::get_su(double R, double phi, double Z, double& s, double& u, double sstart, double ustart, int imax)
 {
