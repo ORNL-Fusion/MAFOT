@@ -5,13 +5,13 @@ LIB_DIR = /home/wwj/lib64
 
 # ---- Support codes ----
 # True or False
-M3DC1 = False
+M3DC1 = True
 VMEC = True
 SIESTA = True
 
 # ---- Compiler ----
 CXX = g++
-CFLAGS = -O3 -fPIC
+CFLAGS = -O3 -fPIC -std=c++11
 OMPFLAGS = -fopenmp -w
 
 F90 = gfortran
@@ -25,15 +25,15 @@ LDFLAGS =
 
 # ---- external Libraries ---- 
 BLITZLIBS = -L/home/wwj/lib64/blitz/lib -lblitz
-FLIBS = -L/usr/lib64 -lgfortran -lpthread
-OMPLIBS = -L/usr/lib64/openmpi/lib -lmpi -lmpi_cxx
-M3DC1LIBS = -L/home/jjl/m3dc1/install/lib/_X86_64 -lfusionio -lm3dc1
-HDF5LIBS = -L/usr/lib64 -lhdf5 -lz -Wl,-rpath,/usr/lib64 -lstdc++
-NETCDFLIBS = -L/usr/lib64 -lnetcdf
+FLIBS = -L/usr/lib/gcc/x86_64-linux-gnu/5 -lgfortran -L/usr/lib/x86_64-linux-gnu -lpthread
+OMPLIBS = -L/usr/lib/openmpi/lib -lmpi -lmpi_cxx
+M3DC1LIBS = -L/home/jjl/m3dc1/install/lib -lfusionio -lm3dc1
+HDF5LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/openmpi -lhdf5 -lz -Wl,-rpath,/usr/lib/x86_64-linux-gnu -lstdc++
+NETCDFLIBS = -L/usr/lib/x86_64-linux-gnu -lnetcdf
 
 # ---- external Includes ----
 BLITZINCLUDE = -I/home/wwj/lib64/blitz/include
-OMPINCLUDE = -I/usr/include/openmpi-x86_64 -I/usr/include/openmpi-x86_64/openmpi
+OMPINCLUDE = -I/usr/include/openmpi -I/usr/include/openmpi/openmpi
 M3DC1INCLUDE = -I/home/jjl/m3dc1/install/include
 NETCDFINCLUDE = -I/usr/include
 

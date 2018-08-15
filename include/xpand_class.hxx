@@ -1233,7 +1233,7 @@ if(in.fail() == 1)
 {
 	in.clear();
 	in.open("mgrid_coil_currents.in");
-	if(in.fail() == 1)  {if(mpi_rank == 0) cout << "XPAND: Unable to read coil currents" << endl; EXIT;}
+	if(in.fail() == 1)  {if(mpi_rank == 0) cout << "XPAND: No coil currents found. Run XPAND with -V option." << endl; EXIT;}
 	else {if(mpi_rank == 0) cout << "XPAND: EXTCUR found in: mgrid_coil_currents.in" << endl;}
 }
 else {if(mpi_rank == 0) cout << "XPAND: EXTCUR found in: " << inputfile << endl;}

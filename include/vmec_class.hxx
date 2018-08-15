@@ -911,7 +911,7 @@ int lfreeb_in;
 chk = nc_inq_varid(ncid, "lfreeb__logical__", &varid); if(chk!=0) {if(mpi_rank == 0) cout << "VMEC: lfreeb__logical__ not found" << endl; EXIT;}		// get variable id
 chk = nc_get_var_int(ncid, varid, &lfreeb_in);	// read
 lfreeb = bool(lfreeb_in);
-if(not lfreeb) {if(mpi_rank == 0) cout << "Warning: VMEC fixed boundary mode -> MGRID_FILE and EXTCUR may not be available. Provide separately!" << endl;}
+if(not lfreeb) {if(mpi_rank == 0) cout << "Warning: VMEC fixed boundary mode -> MGRID_FILE and EXTCUR may not be available. Provide separately or use -V option." << endl;}
 
 // read lasym
 int lasym_in;
