@@ -431,7 +431,7 @@ ifstream in(name);
 chk = in.fail();
 if(chk==0)
 {
-        cout << "File " << name << " already exists. Overwrite in " << sec << " seconds" << endl;
+        cout << "Overwrite file " << name << " in " << sec << " seconds" << endl;
         countdown(sec);
 }
 else return;

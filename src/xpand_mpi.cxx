@@ -16,6 +16,7 @@
 #include <omp.h>
 #include <unistd.h>
 #include <andi.hxx>
+#include <restart.hxx>
 #include <vmec_class.hxx>
 #include <xpand_class.hxx>
 #include <adapt_gauss_kronrod_class.hxx>
@@ -225,7 +226,6 @@ double phi_old = points(1,2);
 
 // Output
 LA_STRING filenameout = "xpand" + praefix + ".dat";
-if(mpi_rank < 1) outputtest(filenameout);
 
 // Set starting parameters
 int N_slave = 10;	// Number of points per package
@@ -251,6 +251,19 @@ MPI::COMM_WORLD.Barrier();	// Syncronize all Nodes
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 if(mpi_rank < 1)
 {
+	// check for possible restart
+	vector<LA_STRING> mafotHead;
+	Array<double,2> mafotData;
+	bool restart = false;
+	bool exists = checkOutputFile(filenameout);
+	if(exists)
+	{
+		readMafotFile(filenameout,mafotHead,mafotData);
+		if(mafotData.rows() < N) {restart = true; cout << "Attempt to restart the run..." << endl;}
+		else outputtest(filenameout);
+	}
+
+	// Output
 	ofstream out(filenameout);
 	out.precision(16);
 	if(VMEC_n0only) out << "# Xpand results from axisymmetric VMEC file " << wout_name << endl;
@@ -261,7 +274,8 @@ if(mpi_rank < 1)
 
 	// log file
 	if(use_GK) logfile.open("log_" + LA_STRING(program_name) + praefix + "_GK" + ".dat");
-	ofs3.open("log_" + LA_STRING(program_name) + praefix + "_Master" + ".dat");
+	if(restart) ofs3.open("log_" + LA_STRING(program_name) + praefix + "_Master" + ".dat", ios::app);	// append to log file here
+	else ofs3.open("log_" + LA_STRING(program_name) + praefix + "_Master" + ".dat");					// make new log file, overwriting any previous one
 	ofs3.precision(16);
 	if(use_GK) ofs3 << "Use Gauss-Kronrod integrator with limit = " << limit << " and degree = " << degree << endl;
 	else ofs3 << "Use adaptive Simpson integrator" << endl;
@@ -269,6 +283,12 @@ if(mpi_rank < 1)
 	ofs3 << "Tolerances are: epsabs = " << epsabs << "\t epsrel = " << epsrel << endl;
 	ofs3 << "Calculate B-field for " << N << " points" << endl;
 	ofs3 << "No. of Packages = " << NoOfPackages << " Points per Package = " << N_slave << endl << endl;
+
+	// restart run, if necessary
+	int donePackages = 0;
+	if(restart) donePackages = restartMafot(out,N,NoOfPackages,mafotHead,mafotData);
+	write_max = donePackages;
+	write_last = donePackages;
 
 	// Result array:	 Column Number,  Values
 	Array<double,3> results_all(Range(1,NoOfPackages),Range(1,N_transmit),Range(1,N_slave));
@@ -280,9 +300,9 @@ if(mpi_rank < 1)
 	Array<int,1> N_values(Range(1,N));
 	for(i=1;i<=N;i++) N_values(i) = i;
 
-	int sent_packages = 0;
-	int recieve_packages = 0;
-	int count = N;
+	int sent_packages = donePackages;
+	int recieve_packages = donePackages;
+	int count = N - donePackages*N_slave;
 
 	#pragma omp parallel shared(results_all,N_values,sent_packages,recieve_packages,count) private(i,tag) num_threads(2)
 	{

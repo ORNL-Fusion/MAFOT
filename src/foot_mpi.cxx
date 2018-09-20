@@ -207,8 +207,6 @@ ofstream ofs3;
 
 // Output
 LA_STRING filenameout = "foot" + type + praefix + ".dat";
-if(mpi_rank < 1) outputtest(filenameout);
-MPI::COMM_WORLD.Barrier();	// All Nodes wait for Master
 
 // Read EFIT-data
 double Raxis = 0, Zaxis = 0;
@@ -276,8 +274,21 @@ MPI::COMM_WORLD.Barrier();	// Syncronize all Nodes
 //--------------------------------------------------------------------------------------------------
 if(mpi_rank < 1)
 {
+	// check for possible restart
+	vector<LA_STRING> mafotHead;
+	Array<double,2> mafotData;
+	bool restart = false;
+	bool exists = checkOutputFile(filenameout);
+	if(exists)
+	{
+		readMafotFile(filenameout,mafotHead,mafotData);
+		if(mafotData.rows() < N) {restart = true; cout << "Attempt to restart the run..." << endl;}
+		else outputtest(filenameout);
+	}
+
 	// log file
-	ofs3.open("log_" + LA_STRING(program_name) + type + praefix + "_Master" + ".dat");
+	if(restart) ofs3.open("log_" + LA_STRING(program_name) + type + praefix + "_Master" + ".dat", ios::app);	// append to log file here
+	else ofs3.open("log_" + LA_STRING(program_name) + type + praefix + "_Master" + ".dat");					// make new log file, overwriting any previous one
 	ofs3.precision(16);
 
 	ofs3 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
@@ -303,6 +314,12 @@ if(mpi_rank < 1)
 	var[0] = "phi[rad]";  var[1] = "length t";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";  var[5] = "R [m]";  var[6] = "Z [m]";
 	PAR.writeiodata(out,bndy,var);
 
+	// restart run, if necessary
+	int donePackages = 0;
+	if(restart) donePackages = restartMafot(out,N,NoOfPackages,mafotHead,mafotData);
+	write_max = donePackages;
+	write_last = donePackages;
+
 	// Result array:					Package ID,  Column Number,  Values
 	Array<double,3> results_all(Range(1,NoOfPackages),Range(1,N_variables),Range(1,N_slave));
 	Array<double,2> recieve(Range(1,N_variables),Range(1,N_slave));
@@ -313,8 +330,8 @@ if(mpi_rank < 1)
 	Array<double,1> t_values(Range(1,PAR.Nt));
 	for(i=1;i<=PAR.Nt;i++) t_values(i) = PAR.tmin + (i-1)*dt;
 
-	int sent_packages = 0;
-	int recieve_packages = 0;
+	int sent_packages = donePackages;
+	int recieve_packages = donePackages;
 
 	#pragma omp parallel shared(results_all,t_values,sent_packages,recieve_packages,write_memory) private(i,tag) num_threads(2)
 	{
