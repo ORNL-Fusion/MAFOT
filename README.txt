@@ -46,11 +46,16 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 4.11
+MAFOT 4.2
 GUI 2.1
 
 Version Notes: 
 ----------------
+MAFOT 4.2 -- Sep 2018
+- restart option added to xpand, foot and laminar
+- VMEC field line tracing now posible inside s = 1 without xpand
+- d3dplot uses now pcolormesh instead of imshow
+
 GUI 2.1 -- Jul 2018
 - support for full wall outline in foot, using Swall
 - Mapdirection now selectable in foot, because of reversed Bt cases
