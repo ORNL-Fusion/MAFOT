@@ -234,7 +234,8 @@ out << "--- Trajectory ---" << endl;
 out << "Lc = " << FLT.Lc << endl;	
 out << "psimin = " << FLT.psimin << endl;
 out << "psimax = " << FLT.psimax << endl;
-out << "psiav = " << FLT.psiav/FLT.steps << endl;
+if(FLT.steps > 0) out << "psiav = " << FLT.psiav/FLT.steps << endl;
+else out << "psiav = 0" << endl;
 
 out << "--- Properties ---" << endl;
 out << "Ekin = " << FLT.Ekin << endl;
@@ -429,7 +430,8 @@ if(MapDirection <= 0)
 	if(psimax > psimaxtotal) psimaxtotal = psimax;
 	psiavtotal += psiav;
 }
-psiavtotal /= steps;
+if(steps > 0) psiavtotal /= steps;
+else psiavtotal = 0;
 
 return 0;
 }
