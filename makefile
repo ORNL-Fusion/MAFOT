@@ -184,6 +184,12 @@ dtplot_mpi : $(OBJDIR)/d3d/plot_mpi.o libla_string.a libtrip3d.a
 
 dtstructure : $(OBJDIR)/d3d/structure.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/structure.o -o $(BIN_DIR)/$@ $(LIBS)
+	
+fi_prepare : $(OBJDIR)/d3d/fi_prepare.o libla_string.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/fi_prepare.o -o $(BIN_DIR)/$@ $(LIBS)
+
+$(OBJDIR)/d3d/fi_prepare.o : $(OBJDIR)/d3d/%.o : $(MAFOT_DIR)/src/%.cxx
+	$(CXX) -c $(CFLAGS) $(INCLUDE) $(DEFINES) -DD3D $< -o $@
 
 # ---- ITER Targets ----
 iterplot : $(OBJDIR)/iter/plot.o libla_string.a libtrip3d.a

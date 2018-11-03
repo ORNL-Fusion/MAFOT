@@ -1,4 +1,6 @@
 // Header-File for all non-machine-specific MAFOT subroutines
+// MAnifold & FOotprint Tracer
+// MAgnetic Fieldlines Of Tokamaks
 // uses arrays and multiple-arrays from blitz-Library
 // interpolated filament fields routines defined here
 // used by all D3D, ITER and NSTX drift programs
