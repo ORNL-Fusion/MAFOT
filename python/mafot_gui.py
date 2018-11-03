@@ -722,6 +722,8 @@ class common_tab(set_machine):	# inherit set_machine class
 		self.Lambda = tk.StringVar()
 		self.useFilament = tk.StringVar()
 		self.nproc = tk.StringVar()
+		self.Ekin_array = None
+		self.Ekin_idx = 0
 
 		# --- separator ---
 		separator3 = tk.Label(self.frame, text = "---------------------------------------------------------------------------------------", font = self.labelFont)
@@ -1000,6 +1002,19 @@ class common_tab(set_machine):	# inherit set_machine class
 			self.Lambda_label.grid_forget()
 
 
+	def set_Ekin(self):
+		Ekin = self.Ekin.get()
+		if ',' in Ekin: 
+			Ekin = Ekin.split(',')
+			self.Ekin_array = np.array([np.float64(item) for item in Ekin])
+		elif ':' in Ekin: 
+			Ekin = Ekin.split(':')
+			if len(Ekin) > 2: self.Ekin_array = np.arange(np.float64(Ekin[0]), np.float64(Ekin[1]) + 0.5*np.float64(Ekin[2]), np.float64(Ekin[2]))
+			else: self.Ekin_array = np.arange(np.float64(Ekin[0]), np.float64(Ekin[1]) + 0.1, 0.25)
+		else: 
+			self.Ekin_array = np.array([np.float64(Ekin)])
+
+
 	# --- Default Functions --------------------------------------------------------------
 
 	# --- read parameter file ---
@@ -1067,52 +1082,75 @@ class common_tab(set_machine):	# inherit set_machine class
 		path = os.path.abspath(self.path.get())
 		if not (path[-1] == '/'): path += '/'
 		chk = not (cwd + '/' == path)
-		
+				
 		# set flags
 		# do this before the os.chdir, because the os.path.abspath recognizes the chdir, but self.path stays the same
 		shellFlags += self.make_VMEC_SIESTA_shell_flags()
 			
 		# change to working dir, write contol file(s), launch code, and return to original dir
 		if chk: os.chdir(path)
-		self.writeControlFile(name)
-		if(HOST == 'head.cluster'):		# Drop Cluster
-			self.write_qsub_file(data, self.tag.get(), shellFlags)
-			call('qsub run_MAFOTjob', shell = True)
-			#print 'To run, type: qsub run_MAFOTjob'
-		elif('iris' in HOST):			# Iris Cluster
-			self.write_qsub_file(data, self.tag.get(), shellFlags)
+		
+		self.set_Ekin()
+		NE = len(self.Ekin_array)
+		if NE > 1: 
+			sc = shellCall.split(name)
+			shellCall_i = []
+			shellCall_slurm = sc[0] + name[0:-4] + '_${SLURM_ARRAY_TASK_ID}' + '.dat' + sc[1] + '_${SLURM_ARRAY_TASK_ID}'
+		else:
+			shellCall_slurm = shellCall
+
+		for i in xrange(NE):
+			if NE > 1: 
+				name_i = name[0:-4] + '_' + str(i) + '.dat'
+				shellCall_i.append(sc[0] + name_i + sc[1] + '_' + str(i))
+			else: 
+				name_i = name
+				shellCall_i = [shellCall]
+			self.Ekin_idx = i
+			self.writeControlFile(name_i)
+			
+		#if(HOST == 'head.cluster'):		# Drop Cluster
+		#	self.write_qsub_file(data, self.tag.get(), shellCall + shellFlags)
+		#	call('qsub run_MAFOTjob', shell = True)
+		#	#print 'To run, type: qsub run_MAFOTjob'
+		if('iris' in HOST):			# Iris Cluster
+			self.write_qsub_file(data, self.tag.get(), shellCall_slurm + shellFlags)
 			#call('sbatch ./mafot.sbatch', shell = True)
 			print 'To run, type: sbatch ./mafot.sbatch'			
 		else:
-			call(shellCall + shellFlags + ' &', shell = True)
+			#for i in xrange(NE): call(shellCall_i[i] + shellFlags + ' &', shell = True)
 			#print 'running in dir:', os.getcwd()
-			#print 'To run, type: ' + shellCall + shellFlags + ' &'
+			for i in xrange(NE): print 'To run, type: ' + shellCall_i[i] + shellFlags + ' &'
+			
+			
 		if chk: os.chdir(cwd)
 
 
 	# --- Write qsub File on Drop Cluster ---
 	# here: shellFlags already embedded in shellCall
 	def write_common_qsub_file(self, tooltag, nproc, tag, shellCall, mpi = True):
-		if(HOST == 'head.cluster'):		# Drop Cluster
-			with open('run_MAFOTjob', 'w') as f:
-				f.write('#$ -N ' + tooltag + tag.translate(None, '_+- ') + '\n')
-				f.write('#$ -cwd \n')
-				f.write('#$ -o ' + HOME + '/work/batch.out \n')
-				f.write('#$ -e ' + HOME + '/work/batch.err \n')
-				f.write('#$ -S /bin/bash \n')
-				f.write('#$ -V \n')
-				f.write('#$ -q all.q \n')
-				if mpi:
-					f.write('#$ -pe mpi ' + str(nproc) + ' \n')
-					f.write('source /etc/profile.d/modules.sh\n')
-					f.write('module load openmpi-1.6/gcc \n')
-				f.write(shellCall + '\n')
-		elif('iris' in HOST):			# Iris Cluster
+		#if(HOST == 'head.cluster'):		# Drop Cluster
+		#	with open('run_MAFOTjob', 'w') as f:
+		#		f.write('#$ -N ' + tooltag + tag.translate(None, '_+- ') + '\n')
+		#		f.write('#$ -cwd \n')
+		#		f.write('#$ -o ' + HOME + '/work/batch.out \n')
+		#		f.write('#$ -e ' + HOME + '/work/batch.err \n')
+		#		f.write('#$ -S /bin/bash \n')
+		#		f.write('#$ -V \n')
+		#		f.write('#$ -q all.q \n')
+		#		if mpi:
+		#			f.write('#$ -pe mpi ' + str(nproc) + ' \n')
+		#			f.write('source /etc/profile.d/modules.sh\n')
+		#			f.write('module load openmpi-1.6/gcc \n')
+		#		f.write(shellCall + '\n')
+		if('iris' in HOST):			# Iris Cluster
 			import getpass
 			with open('mafot.sbatch', 'w') as f:
 				f.write('#!/bin/bash' + '\n')
-				f.write('#SBATCH -p preemptable' + '\n')
+				if len(self.Ekin_array) > 1:
+					f.write('#SBATCH --array=0-' + str(len(self.Ekin_array)-1) + '\n')
 				f.write('#SBATCH --job-name=mafot' + tooltag + tag.translate(None, '_+- ') + '\n')
+				f.write('#SBATCH -p preemptable' + '\n')
 				f.write('#SBATCH -o batch_mafot.out' + '\n')
 				if mpi:
 					f.write('#SBATCH -n ' + str(nproc) + ' \n')
@@ -1152,7 +1190,7 @@ class common_tab(set_machine):	# inherit set_machine class
 	def write_Ctrl_particles(self, f):
 		f.write('ParticleDirection(1=pass,-1=co-pass,0=field-lines)=\t' + str(self.sigma.get()) + '\n')
 		f.write('PartileCharge(-1=electrons,>=1=ions)=\t' + str(self.charge.get()) + '\n')
-		f.write('Ekin[keV]=\t' + self.Ekin.get() + '\n')
+		f.write('Ekin[keV]=\t' + str(self.Ekin_array[self.Ekin_idx]) + '\n')
 		f.write('lambda=\t' + self.Lambda.get() + '\n')
 
 
@@ -1187,7 +1225,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		return
 
 	# --- Write qsub File on Drop Cluster ---
-	def write_qsub_file(self, nproc, tag, shellFlags):
+	def write_qsub_file(self, nproc, tag, shellCall):
 		return
 
 
@@ -1331,10 +1369,8 @@ class set_plot_tab(common_tab):		# inherit common tab class
 
 
 	# --- Write qsub File on Drop Cluster ---
-	def write_qsub_file(self, nproc, tag, shellFlags):
-		tool = self.MachFlag.get() + 'plot_mpi'
+	def write_qsub_file(self, nproc, tag, shellCall):
 		tooltag = 'P'
-		shellCall = 'mpirun -n ' + str(nproc) + ' ' + tool + ' _plot.dat ' + tag + shellFlags
 		self.write_common_qsub_file(tooltag, nproc, tag, shellCall, mpi = True)
 
 
@@ -1504,10 +1540,8 @@ class set_fix_tab(common_tab):		# inherit common tab class
 
 
 	# --- Write qsub File on Drop Cluster ---
-	def write_qsub_file(self, period, tag, shellFlags):
-		tool = self.MachFlag.get() + 'fix'
+	def write_qsub_file(self, period, tag, shellCall):
 		tooltag = 'fix'
-		shellCall = tool + ' _fix.dat ' + str(period) + ' ' + tag + shellFlags
 		self.write_common_qsub_file(tooltag, 1, tag, shellCall, mpi = False)
 
 
@@ -1684,10 +1718,8 @@ class set_man_tab(common_tab):		# inherit common tab class
 
 
 	# --- Write qsub File on Drop Cluster ---
-	def write_qsub_file(self, fixfile, tag, shellFlags):
-		tool = self.MachFlag.get() + 'man'
+	def write_qsub_file(self, fixfile, tag, shellCall):
 		tooltag = 'M'
-		shellCall = tool + ' _fix.dat ' + fixfile + ' ' + tag + shellFlags
 		self.write_common_qsub_file(tooltag, 1, tag, shellCall, mpi = False)
 
 
@@ -2021,11 +2053,8 @@ class set_foot_tab(common_tab):		# inherit common tab class
 
 
 	# --- Write qsub File on Drop Cluster ---
-	def write_qsub_file(self, nproc, tag, shellFlags):
-		name = self.set_name()
-		tool = self.MachFlag.get() + 'foot_mpi'
+	def write_qsub_file(self, nproc, tag, shellCall):
 		tooltag = 'F'
-		shellCall = 'mpirun -n ' + str(nproc) + ' ' + tool + ' ' + name + ' ' + tag + shellFlags
 		self.write_common_qsub_file(tooltag, nproc, tag, shellCall, mpi = True)
 
 
@@ -2256,11 +2285,8 @@ class set_lam_tab(common_tab):		# inherit common tab class
 
 
 	# --- Write qsub File on Drop Cluster ---
-	def write_qsub_file(self, nproc, tag, shellFlags):
-		name = self.set_name()
-		tool = self.MachFlag.get() + 'laminar_mpi'
+	def write_qsub_file(self, nproc, tag, shellCall):
 		tooltag = 'L'
-		shellCall = 'mpirun -n ' + str(nproc) + ' ' + tool + ' ' + name + ' ' + tag + shellFlags
 		self.write_common_qsub_file(tooltag, nproc, tag, shellCall, mpi = True)
 
 
