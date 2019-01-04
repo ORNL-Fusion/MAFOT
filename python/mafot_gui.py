@@ -1157,7 +1157,10 @@ class common_tab(set_machine):	# inherit set_machine class
 				f.write('#SBATCH -t 120' + '\n')
 				f.write('#SBATCH --mem-per-cpu=1G' + '\n')
 				f.write('#SBATCH --mail-user=' + getpass.getuser() + '@fusion.gat.com' + '\n')
-				f.write('#SBATCH --mail-type=FAIL  ## or BEGIN,END,FAIL,ALL ' + '\n')
+				if len(self.Ekin_array) > 1:
+					f.write('#SBATCH --mail-type=FAIL,ARRAY_TASKS  ## or BEGIN,END,FAIL,ALL,ARRAY_TASKS ' + '\n')
+				else:
+					f.write('#SBATCH --mail-type=FAIL  ## or BEGIN,END,FAIL,ALL ' + '\n')
 				f.write('#SBATCH --export=ALL' + '\n')
 				f.write('##module purge' + '\n')
 				f.write('module load default-paths' + '\n')

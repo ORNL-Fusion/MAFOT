@@ -203,6 +203,11 @@ if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use mo
 ofs2.open("log_" + LA_STRING(program_name) + praefix + "_Node" + LA_STRING(mpi_rank) + ".dat");
 ofs2.precision(16);
 ofstream ofs3;
+if(mpi_rank < 1) // Master log file
+{
+	ofs3.open("log_" + LA_STRING(program_name) + praefix + "_Master" + ".dat", ios::app);	// append to log file here
+	ofs3.precision(16);
+}
 
 // Output
 LA_STRING filenameout = "lam" + praefix + ".dat";
@@ -327,11 +332,6 @@ if(mpi_rank < 1)
 		if(mafotData.rows() < N) {restart = true; cout << "Attempt to restart the run..." << endl;}
 		else outputtest(filenameout);
 	}
-
-	// log file
-	if(restart) ofs3.open("log_" + LA_STRING(program_name) + praefix + "_Master" + ".dat", ios::app);	// append to log file here
-	else ofs3.open("log_" + LA_STRING(program_name) + praefix + "_Master" + ".dat");					// make new log file, overwriting any previous one
-	ofs3.precision(16);
 
 	ofs3 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 	ofs3 << "No. of Packages = " << NoOfPackages << " Points per Package = " << N_slave << endl << endl;

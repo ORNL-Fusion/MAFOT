@@ -90,6 +90,7 @@ if(in.fail()==1) {cout << "Unable to open file " << name << endl; EXIT;}
 while(1)
 {
 	in >> line;
+	if(line.len() < 1) break;	// file has no data, only the header
 	if(line[1]=='#')
 	{
 		count+=1;
