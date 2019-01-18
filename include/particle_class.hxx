@@ -64,8 +64,9 @@ private:
 
 	double GAMMA;
 	double eps0;
-	double Ix;
+	double Ix;		// normalized angular momentum of the particle gyration. This is a constant of motion here
 	double mc2;
+	double eps0e_mc2;
 	int steps;		// total number of integration steps along trajectory
 
 // Member-Functions
@@ -90,6 +91,7 @@ public:
 	double Ekin;	// kinitic particle energy [keV]
 	int sigma;		// 1: co-passing particles		-1: count-passing particles		0: field lines only
 	int Zq;			// Charge number: 1: ions are calculated	-1: electrons are calculated
+	int Zeff;		// effective partice mass number; electrons Zeff = 1, Hydrogen Zeff = 1, Deuterium Zeff = 2, Helium Zeff = 4
 
 	double Lmfp_total;	// Sum of all mean free paths along the trajectory (PARr.useTprofile == 1 only)
 
@@ -103,6 +105,7 @@ PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 // Member-Functions
 	double get_r();
 	double get_theta();
+	double get_theta(double Rin, double Zin);
 	int get_psi(const double x1, const double x2, double& y, double p = 0);
 	void set_Energy();
 	int mapit(const int itt,int MapDirection=1);
@@ -114,7 +117,8 @@ PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 	void create(long& idum, double Rmin, double Rmax, double Zmin, double Zmax, int flag=0);
 	void set_surface(int i, int N, double thmin, double thmax, double phimin, double phimax, int N_phi = 1);
 	void convertRZ(double theta, double r);
-	void getRZ(double x, double y, double& r, double &z);
+	void getRZ(double x, double y, double& r, double& z);
+	void getEfield(double r, double z, double& ER, double& EZ);
 
 }; //end of class
 
@@ -134,7 +138,6 @@ const double me=9.10938188*1e-31;	// Electron mass in kg
 const double mp=1.67262158*1e-27;	// Proton mass in kg
 const double E0e=me*c*c/e/1000.0;	// Rest energy of Electrons in [keV] 
 const double E0p=mp*c*c/e/1000.0;	// Rest energy of Protons in [keV] 
-const int Massnumber=1;				// Mass number
 
 // Public Member Variables
 R = 0;				// cylindrical major radius [m]
@@ -152,6 +155,7 @@ steps = 0;
 Ekin = PAR.Ekin;	// kinitic particle energy
 sigma = PAR.sigma;	// 1: co-passing particles		-1: count-passing particles		0: field lines only
 Zq = PAR.Zq;		// Charge number: 1: ions are calculated	-1: electrons are calculated
+Zeff = PAR.Zeff;	// effective partice mass number; electrons Zeff = 1, Hydrogen Zeff = 1, Deuterium Zeff = 2, Helium Zeff = 4
 
 Lmfp_total = 0;
 
@@ -166,21 +170,23 @@ else
 {
 	if(Zq >= 1) // Ions
 	{
-		mc2 = E0p*Massnumber;						// Rest Energy
-		omegac = e*EQD.Bt0/(mp*Massnumber);		// normalized gyro frequency (SI-System)
+		mc2 = E0p*Zeff;						// Rest Energy in [keV]
+		omegac = e*EQD.Bt0/(mp*Zeff);		// normalized gyro frequency (SI-System)
 		if(mpi_rank < 1) cout << "Ions are calculated" << endl;
 		ofs2 << "Ions are calculated" << endl;
 	}
 	else // Electrons
 	{
-		Zq = -1;									// default!
-		mc2 = E0e*Massnumber;						// Rest Energy
-		omegac = e*EQD.Bt0/(me*Massnumber);		// normalized gyro frequency (SI-System)
+		Zeff = 1;					// default!
+		Zq = -1;					// default!
+		mc2 = E0e;					// Rest Energy in [keV]
+		omegac = e*EQD.Bt0/me;		// normalized gyro frequency (SI-System)
 		if(mpi_rank < 1) cout << "Electrons are calculated" << endl;
 		ofs2 << "Electrons are calculated" << endl;
 	}
-	GAMMA = 1 + Ekin/mc2;							// relativistic gamma factor 1/sqrt(1-v^2/c^2)
+	GAMMA = 1 + Ekin/mc2;						// relativistic gamma factor 1/sqrt(1-v^2/c^2)
 	eps0 = c*c/omegac/omegac/EQD.R0/EQD.R0;		// normalized rest energy
+	eps0e_mc2 = eps0/(1000*mc2);				// see above, mc2 = mc^2/e/1e3 -> use Er in [V/m]
 	Ix = -0.5/double(Zq)*eps0*((PAR.lambda*(GAMMA-1)+1)*(PAR.lambda*(GAMMA-1)+1)-1);
 	if(mpi_rank < 1) cout << "kin. Energy: Ekin= " << Ekin << "keV" << "\t" << "rel. gamma-factor: gamma= " << GAMMA << endl;
 	ofs2 << "kin. Energy: Ekin= " << Ekin << "keV" << "\t" << "rel. gamma-factor: gamma= " << GAMMA << endl;
@@ -198,6 +204,7 @@ eps0 = FLT.eps0;
 Ix = FLT.Ix;
 mc2 = FLT.mc2;
 steps = FLT.steps;
+eps0e_mc2 = FLT.eps0e_mc2;
 
 // Public Member Variables
 R = FLT.R;	
@@ -214,6 +221,7 @@ psiav = FLT.psiav;
 Ekin = FLT.Ekin;
 sigma = FLT.sigma;
 Zq = FLT.Zq;
+Zeff = FLT.Zeff;
 
 Lmfp_total = FLT.Lmfp_total;
 return(*this);
@@ -241,6 +249,7 @@ out << "--- Properties ---" << endl;
 out << "Ekin = " << FLT.Ekin << endl;
 out << "Type (0=field line) = " << FLT.sigma << endl;
 out << "Charge = " << FLT.Zq << endl;
+out << "Mass = " << FLT.Zeff << endl;
 
 return out;
 }
@@ -260,9 +269,15 @@ return sqrt(Rm*Rm + Zm*Zm);
 //---------------- get_theta ----------------------------------------------------------------------------------------------
 double PARTICLE::get_theta()
 {
+return get_theta(R,Z);
+}
+
+//----
+double PARTICLE::get_theta(double Rin, double Zin)
+{
 double Rm,Zm,theta;
-Rm = R - EQDr.RmAxis; // R relative to magnetic axis
-Zm = Z - EQDr.ZmAxis; // Z relative to magnetic axis
+Rm = Rin - EQDr.RmAxis; // R relative to magnetic axis
+Zm = Zin - EQDr.ZmAxis; // Z relative to magnetic axis
 
 theta = atan(Zm/Rm);
 if(Rm<0) theta += pi;
@@ -828,6 +843,18 @@ while(fabs(xo-xu) > eps)
 return x;
 }
 
+//---------------- getEfield ----------------------------------------------------------------------------------------------
+// gets Er(psi) from EFIT, and returns ER,EZ from Er
+void PARTICLE::getEfield(double r, double z, double& ER, double& EZ)
+{
+double th,Epsi,Er;
+get_psi(r,z,Epsi);
+th = get_theta(r,z);
+Er = EQDr.getEfield(Epsi);
+ER = Er*cos(th);
+EZ = Er*sin(th);
+}
+
 //---------------- dgls ---------------------------------------------------------------------------------------------------
 // Type the differential equations (dgls) as they are written, while x is the independent variable
 // Here: x = phi, y(0) = R, y(1) = Z, dydx(0) = dR/dphi, dydx(1) = dZ/dphi
@@ -836,6 +863,7 @@ int PARTICLE::dgls(double x, Array<double,1> y, Array<double,1>& dydx)
 int chk;
 double B_R,B_Z,B_phi;
 double S;
+double ER,EZ,a;
 
 chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
 if (chk == -1) return -1;
@@ -849,6 +877,13 @@ if(sigma != 0)
 	if(S<0) {ofs2 << "dgls: Sqrt argument negative => Abort" << endl; return -1;}	// Error -> Abort program
 	S = sqrt(S);
 	dydx(1) += -sigma/double(Zq)*(y(0)*S + EQDr.R0*Ix/S);	// sign corrected: sigma = +1 is indeed co-passing
+	if(EQDr.hasEfield)
+	{
+		getEfield(y(0),y(1),ER,EZ);
+		a = sigma*eps0e_mc2*GAMMA*y(0)*y(0)/S;
+		dydx(0) += a*EZ;
+		dydx(1) += -a*ER;
+	}
 }
 return 0;
 }

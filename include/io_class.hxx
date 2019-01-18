@@ -58,6 +58,7 @@ public:
 	int useBcoil;								// shifted&tilted B-coil error field:  0: off, 1: on
 	int useFilament;							// Current filaments: 0: off, >=1: Number of filaments to use
 	int Zq;										// Charge number: 1: ions are calculated	-1: electrons are calculated
+	int Zeff;									// effective partice mass number; electrons Zeff = 1, Hydrogen Zeff = 1, Deuterium Zeff = 2, Helium Zeff = 4
 	int sigma;									// 1: co-passing particles		-1: count-passing particles		0: field lines only
 	int useTprofile;							// Temperature profile: 0: constant Energy, 1: according to Position
 	double Ekin;								// Kinetic Energy in keV
@@ -154,6 +155,7 @@ thmax = PAR.thmax;
 Ekin = PAR.Ekin;
 lambda = PAR.lambda;
 verschieb = PAR.verschieb;
+Zeff = PAR.Zeff;
 
 // Set switches
 which_target_plate = PAR.which_target_plate;
@@ -233,6 +235,8 @@ out << endl;
 
 out << "--- Particle Parameters ---" << endl;
 out << "Ekin = " << PAR.Ekin << endl;
+out << "Charge = " << PAR.Zq << endl;
+out << "Mass = " << PAR.Zeff << endl;
 out << "lambda = " << PAR.lambda << endl;
 out << "verschieb = " << PAR.verschieb << endl;
 out << endl;
@@ -246,7 +250,6 @@ out << "useIcoil = " << PAR.useIcoil << endl;
 out << "useBuswork = " << PAR.useBuswork << endl;
 out << "useBcoil = " << PAR.useBcoil << endl;
 out << "sigma = " << PAR.sigma << endl;
-out << "Zq = " << PAR.Zq << endl;
 out << "useFilament = " << PAR.useFilament << endl;
 out << "useTprofile = " << PAR.useTprofile << endl;
 out << endl;
@@ -321,6 +324,8 @@ thmin = vec[4];
 thmax = vec[5];
 
 verschieb = vec[0];
+
+Zeff = 1;	// fixed for now
 
 #if defined(ITER)
 	// Particle Parameters
@@ -501,6 +506,7 @@ out << "# Use Temperature Profile (0=off, 1=on): " << useTprofile << endl;
 out << "# Create Points (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-random, 5=RZ-grid): " << create_flag << endl;
 out << "# Direction of particles (1=co-pass, -1=count-pass, 0=field lines): " << sigma << endl;
 out << "# Charge number of particles (=-1:electrons, >=1:ions): " << Zq << endl;
+out << "# Effective mass number of particles (electrons:1, ions:>=1): " << Zeff << endl;
 out << "# Boundary (0=Wall, 1=Box): " << simpleBndy << endl;
 out << "#-------------------------------------------------" << endl;
 out << "### Global Parameters:" << endl;

@@ -132,6 +132,13 @@ public:
 	Array<int,1> Nwall3D;	// number of points for the Wall at each full integer toroidal angle phi = 0,...,359; each respective Array has twice the size!
 	Array<double,2> wall3D;	// for each toroidal angle: Position of the Wall in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
 
+	// radial electric field
+	bool hasEfield;				// E-field is available, default: False
+	int NE;						// Number of Points in Er profile
+	Array<double,1> Epsi;		// psi of Er profile
+	Array<double,1> Eradial;	// (minor) radial electric field profile Er(psi) in [V/m]
+	Array<double,1> d2Eradial;	// Spline of Eradial in Epsi
+
 // Konstruktoren
 	EFIT();		// Default Constructor
 
@@ -140,6 +147,7 @@ public:
 
 // Member-Funktionen
 	void ReadData(const LA_STRING ShotNr, const LA_STRING ShotTime, double Raxis = 0, double Zaxis = 0);	// Reads EFIT data from g-file
+	void ReadEfield(LA_STRING file);	// Read E-field profile from file
 
 	// Interpolates psi and derivatives; flag: 0 = 2D splines, 1 = bicubic interpolation; norm specifies if psi is to be normalized
 	int get_psi(const double x1, const double x2, double& y, double& dy1, double& dy2, int flag=1, bool norm=true);		// 0: ok	-1: Point outside of EFIT grid
@@ -148,9 +156,10 @@ public:
 	double get_Pres(const double x);		// Spline interpolates Pres
 	double get_FFprime(const double x);		// Spline interpolates FFprime
 	double get_Pprime(const double x);		// Spline interpolates Pprime
-	double get_q(const double x);		// Spline interpolates qpsi
+	double get_q(const double x);			// Spline interpolates qpsi
 	int lcfs_RZ_nn(const double th, double& r, double& z);
 	void set3Dwall(LA_STRING wall_file);	// read 3D wall and set arrays
+	double getEfield(const double x); 		// Spline interpolates Eradial
 
 }; //end of class
 
@@ -210,6 +219,12 @@ helicity_adjust = 1;
 use_3Dwall = false;
 Nwall3D.resize(360);	// Nwall3D starts at index 0, which corresponds to angle phi = 0
 wall3D.resize(500,360);		wall3D.reindexSelf(index2_10);	// second index (= angle) starts with 0 again
+
+hasEfield = false;
+NE = 129;
+Epsi.resize(NE);	Epsi.reindexSelf(index);
+Eradial.resize(NE);	Eradial.reindexSelf(index);
+d2Eradial.resize(NE);	d2Eradial.reindexSelf(index);
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -280,6 +295,11 @@ use_3Dwall = EQD.use_3Dwall;
 Nwall3D.reference(EQD.Nwall3D.copy());
 wall3D.reference(EQD.wall3D.copy());
 
+hasEfield = EQD.hasEfield;
+NE = EQD.NE;
+Epsi.reference(EQD.Epsi.copy());
+Eradial.reference(EQD.Eradial.copy());
+d2Eradial.reference(EQD.d2Eradial.copy());
 return(*this);
 }
 
@@ -667,6 +687,74 @@ in.close();
 // use the 3D wall now
 use_3Dwall = true;
 }
+
+//---------------------- ReadEfield ---------------------------------------------------------------------------------------
+void EFIT::ReadEfield(LA_STRING name)
+{
+int i;
+LA_STRING line;
+int count = 0;
+int rows = 0;
+double d1,dn,dpsi;
+
+// Input
+ifstream in;
+in.open(name);
+if(in.fail()==1) {cout << "Unable to open file " << name << endl; return;}
+
+// Count the number of rows starting with #
+while(1)
+{
+	in >> line;
+	if(line[1]=='#') {count+=1; continue;}
+	else break;
+}
+
+// count the number of rows with data
+while(in.eof()==0) // Last row is read twice --- can't be changed --- -> rows starts with 0 and is actual number of data rows in file
+{
+	in >> line;
+	rows += 1;
+}
+
+in.close();	// Important to start reading from the beginning of the file
+in.clear(); // Important to clear EOF flag
+
+// resize
+NE = rows;
+Epsi.resize(NE);
+Eradial.resize(NE);
+
+in.open(name);	// Open file again
+for(i=1;i<=count;i++) in >> line;	// Skip IO data rows
+
+// Read data
+for(i=1;i<=rows;i++)
+{
+	in >> Epsi(i);
+	in >> Eradial(i);
+}
+in.close();
+
+// Prepare Spline interpolation of Eradial
+d2Eradial.resize(NE);
+dpsi = Epsi(2) - Epsi(1);
+d1 = (Eradial(2)-Eradial(1))/dpsi;
+dn = (Eradial(NE)-Eradial(NE-1))/dpsi;
+spline(Epsi,Eradial,NE,d1,dn,d2Eradial);
+
+hasEfield = true;
+}
+
+//-------------- getEfield ------------------------------------------------------------------------------------------------
+// spline interpolates Er(x)
+double EFIT::getEfield(const double x)
+{
+double y,dy;
+splint(Epsi,Eradial,d2Eradial,NE,x,y,dy);
+return y;
+}
+
 
 //----------------------- End of Member Functions -------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
