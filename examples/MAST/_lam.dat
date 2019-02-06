@@ -21,5 +21,6 @@ ParticleDirection(1=pass,-1=co-pass,0=field-lines)=	0
 PartileCharge(-1=electrons,>=1=ions)=	1
 Ekin[keV]=	100
 lambda=	0.1
+Zeff=	2
 pi=	3.141592653589793
 2*pi=	6.283185307179586

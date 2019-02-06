@@ -188,8 +188,8 @@ else
 	eps0 = c*c/omegac/omegac/EQD.R0/EQD.R0;		// normalized rest energy
 	eps0e_mc2 = eps0/(1000*mc2);				// see above, mc2 = mc^2/e/1e3 -> use Er in [V/m]
 	Ix = -0.5/double(Zq)*eps0*((PAR.lambda*(GAMMA-1)+1)*(PAR.lambda*(GAMMA-1)+1)-1);
-	if(mpi_rank < 1) cout << "kin. Energy: Ekin= " << Ekin << "keV" << "\t" << "rel. gamma-factor: gamma= " << GAMMA << endl;
-	ofs2 << "kin. Energy: Ekin= " << Ekin << "keV" << "\t" << "rel. gamma-factor: gamma= " << GAMMA << endl;
+	if(mpi_rank < 1) cout << "kin. Energy: Ekin= " << Ekin << "keV" << "\t" << "rel. gamma-factor: gamma= " << GAMMA << "\t" << "Mass: Zeff= " << Zeff << endl;
+	ofs2 << "kin. Energy: Ekin= " << Ekin << "keV" << "\t" << "rel. gamma-factor: gamma= " << GAMMA << "\t" << "Mass: Zeff= " << Zeff << endl;
 }
 }
 

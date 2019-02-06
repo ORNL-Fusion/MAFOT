@@ -11,6 +11,8 @@
 #ifndef MAFOT_INCLUDED
 #define MAFOT_INCLUDED
 
+#define MAFOT_VERSION "5.0"
+
 // Include
 //--------
 #include <andi.hxx>				// includes many usefull tools and defines 

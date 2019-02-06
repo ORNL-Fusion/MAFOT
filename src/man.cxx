@@ -112,6 +112,7 @@ case 'h':
 	cout << "  To use B-field for mock-up islands, set response_field = -10, and provide file in cwd:" << endl;
 	cout << "    fakeIslands.in ->  each line gives: Amplitude, pol. mode m, tor. mode n, phase [rad]" << endl;
 	cout << "                       use option -I to specify other filename" << endl;
+	cout << endl << "Current MAFOT version is: " << MAFOT_VERSION << endl;
 	return 0;
 case 's':
 	trytoskip = 0;

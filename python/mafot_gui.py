@@ -341,15 +341,24 @@ class set_machine():
 
 
 	def set_machine_defaults(self, data, MachFlag, flag = None):
+		if data is None: data = self.tool_defaults(flag)
+		
+		data_dic = {'0-8':data[0:9],'itt':str(int(data[1])),'phistart':repr(data[7]),'MapDirection':int(data[8]),
+				'useM3DC1':int(data[10]),'response':int(data[9]),'selectField':int(data[10]),
+				'target':int(data[11]),'create':int(data[12]),
+				'sigma':int(data[16]),'charge':int(data[17]),'Ekin':repr(data[18]),'Lambda':repr(data[19]),'Zeff':repr(data[20])}
+		
 		if(MachFlag == 'iter'):
-			data = self.set_iter_defaults(data, flag)
+			data_dic = self.set_iter_defaults(data, data_dic)
 		elif(MachFlag == 'nstx'):
-			data = self.set_nstx_defaults(data, flag)
+			data_dic = self.set_nstx_defaults(data, data_dic)
 		elif(MachFlag == 'mast'):
-			data = self.set_mast_defaults(data, flag)
+			data_dic = self.set_mast_defaults(data, data_dic)
 		else:	# d3d
-			data = self.set_d3d_defaults(data, flag)
-		return data
+			data_dic = self.set_d3d_defaults(data, data_dic)
+		
+		self.set_common_defaults(data_dic)
+		return data_dic
 
 
 	def write_coils(self, MachFlag, f):
@@ -391,30 +400,22 @@ class set_machine():
 		self.machine_ef_chk3.grid(column = 4, row = row, sticky = tk.E + tk.W, padx=5, pady=5)
 
 	
-	def set_d3d_defaults(self, data, flag = None):
-		if data is None:
-			data = self.tool_defaults(flag)
-		elif len(data) < 26:
+	def set_d3d_defaults(self, data, data_dic):
+		if len(data) < 26:
 			if len(data) == 23: data = np.append(data[0:21],[0, 0, 0, 3.141592653589793, 6.283185307179586])
 			elif len(data) == 24: data = np.append(data[0:22],[0, 0, 3.141592653589793, 6.283185307179586])
 			elif len(data) == 25: data = np.append(data[0:23],[0, 3.141592653589793, 6.283185307179586])
 
-		data_dic = {'0-8':data[0:9],'itt':str(int(data[1])),'phistart':repr(data[7]),'MapDirection':int(data[8]),
-		'useFcoil':int(data[13]),'useCcoil':int(data[14]),'useIcoil':int(data[15]),'useBus':int(data[22]),'useBcoil':int(data[23]),
-		'useM3DC1':int(data[10]),'response':int(data[9]),'selectField':int(data[10]),
-		'sigma':int(data[16]),'charge':int(data[17]),'Ekin':repr(data[18]),'Lambda':repr(data[19]),
-		'useFilament':str(int(data[20]))}
-		
-		data_dic['target'] = data[11]
-		data_dic['create'] = data[12]
+		dic = {'useFcoil':int(data[13]),'useCcoil':int(data[14]),'useIcoil':int(data[15]),
+			'useBus':int(data[22]),'useBcoil':int(data[23]),
+			'useFilament':str(int(data[21]))}
+		for key in dic: data_dic[key] = dic[key]
 		
 		self.useFcoil.set(data_dic['useFcoil'])
 		self.useCcoil.set(data_dic['useCcoil'])
 		self.useIcoil.set(data_dic['useIcoil'])
 		self.useBus.set(data_dic['useBus'])
 		self.useBcoil.set(data_dic['useBcoil'])
-		
-		self.set_common_defaults(data_dic)
 		return data_dic
 		
 	
@@ -437,21 +438,10 @@ class set_machine():
 		self.machine_3D_chk1.grid(column = 2, row = row, sticky = tk.E + tk.W, padx=5, pady=5)
 
 
-	def set_iter_defaults(self, data, flag = None):
-		if data is None: data = self.tool_defaults(flag)
-
-		data_dic = {'0-8':data[0:9],'itt':str(int(data[1])),'phistart':repr(data[7]),'MapDirection':int(data[8]),
-		'useIcoil':int(data[11]),
-		'useM3DC1':int(data[19]),'response':int(data[18]),'selectField':int(data[19]),
-		'sigma':int(data[14]),'charge':int(data[15]),'Ekin':repr(data[16]),'Lambda':repr(data[17]),
-		'useFilament':str(int(data[12]))}
-		
-		data_dic['target'] = data[9]
-		data_dic['create'] = data[10]
-		
+	def set_iter_defaults(self, data, data_dic):
+		data_dic['useIcoil'] = int(data[13])
+		data_dic['useFilament'] = str(int(data[14]))
 		self.useIcoil.set(data_dic['useIcoil'])
-		
-		self.set_common_defaults(data_dic)
 		return data_dic
 
 
@@ -467,21 +457,10 @@ class set_machine():
 		self.machine_3D_chk1.grid(column = 2, row = row, sticky = tk.E + tk.W, padx=5, pady=5)
 
 
-	def set_nstx_defaults(self, data, flag = None):
-		if data is None: data = self.tool_defaults(flag)
-		
-		data_dic = {'0-8':data[0:9],'itt':str(int(data[1])),'phistart':repr(data[7]),'MapDirection':int(data[8]),
-		'useIcoil':int(data[11]),
-		'useM3DC1':int(data[19]),'response':int(data[18]),'selectField':int(data[19]),
-		'sigma':int(data[14]),'charge':int(data[15]),'Ekin':repr(data[16]),'Lambda':repr(data[17]),
-		'useFilament':str(int(data[12]))}
-		
-		data_dic['target'] = data[9]
-		data_dic['create'] = data[10]
-		
+	def set_nstx_defaults(self, data, data_dic):
+		data_dic['useIcoil'] = int(data[13])
+		data_dic['useFilament'] = str(int(data[14]))		
 		self.useIcoil.set(data_dic['useIcoil'])
-		
-		self.set_common_defaults(data_dic)
 		return data_dic
 
 
@@ -499,22 +478,12 @@ class set_machine():
 		self.machine_3D_chk2.grid(column = 3, row = row, sticky = tk.E + tk.W, padx=5, pady=5)
 
 
-	def set_mast_defaults(self, data, flag = None):
-		if data is None: data = self.tool_defaults(flag)
-
-		data_dic = {'0-8':data[0:9],'itt':str(int(data[1])),'phistart':repr(data[7]),'MapDirection':int(data[8]),
-		'useCcoil':int(data[13]),'useIcoil':int(data[14]),
-		'useM3DC1':int(data[10]),'response':int(data[9]),'selectField':int(data[10]),
-		'sigma':int(data[16]),'charge':int(data[17]),'Ekin':repr(data[18]),'Lambda':repr(data[19]),
-		'useFilament':str(int(data[15]))}
-		
-		data_dic['target'] = data[11]
-		data_dic['create'] = data[12]
-		
+	def set_mast_defaults(self, data, data_dic):
+		data_dic['useCcoil'] = int(data[13])
+		data_dic['useIcoil'] = int(data[14])
+		data_dic['useFilament'] = str(int(data[15]))
 		self.useCcoil.set(data_dic['useCcoil'])
 		self.useIcoil.set(data_dic['useIcoil'])
-		
-		self.set_common_defaults(data_dic)
 		return data_dic
 
 
@@ -720,10 +689,12 @@ class common_tab(set_machine):	# inherit set_machine class
 		self.charge = tk.IntVar()
 		self.Ekin = tk.StringVar()
 		self.Lambda = tk.StringVar()
+		self.Zeff = tk.StringVar()
 		self.useFilament = tk.StringVar()
 		self.nproc = tk.StringVar()
 		self.Ekin_array = None
 		self.Ekin_idx = 0
+		self.ErProfileFile = tk.StringVar()
 
 		# --- separator ---
 		separator3 = tk.Label(self.frame, text = "---------------------------------------------------------------------------------------", font = self.labelFont)
@@ -740,12 +711,19 @@ class common_tab(set_machine):	# inherit set_machine class
 		tk.Label(self.frame, text = "Orbits", font = self.labelFont).grid(column = 1, row = row, sticky = tk.E + tk.N)
 
 		row += 1; self.row_particle = row
-		self.charge_R1 = tk.Radiobutton(self.frame, text = 'Electrons', variable = self.charge, value = -1, font = self.labelFont)
+		self.charge_R1 = tk.Radiobutton(self.frame, text = 'Electrons', variable = self.charge, 
+			value = -1, command = self.setZeff, font = self.labelFont)
 		self.charge_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
-		self.charge_R2 = tk.Radiobutton(self.frame, text = 'Ions', variable = self.charge, value = 1, font = self.labelFont)
+		self.charge_R2 = tk.Radiobutton(self.frame, text = 'Ions', variable = self.charge, 
+			value = 1, command = self.setZeff, font = self.labelFont)
 		self.charge_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.charge_label = tk.Label(self.frame, text = "Species", font = self.labelFont)
 		self.charge_label.grid(column = 1, row = row, sticky = tk.E )
+
+		self.Zeff_entry = tk.Entry(self.frame, width = 7, textvariable = self.Zeff, font = self.textFont)
+		self.Zeff_entry.grid(column = 4, row = row, sticky = tk.E )
+		self.Zeff_label = tk.Label(self.frame, text = "   Zeff", font = self.labelFont)
+		self.Zeff_label.grid(column = 4, row = row, sticky = tk.W )
 
 		row += 1
 		self.Ekin_entry = tk.Entry(self.frame, width = 7, textvariable = self.Ekin, font = self.textFont)
@@ -757,7 +735,14 @@ class common_tab(set_machine):	# inherit set_machine class
 		self.Lambda_entry.grid(column = 4, row = row, sticky = tk.W + tk.E )
 		self.Lambda_label = tk.Label(self.frame, text = "Energy ratio", font = self.labelFont)	
 		self.Lambda_label.grid(column = 3, row = row, sticky = tk.E )
-
+		
+		row += 1
+		self.ErProfileFile_entry = AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
+				width = 50, textvariable = self.ErProfileFile, font = self.textFont)
+		self.ErProfileFile_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W)
+		self.ErProfileFile_label = tk.Label(self.frame, text = "Er Profile: ", font = self.labelFont)
+		self.ErProfileFile_label.grid(column = 1, row = row, sticky = tk.E )
+		
 		# --- separator ---
 		row += 1
 		separator4 = tk.Label(self.frame, text = "---------------------------------------------------------------------------------------", font = self.labelFont)
@@ -860,6 +845,8 @@ class common_tab(set_machine):	# inherit set_machine class
 			self.specialFieldFile1_entry.grid_forget()
 			self.specialFieldFile2_label.grid_forget()
 			self.specialFieldFile2_entry.grid_forget()
+			self.specialFieldFile1.set('')
+			self.specialFieldFile2.set('')
 
 
 	def activate_SIESTA_response(self):
@@ -875,6 +862,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		else:
 			self.specialFieldFile3_label.grid_forget()
 			self.specialFieldFile3_entry.grid_forget()
+			self.specialFieldFile3.set('')
 			if self.SIESTA:
 				self.refresh_grid_labels()
 				self.create_R1.configure(state=tk.NORMAL)
@@ -975,8 +963,8 @@ class common_tab(set_machine):	# inherit set_machine class
 			print 'Requested file not found:', file
 			return False	# file not found
 		else:
-			self.specialFieldFile1_entry.configure(validate = 'focusout')
-			self.specialFieldFile2_entry.configure(validate = 'focusout')
+			#self.specialFieldFile1_entry.configure(validate = 'focusout')
+			#self.specialFieldFile2_entry.configure(validate = 'focusout')
 			return True		# file found
 		
 	
@@ -987,11 +975,16 @@ class common_tab(set_machine):	# inherit set_machine class
 			self.charge_R1.grid(column = 2, row = row, sticky = tk.W + tk.E , padx=5, pady=5)
 			self.charge_R2.grid(column = 3, row = row, sticky = tk.W + tk.E , padx=5, pady=5)
 			self.charge_label.grid(column = 1, row = row, sticky = tk.E , padx=5, pady=5)
+			self.Zeff_entry.grid(column = 4, row = row, sticky = tk.E , padx=5, pady=5)
+			self.Zeff_label.grid(column = 4, row = row, sticky = tk.W , padx=5, pady=5)
 			row = self.row_particle + 1
 			self.Ekin_entry.grid(column = 2, row = row, sticky = tk.W + tk.E , padx=5, pady=5)
 			self.Ekin_label.grid(column = 1, row = row, sticky = tk.E , padx=5, pady=5)
 			self.Lambda_entry.grid(column = 4, row = row, sticky = tk.W + tk.E , padx=5, pady=5)
 			self.Lambda_label.grid(column = 3, row = row, sticky = tk.E , padx=5, pady=5)
+			row = self.row_particle + 2
+			self.ErProfileFile_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W, padx=5, pady=5)
+			self.ErProfileFile_label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
 		else:
 			self.charge_R1.grid_forget()
 			self.charge_R2.grid_forget()
@@ -1000,6 +993,19 @@ class common_tab(set_machine):	# inherit set_machine class
 			self.Ekin_label.grid_forget()
 			self.Lambda_entry.grid_forget()
 			self.Lambda_label.grid_forget()
+			self.Zeff_entry.grid_forget()
+			self.Zeff_label.grid_forget()
+			self.ErProfileFile_entry.grid_forget()
+			self.ErProfileFile_label.grid_forget()
+			self.ErProfileFile.set('')
+
+
+	def make_ErProfile_shell_flag(self):
+		flag = ''
+		ErFile = self.ErProfileFile.get()
+		if self.file_Found(file = ErFile):
+			flag = ' -E ' + ErFile	
+		return flag
 
 
 	def set_Ekin(self):
@@ -1013,6 +1019,15 @@ class common_tab(set_machine):	# inherit set_machine class
 			else: self.Ekin_array = np.arange(np.float64(Ekin[0]), np.float64(Ekin[1]) + 0.1, 0.25)
 		else: 
 			self.Ekin_array = np.array([np.float64(Ekin)])
+			
+			
+	def setZeff(self):
+		if self.charge.get() == -1:
+			self.Zeff_entry.configure(state=tk.DISABLED)
+			self.Zeff.set('1')
+		else:
+			self.Zeff_entry.configure(state=tk.NORMAL)
+			self.Zeff.set('2')
 
 
 	# --- Default Functions --------------------------------------------------------------
@@ -1057,6 +1072,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		self.charge.set(data['charge'])
 		self.Ekin.set(data['Ekin'])
 		self.Lambda.set(data['Lambda'])
+		self.Zeff.set(data['Zeff'])
 		self.useFilament.set(data['useFilament'])
 		
 		self.activate_response()
@@ -1086,6 +1102,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		# set flags
 		# do this before the os.chdir, because the os.path.abspath recognizes the chdir, but self.path stays the same
 		shellFlags += self.make_VMEC_SIESTA_shell_flags()
+		shellFlags += self.make_ErProfile_shell_flag()
 			
 		# change to working dir, write contol file(s), launch code, and return to original dir
 		if chk: os.chdir(path)
@@ -1191,17 +1208,17 @@ class common_tab(set_machine):	# inherit set_machine class
 
 
 	def write_Ctrl_particles(self, f):
-		f.write('ParticleDirection(1=pass,-1=co-pass,0=field-lines)=\t' + str(self.sigma.get()) + '\n')
+		f.write('ParticleDirection(1=co-pass,-1=ctr-pass,0=field-lines)=\t' + str(self.sigma.get()) + '\n')
 		f.write('PartileCharge(-1=electrons,>=1=ions)=\t' + str(self.charge.get()) + '\n')
 		f.write('Ekin[keV]=\t' + str(self.Ekin_array[self.Ekin_idx]) + '\n')
 		f.write('lambda=\t' + self.Lambda.get() + '\n')
+		f.write('Zeff=\t' + self.Zeff.get() + '\n')
 
 
 	def write_Ctrl_center(self, f):
 		f.write('phistart(deg)=\t' + self.phistart.get() + '\n')
 		f.write('MapDirection=\t' + str(self.MapDirection.get()) + '\n')
-		if self.MachFlag.get() in ['dt', 'mast']:
-			self.write_Ctrl_resonse(f)
+		self.write_Ctrl_resonse(f)
 	
 	
 	def write_Ctrl_bottom(self, f):
@@ -1211,11 +1228,8 @@ class common_tab(set_machine):	# inherit set_machine class
 			if self.MachFlag.get() in ['iter', 'nstx']:
 				f.write('useTe_profile(0=no)=	0\n')
 			self.write_Ctrl_particles(f)
-			if self.MachFlag.get() in ['iter', 'nstx']:
-				self.write_Ctrl_resonse(f)
 			if self.MachFlag.get() in ['dt']:
 				f.write('useFilament(0=no)=\t' + self.useFilament.get() + '\n')
-				f.write('useTe_profile(0=no)=	0\n')
 				self.write_d3d_errorFileds(f)
 			f.write('pi=\t3.141592653589793\n')
 			f.write('2*pi=\t6.283185307179586\n')
@@ -1322,17 +1336,17 @@ class set_plot_tab(common_tab):		# inherit common tab class
 	# --- define machine specific default values ---
 	def tool_defaults(self, flag):	
 		if self.MachFlag.get() == 'iter':
-			data = [0, 300, 0.6, 0.95, 0, 0, 40, 0, 1, 1, 0, 1, 0, 0, 0, 1, 100, 0.1, 
-					0, -1, 3.141592653589793, 6.283185307179586]
+			data = [0, 300, 0.6, 0.95, 0, 0, 40, 0, 1, 0, -1, 1, 0, 1, 0, 0, 0, 1, 100, 0.1, 2,
+					3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'nstx':
-			data = [0, 300, 0.6, 0.95, 0, 0, 40, 0, 1, 1, 0, 1, 0, 0, 0, 1, 
-					100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
+			data = [0, 300, 0.6, 0.95, 0, 0, 40, 0, 1, 0, -1, 1, 0, 1, 0, 0, 0, 1, 
+					100, 0.1, 2, 3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'mast':
 			data = [0, 300, 0.6, 0.95, 0, 0, 40, 0, 1, 0, -1, 1, 3, 1, 1, 0, 0, 1, 
-					100, 0.1, 3.141592653589793, 6.283185307179586]
+					100, 0.1, 2, 3.141592653589793, 6.283185307179586]
 		else:
 			data = [0, 300, 0.6, 0.95, 0, 0, 40, 0, 1, 0, -1, 1, 3, 1, 1, 1, 0, 1, 
-					100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]
+					100, 0.1, 2, 0, 0, 0, 3.141592653589793, 6.283185307179586]
 		return data
 
 
@@ -1512,17 +1526,17 @@ class set_fix_tab(common_tab):		# inherit common tab class
 	# --- define machine specific default values ---
 	def tool_defaults(self, flag):	
 		if self.MachFlag.get() == 'iter':
-			data = [1e-4, 0, 4, 5.85, -4.4, -3.3, 900, 0, 1, 1, 0, 1, 0, 0, 0, 1, 100, 0.1, 
-					0, -1, 3.141592653589793, 6.283185307179586]
+			data = [1e-4, 0, 4, 5.85, -4.4, -3.3, 900, 0, 1, 0, -1, 1, 0, 1, 0, 0, 0, 1, 100, 0.1, 2,
+					3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'nstx':
-			data = [1e-4, 0, 0.25, 0.55, -1.5, -1, 900, 0, 1, 1, 5, 1, 0, 0, 0, 1, 
-					100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
+			data = [1e-4, 0, 0.25, 0.55, -1.5, -1, 900, 0, 1, 0, -1, 1, 5, 1, 0, 0, 0, 1, 
+					100, 0.1, 2, 3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'mast':
 			data = [1e-4, 0, 0.4, 0.9, -1.5, -1.0, 900, 0, 1, 0, -1, 1, 5, 1, 1, 0, 0, 1, 
-					100, 0.1, 3.141592653589793, 6.283185307179586]
+					100, 0.1, 2, 3.141592653589793, 6.283185307179586]
 		else:
 			data = [1e-4, 0, 1.1, 1.6, -1.45, -0.8, 900, 0, 1, 0, -1, 1, 5, 1, 1, 1, 0, 1, 
-					100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]
+					100, 0.1, 2, 0, 0, 0, 3.141592653589793, 6.283185307179586]
 		return data
 
 
@@ -1673,17 +1687,17 @@ class set_man_tab(common_tab):		# inherit common tab class
 	# --- define machine specific default values ---
 	def tool_defaults(self, flag):	
 		if self.MachFlag.get() == 'iter':
-			data = [1e-4, 0, 4, 5.85, -4.4, -3.3, 900, 0, 1, 1, 0, 1, 0, 0, 0, 1, 100, 0.1, 
-					0, -1, 3.141592653589793, 6.283185307179586]
+			data = [1e-4, 0, 4, 5.85, -4.4, -3.3, 900, 0, 1, 0, -1, 1, 0, 1, 0, 0, 0, 1, 100, 0.1, 2,
+					3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'nstx':
-			data = [1e-4, 0, 0.25, 0.55, -1.5, -1, 900, 0, 1, 1, 0, 1, 0, 0, 0, 1, 
-					100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
+			data = [1e-4, 0, 0.25, 0.55, -1.5, -1, 900, 0, 1, 0, -1, 1, 0, 1, 0, 0, 0, 1, 
+					100, 0.1, 2, 3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'mast':
 			data = [1e-4, 0, 0.4, 0.9, -1.5, -1.0, 900, 0, 1, 0, -1, 1, 5, 1, 1, 0, 0, 1, 
-					100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
+					100, 0.1, 2, 3.141592653589793, 6.283185307179586]
 		else:
 			data = [1e-4, 0, 1.1, 1.6, -1.45, -0.8, 900, 0, 1, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
-					100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]
+					100, 0.1, 2, 0, 0, 0, 3.141592653589793, 6.283185307179586]
 		return data
 
 
@@ -1944,69 +1958,69 @@ class set_foot_tab(common_tab):		# inherit common tab class
 	def tool_defaults(self, flag):	
 		if self.MachFlag.get() == 'iter':
 			if(flag == 1):
-				data = [500, 300, -60, 10, 0, 6.283185307179586, 700, 0, 1, 1, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-						0, -1, 3.141592653589793, 6.283185307179586]
+				data = [500, 300, -60, 10, 0, 6.283185307179586, 700, 0, 1, 0, -1, 1, 2, 1, 0, 0, 0, 1, 100, 0.1, 2,
+						3.141592653589793, 6.283185307179586]
 			elif(flag == 2):
-				data = [500, 300, -10, 80, 0, 6.283185307179586, 900, 0, -1, 2, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-						0, -1, 3.141592653589793, 6.283185307179586]
+				data = [500, 300, -10, 80, 0, 6.283185307179586, 900, 0, -1, 0, -1, 2, 2, 1, 0, 0, 0, 1, 100, 0.1, 2,
+						3.141592653589793, 6.283185307179586]
 			else:
-				data = [500, 300, 10, 80, 0, 6.283185307179586, 900, 0, -1, 2, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-						0, -1, 3.141592653589793, 6.283185307179586]
+				data = [500, 300, 10, 80, 0, 6.283185307179586, 900, 0, -1, 0, -1, 2, 2, 1, 0, 0, 0, 1, 100, 0.1, 2,
+						3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'nstx':
 			if(flag == 1):
 				if self.UpgradeFlag.get() == 1:
-					data = [500, 500, 1.05, 1.578, 0, 6.283185307179586, 400, 0, 1, 1, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-							0, -1, 3.141592653589793, 6.283185307179586]
+					data = [500, 500, 1.05, 1.578, 0, 6.283185307179586, 400, 0, 1, 0, -1, 1, 2, 1, 0, 0, 0, 1, 100, 0.1, 2,
+							3.141592653589793, 6.283185307179586]
 				else:
-					data = [500, 500, 1.1714, 1.578, 0, 6.283185307179586, 400, 0, 1, 1, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-							0, -1, 3.141592653589793, 6.283185307179586]
+					data = [500, 500, 1.1714, 1.578, 0, 6.283185307179586, 400, 0, 1, 0, -1, 1, 2, 1, 0, 0, 0, 1, 100, 0.1, 2,
+							3.141592653589793, 6.283185307179586]
 			elif(flag == 2):
 				if self.UpgradeFlag.get() == 1:
-					data = [500, 500, 0.435, 1.0433, 0, 6.283185307179586, 400, 0, -1, 2, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-							0, -1, 3.141592653589793, 6.283185307179586]
+					data = [500, 500, 0.435, 1.0433, 0, 6.283185307179586, 400, 0, -1, 0, -1, 2, 2, 1, 0, 0, 0, 1, 100, 0.1, 2,
+							3.141592653589793, 6.283185307179586]
 				else:
-					data = [500, 500, 0.2979, 1.0433, 0, 6.283185307179586, 400, 0, -1, 2, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-							0, -1, 3.141592653589793, 6.283185307179586]
+					data = [500, 500, 0.2979, 1.0433, 0, 6.283185307179586, 400, 0, -1, 0, -1, 2, 2, 1, 0, 0, 0, 1, 100, 0.1, 2,
+							3.141592653589793, 6.283185307179586]
 			elif(flag == 3):
 				if self.UpgradeFlag.get() == 1:
-					data = [500, 500, -1.578, -1.05, 0, 6.283185307179586, 400, 0, -1, 3, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-							0, -1, 3.141592653589793, 6.283185307179586]
+					data = [500, 500, -1.578, -1.05, 0, 6.283185307179586, 400, 0, -1, 0, -1, 3, 2, 1, 0, 0, 0, 1, 100, 0.1, 2,
+							3.141592653589793, 6.283185307179586]
 				else:
-					data = [500, 500, -1.578, -1.1714, 0, 6.283185307179586, 400, 0, -1, 3, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-							0, -1, 3.141592653589793, 6.283185307179586]
+					data = [500, 500, -1.578, -1.1714, 0, 6.283185307179586, 400, 0, -1, 0, -1, 3, 2, 1, 0, 0, 0, 1, 100, 0.1, 2,
+							3.141592653589793, 6.283185307179586]
 			elif(flag == 4):
 				if self.UpgradeFlag.get() == 1:
-					data = [500, 500, 0.435, 1.0433, 0, 6.283185307179586, 400, 0, 1, 4, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-							0, -1, 3.141592653589793, 6.283185307179586]
+					data = [500, 500, 0.435, 1.0433, 0, 6.283185307179586, 400, 0, 1, 0, -1, 4, 2, 1, 0, 0, 0, 1, 100, 0.1, 2,
+							3.141592653589793, 6.283185307179586]
 				else:
-					data = [500, 500, 0.2979, 1.0433, 0, 6.283185307179586, 400, 0, 1, 4, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-							0, -1, 3.141592653589793, 6.283185307179586]
+					data = [500, 500, 0.2979, 1.0433, 0, 6.283185307179586, 400, 0, 1, 0, -1, 4, 2, 1, 0, 0, 0, 1, 100, 0.1, 2,
+							3.141592653589793, 6.283185307179586]
 			else:
-				data = [500, 500, 0.3, 1.0, 0, 6.283185307179586, 400, 0, 1, 4, 2, 1, 0, 0, 0, 1, 100, 0.1, 
-						0, -1, 3.141592653589793, 6.283185307179586]
+				data = [500, 500, 0.3, 1.0, 0, 6.283185307179586, 400, 0, 1, 0, -1, 4, 2, 1, 0, 0, 0, 1, 100, 0.1, 2,
+						3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'mast':
 			if(flag == 1):
 				data = [500, 500, -1.6835, -1.229, 0, 6.283185307179586, 400, 0, -1, 0, -1, 1, 2, 1, 1, 0, 0, 1, 
-							100, 0.1, 3.141592653589793, 6.283185307179586]
+							100, 0.1, 2, 3.141592653589793, 6.283185307179586]
 			elif(flag == 2):
 				data = [500, 500, 0.7835, 1.9, 0, 6.283185307179586, 400, 0, 1, 0, -1, 2, 2, 1, 1, 0, 0, 1, 
-							100, 0.1, 3.141592653589793, 6.283185307179586]
+							100, 0.1, 2, 3.141592653589793, 6.283185307179586]
 			else:
 				data = [500, 500, 0.7835, 1.9, 0, 6.283185307179586, 400, 0, 1, 0, -1, 2, 2, 1, 1, 0, 0, 1, 
-							100, 0.1, 3.141592653589793, 6.283185307179586]
+							100, 0.1, 2, 3.141592653589793, 6.283185307179586]
 		else:	# d3d
 			if(flag == 3):
 				data = [500, 300, 0.0, 0.1, 0, 6.283185307179586, 100, 0, 1, 0, -1, 3, 2, 1, 1, 1, 0, 1, 
-							100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]		
+							100, 0.1, 2, 0, 0, 0, 3.141592653589793, 6.283185307179586]		
 			elif(flag == 2):
 				data = [500, 300, 0.9, 1.0, 0, 6.283185307179586, 100, 0, 1, 0, -1, 2, 2, 1, 1, 1, 0, 1, 
-							100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]
+							100, 0.1, 2, 0, 0, 0, 3.141592653589793, 6.283185307179586]
 			elif(flag == 1):
 				data = [500, 300, -0.1, 0.3, 0, 6.283185307179586, 400, 0, -1, 0, -1, 1, 2, 1, 1, 1, 0, 1, 
-							100, 0.1, 0, 0 ,0 ,0, 3.141592653589793, 6.283185307179586]
+							100, 0.1, 2, 0 ,0 ,0, 3.141592653589793, 6.283185307179586]
 			else:
 				data = [500, 300, 0.0, 0.1, 0, 6.283185307179586, 400, 0, -1, 0, -1, 1, 2, 1, 1, 1, 0, 1, 
-							100, 0.1, 0, 0 ,0 ,0, 3.141592653589793, 6.283185307179586]
+							100, 0.1, 2, 0 ,0 ,0, 3.141592653589793, 6.283185307179586]
 		return data
 
 
@@ -2217,32 +2231,32 @@ class set_lam_tab(common_tab):		# inherit common tab class
 	def tool_defaults(self, flag):	
 		if self.MachFlag.get() == 'iter':
 			if(flag == 'psi'):
-				data = [1200, 200, 0.88, 1.02, 0, 6.283185307179586, 700, 0, 0, 1, 3, 1, 0, 0, 0, 1, 100, 0.1, 
-						0, -1, 3.141592653589793, 6.283185307179586]
+				data = [1200, 200, 0.88, 1.02, 0, 6.283185307179586, 700, 0, 0, 0, -1, 1, 3, 1, 0, 0, 0, 1, 100, 0.1, 2, 
+						3.141592653589793, 6.283185307179586]
 			else:
-				data = [520, 200, 4.0, 6.5, -4.6, -2.0, 500, 0, 0, 1, 0, 1, 0, 0, 0, 1, 100, 0.1, 
-						0, -1, 3.141592653589793, 6.283185307179586]
+				data = [520, 200, 4.0, 6.5, -4.6, -2.0, 500, 0, 0, 0, -1, 1, 0, 1, 0, 0, 0, 1, 100, 0.1, 2,
+						3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'nstx':
 			if(flag == 'psi'):
-				data = [300, 500, 0.88, 1.02, 0, 6.283185307179586, 150, 0, 0, 1, 3, 1, 0, 0, 0, 1, 
-						100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
+				data = [300, 500, 0.88, 1.02, 0, 6.283185307179586, 150, 0, 0, 0, -1, 1, 3, 1, 0, 0, 0, 1, 
+						100, 0.1, 2, 3.141592653589793, 6.283185307179586]
 			else:
-				data = [100, 500, 0.17, 0.9, -1.65, -1.0, 100, 0, 0, 1, 0, 1, 0, 0, 0, 1, 
-						100, 0.1, 0, -1, 3.141592653589793, 6.283185307179586]
+				data = [100, 500, 0.17, 0.9, -1.65, -1.0, 100, 0, 0, 0, -1, 1, 0, 1, 0, 0, 0, 1, 
+						100, 0.1, 2, 3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'mast':
 			if(flag == 'psi'):
 				data = [1200, 200, 0.88, 1.02, 0, 6.283185307179586, 700, 0, 0, 0, -1, 1, 3, 1, 1, 0, 0, 1, 
-						100, 0.1, 3.141592653589793, 6.283185307179586]
+						100, 0.1, 2, 3.141592653589793, 6.283185307179586]
 			else:
 				data = [610, 200, 0.195, 1.9, -1.825, 0.6, 850, 0, 0, 0, -1, 1, 0, 1, 1, 0, 0, 1, 
 						100, 0.1, 3.141592653589793, 6.283185307179586]
 		else:
 			if(flag == 'psi'):
 				data = [1200, 200, 0.88, 1.02, 0, 6.283185307179586, 700, 0, 0, 0, -1, 1, 3, 1, 1, 1, 0, 1, 
-						100, 0.1, 0, 3.141592653589793, 6.283185307179586]
+						100, 0.1, 2, 0, 0, 0, 3.141592653589793, 6.283185307179586]
 			else:
 				data = [930, 200, 1.0, 1.45, -1.367, -0.902, 900, 0, 0, 0, -1, 1, 0, 1, 1, 1, 0, 1, 
-						100, 0.1, 0, 0, 0, 0, 3.141592653589793, 6.283185307179586]
+						100, 0.1, 2, 0, 0, 0, 3.141592653589793, 6.283185307179586]
 		return data
 
 
@@ -2499,8 +2513,8 @@ class info_gui:
 		self.info_text.grid(column = 1, row = row, columnspan = 5, padx=10, pady=10); 
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
-		'MAFOT Version 4.11 \n'
-		'GUI Version 2.1 \n'
+		'MAFOT Version 5.0 \n'
+		'GUI Version 2.2 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'

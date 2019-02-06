@@ -46,11 +46,20 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 4.2
-GUI 2.1
+MAFOT 5.0
+GUI 2.2
 
 Version Notes: 
 ----------------
+MAFOT 5.0 -- Jan 2019
+- Zeff added to all input files. This required some minor restructuring, which makes old ITER and NSTX input files incompatible.
+  For D3D, only the position of useFilaments shifted by one. MAST and C-Mod are unchanged
+- electric field for ExB particle drifts added
+
+GUI 2.1 -- Jan 2019
+- Zeff added
+- electric field input added
+
 MAFOT 4.2 -- Sep 2018
 - restart option added to xpand, foot and laminar
 - VMEC field line tracing now posible inside s = 1 without xpand

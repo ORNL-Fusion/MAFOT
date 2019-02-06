@@ -10,6 +10,8 @@ thmax=	0
 N=	90
 phistart(Grad)=	0
 MapDirection=	1
+PlasmaResponse(0=no,1=yes)=     1
+Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=      1
 target(0=fullWall,1=inner,2=outer)=	1
 createPoints(0=r-grid,1=r-random,2=target,3=psi-grid,4=psi-random,5=R-grid)=	3
 useIcoil(0=no,1=yes)= 1
@@ -19,7 +21,6 @@ ParticleDirection(1=pass,-1=co-pass,0=field-lines)=	0
 PartileCharge(-1=electrons,>=1=ions)=	1
 Ekin[keV]=	100
 lambda=	0.1
-PlasmaResponse(0=no,1=yes)=     1
-Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=      1
+Zeff=	2
 pi=	3.141592653589793
 2*pi=	6.283185307179586

@@ -323,96 +323,59 @@ Nth = int(sqrt(N));
 thmin = vec[4];
 thmax = vec[5];
 
-verschieb = vec[0];
+// External fields parameter
+response = int(vec[9]);
+response_field = int(vec[10]);
 
-Zeff = 1;	// fixed for now
+// Set common switches
+which_target_plate = int(vec[11]);
+create_flag = int(vec[12]);
+
+// Particle Parameters
+sigma = int(vec[16]);
+Zq = int(vec[17]);
+Ekin = vec[18];
+lambda = vec[19];
+Zeff = vec[20];
+
+verschieb = vec[0];
+useTprofile = 0;
 
 #if defined(ITER)
-	// Particle Parameters
-	Ekin = vec[16];
-	lambda = vec[17];
-
 	// Set switches
-	which_target_plate = int(vec[9]);
-	create_flag = int(vec[10]);
-	useIcoil = int(vec[11]);
-	useFilament = int(vec[12]);
-	useTprofile = int(vec[13]);
-	sigma = int(vec[14]);
-	Zq = int(vec[15]);
-
-	// External fields parameter
-	response = int(vec[18]);
-	response_field = int(vec[19]);
+	useIcoil = int(vec[13]);
+	useFilament = int(vec[14]);
+	useTprofile = int(vec[15]);
 
 	// Set unused Parameters to defaults
 	useFcoil = 0;
 	useCcoil = 0;
 	useBuswork = 0;
 	useBcoil = 0;
-	useTprofile = 0;
 #elif defined(NSTX)
-	// Particle Parameters
-	Ekin = vec[16];
-	lambda = vec[17];
-
 	// Set switches
-	which_target_plate = int(vec[9]);
-	create_flag = int(vec[10]);
-	useIcoil = int(vec[11]);
-	useFilament = int(vec[12]);
-	useTprofile = int(vec[13]);
-	sigma = int(vec[14]);
-	Zq = int(vec[15]);
-
-	// External fields parameter
-	response = int(vec[18]);
-	response_field = int(vec[19]);
+	useIcoil = int(vec[13]);
+	useFilament = int(vec[14]);
+	useTprofile = int(vec[15]);
 
 	// Set unused Parameters to defaults
 	useFcoil = 0;
 	useCcoil = 0;
 	useBuswork = 0;
 	useBcoil = 0;
-	useTprofile = 0;
 #elif defined(MAST)
-	// Particle Parameters
-	Ekin = vec[18];
-	lambda = vec[19];
-
 	// Set switches
-	which_target_plate = int(vec[11]);
-	create_flag = int(vec[12]);
 	useCcoil = int(vec[13]);
 	useIcoil = int(vec[14]);
-	sigma = int(vec[16]);
-	Zq = int(vec[17]);
 	useFilament = int(vec[15]);
-
-	// External fields parameter
-	response = int(vec[9]);
-	response_field = int(vec[10]);
 
 	// Set unused Parameters to defaults
 	useFcoil = 0;
 	useBuswork = 0;
 	useBcoil = 0;
-	useTprofile = 0;
 #elif defined(CMOD)
-	// Particle Parameters
-	Ekin = vec[18];
-	lambda = vec[19];
-
 	// Set switches
-	which_target_plate = int(vec[11]);
-	create_flag = int(vec[12]);
-	sigma = int(vec[16]);
-	Zq = int(vec[17]);
-	useFilament = int(vec[20]);
-
-	// External fields parameter
-	response = int(vec[9]);
-	response_field = int(vec[10]);
+	useFilament = int(vec[21]);
 
 	// Set unused Parameters to defaults
 	useFcoil = 0;
@@ -420,28 +383,14 @@ Zeff = 1;	// fixed for now
 	useIcoil = 0;
 	useBuswork = 0;
 	useBcoil = 0;
-	useTprofile = 0;
 #else
-	// Particle Parameters
-	Ekin = vec[18];
-	lambda = vec[19];
-
 	// Set switches
-	which_target_plate = int(vec[11]);
-	create_flag = int(vec[12]);
 	useFcoil = int(vec[13]);
 	useCcoil = int(vec[14]);
 	useIcoil = int(vec[15]);
-	sigma = int(vec[16]);
-	Zq = int(vec[17]);
-	useFilament = int(vec[20]);
+	useFilament = int(vec[21]);
 
-	// External fields parameter
-	response = int(vec[9]);
-	response_field = int(vec[10]);
-
-	if(vec[21] > 1) useTprofile = 0;
-	else useTprofile = int(vec[21]);
+	useTprofile = 0;
 	if(vec.size() < 23) useBuswork = 0;
 	else
 	{
@@ -455,6 +404,9 @@ Zeff = 1;	// fixed for now
 		else useBcoil = int(vec[23]);
 	}
 #endif
+
+// Fix possible error
+if (Zeff == 0) Zeff = 2;
 }
 
 
