@@ -134,10 +134,14 @@ public:
 
 	// radial electric field
 	bool hasEfield;				// E-field is available, default: False
+	bool addScalPot;			// add scalar potential to GAMMA, default: False
 	int NE;						// Number of Points in Er profile
 	Array<double,1> Epsi;		// psi of Er profile
-	Array<double,1> Eradial;	// (minor) radial electric field profile Er(psi) in [V/m]
+	Array<double,1> Eradial;	// (minor) radial electric field profile Er(psi) in [kV/m]
 	Array<double,1> d2Eradial;	// Spline of Eradial in Epsi
+	Array<double,1> scalPot;	// scalar potential Phi(psi) in [kV]
+	Array<double,1> d2scalPot;	// Spline of scalar potential in Epsi
+
 
 // Konstruktoren
 	EFIT();		// Default Constructor
@@ -160,6 +164,7 @@ public:
 	int lcfs_RZ_nn(const double th, double& r, double& z);
 	void set3Dwall(LA_STRING wall_file);	// read 3D wall and set arrays
 	double getEfield(const double x); 		// Spline interpolates Eradial
+	double getscalPot(const double x); 		// Spline interpolates scalar Potential
 
 }; //end of class
 
@@ -221,10 +226,13 @@ Nwall3D.resize(360);	// Nwall3D starts at index 0, which corresponds to angle ph
 wall3D.resize(500,360);		wall3D.reindexSelf(index2_10);	// second index (= angle) starts with 0 again
 
 hasEfield = false;
+addScalPot = false;
 NE = 129;
 Epsi.resize(NE);	Epsi.reindexSelf(index);
 Eradial.resize(NE);	Eradial.reindexSelf(index);
 d2Eradial.resize(NE);	d2Eradial.reindexSelf(index);
+scalPot.resize(NE);		scalPot.reindexSelf(index);
+d2scalPot.resize(NE);	d2scalPot.reindexSelf(index);
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -296,10 +304,13 @@ Nwall3D.reference(EQD.Nwall3D.copy());
 wall3D.reference(EQD.wall3D.copy());
 
 hasEfield = EQD.hasEfield;
+addScalPot = EQD.addScalPot;
 NE = EQD.NE;
 Epsi.reference(EQD.Epsi.copy());
 Eradial.reference(EQD.Eradial.copy());
 d2Eradial.reference(EQD.d2Eradial.copy());
+scalPot.reference(EQD.scalPot.copy());
+d2scalPot.reference(EQD.d2scalPot.copy());
 return(*this);
 }
 
@@ -696,6 +707,8 @@ LA_STRING line;
 int count = 0;
 int rows = 0;
 double d1,dn,dpsi;
+vector<string> words;
+int column = 1;
 
 // Input
 ifstream in;
@@ -709,6 +722,11 @@ while(1)
 	if(line[1]=='#') {count+=1; continue;}
 	else break;
 }
+
+// count number of columns in file
+words = split(string(line));
+column = words.size();
+//cout << "Columns found in Er-file: " << column << endl;
 
 // count the number of rows with data
 while(in.eof()==0) // Last row is read twice --- can't be changed --- -> rows starts with 0 and is actual number of data rows in file
@@ -724,15 +742,29 @@ in.clear(); // Important to clear EOF flag
 NE = rows;
 Epsi.resize(NE);
 Eradial.resize(NE);
+scalPot.resize(NE);
 
 in.open(name);	// Open file again
 for(i=1;i<=count;i++) in >> line;	// Skip IO data rows
 
 // Read data
-for(i=1;i<=rows;i++)
+if(column == 2)	// file has only E-field
 {
-	in >> Epsi(i);
-	in >> Eradial(i);
+	for(i=1;i<=rows;i++)
+	{
+		in >> Epsi(i);
+		in >> Eradial(i);
+	}
+	scalPot = 0;
+}
+else	// file has E-field and scalar potential
+{
+	for(i=1;i<=rows;i++)
+	{
+		in >> Epsi(i);
+		in >> Eradial(i);
+		in >> scalPot(i);
+	}
 }
 in.close();
 
@@ -742,6 +774,21 @@ dpsi = Epsi(2) - Epsi(1);
 d1 = (Eradial(2)-Eradial(1))/dpsi;
 dn = (Eradial(NE)-Eradial(NE-1))/dpsi;
 spline(Epsi,Eradial,NE,d1,dn,d2Eradial);
+
+// Prepare Spline interpolation of scalar potential
+d2scalPot.resize(NE);
+if(column == 2)
+{
+	d2scalPot = 0;
+}
+else
+{
+	dpsi = Epsi(2) - Epsi(1);
+	d1 = (scalPot(2)-scalPot(1))/dpsi;
+	dn = (scalPot(NE)-scalPot(NE-1))/dpsi;
+	spline(Epsi,scalPot,NE,d1,dn,d2scalPot);
+	addScalPot = true;
+}
 
 hasEfield = true;
 }
@@ -754,6 +801,16 @@ double y,dy;
 splint(Epsi,Eradial,d2Eradial,NE,x,y,dy);
 return y;
 }
+
+//-------------- getscalPot -----------------------------------------------------------------------------------------------
+// spline interpolates Er(x)
+double EFIT::getscalPot(const double x)
+{
+double y,dy;
+splint(Epsi,scalPot,d2scalPot,NE,x,y,dy);
+return y;
+}
+
 
 
 //----------------------- End of Member Functions -------------------------------------------------------------------------

@@ -62,12 +62,13 @@ private:
 	EFIT& EQDr;		// Only a Reference, not a copy
 	IO& PARr;		// Only a Reference, not a copy
 
+	int steps;		// total number of integration steps along trajectory
 	double GAMMA;
 	double eps0;
 	double Ix;		// normalized angular momentum of the particle gyration. This is a constant of motion here
 	double mc2;
 	double eps0e_mc2;
-	int steps;		// total number of integration steps along trajectory
+	double sqeps0;
 
 // Member-Functions
 	int dgls(double x, Array<double,1> y, Array<double,1>& dydx);
@@ -118,7 +119,7 @@ PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 	void set_surface(int i, int N, double thmin, double thmax, double phimin, double phimax, int N_phi = 1);
 	void convertRZ(double theta, double r);
 	void getRZ(double x, double y, double& r, double& z);
-	void getEfield(double r, double z, double& ER, double& EZ);
+	double getEfield(double r, double z, double& pot);
 
 }; //end of class
 
@@ -186,7 +187,8 @@ else
 	}
 	GAMMA = 1 + Ekin/mc2;						// relativistic gamma factor 1/sqrt(1-v^2/c^2)
 	eps0 = c*c/omegac/omegac/EQD.R0/EQD.R0;		// normalized rest energy
-	eps0e_mc2 = eps0/(1000*mc2);				// see above, mc2 = mc^2/e/1e3 -> use Er in [V/m]
+	eps0e_mc2 = eps0/mc2;						// see above, mc2 = mc^2/e/1e3 -> use Er in [kV/m]
+	sqeps0 = eps0e_mc2*EQD.Bt0*EQD.R0;
 	Ix = -0.5/double(Zq)*eps0*((PAR.lambda*(GAMMA-1)+1)*(PAR.lambda*(GAMMA-1)+1)-1);
 	if(mpi_rank < 1) cout << "kin. Energy: Ekin= " << Ekin << "keV" << "\t" << "rel. gamma-factor: gamma= " << GAMMA << "\t" << "Mass: Zeff= " << Zeff << endl;
 	ofs2 << "kin. Energy: Ekin= " << Ekin << "keV" << "\t" << "rel. gamma-factor: gamma= " << GAMMA << "\t" << "Mass: Zeff= " << Zeff << endl;
@@ -205,6 +207,7 @@ Ix = FLT.Ix;
 mc2 = FLT.mc2;
 steps = FLT.steps;
 eps0e_mc2 = FLT.eps0e_mc2;
+sqeps0 = FLT.sqeps0;
 
 // Public Member Variables
 R = FLT.R;	
@@ -844,15 +847,15 @@ return x;
 }
 
 //---------------- getEfield ----------------------------------------------------------------------------------------------
-// gets Er(psi) from EFIT, and returns ER,EZ from Er
-void PARTICLE::getEfield(double r, double z, double& ER, double& EZ)
+// returns Er(psi) from EFIT
+// also gets the scalar potential Phi(psi)
+double PARTICLE::getEfield(double r, double z, double& pot)
 {
-double th,Epsi,Er;
+double Epsi,Er;
 get_psi(r,z,Epsi);
-th = get_theta(r,z);
 Er = EQDr.getEfield(Epsi);
-ER = Er*cos(th);
-EZ = Er*sin(th);
+pot = EQDr.getscalPot(Epsi);
+return Er;
 }
 
 //---------------- dgls ---------------------------------------------------------------------------------------------------
@@ -863,7 +866,9 @@ int PARTICLE::dgls(double x, Array<double,1> y, Array<double,1>& dydx)
 int chk;
 double B_R,B_Z,B_phi;
 double S;
-double ER,EZ,a;
+double Er,a;
+double scalPot = 0;
+double gamma = GAMMA;
 
 chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
 if (chk == -1) return -1;
@@ -873,17 +878,21 @@ dydx(1) = y(0)*B_Z/B_phi;
 
 if(sigma != 0)
 {
-	S = eps0*(GAMMA*GAMMA-1)-2*EQDr.R0*Ix/y(0);
-	if(S<0) {ofs2 << "dgls: Sqrt argument negative => Abort" << endl; return -1;}	// Error -> Abort program
-	S = sqrt(S);
-	dydx(1) += -sigma/double(Zq)*(y(0)*S + EQDr.R0*Ix/S);	// sign corrected: sigma = +1 is indeed co-passing
 	if(EQDr.hasEfield)
 	{
-		getEfield(y(0),y(1),ER,EZ);
-		a = sigma*eps0e_mc2*GAMMA*y(0)*y(0)/S;
-		dydx(0) += a*EZ;
-		dydx(1) += -a*ER;
+		Er = getEfield(y(0),y(1),scalPot);
+		if(EQDr.addScalPot) gamma = 1 + fabs(Ekin - Zq*scalPot)/mc2;	// mc2 = mc^2/e/1e+3 is in keV; Ekin in keV; scalPot in kV
 	}
+	S = eps0*(gamma*gamma-1)-2*EQDr.R0*Ix/y(0);
+	if(S<0) {ofs2 << "dgls: Sqrt argument negative => Abort" << endl; return -1;}	// Error -> Abort program
+	S = sqrt(S);
+	if(EQDr.hasEfield)
+	{
+		a = 1 + sigma*sqeps0*gamma*y(0)/S*Er;
+		dydx(0) *= a;
+		dydx(1) *= a;
+	}
+	dydx(1) += -sigma/double(Zq)*(y(0)*S + EQDr.R0*Ix/S);	// sign corrected: sigma = +1 is indeed co-passing
 }
 return 0;
 }

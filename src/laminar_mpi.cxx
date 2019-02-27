@@ -89,17 +89,19 @@ LA_STRING xpandfile = "None";
 LA_STRING siestafile = "siesta.dat";
 LA_STRING islandfile = "fakeIslands.in";
 bool checkFistStep = false;
+LA_STRING ErProfileFile = "None";
+bool use_ErProfile = false;
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:c")) != -1)
+while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:E:c")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-c] [-l limit] [-s] [-A Raxis,Zaxis] [-I island] " << endl;
+		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-c] [-l limit] [-s] [-A Raxis,Zaxis] [-E ErProfile] [-I island] " << endl;
 		cout << "                                       [-P points] [-S siesta] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
 		cout << "Calculate field line connection length and penetration depth in a poloidal cross-section." << endl << endl;
 		cout << "positional arguments:" << endl;
@@ -111,6 +113,7 @@ case 'h':
 		cout << "  -l            flux limit for spare interior, default = 0.85" << endl;
 		cout << "  -s            spare calculation of interior, default = No" << endl;
 		cout << "  -A            force magnetic axis location, use: -A Raxis,Zaxis , default: use g-file" << endl;
+		cout << "  -E            use electric field with particle drifts. Filename of Er(psi) profile." << endl;
 		cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
 		cout << "  -P            use separate input file for initial conditions; argument is the file name; default is None" << endl;
 		cout << "                File format of columns: R [m], phi [deg, right-handed coord.], Z [m]" << endl;
@@ -173,6 +176,10 @@ case 'V':
 	break;
 case 'X':
 	xpandfile = optarg;
+	break;
+case 'E':
+	ErProfileFile = optarg;
+	use_ErProfile = true;
 	break;
 case '?':
 	if(mpi_rank < 1)
@@ -249,6 +256,14 @@ if(Raxis > 0)
 EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
 if(mpi_rank < 1) cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
+
+// Read E-field data
+if(use_ErProfile)
+{
+	EQD.ReadEfield(ErProfileFile);
+	if(mpi_rank < 1) cout << "Read Er profile: " << ErProfileFile << endl;
+	ofs2 << "Read Er profile: " << ErProfileFile << endl;
+}
 
 // Read input points file. Use format for columns: R [m], phi [deg, right-handed coord.], Z [m]
 Array<double,2> inputPoints;

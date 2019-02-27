@@ -424,6 +424,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		plt.contour(x, y, z, b, cmap = usecolormap, extend = 'both')
 		cs = plt.contourf(x, y, z, b, cmap = usecolormap, extend = 'both')
 	elif(typeOfPlot == 'poincare'):
+		print len(np.where(data[:,2] == 360)[0]), 'Orbits found in File'
 		plt.plot(x,y,'ko',markersize = 0.5)
 	else:
 		#cs = plt.imshow(z.T, extent = [x.min(), x.max(), y.min(), y.max()], cmap = usecolormap, origin = 'lower', vmin = b.min(), vmax = b.max(), aspect = 'auto', interpolation = 'bilinear')
@@ -719,8 +720,7 @@ if __name__ == '__main__':
 	angle = 0
 	wall3Dfile = None
 	use_z_logscale = False
-	reverse_y = False
-	
+	reverse_y = False	
 
 	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:C:T:iW:H:Ub:x:y:L:lR", ["help", "coord=", "what=", 
 																 "machine=", "printme", "graphic=", 
@@ -736,6 +736,8 @@ if __name__ == '__main__':
 			print "                  [-b MIN,MAX] [-x MIN,MAX] [-y MIN,MAX] [-L FILE,ANGLE]"
 			print "                  [-R]"
 			print "                  pathname"
+			print ""			
+			print "most typical use: d3dplot.py -c COORDINATES -w WHAT -p -i pathname"
 			print ""
 			print "Plot MAFOT output"
 			print ""
@@ -744,36 +746,36 @@ if __name__ == '__main__':
 			print ""
 			print "optional arguments:"
 			print "  -h, --help            show this help message and exit"
+			print "  -b, --range <Arg>     ColorBar range: Min,Max (no spaces)"
 			print "  -c, --coord <Arg>     Coordinate sytem for plot. <Arg> = "
 			print "                        RZ, psi(default), phi, pest, phitheta, phiZ"
-			print "  -w, --what <Arg>      Data to plot. <Arg> = "
-			print "                        Lc, psimin (default), psimax, psiav"
-			print "  -m, --machine <Arg>   Machine. <Arg> = d3d (default), iter"
-			print "  -p, --printme         Save to File"
 			print "  -g, --graphic <Arg>   Graphic extension. <Arg> = "
 			print "                        png (default), eps, pdf"
+			print "  -i, --imshow          Use imshow instead of contourf (default)"
+			print "  -l, --log             Plot colorbar in log10 scale"
+			print "  -m, --machine <Arg>   Machine. <Arg> = d3d (default), iter"
+			print "  -p, --printme         Save to File"
 			print "  -t, --tag <Arg>       Arbitary string, attached to the file name of"
 			print "                        the saved figure"
 			print "  -P, --physical <Arg>  Type of y-Axis in fooprint. <Arg> = "
 			print "                        0: native, 1: RZ(default), 2: t in cm"
 			print "  -N <Arg>              Number of color levels in plot, default = 60"
-			print "  -C, --cmap <Arg>      colormap, default = jet"
-			print "  -T, --Title <Arg>     Figure title, default = None"
-			print "  -i, --imshow          Use imshow instead of contourf (default)"
-			print "  -W, --figwidth <Arg>  Force width of figure from default to <Arg>"
-			print "  -H, --figheight <Arg> Force height of figure from default to <Arg>"
-			print "  -U, --unicode         Use Unicode instead of LaTeX (default) in labels"
-			print "                        Note: Drop Cluster uses Unicode by default"
-			print "  -b, --range <Arg>     ColorBar range: Min,Max (no spaces)"
+			print "  -w, --what <Arg>      Data to plot. <Arg> = "
+			print "                        Lc, psimin (default), psimax, psiav"
 			print "  -x, --xlim <Arg>      X-Axis range: Min,Max (no spaces)"
 			print "  -y, --ylim <Arg>      Y-Axis range: Min,Max (no spaces)"
+			print "  -C, --cmap <Arg>      colormap, default = jet"
+			print "  -H, --figheight <Arg> Force height of figure from default to <Arg>"
 			print "  -L, --wall <Arg>      Wall info (can be 3D): filename,angle (no spaces)"
-			print "  -l, --log             Plot colorbar in log10 scale"
 			print "  -R, --Reverse         reverse the y-axis"
+			print "  -T, --Title <Arg>     Figure title, default = None"
+			print "  -U, --unicode         Use Unicode instead of LaTeX (default) in labels"
+			print "                        Note: Drop Cluster uses Unicode by default"
+			print "  -W, --figwidth <Arg>  Force width of figure from default to <Arg>"
 			print ""
 			print "Examples: d3dplot.py foot_in_test.dat"
 			print "          d3dplot.py /path/to/gfile/foot_in_test.dat -p -c RZ"
-			print "          d3dplot.py lam_psi_nopr.dat -w Lc"
+			print "          d3dplot.py -c RZ -w Lc -p -i lam_psi_nopr.dat"
 			sys.exit()
 		elif o in ("-c", "--coordinates"):
 			coordinates = a
