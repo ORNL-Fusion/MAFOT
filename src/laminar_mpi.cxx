@@ -91,18 +91,20 @@ LA_STRING islandfile = "fakeIslands.in";
 bool checkFistStep = false;
 LA_STRING ErProfileFile = "None";
 bool use_ErProfile = false;
+LA_STRING TprofileFile = "None";
+bool use_Tprofile = false;
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:E:c")) != -1)
+while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:E:T:c")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
 		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-c] [-l limit] [-s] [-A Raxis,Zaxis] [-E ErProfile] [-I island] " << endl;
-		cout << "                                       [-P points] [-S siesta] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
+		cout << "                                       [-P points] [-S siesta] [-T Tprofile] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
 		cout << "Calculate field line connection length and penetration depth in a poloidal cross-section." << endl << endl;
 		cout << "positional arguments:" << endl;
 		cout << "  file          Contol file (starts with '_')" << endl;
@@ -119,6 +121,7 @@ case 'h':
 		cout << "                File format of columns: R [m], phi [deg, right-handed coord.], Z [m]" << endl;
 		cout << "                Header lines start with '#'; no comment lines between/after data possible" << endl;
 		cout << "  -S            filename for SIESTA; default, see below" << endl;
+		cout << "  -T            use temperature profile with particle drifts. Filename of T(psi) profile." << endl;
 		cout << "  -V            filename for VMEC; default, see below" << endl;
 		cout << "  -W            use separate 3D Wall-File; default is 2D wall from EFIT file" << endl;
 		cout << "  -X            filename for XPAND; default is None" << endl;
@@ -180,6 +183,10 @@ case 'X':
 case 'E':
 	ErProfileFile = optarg;
 	use_ErProfile = true;
+	break;
+case 'T':
+	TprofileFile = optarg;
+	use_Tprofile = true;
 	break;
 case '?':
 	if(mpi_rank < 1)
@@ -261,8 +268,18 @@ ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 if(use_ErProfile)
 {
 	EQD.ReadEfield(ErProfileFile);
+	PAR.useErProfile = 1;
 	if(mpi_rank < 1) cout << "Read Er profile: " << ErProfileFile << endl;
 	ofs2 << "Read Er profile: " << ErProfileFile << endl;
+}
+
+// Read T-profile data
+if(use_Tprofile)
+{
+	EQD.ReadTprofile(TprofileFile);
+	PAR.useTprofile = 1;
+	if(mpi_rank < 1) cout << "Ignoring Ekin, read T profile: " << TprofileFile << endl;
+	ofs2 << "Ignoring Ekin, read T profile: " << TprofileFile << endl;
 }
 
 // Read input points file. Use format for columns: R [m], phi [deg, right-handed coord.], Z [m]

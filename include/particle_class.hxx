@@ -333,10 +333,12 @@ return chk;
 //---------------- set_Energy ---------------------------------------------------------------------------------------------
 void PARTICLE::set_Energy()
 {
-double Enorm,dummy;
+double T;
 
-get_Energy(psi,Enorm,dummy);
-Ekin = Enorm*PARr.Ekin;
+//get_Energy(psi,Enorm,dummy);
+//Ekin = Enorm*PARr.Ekin;
+T = EQDr.getTprofile(psi);	// in keV
+Ekin = 1.5*T;				// E = 3/2 kT, in keV
 GAMMA = 1 + Ekin/mc2;
 Ix = -0.5/double(Zq)*eps0*((PARr.lambda*(GAMMA-1)+1)*(PARr.lambda*(GAMMA-1)+1)-1);
 }

@@ -61,6 +61,7 @@ public:
 	int Zeff;									// effective partice mass number; electrons Zeff = 1, Hydrogen Zeff = 1, Deuterium Zeff = 2, Helium Zeff = 4
 	int sigma;									// 1: co-passing particles		-1: count-passing particles		0: field lines only
 	int useTprofile;							// Temperature profile: 0: constant Energy, 1: according to Position
+	int useErProfile;							// radial electric field profile
 	double Ekin;								// Kinetic Energy in keV
 	double lambda;								// fraction of Energy in radial direction
 	double verschieb;							// parameter for mainfolds
@@ -169,6 +170,7 @@ sigma = PAR.sigma;
 Zq = PAR.Zq;
 useFilament = PAR.useFilament;
 useTprofile = PAR.useTprofile;
+useErProfile = PAR.useErProfile;
 
 // M3D-C1 parameter
 response = PAR.response;
@@ -252,6 +254,7 @@ out << "useBcoil = " << PAR.useBcoil << endl;
 out << "sigma = " << PAR.sigma << endl;
 out << "useFilament = " << PAR.useFilament << endl;
 out << "useTprofile = " << PAR.useTprofile << endl;
+out << "useErProfile = " << PAR.useErProfile << endl;
 out << endl;
 
 #ifdef m3dc1
@@ -340,12 +343,12 @@ Zeff = vec[20];
 
 verschieb = vec[0];
 useTprofile = 0;
+useErProfile = 0;
 
 #if defined(ITER)
 	// Set switches
 	useIcoil = int(vec[13]);
 	useFilament = int(vec[14]);
-	useTprofile = int(vec[15]);
 
 	// Set unused Parameters to defaults
 	useFcoil = 0;
@@ -356,7 +359,6 @@ useTprofile = 0;
 	// Set switches
 	useIcoil = int(vec[13]);
 	useFilament = int(vec[14]);
-	useTprofile = int(vec[15]);
 
 	// Set unused Parameters to defaults
 	useFcoil = 0;
@@ -390,7 +392,6 @@ useTprofile = 0;
 	useIcoil = int(vec[15]);
 	useFilament = int(vec[21]);
 
-	useTprofile = 0;
 	if(vec.size() < 23) useBuswork = 0;
 	else
 	{
@@ -444,6 +445,7 @@ out << "### Switches:" << endl;
 #endif
 out << "# No. of current filaments (0=none): " << useFilament << endl;
 out << "# Use Temperature Profile (0=off, 1=on): " << useTprofile << endl;
+out << "# Use radial Electric Field Profile (0=off, 1=on): " << useErProfile << endl;
 #if defined(ITER)
 	out << "# Target (0=fullWall, 1=inner, 2=outer): " << which_target_plate << endl;
 #elif defined(NSTX)

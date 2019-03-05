@@ -142,6 +142,12 @@ public:
 	Array<double,1> scalPot;	// scalar potential Phi(psi) in [kV]
 	Array<double,1> d2scalPot;	// Spline of scalar potential in Epsi
 
+	// Temperature Profile
+	bool hasTprofile;			// T profile is available, default: False
+	int NT;						// Number of Points in T profile
+	Array<double,1> Tpsi;		// psi of T profile
+	Array<double,1> Tprofile;	// Temperature profile T(psi) in [keV]
+	Array<double,1> d2Tprofile;	// Spline of Tprofile in Tpsi
 
 // Konstruktoren
 	EFIT();		// Default Constructor
@@ -152,6 +158,7 @@ public:
 // Member-Funktionen
 	void ReadData(const LA_STRING ShotNr, const LA_STRING ShotTime, double Raxis = 0, double Zaxis = 0);	// Reads EFIT data from g-file
 	void ReadEfield(LA_STRING file);	// Read E-field profile from file
+	void ReadTprofile(LA_STRING file);	// Read T profile from file
 
 	// Interpolates psi and derivatives; flag: 0 = 2D splines, 1 = bicubic interpolation; norm specifies if psi is to be normalized
 	int get_psi(const double x1, const double x2, double& y, double& dy1, double& dy2, int flag=1, bool norm=true);		// 0: ok	-1: Point outside of EFIT grid
@@ -165,6 +172,7 @@ public:
 	void set3Dwall(LA_STRING wall_file);	// read 3D wall and set arrays
 	double getEfield(const double x); 		// Spline interpolates Eradial
 	double getscalPot(const double x); 		// Spline interpolates scalar Potential
+	double getTprofile(const double x); 	// Spline interpolates Tprofile
 
 }; //end of class
 
@@ -233,6 +241,13 @@ Eradial.resize(NE);	Eradial.reindexSelf(index);
 d2Eradial.resize(NE);	d2Eradial.reindexSelf(index);
 scalPot.resize(NE);		scalPot.reindexSelf(index);
 d2scalPot.resize(NE);	d2scalPot.reindexSelf(index);
+
+hasTprofile = false;
+NT = 129;
+Tpsi.resize(NE);	Tpsi.reindexSelf(index);
+Tprofile.resize(NE);	Tprofile.reindexSelf(index);
+d2Tprofile.resize(NE);	d2Tprofile.reindexSelf(index);
+
 }
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -311,6 +326,12 @@ Eradial.reference(EQD.Eradial.copy());
 d2Eradial.reference(EQD.d2Eradial.copy());
 scalPot.reference(EQD.scalPot.copy());
 d2scalPot.reference(EQD.d2scalPot.copy());
+
+hasTprofile = EQD.hasTprofile;
+NT = EQD.NT;
+Tpsi.reference(EQD.Tpsi.copy());
+Tprofile.reference(EQD.Tprofile.copy());
+d2Tprofile.reference(EQD.d2Tprofile.copy());
 return(*this);
 }
 
@@ -811,6 +832,80 @@ splint(Epsi,scalPot,d2scalPot,NE,x,y,dy);
 return y;
 }
 
+//---------------------- ReadTprofile -------------------------------------------------------------------------------------
+void EFIT::ReadTprofile(LA_STRING name)
+{
+int i;
+LA_STRING line;
+int count = 0;
+int rows = 0;
+double d1,dn,dpsi;
+vector<string> words;
+int column = 1;
+
+// Input
+ifstream in;
+in.open(name);
+if(in.fail()==1) {cout << "Unable to open file " << name << endl; return;}
+
+// Count the number of rows starting with #
+while(1)
+{
+	in >> line;
+	if(line[1]=='#') {count+=1; continue;}
+	else break;
+}
+
+// count number of columns in file
+words = split(string(line));
+column = words.size();
+//cout << "Columns found in Er-file: " << column << endl;
+
+// count the number of rows with data
+while(in.eof()==0) // Last row is read twice --- can't be changed --- -> rows starts with 0 and is actual number of data rows in file
+{
+	in >> line;
+	rows += 1;
+}
+
+in.close();	// Important to start reading from the beginning of the file
+in.clear(); // Important to clear EOF flag
+
+// resize
+NT = rows;
+Tpsi.resize(NT);
+Tprofile.resize(NT);
+
+in.open(name);	// Open file again
+for(i=1;i<=count;i++) in >> line;	// Skip IO data rows
+
+// Read data
+for(i=1;i<=rows;i++)
+{
+	in >> Tpsi(i);
+	in >> Tprofile(i);
+}
+
+in.close();
+
+// Prepare Spline interpolation of Eradial
+d2Tprofile.resize(NT);
+dpsi = Tpsi(2) - Tpsi(1);
+d1 = (Tprofile(2)-Tprofile(1))/dpsi;
+dn = (Tprofile(NT)-Tprofile(NT-1))/dpsi;
+spline(Tpsi,Tprofile,NT,d1,dn,d2Tprofile);
+
+hasTprofile = true;
+}
+
+//-------------- getTprofile ---------------------------------------------------------------------------------------------
+// spline interpolates T(x)
+double EFIT::getTprofile(const double x)
+{
+double y,dy;
+splint(Tpsi,Tprofile,d2Tprofile,NT,x,y,dy);
+return y;
+}
 
 
 //----------------------- End of Member Functions -------------------------------------------------------------------------
