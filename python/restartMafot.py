@@ -21,7 +21,7 @@ def main(path = './', logsPath = None):
 	for file in incompleteRuns:
 		f = file.replace('_Master.dat','')
 		idx = f[::-1].find('_')
-		n = f[-idx::]
+		n = int(f[-idx::])
 		runNums.append(n)
 	
 	if len(runNums) == 0:
@@ -29,7 +29,7 @@ def main(path = './', logsPath = None):
 		return
 		
 	runNums.sort()
-	runList = ','.join(runNums)
+	runList = ','.join([str(item) for item in runNums])
 	#print 'Nums:', runNums
 	print 'Incomplete runs:', runList
 	
@@ -50,7 +50,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description = 'Find and restart incomplete MAFOT runs', 
                 formatter_class = argparse.RawDescriptionHelpFormatter,
                 epilog = textwrap.dedent('''\
-                Examples: bla'''))
+                Examples: restartMafot.py'''))
 	
 	parser.add_argument('-d', '--dir', help = "set working dir", type = str, default = './')
 	parser.add_argument('-l', '--logs', help = "set log dir, if different from working dir", type = str, default = None)

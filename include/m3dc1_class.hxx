@@ -220,6 +220,8 @@ if(PAR.response_field > 0)		// Perturbation already included in M3D-C1 output
 	PAR.useFcoil = 0;
 	PAR.useCcoil = 0;
 	PAR.useIcoil = 0;
+	PAR.useBuswork = 0;
+	PAR.useBcoil = 0;
 }
 }
 
