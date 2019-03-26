@@ -65,7 +65,7 @@ MPIDEPS_NSTX = $(MPIOBJS_NSTX:.o=.d)
 MPIDEPS_MAST = $(MPIOBJS_MAST:.o=.d)
 MPIDEPS_CMOD = $(MPIOBJS_CMOD:.o=.d)
 
-SERSRCS = fix.cxx man.cxx plot.cxx structure.cxx
+SERSRCS = fix.cxx man.cxx plot.cxx structure.cxx lcfs.cxx
 SEROBJS = $(SERSRCS:.cxx=.o)
 SEROBJS_D3D = $(addprefix $(OBJDIR)/d3d/, $(SEROBJS))
 SEROBJS_ITER = $(addprefix $(OBJDIR)/iter/, $(SEROBJS))
@@ -88,7 +88,7 @@ FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 all : $(DIRS) d3d iter nstx mast cmod gui xpand d3dplot
 
 .PHONY : d3d
-d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi dtstructure
+d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi dtstructure dtlcfs
 
 .PHONY : iter
 iter : $(DIRS) iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi iterplot_mpi iterstructure
@@ -185,6 +185,9 @@ dtplot_mpi : $(OBJDIR)/d3d/plot_mpi.o libla_string.a libtrip3d.a
 dtstructure : $(OBJDIR)/d3d/structure.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/structure.o -o $(BIN_DIR)/$@ $(LIBS)
 	
+dtlcfs : $(OBJDIR)/d3d/lcfs.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/lcfs.o -o $(BIN_DIR)/$@ $(LIBS)
+
 fi_prepare : $(OBJDIR)/d3d/fi_prepare.o libla_string.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/fi_prepare.o -o $(BIN_DIR)/$@ $(LIBS)
 
