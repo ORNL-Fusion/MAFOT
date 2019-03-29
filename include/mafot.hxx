@@ -95,9 +95,8 @@ double F;
 double X,Y,bx,by,bz;
 double B_X,B_Y;
 double sinp,cosp;
-double coord[3], b_field[3];
+double br,bp;
 
-coord[0] = R; coord[1] = phi; coord[2] = Z;
 B_R = 0; B_phi = 0; B_Z = 0;
 
 sinp = sin(phi);
@@ -134,27 +133,23 @@ case -1: case 1: case -10:	// Vacuum equilibrium field from g file
 
 #ifdef m3dc1
 case 0: case 2: 	// M3D-C1: equilibrium field or total field
-	for(i=0;i<M3D.nfiles;i++)
+	chk = M3D.getB(R, phi, Z, br, bp, bz);
+	if(chk != 0) // field eval failed, probably outside of M3DC1 domain -> fall back to g-file equilibrium
 	{
-		chk = fio_eval_field(M3D.imag[i], coord, b_field);
-		if(chk != 0) // field eval failed, probably outside of M3DC1 domain -> fall back to g-file equilibrium
-		{
-			chk2 = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
-			if(chk2 == -1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
+		chk2 = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
+		if(chk2 == -1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
 
-			// Equilibrium field
-			F = EQD.get_Fpol(psi);
-			B_R = dpsidz/R;
-			B_phi = F/R;	//B_phi = EQD.Bt0*EQD.R0/R;
-			B_Z = -dpsidr/R;
-			break;	// break the for loop
-		}
-		else
-		{
-			B_R += b_field[0];
-			B_phi += b_field[1];
-			B_Z += b_field[2];
-		}
+		// Equilibrium field
+		F = EQD.get_Fpol(psi);
+		B_R = dpsidz/R;
+		B_phi = F/R;	//B_phi = EQD.Bt0*EQD.R0/R;
+		B_Z = -dpsidr/R;
+	}
+	else
+	{
+		B_R += br;
+		B_phi += bp;
+		B_Z += bz;
 	}
 	break;
 #endif
@@ -164,16 +159,11 @@ case 0: case 2: 	// M3D-C1: equilibrium field or total field
 // M3D-C1: I-coil perturbation field only, coils are turned off in prep_perturbation
 if(PAR.response_field == 1)
 {
-	for(i=0;i<M3D.nfiles;i++)
-	{
-		coord[1] = phi + M3D.phase[i];
-		chk = fio_eval_field(M3D.imag[i], coord, b_field);
-		if(chk != 0) {b_field[0] = 0; b_field[1] = 0; b_field[2] = 0; break;}
-		B_R += b_field[0];
-		B_phi += b_field[1];
-		B_Z += b_field[2];
-		//coord[1] = phi;
-	}
+	chk = M3D.getB(R, phi, Z, br, bp, bz);
+	if(chk != 0) {br = 0; bp = 0; bz = 0;}
+	B_R += br;
+	B_phi += bp;
+	B_Z += bz;
 }
 #endif
 

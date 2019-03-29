@@ -34,7 +34,7 @@ NETCDFLIBS = -L/usr/lib64 -lnetcdf
 # ---- external Includes ----
 BLITZINCLUDE = -I/home/wingen/lib/64/blitz/include
 OMPINCLUDE = -I/usr/local/openmpi/include -I/usr/local/openmpi/include/openmpi
-M3DC1INCLUDE = -I/usr/local/m3dc1/include
+M3DC1INCLUDE = -I/usr/local/m3dc1/include -Dm3dc1_newfio
 NETCDFINCLUDE = -I/usr/include
 
 # ---- build GUI with python (optional) ----

@@ -41,6 +41,8 @@ private:
 	static const int Nphi = 12;			// number of toroidal angles to evaluate
 
 	// Member Variables
+	int locB;							// last finite element where B was found
+	int locA;							// last finite element where A was found
 	int isrc[nfiles_max];				// handle for sources
 	LA_STRING filenames[nfiles_max];	// M3DC1 files
 	double scale[nfiles_max];			// scaling factor for linear runs
@@ -99,6 +101,8 @@ nonlinear = true;		// to be on the safe side
 Np = Nphi;
 RmAxis = 0;
 ZmAxis = 0;
+locA = 0;
+locB = 0;
 }
 
 //--------------------- Public Member Functions ---------------------------------------------------------------------------
@@ -117,7 +121,11 @@ Br = 0; Bp = 0; Bz = 0;
 for(i=0;i<nfiles;i++)
 {
 	coord[1] = phi + phase[i];
-	chk += fio_eval_field(imag[i], coord, B);
+	#if defined(m3dc1_newfio)
+		chk += fio_eval_field(imag[i], coord, B, &locB);
+	#else
+		chk += fio_eval_field(imag[i], coord, B);
+	#endif
 	Br += B[0]; Bp += B[1]; Bz += B[2];
 }
 return chk;
@@ -130,7 +138,11 @@ int M3DC1::getA(double R, double phi, double Z, double& Ar, double& Ap, double& 
 int chk;
 double coord[3], A[3];
 coord[0] = R; coord[1] = phi; coord[2] = Z;
-chk = fio_eval_field(ia, coord, A);
+#if defined(m3dc1_newfio)
+	chk = fio_eval_field(ia, coord, A, &locA);
+#else
+	chk = fio_eval_field(ia, coord, A);
+#endif
 Ar = A[0]; Ap = A[1]; Az = A[2];
 return chk;
 }

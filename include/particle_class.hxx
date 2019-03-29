@@ -295,30 +295,28 @@ int PARTICLE::get_psi(const double x1, const double x2, double& y, double p)
 {
 int i,chk;
 double dummy;
-double coord[3], A_field[3];
-coord[0] = x1; coord[1] = 0; coord[2] = x2;
+double phi = 0;
+double Ar,Ap,Az;
 
 if((PARr.response_field == 0) || (PARr.response_field == 2))
 {
 	#if defined(m3dc1)
 		if(M3D.nonlinear)	// in a non-linear run one has to evaluate the vector-potential at various toroidal locations and average
 		{
-			//coord[1] = modulo2pi(p);
-			//i = int(coord[1]*rTOd + 0.5)%360;
 			chk = 0; y = 0;
 			for(i=0;i<M3D.Np;i++)
 			{
-				coord[1] = i*pi2/M3D.Np;
-				chk += fio_eval_field(M3D.ia, coord, A_field);
-				y += A_field[1] * x1;
+				phi = i*pi2/M3D.Np;
+				chk += M3D.getA(x1, phi, x2, Ar, Ap, Az);
+				y += Ap * x1;
 			}
 			y /= M3D.Np;
 			y = (y - M3D.psi_axis_a[0]) / (M3D.psi_lcfs_a[0] - M3D.psi_axis_a[0]);	// normalize; the psi_arrays hold only an average value in [0]
 		}
 		else	// vector-potential taken from equilibrium_only setup
 		{
-			chk = fio_eval_field(M3D.ia, coord, A_field);
-			y = (A_field[1] * x1 - M3D.psi_axis_a[0]) / (M3D.psi_lcfs_a[0] - M3D.psi_axis_a[0]);
+			chk = M3D.getA(x1, phi, x2, Ar, Ap, Az);
+			y = (Ap * x1 - M3D.psi_axis_a[0]) / (M3D.psi_lcfs_a[0] - M3D.psi_axis_a[0]);
 		}
 		if(chk != 0) {y = 1.2; chk = -1;}
 	#else
