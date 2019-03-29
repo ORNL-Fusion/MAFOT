@@ -23,7 +23,8 @@ def findIncomplete(path = './', logsPath = None):
 	for file in incompleteRuns:
 		f = file.replace('_Master.dat','')
 		idx = f[::-1].find('_')
-		n = int(f[-idx::])
+		try: n = int(f[-idx::])
+		except: continue
 		runNums.append(n)
 	
 	if len(runNums) == 0:
@@ -53,14 +54,16 @@ def findMissing(fileList, inputList):
 	for file in fileList:
 		f = file.replace('_Master.dat','')
 		idx = f[::-1].find('_')
-		n = int(f[-idx::])
+		try: n = int(f[-idx::])
+		except: continue
 		runNums.append(n)
 	
 	N = 0
 	for file in inputList:
 		f = file.replace('.dat','')
 		idx = f[::-1].find('_')
-		n = int(f[-idx::])
+		try: n = int(f[-idx::])
+		except: continue
 		if n > N: N = n
 				
 	N += 1
