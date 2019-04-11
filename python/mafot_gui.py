@@ -346,7 +346,7 @@ class set_machine():
 		data_dic = {'0-8':data[0:9],'itt':str(int(data[1])),'phistart':repr(data[7]),'MapDirection':int(data[8]),
 				'useM3DC1':int(data[10]),'response':int(data[9]),'selectField':int(data[10]),
 				'target':int(data[11]),'create':int(data[12]),
-				'sigma':int(data[16]),'charge':int(data[17]),'Ekin':repr(data[18]),'Lambda':repr(data[19]),'Zeff':repr(data[20])}
+				'sigma':int(data[16]),'charge':int(data[17]),'Ekin':repr(data[18]),'Lambda':repr(data[19]),'Mass':repr(data[20])}
 		
 		if(MachFlag == 'iter'):
 			data_dic = self.set_iter_defaults(data, data_dic)
@@ -689,7 +689,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		self.charge = tk.IntVar()
 		self.Ekin = tk.StringVar()
 		self.Lambda = tk.StringVar()
-		self.Zeff = tk.StringVar()
+		self.Mass = tk.StringVar()
 		self.useFilament = tk.StringVar()
 		self.nproc = tk.StringVar()
 		self.Ekin_array = None
@@ -712,18 +712,18 @@ class common_tab(set_machine):	# inherit set_machine class
 
 		row += 1; self.row_particle = row
 		self.charge_R1 = tk.Radiobutton(self.frame, text = 'Electrons', variable = self.charge, 
-			value = -1, command = self.setZeff, font = self.labelFont)
+			value = -1, command = self.setMass, font = self.labelFont)
 		self.charge_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
 		self.charge_R2 = tk.Radiobutton(self.frame, text = 'Ions', variable = self.charge, 
-			value = 1, command = self.setZeff, font = self.labelFont)
+			value = 1, command = self.setMass, font = self.labelFont)
 		self.charge_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
 		self.charge_label = tk.Label(self.frame, text = "Species", font = self.labelFont)
 		self.charge_label.grid(column = 1, row = row, sticky = tk.E )
 
-		self.Zeff_entry = tk.Entry(self.frame, width = 7, textvariable = self.Zeff, font = self.textFont)
-		self.Zeff_entry.grid(column = 4, row = row, sticky = tk.E )
-		self.Zeff_label = tk.Label(self.frame, text = "   Zeff", font = self.labelFont)
-		self.Zeff_label.grid(column = 4, row = row, sticky = tk.W )
+		self.Mass_entry = tk.Entry(self.frame, width = 7, textvariable = self.Mass, font = self.textFont)
+		self.Mass_entry.grid(column = 4, row = row, sticky = tk.E )
+		self.Mass_label = tk.Label(self.frame, text = "   Mass", font = self.labelFont)
+		self.Mass_label.grid(column = 4, row = row, sticky = tk.W )
 
 		row += 1
 		self.Ekin_entry = tk.Entry(self.frame, width = 7, textvariable = self.Ekin, font = self.textFont)
@@ -975,8 +975,8 @@ class common_tab(set_machine):	# inherit set_machine class
 			self.charge_R1.grid(column = 2, row = row, sticky = tk.W + tk.E , padx=5, pady=5)
 			self.charge_R2.grid(column = 3, row = row, sticky = tk.W + tk.E , padx=5, pady=5)
 			self.charge_label.grid(column = 1, row = row, sticky = tk.E , padx=5, pady=5)
-			self.Zeff_entry.grid(column = 4, row = row, sticky = tk.E , padx=5, pady=5)
-			self.Zeff_label.grid(column = 4, row = row, sticky = tk.W , padx=5, pady=5)
+			self.Mass_entry.grid(column = 4, row = row, sticky = tk.E , padx=5, pady=5)
+			self.Mass_label.grid(column = 4, row = row, sticky = tk.W , padx=5, pady=5)
 			row = self.row_particle + 1
 			self.Ekin_entry.grid(column = 2, row = row, sticky = tk.W + tk.E , padx=5, pady=5)
 			self.Ekin_label.grid(column = 1, row = row, sticky = tk.E , padx=5, pady=5)
@@ -993,8 +993,8 @@ class common_tab(set_machine):	# inherit set_machine class
 			self.Ekin_label.grid_forget()
 			self.Lambda_entry.grid_forget()
 			self.Lambda_label.grid_forget()
-			self.Zeff_entry.grid_forget()
-			self.Zeff_label.grid_forget()
+			self.Mass_entry.grid_forget()
+			self.Mass_label.grid_forget()
 			self.ErProfileFile_entry.grid_forget()
 			self.ErProfileFile_label.grid_forget()
 			self.ErProfileFile.set('')
@@ -1021,13 +1021,13 @@ class common_tab(set_machine):	# inherit set_machine class
 			self.Ekin_array = np.array([np.float64(Ekin)])
 			
 			
-	def setZeff(self):
+	def setMass(self):
 		if self.charge.get() == -1:
-			self.Zeff_entry.configure(state=tk.DISABLED)
-			self.Zeff.set('1')
+			self.Mass_entry.configure(state=tk.DISABLED)
+			self.Mass.set('1')
 		else:
-			self.Zeff_entry.configure(state=tk.NORMAL)
-			self.Zeff.set('2')
+			self.Mass_entry.configure(state=tk.NORMAL)
+			self.Mass.set('2')
 
 
 	# --- Default Functions --------------------------------------------------------------
@@ -1072,7 +1072,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		self.charge.set(data['charge'])
 		self.Ekin.set(data['Ekin'])
 		self.Lambda.set(data['Lambda'])
-		self.Zeff.set(data['Zeff'])
+		self.Mass.set(data['Mass'])
 		self.useFilament.set(data['useFilament'])
 		
 		self.activate_response()
@@ -1212,7 +1212,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		f.write('PartileCharge(-1=electrons,>=1=ions)=\t' + str(self.charge.get()) + '\n')
 		f.write('Ekin[keV]=\t' + str(self.Ekin_array[self.Ekin_idx]) + '\n')
 		f.write('lambda=\t' + self.Lambda.get() + '\n')
-		f.write('Zeff=\t' + self.Zeff.get() + '\n')
+		f.write('Mass=\t' + self.Mass.get() + '\n')
 
 
 	def write_Ctrl_center(self, f):

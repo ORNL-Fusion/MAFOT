@@ -92,7 +92,7 @@ public:
 	double Ekin;	// kinitic particle energy [keV]
 	int sigma;		// 1: co-passing particles		-1: count-passing particles		0: field lines only
 	int Zq;			// Charge number: 1: ions are calculated	-1: electrons are calculated
-	int Zeff;		// effective partice mass number; electrons Zeff = 1, Hydrogen Zeff = 1, Deuterium Zeff = 2, Helium Zeff = 4
+	int Mass;		// effective partice mass number; electrons Mass = 1, Hydrogen Mass = 1, Deuterium Mass = 2, Helium Mass = 4
 
 	double Lmfp_total;	// Sum of all mean free paths along the trajectory (PARr.useTprofile == 1 only)
 
@@ -156,7 +156,7 @@ steps = 0;
 Ekin = PAR.Ekin;	// kinitic particle energy
 sigma = PAR.sigma;	// 1: co-passing particles		-1: count-passing particles		0: field lines only
 Zq = PAR.Zq;		// Charge number: 1: ions are calculated	-1: electrons are calculated
-Zeff = PAR.Zeff;	// effective partice mass number; electrons Zeff = 1, Hydrogen Zeff = 1, Deuterium Zeff = 2, Helium Zeff = 4
+Mass = PAR.Mass;	// effective partice mass number; electrons Mass = 1, Hydrogen Mass = 1, Deuterium Mass = 2, Helium Mass = 4
 
 Lmfp_total = 0;
 
@@ -171,14 +171,14 @@ else
 {
 	if(Zq >= 1) // Ions
 	{
-		mc2 = E0p*Zeff;						// Rest Energy in [keV]
-		omegac = e*EQD.Bt0/(mp*Zeff);		// normalized gyro frequency (SI-System)
+		mc2 = E0p*Mass;						// Rest Energy in [keV]
+		omegac = e*EQD.Bt0/(mp*Mass);		// normalized gyro frequency (SI-System)
 		if(mpi_rank < 1) cout << "Ions are calculated" << endl;
 		ofs2 << "Ions are calculated" << endl;
 	}
 	else // Electrons
 	{
-		Zeff = 1;					// default!
+		Mass = 1;					// default!
 		Zq = -1;					// default!
 		mc2 = E0e;					// Rest Energy in [keV]
 		omegac = e*EQD.Bt0/me;		// normalized gyro frequency (SI-System)
@@ -190,8 +190,8 @@ else
 	eps0e_mc2 = eps0/mc2;						// see above, mc2 = mc^2/e/1e3 -> use Er in [kV/m]
 	sqeps0 = eps0e_mc2*EQD.Bt0*EQD.R0;
 	Ix = -0.5/double(Zq)*eps0*((PAR.lambda*(GAMMA-1)+1)*(PAR.lambda*(GAMMA-1)+1)-1);
-	if(mpi_rank < 1) cout << "kin. Energy: Ekin= " << Ekin << "keV" << "\t" << "rel. gamma-factor: gamma= " << GAMMA << "\t" << "Mass: Zeff= " << Zeff << endl;
-	ofs2 << "kin. Energy: Ekin= " << Ekin << "keV" << "\t" << "rel. gamma-factor: gamma= " << GAMMA << "\t" << "Mass: Zeff= " << Zeff << endl;
+	if(mpi_rank < 1) cout << "kin. Energy: Ekin= " << Ekin << "keV" << "\t" << "rel. gamma-factor: gamma= " << GAMMA << "\t" << "Mass: M= " << Mass << endl;
+	ofs2 << "kin. Energy: Ekin= " << Ekin << "keV" << "\t" << "rel. gamma-factor: gamma= " << GAMMA << "\t" << "Mass: M= " << Mass << endl;
 }
 }
 
@@ -224,7 +224,7 @@ psiav = FLT.psiav;
 Ekin = FLT.Ekin;
 sigma = FLT.sigma;
 Zq = FLT.Zq;
-Zeff = FLT.Zeff;
+Mass = FLT.Mass;
 
 Lmfp_total = FLT.Lmfp_total;
 return(*this);
@@ -252,7 +252,7 @@ out << "--- Properties ---" << endl;
 out << "Ekin = " << FLT.Ekin << endl;
 out << "Type (0=field line) = " << FLT.sigma << endl;
 out << "Charge = " << FLT.Zq << endl;
-out << "Mass = " << FLT.Zeff << endl;
+out << "Mass = " << FLT.Mass << endl;
 
 return out;
 }

@@ -340,9 +340,9 @@ void prep_Bcoil_shiftTilt(void)
 {
 // shift&tilt:  x' = M*x + s
 // the forward shift&tilt gives the old coordinates (in the old system) of the shifted and tilted new system
-const double shiftR = 4.5e-3;	//5.7e-3;  			// in m;
-const double shift_tor_angle = 86 /rTOd;	//-71 /rTOd;   // in deg, rhs
-const double tilt_angle = 0.06 /rTOd;   	// in deg, from z-axis;
+const double shiftR = 5e-3; //4.5e-3;	//5.7e-3;  			// in m;
+const double shift_tor_angle = 50 /rTOd; //86 /rTOd;	//-71 /rTOd;   // in deg, rhs
+const double tilt_angle = 0; //0.06 /rTOd;   	// in deg, from z-axis;
 const double tilt_tor_angle = 292 /rTOd;	//-250 /rTOd;   // in deg, rhs
 
 // tilting
