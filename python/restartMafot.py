@@ -77,7 +77,7 @@ def findMissing(fileList, inputList):
 	return missing
 	
 
-def keepWorking(path = './', logsPath = None):
+def keepWorking(path = './', logsPath = None, jobnumber = None):
 	from subprocess import call,check_output
 	import getpass,time
 	user = getpass.getuser()
@@ -86,7 +86,8 @@ def keepWorking(path = './', logsPath = None):
 	# wait until no more of your jobs in 'preemptable' queue
 	print 'Waiting for jobs to finish...'
 	bla = check_output(['squeue','-u',user])
-	while('preemptab' in bla):
+	if jobnumber is None: jobnumber = 'preemptab' # use queue keyword instead
+	while(jobnumber in bla):
 		time.sleep(600)		# wait 10 minutes; no CPU usage
 		bla = check_output(['squeue','-u',user])
 	
@@ -94,13 +95,15 @@ def keepWorking(path = './', logsPath = None):
 	while(len(runNums) > 0):
 	
 		# resubmit jobs
-		call(['sbatch', path + 'mafotRerun.sbatch'])
+		bla = check_output(['sbatch', path + 'mafotRerun.sbatch'])
+		jobnumber = bla.strip().split()[3]
+		print 'Submitted batch job', jobnumber
 		time.sleep(60)	# wait 60 sec
 	
 		# wait until no more of your jobs in 'preemptable' queue
 		print 'Waiting for jobs to finish...'
 		bla = check_output(['squeue','-u',user])
-		while('preemptab' in bla):
+		while(jobnumber in bla):
 			time.sleep(600)		# wait 10 minutes; no CPU usage
 			bla = check_output(['squeue','-u',user])
 		
@@ -196,17 +199,17 @@ if __name__ == '__main__':
                           restartMafot.py -p'''))
 	
 	parser.add_argument('-d', '--dir', help = "set working dir", type = str, default = './')
-	parser.add_argument('-i', '--id', help = 'keep resubmitting job with initial number ID until complete, single run only! Use -j to set JOB file', type = str, default = None)
+	parser.add_argument('-i', '--id', help = 'keep resubmitting job with initial number ID until complete. Single run or job arrays.', type = str, default = None)
 	parser.add_argument('-j', '--job', help = 'keep resubmitting jobfile JOB until complete, default is mafot.sbatch, single run only!', type = str, default = None)
 	parser.add_argument('-l', '--logs', help = "set log dir, if different from working dir", type = str, default = None)
 	parser.add_argument('-p', '--persist', help = 'keep resubmitting until all jobs complete, job arrays only', action = 'store_true', default = False)
 	args = parser.parse_args()
 	
-	if (args.job is not None) | (args.id is not None):
+	if ((args.job is not None) | (args.id is not None)) & (not args.persist):
 		if args.job is None: job = 'mafot.sbatch'
 		else: job = args.job
 		restartJob(job, args.id, args.logs)
 	elif args.persist:
-		keepWorking(args.dir, args.logs)
+		keepWorking(args.dir, args.logs, args.id)
 	else:
 		_ = findIncomplete(args.dir, args.logs)
