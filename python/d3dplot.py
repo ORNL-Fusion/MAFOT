@@ -13,7 +13,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			tag = None, graphic = 'png', physical = 1, b = None, N = 60, Title = None,
 			typeOfPlot = 'contourf', xlimit = None, ylimit = None, figwidth = None, figheight = None, 
 			latex = True, cmap = 'jet', toroidal_angle = 0, wall3Dfile = None, use_z_logscale = False,
-			reverse_y = False):
+			reverse_y = False,manifolds = None):
 	"""
 	plot MAFOT results
 	--- user input ------------------
@@ -71,6 +71,13 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		what = 'None'
 		physical = -1
 		target = 'None'
+
+	# --- auto-set Manifold plot defaults from filename key-word ---
+	if(filename[0:3] == 'man'):
+		typeOfPlot = 'manifold'
+		what = 'None'
+		physical = -1
+		target = 'None'
 	
 	# --- define reversed cmap ---
 	if cmap[-2::] == '_r': cmap_r = cmap[0:-2]
@@ -88,7 +95,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		
 	# --- read data -------------------
 	data = readfile(path + filename)
-	if not (typeOfPlot == 'poincare'):
+	if not (typeOfPlot in ['poincare','manifold']):
 		Nth, Npsi = gridSize(data)
 		if(coordinates == 'RZ') | (coordinates == 'phi'): Nth, Npsi = Npsi, Nth
 		x = data[:,0].reshape(Nth,Npsi)
@@ -117,6 +124,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		xLabel = 'R [m]'
 		yLabel = 'Z [m]'
 		if (typeOfPlot == 'poincare'): x,y = data[:,4],data[:,5]; x,y = x[:,np.newaxis],y[:,np.newaxis]
+		elif (typeOfPlot == 'manifold'): x,y = data[:,0],data[:,1]; x,y = x[:,np.newaxis],y[:,np.newaxis]
 
 	elif(coordinates == 'psi'):
 		if not latex:
@@ -126,6 +134,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			xLabel = '$\\theta$ $\\mathrm{[rad]}$'
 			yLabel = '$\\psi$'
 		if (typeOfPlot == 'poincare'): x,y = data[:,0],data[:,3]; x,y = x[:,np.newaxis],y[:,np.newaxis]
+		elif (typeOfPlot == 'manifold'): x,y = data[:,3],data[:,2]; x,y = x[:,np.newaxis],y[:,np.newaxis]
 	
 	elif(coordinates == 'pest'):
 		if not latex:
@@ -135,6 +144,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			xLabel = '$\\theta_p$ $\\mathrm{[rad]}$'
 			yLabel = '$\\psi$'
 		if (typeOfPlot == 'poincare'): x,y = data[:,0],data[:,3]; x,y = x[:,np.newaxis],y[:,np.newaxis]
+		elif (typeOfPlot == 'manifold'): x,y = data[:,3],data[:,2]; x,y = x[:,np.newaxis],y[:,np.newaxis]
 
 	elif(coordinates == 'phi'):
 		if('d3d' in machine):
@@ -180,6 +190,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if (typeOfPlot == 'poincare'): 
 			x,y = data[:,2]%(2*np.pi),data[:,1]; x,y = x[:,np.newaxis],y[:,np.newaxis]
 			yLabel = 'r [m]'
+		elif (typeOfPlot == 'manifold'): print 'coordinates not defined for this plot'; return
 			
 	elif(coordinates == 'phitheta'):
 		if not latex:
@@ -189,6 +200,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			xLabel = '$\\varphi$ $\\mathrm{[deg]}$'
 			yLabel = '$\\theta$ $\\mathrm{[rad]}$'
 		if (typeOfPlot == 'poincare'): x,y = data[:,2]%(2*np.pi),data[:,0]; x,y = x[:,np.newaxis],y[:,np.newaxis]
+		elif (typeOfPlot == 'manifold'): print 'coordinates not defined for this plot'; return
 
 	elif(coordinates == 'phiZ'):
 		if not latex:
@@ -198,6 +210,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			xLabel = '$\\varphi$ $\\mathrm{[deg]}$'
 			yLabel = 'Z [m]'
 		if (typeOfPlot == 'poincare'): x,y = data[:,2]%(2*np.pi),data[:,5]; x,y = x[:,np.newaxis],y[:,np.newaxis]
+		elif (typeOfPlot == 'manifold'): print 'coordinates not defined for this plot'; return
 	
 	elif(coordinates == 'rtheta'):
 		if not latex:
@@ -207,6 +220,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			xLabel = '$\\theta$ $\\mathrm{[rad]}$'
 			yLabel = 'r [m]'
 		if (typeOfPlot == 'poincare'): x,y = data[:,0],data[:,1]; x,y = x[:,np.newaxis],y[:,np.newaxis]
+		elif (typeOfPlot == 'manifold'): x,y = data[:,3],data[:,4]; x,y = x[:,np.newaxis],y[:,np.newaxis]
 
 	else:
 		print 'coordinates: Unknown input'
@@ -330,7 +344,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			z = z[::-1,:]	# reverse y-axis
 		
 	# correct orientation in RZ plot and footprint
-	if((coordinates == 'RZ') | (coordinates == 'phi')) & (not (typeOfPlot == 'poincare')): x, y, z = x.T, y.T, z.T
+	if((coordinates == 'RZ') | (coordinates == 'phi')) & (not (typeOfPlot in ['poincare','manifold'])): x, y, z = x.T, y.T, z.T
 	
 	# correct, if last x point is larger than 2pi -> x mod 2pi is very small
 	if(x[-1,0] < x[-2,0]): x = x[0:-1,:]; y = y[0:-1,:]; z = z[0:-1,:]
@@ -348,7 +362,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			import Misc.sfc_class as sfc_class
 			sfc = sfc_class.straight_field_line_coordinates(shot, time)
 			xp = sfc.ev(x,y)
-			if (typeOfPlot == 'poincare'): x = xp
+			if (typeOfPlot in ['poincare','manifold']): x = xp
 			else:
 				for i in xrange(Npsi):
 					spline = inter.UnivariateSpline(xp[:,i], z[:,i], s = 0)
@@ -362,7 +376,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if (coordinates in ['psi','pest','rtheta']):
 			if (xlimit[0] < 0):
 				xlimit0 = xlimit[0] % (2*np.pi)
-				if (typeOfPlot == 'poincare'):
+				if (typeOfPlot in ['poincare','manifold']):
 					x[x >= xlimit0] -= 2*np.pi
 				else:
 					idx_xlimit0 = abs(x[:,0] - xlimit0).argmin()
@@ -371,7 +385,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 					z = np.append(z[idx_xlimit0:-1,:], z[0:idx_xlimit0,:],0)
 			if (xlimit[1] > 2*np.pi):
 				xlimit0 = xlimit[1] % (2*np.pi)
-				if (typeOfPlot == 'poincare'):
+				if (typeOfPlot in ['poincare','manifold']):
 					x[x <= xlimit0] += 2*np.pi
 				else:
 					idx_xlimit0 = abs(x[:,0] - xlimit0).argmin()
@@ -426,6 +440,8 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	elif(typeOfPlot == 'poincare'):
 		print len(np.where(data[:,2] == 360)[0]), 'Orbits found in File'
 		plt.plot(x,y,'ko',markersize = 0.5)
+	elif(typeOfPlot == 'manifold'):
+		plt.plot(x,y,'k-',lw = 1)
 	else:
 		#cs = plt.imshow(z.T, extent = [x.min(), x.max(), y.min(), y.max()], cmap = usecolormap, origin = 'lower', vmin = b.min(), vmax = b.max(), aspect = 'auto', interpolation = 'bilinear')
 		cs = plt.pcolormesh(x, y, z, cmap = usecolormap, vmin = b.min(), vmax = b.max(), shading = 'gouraud')
@@ -434,7 +450,11 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	if(coordinates == 'RZ'): # plot wall
 		wall = get_wall(machine, toroidal_angle, wall3Dfile)
 		plt.plot(wall[:,0], wall[:,1], 'k--', linewidth = 2)
-		
+		if manifolds is not None:
+			for item in manifolds:
+				mandata = readfile(item)
+				plt.plot(mandata[:,0], mandata[:,1], 'k-', linewidth = 1)
+				
 	if(coordinates == 'phi'):
 		if (target == 'in'):	# plot tile limit
 			if(physical == 1) & ('d3d' in machine): plt.plot([x.min(), x.max()], [-1.223, -1.223], 'k--', linewidth = 1.5)
@@ -452,7 +472,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 				plt.plot([x.min(), x.max()], [30.11, 30.11], 'k--', linewidth = 1.5)			
 		else:	# plot the pump limit / edge of shelf nose location
 			if(physical == 1) & ('d3d' in machine): plt.plot([x.min(), x.max()], [1.372, 1.372], 'k--', linewidth = 1.5)
-			elif(typeOfPlot == 'poincare'): pass
+			elif(typeOfPlot in ['poincare','manifold']): pass
 			else: plt.plot([x.min(), x.max()], [1, 1], 'k--', linewidth = 1.5)
 			
 	if(coordinates == 'RZ') & (what in ['pitch', 'yaw']): # plot plasma boundary
@@ -461,7 +481,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	# --- Axes  -----------------------
 	if(coordinates == 'RZ'): 
 		plt.axes().set_aspect('equal')
-		if(typeOfPlot == 'poincare'):
+		if(typeOfPlot in ['poincare','manifold']):
 			plt.xlim(wall[:,0].min(),wall[:,0].max())
 			plt.ylim(wall[:,1].min(),wall[:,1].max())
 		else:
@@ -471,7 +491,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		except: pass
 	elif(coordinates == 'pest'): 
 		plt.ylim(y.min(), min([y.max(), 1.0]))
-		if(typeOfPlot == 'poincare'): plt.xlim(x.min(),x.max())
+		if(typeOfPlot in ['poincare','manifold']): plt.xlim(x.min(),x.max())
 	else: 
 		plt.xlim(x.min(),x.max())
 		plt.ylim(y.min(),y.max())
@@ -492,7 +512,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	plt.gca().set_position(plt.matplotlib.transforms.Bbox(pos))
 	
 	# --- Colorbar --------------------
-	if not (typeOfPlot == 'poincare'):
+	if not (typeOfPlot in ['poincare','manifold']):
 		# set ticks
 		steps = (b.max() - b.min())/10.0
 		digit = int(np.floor(np.log10(steps)))
@@ -720,21 +740,22 @@ if __name__ == '__main__':
 	angle = 0
 	wall3Dfile = None
 	use_z_logscale = False
-	reverse_y = False	
+	reverse_y = False
+	manifolds = None
 
-	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:C:T:iW:H:Ub:x:y:L:lR", ["help", "coord=", "what=", 
+	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:C:T:iW:H:Ub:x:y:L:lRM:", ["help", "coord=", "what=", 
 																 "machine=", "printme", "graphic=", 
 																 "tag=", "physical=", "cmap=", "Title=", "imshow", 	 
 																 "figwidth=", "figheight=", "unicode",
 																 "range=", "xlim=", "ylim=", "wall=", "log",
-																 "Reverse"])
+																 "Reverse","Manifold="])
 	for o, a in opts:
 		if o in ("-h", "--help"):
 			print "usage: d3dplot.py [-h] [-c COORDINATES] [-w WHAT] [-m MACHINE] [-p]"
 			print "                  [-g GRAPHIC] [-t TAG] [-P PHYSICAL] [-N N] [-C CMAP]"
 			print "                  [-T TITLE] [-i] [-W FIGWIDTH] [-H FIGHEIGHT] [-U] [-l]"
 			print "                  [-b MIN,MAX] [-x MIN,MAX] [-y MIN,MAX] [-L FILE,ANGLE]"
-			print "                  [-R]"
+			print "                  [-R] [-M name1,name2,...]"
 			print "                  pathname"
 			print ""			
 			print "most typical use: d3dplot.py -c COORDINATES -w WHAT -p -i pathname"
@@ -757,9 +778,6 @@ if __name__ == '__main__':
 			print "  -p, --printme         Save to File"
 			print "  -t, --tag <Arg>       Arbitary string, attached to the file name of"
 			print "                        the saved figure"
-			print "  -P, --physical <Arg>  Type of y-Axis in fooprint. <Arg> = "
-			print "                        0: native, 1: RZ(default), 2: t in cm"
-			print "  -N <Arg>              Number of color levels in plot, default = 60"
 			print "  -w, --what <Arg>      Data to plot. <Arg> = "
 			print "                        Lc, psimin (default), psimax, psiav"
 			print "  -x, --xlim <Arg>      X-Axis range: Min,Max (no spaces)"
@@ -767,6 +785,10 @@ if __name__ == '__main__':
 			print "  -C, --cmap <Arg>      colormap, default = jet"
 			print "  -H, --figheight <Arg> Force height of figure from default to <Arg>"
 			print "  -L, --wall <Arg>      Wall info (can be 3D): filename,angle (no spaces)"
+			print "  -M, --Manifold <Arg>  List of files to plot: name1,name2,... (no spaces)"
+			print "  -N <Arg>              Number of color levels in plot, default = 60"
+			print "  -P, --physical <Arg>  Type of y-Axis in fooprint. <Arg> = "
+			print "                        0: native, 1: RZ(default), 2: t in cm"
 			print "  -R, --Reverse         reverse the y-axis"
 			print "  -T, --Title <Arg>     Figure title, default = None"
 			print "  -U, --unicode         Use Unicode instead of LaTeX (default) in labels"
@@ -822,6 +844,8 @@ if __name__ == '__main__':
 			use_z_logscale = True
 		elif o in ("-R", "--Reverse"):
 			reverse_y = True
+		elif o in ("-M", "--Manifold"):
+			manifolds = a.split(',')
 		else:
 			raise AssertionError("unknown option")
 			
@@ -831,7 +855,7 @@ if __name__ == '__main__':
 			tag = tag, graphic = graphic, physical = physical, b = b, N = N, Title = Title,
 			typeOfPlot = toP, xlimit = xlim, ylimit = ylim, figwidth = figwidth, figheight = figheight,
 			latex = latex, cmap = cmap, toroidal_angle = angle, wall3Dfile = wall3Dfile, use_z_logscale = use_z_logscale,
-			reverse_y = reverse_y)
+			reverse_y = reverse_y, manifolds = manifolds)
 
 	plt.show()
 
