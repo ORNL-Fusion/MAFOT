@@ -201,7 +201,8 @@ void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING supPath)
 {
 int i,j;
 int chk;
-LA_STRING line;	// entire line is read by ifstream
+//LA_STRING line;	// entire line is read by ifstream
+string line;
 ifstream in;
 
 // Set common blocks parameters
@@ -227,7 +228,8 @@ d3icoil_.scaleIL = 1.0;
 
 tfcoil_.rma = EQD.R0;
 tfcoil_.ntfturns = 144;
-tfcoil_.bcoil = 0.5*1e+7*tfcoil_.rma*EQD.Bt0/tfcoil_.ntfturns;	// Magn. field at torus major radius: B = mu0 I*n/(2pi*R)
+double bcoil_estimate = 0.5*1e+7*tfcoil_.rma*EQD.Bt0/tfcoil_.ntfturns;	// Magn. field at torus major radius: B = mu0 I*n/(2pi*R)
+tfcoil_.bcoil = bcoil_estimate;
 // the rest of this extern struct is not used in any way by MAFOT
 for(i=0;i<ntflimits;i++) tfcoil_.tflimits[i] = 0;
 tfcoil_.ibcoil = 1;
@@ -254,14 +256,31 @@ if(PAR.useFcoil == 1 || PAR.useCcoil == 1 || PAR.useIcoil == 1 || (PAR.response_
 	in.open(supPath + "diiidsup.in");
 	if(in.fail()==1) {if(mpi_rank < 1) cout << "Unable to open diiidsup.in file " << endl; EXIT;}
 
-	for(i=1;i<=4;i++) in >> line;	// Skip 4 lines
-	for(i=0;i<nFc;i++) in >> d3pfer_.fcur[i];		// Read F-coil currents
+//	for(i=1;i<=4;i++) in >> line;	// Skip 4 lines
+//	for(i=0;i<nFc;i++) in >> d3pfer_.fcur[i];		// Read F-coil currents
 
-	in >> line;	// Skip line
-	for(i=0;i<nCloops;i++) in >> d3ccoil_.curntC[i];		// Read C-coil currents
+//	in >> line;	// Skip line
+//	for(i=0;i<nCloops;i++) in >> d3ccoil_.curntC[i];		// Read C-coil currents
 
-	in >> line;	// Skip line
-	for(i=0;i<nIloops;i++) in >> d3icoil_.curntIc[i];		// Read I-coil currents
+//	in >> line;	// Skip line
+//	for(i=0;i<nIloops;i++) in >> d3icoil_.curntIc[i];		// Read I-coil currents
+
+	while(getline(in, line))
+	{
+		if (line[0] == '!') continue; // skip comment lines
+
+	    if (line.find("fcur") != std::string::npos)
+	    	for(i=0;i<nFc;i++) in >> d3pfer_.fcur[i];				// Read F-coil currents
+
+	    if (line.find("bcoil") != std::string::npos)
+	    	in >> tfcoil_.bcoil;									// Read B-coil current
+
+	    if (line.find("curntc") != std::string::npos)
+	    	for(i=0;i<nCloops;i++) in >> d3ccoil_.curntC[i];		// Read C-coil currents
+
+	    if (line.find("curntic") != std::string::npos)
+	    	for(i=0;i<nIloops;i++) in >> d3icoil_.curntIc[i];		// Read I-coil currents
+	}
 
 	in.close();	// close file
 	in.clear();	// reset ifstream for next use
@@ -324,7 +343,8 @@ if(PAR.useBuswork==1)
 {
 	for(i=0;i<nBusloops;i++) d3bus.kbus[i] = 1;	// all loops are on
 	d3busnew2geom_(&d3bus.kbus[0], &d3bus.nloops, &d3bus.nsegs[0], &d3bus.xs[0][0][0], &d3bus.dvs[0][0][0], &d3bus.curnt[0]);	// latest geometry only, since 2006
-	ofs2 << "B-coil current [A] for Bus error field: " << tfcoil_.bcoil << endl;
+	ofs2 << "B-coil current [A] used for Bus error field: " << tfcoil_.bcoil << endl;
+	if (tfcoil_.bcoil != bcoil_estimate) ofs2 << "Estimated B-coil current [A] from g-file: " << bcoil_estimate << endl;
 }
 
 // set Bcoil shift&tilt
