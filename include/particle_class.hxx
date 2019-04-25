@@ -364,6 +364,8 @@ int PARTICLE::mapstep(int MapDirection, int nstep, bool flag)
 {
 int chk;
 double phi_rad = phi/rTOd;	// phi in rad
+if(MapDirection >= 0) MapDirection = 1;	// catch possible input error here
+else MapDirection = -1;
 const double dphi = MapDirection*dpinit/rTOd;
 Array<double,1> y(nvar); // Array to set initial conditions
 
