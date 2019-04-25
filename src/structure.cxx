@@ -371,6 +371,9 @@ if(not filaments)
 	double now2 = zeit();
 	cout << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 	ofs2 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
+	#ifdef m3dc1
+	if(PAR.response_field >= 0) M3D.unload();
+	#endif
 	return 0;
 }
 
@@ -378,37 +381,59 @@ if(not filaments)
 // interactive
 int FileNr;
 double Current;
-
-// Get interactive input
-cout << endl << "Creating filament.in file" << endl;
-cout << "Enter File Number: "; cin >> FileNr;
-cout << "Enter Current[A]: "; cin >> Current;
-
-// Output
-LA_STRING filamentname = "filament" + LA_STRING(FileNr) + ".in";
-out.open(filamentname);
-out.precision(16);
-
-// Write Header
-out << "# Copy of file: " << filenameout << endl;
-out << "#-------------------------------------------------" << endl;
-out << "### Current[A]: " << Current << endl;
-out << "#-------------------------------------------------" << endl;
-out << "### Data:" << endl;
-out << "# ";
-var[4] = "phi[rad]";
-for(i=0;i<int(var.size());i++) out << var[i] << "     ";
-out << endl;
-out << "#" << endl;
+double phistep = nstep*dpinit;
+if(not angleInDeg) phistep /= rTOd;
+Array<double,1> jstart(PAR.N),jend(PAR.N);
 
 // Read Data
 data.free();
 readfile(filenameout,5,data);
 
-// Write Data
-if(angleInDeg) {for(j=1;j<=data.rows();j++) out << data(j,1) << "\t" << data(j,2) << "\t" << data(j,3) << "\t" << data(j,4) << "\t" << (360 - data(j,5))/rTOd << endl;}	// read in angle is in lhs degree, but filament.in wants rhs radiants
-else {for(j=1;j<=data.rows();j++) out << data(j,1) << "\t" << data(j,2) << "\t" << data(j,3) << "\t" << data(j,4) << "\t" << data(j,5) << endl;}
+// find individual flux tubes
+jstart(0) = 1;
+jend(PAR.N-1) = data.rows();
+i = 1;
+j = 2;
+while((i < PAR.N) && (j < data.rows()))
+{
+	if(fabs(data(j,5) - data(j-1,5)) > 2*phistep)
+	{
+		jstart(i)  = j;
+		jend(i-1) = j-1;
+		i += 1;
+	}
+	j += 1;
+}
 
+for(i=0;i<PAR.N;i++)
+{
+	// Get interactive input
+	cout << endl << "Creating filament.in file" << endl;
+	cout << "Enter File Number: "; cin >> FileNr;
+	cout << "Enter Current[A]: "; cin >> Current;
+
+	// Output
+	LA_STRING filamentname = "filament" + LA_STRING(FileNr) + ".in";
+	out.open(filamentname);
+	out.precision(16);
+
+	// Write Header
+	out << "# Single flux tube from file: " << filenameout << endl;
+	out << "#-------------------------------------------------" << endl;
+	out << "### Current[A]: " << Current << endl;
+	out << "#-------------------------------------------------" << endl;
+	out << "### Data:" << endl;
+	out << "# ";
+	var[4] = "phi[rad]";
+	for(int k=0;k<int(var.size());k++) out << var[k] << "     ";
+	out << endl;
+	out << "#" << endl;
+
+	// Write Data
+	if(angleInDeg) {for(j=jstart(i);j<=jend(i);j++) out << data(j,1) << "\t" << data(j,2) << "\t" << data(j,3) << "\t" << data(j,4) << "\t" << (360 - data(j,5))/rTOd << endl;}	// read in angle is in lhs degree, but filament.in wants rhs radiants
+	else {for(j=jstart(i);j<=jend(i);j++) out << data(j,1) << "\t" << data(j,2) << "\t" << data(j,3) << "\t" << data(j,4) << "\t" << data(j,5) << endl;}
+	out.close();
+}
 double now2 = zeit();
 cout << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 ofs2 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
