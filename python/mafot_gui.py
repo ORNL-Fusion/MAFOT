@@ -1162,6 +1162,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		#		f.write(shellCall + '\n')
 		if('iris' in HOST):			# Iris Cluster
 			import getpass
+			user = getpass.getuser()
 			with open('mafot.sbatch', 'w') as f:
 				f.write('#!/bin/bash' + '\n')
 				if len(self.Ekin_array) > 1:
@@ -1173,9 +1174,11 @@ class common_tab(set_machine):	# inherit set_machine class
 					f.write('#SBATCH -n ' + str(nproc) + ' \n')
 				f.write('#SBATCH -t 120' + '\n')
 				f.write('#SBATCH --mem-per-cpu=1G' + '\n')
-				f.write('#SBATCH --mail-user=' + getpass.getuser() + '@fusion.gat.com' + '\n')
+				if (user == 'wingen') & (len(self.Ekin_array) > 1): f.write('##SBATCH --mail-user=' + user + '@fusion.gat.com' + '\n')
+				else: f.write('#SBATCH --mail-user=' + user + '@fusion.gat.com' + '\n')
 				if len(self.Ekin_array) > 1:
-					f.write('#SBATCH --mail-type=FAIL,ARRAY_TASKS  ## or BEGIN,END,FAIL,ALL,ARRAY_TASKS ' + '\n')
+					if user == 'wingen': f.write('##SBATCH --mail-type=FAIL,ARRAY_TASKS  ## or BEGIN,END,FAIL,ALL,ARRAY_TASKS ' + '\n')
+					else: f.write('#SBATCH --mail-type=FAIL,ARRAY_TASKS  ## or BEGIN,END,FAIL,ALL,ARRAY_TASKS ' + '\n')
 				else:
 					f.write('#SBATCH --mail-type=FAIL  ## or BEGIN,END,FAIL,ALL ' + '\n')
 				f.write('#SBATCH --export=ALL' + '\n')
