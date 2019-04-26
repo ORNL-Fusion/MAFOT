@@ -95,7 +95,7 @@ def keepWorking(path = './', logsPath = None, jobnumber = None, jobFile = 'mafot
 	while(len(runNums) > 0):
 	
 		# resubmit jobs
-		bla = check_output(['sbatch', path + 'rerun_' + jobfile])
+		bla = check_output(['sbatch', path + 'rerun_' + jobFile])
 		jobnumber = bla.strip().split()[3]
 		print 'Submitted batch job', jobnumber
 		time.sleep(60)	# wait 60 sec
