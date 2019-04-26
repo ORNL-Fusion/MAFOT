@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.7
 import os
 
-def findIncomplete(path = './', logsPath = None):
+def findIncomplete(path = './', logsPath = None, jobFile = 'mafot.sbatch'):
 	if not path[-1] == '/': path += '/'
 	if logsPath is None: 
 		logsPath = path
@@ -36,9 +36,9 @@ def findIncomplete(path = './', logsPath = None):
 	#print 'Nums:', runNums
 	print 'List of runs incomplete:', runList
 	
-	if os.path.isfile(path + 'mafot.sbatch'):
-		with open(path + 'mafot.sbatch') as f: lines = f.readlines()
-		with open(path + 'mafotRerun.sbatch','w') as f:
+	if os.path.isfile(path + jobFile):
+		with open(path + jobFile) as f: lines = f.readlines()
+		with open(path + 'rerun_' + jobFile,'w') as f:
 			for line in lines:
 				if '#SBATCH --array' in line: f.write('#SBATCH --array=' + runList + '\n')
 				else: f.write(line)
@@ -77,7 +77,7 @@ def findMissing(fileList, inputList):
 	return missing
 	
 
-def keepWorking(path = './', logsPath = None, jobnumber = None):
+def keepWorking(path = './', logsPath = None, jobnumber = None, jobFile = 'mafot.sbatch'):
 	from subprocess import call,check_output
 	import getpass,time
 	user = getpass.getuser()
@@ -91,11 +91,11 @@ def keepWorking(path = './', logsPath = None, jobnumber = None):
 		time.sleep(600)		# wait 10 minutes; no CPU usage
 		bla = check_output(['squeue','-u',user])
 	
-	runNums = findIncomplete(path, logsPath)
+	runNums = findIncomplete(path, logsPath, jobFile = jobFile)
 	while(len(runNums) > 0):
 	
 		# resubmit jobs
-		bla = check_output(['sbatch', path + 'mafotRerun.sbatch'])
+		bla = check_output(['sbatch', path + 'rerun_' + jobfile])
 		jobnumber = bla.strip().split()[3]
 		print 'Submitted batch job', jobnumber
 		time.sleep(60)	# wait 60 sec
@@ -108,7 +108,7 @@ def keepWorking(path = './', logsPath = None, jobnumber = None):
 			bla = check_output(['squeue','-u',user])
 		
 		# check new incomplete list
-		runNums = findIncomplete(path, logsPath)
+		runNums = findIncomplete(path, logsPath, jobFile = jobFile)
 	
 	return
 	
@@ -199,17 +199,19 @@ if __name__ == '__main__':
                           restartMafot.py -p'''))
 	
 	parser.add_argument('-d', '--dir', help = "set working dir", type = str, default = './')
+	parser.add_argument('-f', '--find', help = 'Just find the incomplete runs, job arrays only', action = 'store_true', default = False)
 	parser.add_argument('-i', '--id', help = 'keep resubmitting job with initial number ID until complete. Single run or job arrays.', type = str, default = None)
-	parser.add_argument('-j', '--job', help = 'keep resubmitting jobfile JOB until complete, default is mafot.sbatch, single run only!', type = str, default = None)
+	parser.add_argument('-j', '--job', help = 'keep resubmitting jobfile JOB until complete, default is mafot.sbatch', type = str, default = None)
 	parser.add_argument('-l', '--logs', help = "set log dir, if different from working dir", type = str, default = None)
 	parser.add_argument('-p', '--persist', help = 'keep resubmitting until all jobs complete, job arrays only', action = 'store_true', default = False)
 	args = parser.parse_args()
 	
-	if ((args.job is not None) | (args.id is not None)) & (not args.persist):
-		if args.job is None: job = 'mafot.sbatch'
-		else: job = args.job
-		restartJob(job, args.id, args.logs)
-	elif args.persist:
-		keepWorking(args.dir, args.logs, args.id)
+	if args.job is None: job = 'mafot.sbatch'
+	else: job = args.job
+	
+	if args.persist:
+		keepWorking(args.dir, args.logs, args.id, job)
+	elif args.find:
+		_ = findIncomplete(args.dir, args.logs, job)
 	else:
-		_ = findIncomplete(args.dir, args.logs)
+		restartJob(job, args.id, args.logs)
