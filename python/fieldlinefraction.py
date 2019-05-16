@@ -13,7 +13,8 @@ the axis tick labes are manipulated so that the values are correct
 import numpy as np
 
 def makeFLF(file, file2 = None, useLogScale = False, M = 200, SOL_Range_Lc = 0.075, SOL_Range_psi = 0.997,
-             Lc_cutoff = 2.6, Lc_ft = 0.13, Lc_long = 0.4, correct_psi = True, save = False, show = True): 
+             Lc_cutoff = 2.6, Lc_ft = 0.13, Lc_long = 0.4, correct_psi = True, save = False, show = True,
+             flfLim = None): 
 	"""
 	Input
 	 file            filename of footprint
@@ -32,13 +33,14 @@ def makeFLF(file, file2 = None, useLogScale = False, M = 200, SOL_Range_Lc = 0.0
 	if(idx == -1): tag = file[5:-4] 
 	else: tag = file[-idx+5:-4]
 	tag = tag.replace('.','_')
+	if useLogScale: tag += '_log'
 	if file2 is not None: 
 		if tag[0:3] == '_in': tag = tag.replace('_in','_all')
 		if tag[0:3] == '_ou': tag = tag.replace('_out','_all')
 		if tag[0:3] == '_sh': tag = tag.replace('_shelf','_all')
 	
 	Lc, psimin = readData(file, file2, SOL_Range_Lc, correct_psi)
-	_,_, psi_min, flf98, flf95 = psiHist(psimin, M, SOL_Range_psi, useLogScale, save, tag, show)
+	_,_, psi_min, flf98, flf95 = psiHist(psimin, M, SOL_Range_psi, useLogScale, save, tag, show, flfLim)
 	_,_, Lc_average, flfft, flflong = LcHist(Lc, M, SOL_Range_Lc, Lc_ft, Lc_long, Lc_cutoff, useLogScale, save, tag, show)
 	
 	return psi_min, flf98, flf95, Lc_average, flfft, flflong
@@ -48,15 +50,25 @@ def readData(file, file2 = None, SOL_Range_Lc = 0.075, correct_psi = True):
 	with open(file) as f:	# this is much faster than np.loadtxt(file), but does the same
 		data = np.array([line.strip().split() for line in f if '#' not in line], np.float64)
 		
-	Lc = data[:,3]
-	psimin = data[:,4]
+	if 'lam' in file:
+		idx = data[:,2] < data[:,2].max()
+		Lc = data[:,3][idx]
+		psimin = data[:,4][idx]
+	else:
+		Lc = data[:,3]
+		psimin = data[:,4]
 
 	if file2 is not None:
 		with open(file2) as f:	# this is much faster than np.loadtxt(file), but does the same
 			data2 = np.array([line.strip().split() for line in f if '#' not in line], np.float64)
 
-		Lc = np.append(Lc,data2[:,3])
-		psimin = np.append(psimin,data2[:,4])
+		if 'lam' in file2:
+			idx = data2[:,2] < data2[:,2].max()
+			Lc = np.append(Lc,data2[:,3][idx])
+			psimin = np.append(psimin,data2[:,4][idx])
+		else:
+			Lc = np.append(Lc,data2[:,3])
+			psimin = np.append(psimin,data2[:,4])
 
 	# Correct psi: use Lc to set psi = 0 in SOL
 	if correct_psi: psimin[Lc <= SOL_Range_Lc] = 1
@@ -64,7 +76,7 @@ def readData(file, file2 = None, SOL_Range_Lc = 0.075, correct_psi = True):
 	return Lc, psimin
 	
 
-def psiHist(psimin, M, SOL_Range_psi, useLogScale = False, save = False, tag = None, show = True):
+def psiHist(psimin, M, SOL_Range_psi, useLogScale = False, save = False, tag = None, show = True, flfLim = None):
 	zmin = psimin.min() - 0.01
 	zmax = SOL_Range_psi
 	dz = (zmax - zmin)/M
@@ -88,6 +100,9 @@ def psiHist(psimin, M, SOL_Range_psi, useLogScale = False, save = False, tag = N
 	psi_min = np.round(psimin.min()*1000)/1000.0
 	flf1a = 100 - np.round(10*np.sum(P[Px <= 0.98]))/10.0
 	flf2a = 100 - np.round(10*np.sum(P[Px <= 0.95]))/10.0
+	if flfLim is not None:
+		flf3a = 100 - np.round(1000*np.sum(P[Px <= flfLim]))/1000.0
+		print 'Field line fraction outside of', flfLim, 'is:', flf3a
 	
 	# make plot
 	if show: barPlot(Px, P, useLogScale, 'psi', psi_min, flf1a, flf2a, save = save, tag = tag)
