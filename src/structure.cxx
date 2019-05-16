@@ -323,16 +323,16 @@ for(i=1;i<=PAR.N;i++)
 		for(j=1;j<=size;j++)
 		{
 			chk = FLT.mapstep(-1,nstep);
-			if(chk==-1) break;
 			if(fabs(FLT.phi + j*dpinit*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi + j*dpinit*dphi - PAR.phistart) << endl;
 			FLT.phi = -j*dpinit*dphi + PAR.phistart;
 
 			//Store Values
 			data(j,1) = FLT.R;	data(j,2) = FLT.Z;	data(j,3) = FLT.phi;
+			if(chk==-1) break;
 		}
 		// Write stored values in reverse direction
-		if(angleInDeg) {for(k=j-1;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << modulo(360.0 - data(k,3), 360.0) << endl;}
-		else {for(k=j-1;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << data(k,3)/rTOd << endl;}
+		if(angleInDeg) {for(k=j;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << modulo(360.0 - data(k,3), 360.0) << endl;}
+		else {for(k=j;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << data(k,3)/rTOd << endl;}
 	}
 
 	// Restore start values and write them
@@ -351,12 +351,12 @@ for(i=1;i<=PAR.N;i++)
 		for(j=1;j<=size;j++)
 		{
 			chk = FLT.mapstep(1,nstep);
-			if(chk==-1) break;
 			if(fabs(FLT.phi - j*dpinit*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi - j*dpinit*dphi - PAR.phistart) << endl;
 			FLT.phi = j*dpinit*dphi + PAR.phistart;
 
 			if(angleInDeg) {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << modulo(360.0 - FLT.phi, 360.0) << endl;}
 			else {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << endl;}
+			if(chk==-1) break;
 		}
 	}
 }
