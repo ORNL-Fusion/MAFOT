@@ -335,7 +335,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			z[Lc < Lcmin] = 1.01*b.max()
 	elif not ('phi' in coordinates): 
 		if(what == 'Lc'): z[(y >= 1) & (z >= 2)] = 0 #z[(y >= 1) & (z >= 4)] = b.min()
-		elif('psi' in what): z[z < 0.5] = b.max()
+		elif('psi' in what): z[(z < 0.5) & (y > 0.995)] = b.max()
 	
 	# reverse axes for footprint
 	if(coordinates == 'phi') & (physical > 0):
@@ -570,6 +570,15 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 # --- data = readfile(name) ---
 # reads in ascii data file
+# --- data = readfile(name) ---
+# reads in ascii data file
+# much faster than np.loadtxt(file)
+def readfile(file):
+	with open(file) as f:	# this is much faster than np.loadtxt(file), but does the same
+		data = np.array([line.strip().split() for line in f if '#' not in line], np.float64)
+	return data
+
+"""
 def readfile(name):
 	with open(name, 'r') as f:
 		# Skip header, comment char is '#'
@@ -588,7 +597,7 @@ def readfile(name):
 	# cast data into numpy array and return
 	data = np.array(data)
 	return data
-	
+"""
 	
 # --- Nx, Ny = get_gridSize(data) ---
 # determines 2D grid sizes
