@@ -28,6 +28,7 @@
 
 // Prototypes  
 //-----------
+int gcd(int a, int b);
 bool inside(PARTICLE& FLT, IO& PAR);
 int newton2D(PARTICLE& FLT, double phistart, int periode);
 int mapit_J(PARTICLE& FLT,  double J[], int itt, int Map=1);
@@ -50,6 +51,10 @@ EFIT EQD;
 
 // Period of fixed point
 int periode;
+
+// Use system time as seed(=idum) for random numbers
+double now=zeit();
+long idum=long(now);
 
 // defaults
 LA_STRING woutfile = "wout.nc";
@@ -151,6 +156,18 @@ const int Nx = PAR.Nr;	// always use Nr = sqrt(N), because NR or NZ or others ar
 const int Ny = PAR.Nth;	// same here
 switch(PAR.create_flag)
 {
+case 3: case 4:
+	PAR.pv[0].name = "psi-grid";		PAR.pv[0].wert = Nx;
+	PAR.pv[1].name = "theta-grid";		PAR.pv[1].wert = Ny;
+	PAR.pv[2].name = "psimin";			PAR.pv[2].wert = PAR.rmin;
+	PAR.pv[3].name = "psimax";			PAR.pv[3].wert = PAR.rmax;
+	PAR.pv[4].name = "thmin";			PAR.pv[4].wert = PAR.thmin;
+	PAR.pv[5].name = "thmax";			PAR.pv[5].wert = PAR.thmax;
+	dx = (PAR.rmax-PAR.rmin)/double(Nx-1);
+	dy = (PAR.thmax-PAR.thmin)/double(Ny-1);
+	xmin = PAR.rmin;
+	ymin = PAR.thmin;
+	break;
 case 0:
 	PAR.pv[0].name = "r-grid";			PAR.pv[0].wert = Nx;
 	PAR.pv[1].name = "theta-grid";		PAR.pv[1].wert = Ny;
@@ -228,6 +245,30 @@ vector<LA_STRING> var(6);
 var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "period";  var[3] = "psi";  var[4] = "theta[rad]";  var[5] = "r[m]";
 PAR.writeiodata(out,bndy,var);
 
+// get rational surface
+double qrat = 1;
+int nrat = 1;
+int mrat = periode;
+int mngcd;
+if(periode > 1)
+{
+	qrat = EQD.get_q(0.5*(PAR.rmin + PAR.rmax));
+	nrat = int(mrat/qrat + 0.5);
+	ofs2 << "Searching at rational surface q = " << mrat << "/" << nrat << endl;
+	cout << "Searching at rational surface q = " << mrat << "/" << nrat << endl;
+	mngcd = gcd(mrat,nrat);
+	if(mngcd > 1)
+	{
+		periode /= mngcd;
+		ofs2 << "Periodic points are heteroclinic. Use new period = " << periode << endl;
+		cout << "Periodic points are heteroclinic. Use new period = " << periode << endl;
+	}
+}
+
+Array<double,1> Rall(2*mrat), Zall(2*mrat);
+int idx_all = 0;
+Array<double,1> R(periode),Z(periode),psi(periode),theta(periode),r(periode);
+double dist;
 ofs2 << Nx << " rows, done:" << endl;
 for(i=0;i<Nx;i++)	//r or R
 {
@@ -237,23 +278,30 @@ for(i=0;i<Nx;i++)	//r or R
 		y = ymin + j*dy;
 		switch(PAR.create_flag)
 		{
-		case 0:
+		case 0:		// r-theta grid
 			FLT.convertRZ(y,x);
 			break;
-		case 5:
+		case 3: 	// psi-theta grid
+			FLT.psi = x;
+			FLT.getRZ(x, y, FLT.R, FLT.Z);
+			break;
+		case 4:		// psi-theta random
+			FLT.create(idum,PAR.rmin,PAR.rmax,PAR.thmin,PAR.thmax,2);
+			break;
+		case 5:		// R,Z
 			FLT.R = x;
 			FLT.Z = y;
 			break;
 		}
 
 		chk = newton2D(FLT,PAR.phistart,periode);
-		if(chk==-1) continue;
+		if(chk == -1) continue;
 
-		if(periode==1)
+		if(inside(FLT,PAR))
 		{
-			if(inside(FLT,PAR))
+			if(periode == 1)
 			{
-				out << FLT.R << "\t" << FLT.Z << "\t" << periode << "\t" << FLT.psi << "\t" << FLT.get_theta() << "\t" << FLT.get_r() << endl;
+				out << FLT.R << "\t" << FLT.Z << "\t" << -periode << "\t" << FLT.psi << "\t" << FLT.get_theta() << "\t" << FLT.get_r() << endl;
 				cout << "Program terminated normally" << endl;
 				ofs2 << "Program terminated normally" << endl;
 				#ifdef m3dc1
@@ -261,13 +309,65 @@ for(i=0;i<Nx;i++)	//r or R
 				#endif
 				return 0; 
 			}
-			else continue;
+
+			// check if point is already in list
+			chk = 0;
+			for(int k=0;k<PAR.N;k++)
+			{
+				if(Rall(k) == 0) break;
+				dist = sqrt((Rall(k)-FLT.R)*(Rall(k)-FLT.R) + (Zall(k)-FLT.Z)*(Zall(k)-FLT.Z));
+				if(dist < 1e-5) {chk = -1; break;}	// same point already in list
+			}
+			if(chk < 0) continue;
+
+			R(0) = FLT.R; Z(0) = FLT.Z; psi(0) = FLT.psi; r(0) = FLT.get_r(); theta(0) = FLT.get_theta();
+
+			// map out all intermediate points and check if periodic point actually has the period periode or a smaller one
+			for(int k=1;k<periode;k++)
+			{
+				chk = FLT.mapstep();
+				if(chk < 0) {break;}	// particle has left system
+				dist = sqrt((R(0)-FLT.R)*(R(0)-FLT.R) + (Z(0)-FLT.Z)*(Z(0)-FLT.Z));
+				if(dist < 1e-5) {chk = -1; break;}	// same point with k < periode, so not a periodic point we are looking for
+				R(k) = FLT.R; Z(k) = FLT.Z; psi(k) = FLT.psi; r(k) = FLT.get_r(); theta(k) = FLT.get_theta();
+			}
+			if(chk < 0) continue;
+
+			// Check if periodic point is an O-point or X-point
+			FLT.R = R(0) + 1e-5; FLT.Z = Z(0) + 1e-5;	// perturb the periodic point
+			chk = FLT.mapit(10*periode);
+			dist = sqrt((R(0)-FLT.R)*(R(0)-FLT.R) + (Z(0)-FLT.Z)*(Z(0)-FLT.Z));
+			if(dist > 1e-2) chk = -1;		// point has moved away by more than a cm
+			if(chk >= 0) chk = 1;
+
+			// chk == -1: X-point; chk == 1: O-point
+			for(int k=0;k<periode;k++)
+			{
+				Rall(idx_all) = R(k); Zall(idx_all) = Z(k);
+				idx_all += 1;
+				out << R(k) << "\t" << Z(k) << "\t" << chk*periode << "\t" << psi(k) << "\t" << theta(k) << "\t" << r(k) << endl;
+			}
 		}
-		else out << FLT.R << "\t" << FLT.Z << "\t" << periode << "\t" << FLT.psi << "\t" << FLT.get_theta() << "\t" << FLT.get_r() << endl;
+
+		if(idx_all >= 2*mrat)
+		{
+			ofs2 << "All possible periodic points have been found." << endl;
+			cout << "All possible periodic points have been found." << endl;
+			ofs2 << "Program terminated normally" << endl;
+			cout << "Program terminated normally" << endl;
+
+			#ifdef m3dc1
+			if(PAR.response_field >= 0) M3D.unload();
+			#endif
+
+			return 0;
+		}
 	}
 	ofs2 << i+1 << "\t" << flush;
 }
 ofs2 << endl;
+ofs2 << "End of search grid. Not all periodic points have been found." << endl;
+cout << "End of search grid. Not all periodic points have been found." << endl;
 ofs2 << "Program terminated normally" << endl;
 cout << "Program terminated normally" << endl;
 
@@ -281,6 +381,14 @@ return 0;
 //------------------------ End of Main ------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
+//----------- gcd -------------------------------------------------------
+// find greatest common divisor
+int gcd(int a, int b)
+{
+   if (b == 0) return a;
+   return gcd(b, a % b);
+}
+
 //----------- inside ----------------------------------------------------
 // checks if current FLT point is inside the search grid
 bool inside(PARTICLE& FLT, IO& PAR)
@@ -288,10 +396,14 @@ bool inside(PARTICLE& FLT, IO& PAR)
 double r,th;
 switch(PAR.create_flag)
 {
-case 0:
+case 0: case 1:
 	r = FLT.get_r();
 	th = FLT.get_theta();
 	if(r >= PAR.rmin && r <= PAR.rmax && th >= PAR.thmin && th <= PAR.thmax) return true;
+	else return false;
+case 3: case 4:
+	th = FLT.get_theta();
+	if(FLT.psi >= PAR.rmin && FLT.psi <= PAR.rmax && th >= PAR.thmin && th <= PAR.thmax) return true;
 	else return false;
 case 5:
 	if(FLT.R >= PAR.Rmin && FLT.R <= PAR.Rmax && FLT.Z >= PAR.Zmin && FLT.Z <= PAR.Zmax) return true;
@@ -301,8 +413,8 @@ case 5:
 
 //----------- newton2dim ------------------------------------------------
 // all variables with 'r' represent R and all with 't' represent Z!!!
-// J(1) = dR(i+1)/dR(i),  J(2) = dR(i+1)/dZ(i),  J(3) = dZ(i+1)/dR(i),  J(4) = dZ(i+1)/dZ(i)
-int newton2D(PARTICLE& FLT, double phistart, int periode)	//0: ok		-1: Fehler
+// J[0] = dR(i+1)/dR(i),  J[1] = dR(i+1)/dZ(i),  J[2] = dZ(i+1)/dR(i),  J[3] = dZ(i+1)/dZ(i)
+int newton2D(PARTICLE& FLT, double phistart, int periode)	//0: ok		-1: Error
 {
 double fr,ft,dr,dt,det,length;
 int i,chk;
@@ -311,7 +423,6 @@ const int imax = 100;
 const double delta = 1e-12;
 
 // Vectors
-//Array<double,1> J(Range(1,4));
 double J[4];
 
 // Search
@@ -332,10 +443,9 @@ for(i=0;i<=imax;i++)
 	dt = ((J[0]-1)*ft-J[2]*fr)/det;
 
 	length = sqrt(dr*dr + dt*dt);
-	//if(i%20==0){cout << dr << "\t" << dt << "\t" << length <<  endl;	getchar();}
 	if(length<delta) 
 	{
-		return 0;	// convergency
+		return 0;	// convergence
 	} 
 
 	R -= dr;
@@ -366,7 +476,6 @@ FLT.R = Ralt + dr;
 FLT.Z = Zalt;
 FLT.phi = phialt;
 
-// no Array and it dies here
 chk = FLT.mapit(itt,Map);
 if(chk<0) return -1;
 R_stencil[0] = FLT.R;
