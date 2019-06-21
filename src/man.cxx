@@ -256,7 +256,7 @@ PARTICLE FLTold(EQD,PAR);
 // loop for all fixed points
 for(i=1;i<=data.rows();i++)
 {
-	xfix = data(i,1);	 yfix = data(i,2);	periode = int(data(i,3));
+	xfix = data(i,1);	 yfix = data(i,2);	periode = int(fabs(data(i,3)));
 	xsa(1) = xfix;	 xsa(2) = yfix;	
 
 	find_start_values(xsa,da,periode,PAR.verschieb,PAR.phistart,PAR.MapDirection,FLT); 
