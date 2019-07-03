@@ -52,7 +52,7 @@ OBJS = $(SRCS:.cxx=.o)
 OBJS := $(addprefix $(OBJDIR)/, $(OBJS))
 DEPS = $(OBJS:.o=.d)
 
-MPISRCS = laminar_mpi.cxx foot_mpi.cxx plot_mpi.cxx
+MPISRCS = laminar_mpi.cxx foot_mpi.cxx plot_mpi.cxx trace.cxx
 MPIOBJS = $(MPISRCS:.cxx=.o)
 MPIOBJS_D3D = $(addprefix $(OBJDIR)/d3d/, $(MPIOBJS))
 MPIOBJS_ITER = $(addprefix $(OBJDIR)/iter/, $(MPIOBJS))
@@ -88,7 +88,7 @@ FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 all : $(DIRS) d3d iter nstx mast cmod gui xpand d3dplot
 
 .PHONY : d3d
-d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi dtstructure dtlcfs
+d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi dtstructure dtlcfs dttrace
 
 .PHONY : iter
 iter : $(DIRS) iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi iterplot_mpi iterstructure
@@ -187,6 +187,9 @@ dtstructure : $(OBJDIR)/d3d/structure.o libla_string.a libtrip3d.a
 	
 dtlcfs : $(OBJDIR)/d3d/lcfs.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/lcfs.o -o $(BIN_DIR)/$@ $(LIBS)
+	
+dttrace : $(OBJDIR)/d3d/trace.o libla_string.a libtrip3d.a
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/d3d/trace.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 fi_prepare : $(OBJDIR)/d3d/fi_prepare.o libla_string.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/fi_prepare.o -o $(BIN_DIR)/$@ $(LIBS)

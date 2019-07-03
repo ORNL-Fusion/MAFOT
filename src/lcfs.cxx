@@ -69,7 +69,9 @@ switch (c)
 {
 case 'h':
 	cout << "usage: dtlcfs [-h] [-E ErProfile] [-I island] [-S siesta] [-T Tprofile] [-V wout] [-X xpand] file [tag]" << endl << endl;
-	cout << "Calculate the last closed flux surface in a Poincare Plot." << endl << endl;
+	cout << "Calculate the last closed flux surface in a Poincare Plot." << endl;
+	cout << "The first value in the control file sets the maximum allowed width of the LCFS layer Recommendation: 0.03." << endl;
+	cout << "The number of points is actually the number of refinement steps for the search." << endl << endl;
 	cout << "positional arguments:" << endl;
 	cout << "  file          Contol file (starts with '_')" << endl;
 	cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
@@ -82,7 +84,7 @@ case 'h':
 	cout << "  -V            filename for VMEC; default, see below" << endl;
 	cout << "  -X            filename for XPAND; default is None" << endl;
 	cout << endl << "Examples:" << endl;
-	cout << "  dtlcfs _plot.dat blabla" << endl;
+	cout << "  dtlcfs _lcfs.dat blabla" << endl;
 	cout << endl << "Infos:" << endl;
 	cout << "  To use B-field from M3DC1, set response_field >= 0, and provide file in cwd:" << endl;
 	cout << "    m3dc1sup.in    ->  location and scale factor for M3DC1 output C1.h5" << endl;
@@ -300,7 +302,7 @@ for(n=1;n<=Nmax;n++)
 		}
 		if ((psimin < 1) && (psimax > 0))
 		{
-			if((psimax - psimin) > 0.03) {chk = -2; break;}
+			if((psimax - psimin) > PAR.verschieb) {chk = -2; break;}
 		}
 	} // end for i
 

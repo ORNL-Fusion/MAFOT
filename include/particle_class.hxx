@@ -72,7 +72,7 @@ private:
 
 // Member-Functions
 	int dgls(double x, Array<double,1> y, Array<double,1>& dydx);
-	int rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate = false);
+	int rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate = false, bool returnLastStep = false);
 	int rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout);
 	double bisec(double p, double th, double a, double b, int flag);
 
@@ -110,9 +110,10 @@ PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 	int get_psi(const double x1, const double x2, double& y, double p = 0);
 	void set_Energy();
 	int mapit(const int itt,int MapDirection=1);
-	int mapstep(int MapDirection=1, int nstep=ilt, bool checkBndyInBetween = false);
+	int mapstep(int MapDirection=1, int nstep=ilt, bool checkBndyInBetween = false, bool returnLastStep = false);
 	int connect(double& ntor, double& length, double& psimintotal, double& psimaxtotal, double& psiavtotal, const int itt, int MapDirection=0);	// with psimax
 	int connect(double& ntor, double& length, double& psimintotal, const int itt, int MapDirection=0);						// without psimax (old version, kept for compatibility reasons)
+	int intersect(const int itt, int MapDirection=1, int nstep = 10);	// similar to mapit, but returns intersection point with boundary
 
 	void set(int i, int N, double Rmin, double Rmax, double Zmin, double Zmax, int N_Z=1, int flag=0);
 	void create(long& idum, double Rmin, double Rmax, double Zmin, double Zmax, int flag=0);
@@ -360,7 +361,7 @@ return chk;
 }
 
 //---------------- mapstep ------------------------------------------------------------------------------------------------
-int PARTICLE::mapstep(int MapDirection, int nstep, bool flag)
+int PARTICLE::mapstep(int MapDirection, int nstep, bool flag, bool returnLastStep)
 {
 int chk;
 double phi_rad = phi/rTOd;	// phi in rad
@@ -373,8 +374,17 @@ y(0) = R;
 y(1) = Z;
 
 // integrate nstep steps of dphi, default: nstep = 360, so one full toroidal turn
-chk = rkint(nvar,nstep,dphi,y,phi_rad,flag);
-if(chk<0) return -1;	// particle has left system
+chk = rkint(nvar,nstep,dphi,y,phi_rad,flag,returnLastStep);
+if(chk<0) 	// particle has left system
+{
+	if(returnLastStep)
+	{
+		R = y(0);
+		Z = y(1);
+		phi = phi_rad*rTOd;		// phi back in deg
+	}
+	return -1;
+}
 
 // check if particle has left system during integration step
 if(flag)
@@ -388,6 +398,60 @@ Z = y(1);
 phi = phi_rad*rTOd;		// phi back in deg
 
 return 0;
+}
+
+//---------------- intersect -----------------------------------------------------------------------------------------------
+// similar to mapit, but computes the intersection with the boundary from the last two steps.
+// if particle does not leave, then it returns the last location
+// it allows for variable number of steps, nstep, default is 10 * dpinit
+// returns number of full toroidal turns
+int PARTICLE::intersect(const int itt, int MapDirection, int nstep)
+{
+int chk = 0;
+const double phistart = phi;
+double Rold,Zold,phiold,dphi;
+double Rt,Zt,phit;
+double a,b,t;
+int ntor = 0;
+
+// Integrate
+for(int i=1;i<=(itt*ilt)/nstep;i++)
+{
+	Rold = R; Zold = Z; phiold = phi;
+	chk = mapstep(MapDirection, nstep, false, true);
+	if(chk == 0) 	// particle still inside
+	{
+		if(fabs(phi-MapDirection*i*dpinit*nstep-phistart) > 1e-10) cout << "wrong toroidal angle: " << fabs(phi-MapDirection*i*dpinit*nstep-phistart) << endl;
+		phi = MapDirection*i*dpinit*nstep+phistart;
+		ntor++;
+		continue;
+	}
+
+	// particle has left the system
+	// t = 0 is the "old" point inside, t = 1 is the point outside
+	a = 0; b = 1;
+	for(int k=0;k<20;k++)	// 1e-6 precision
+	{
+		t = 0.5*(a+b);
+		Rt = Rold + t*(R-Rold);
+		Zt = Zold + t*(Z-Zold);
+		phit = phiold + t*(phi-phiold);
+
+		if(outofBndy(phit,Rt,Zt,EQDr))
+		{
+			b = t;
+		}
+		else
+		{
+			a = t;
+		}
+	}
+	R = Rt; Z = Zt; phi = phit;
+	get_psi(R,Z,psi);
+	dphi = (phi - phiold)/rTOd;	// in rad
+	Lc += sqrt((R-Rold)*(R-Rold) + (Z-Zold)*(Z-Zold) + 0.25*(R+Rold)*(R+Rold)*dphi*dphi);
+}
+return (ntor*nstep)/ilt;
 }
 
 //------------------ connect ----------------------------------------------------------------------------------------------
@@ -903,7 +967,7 @@ return 0;
 //Starting from initial values y[0..nvar-1] known at x=x1 use Runge-Kutta
 //to advance nstep equal increments to x2=x1+nstep*dx. The user-supplied routine dgls(x,v,dvdx)
 //evaluates derivatives. Results after nstep Steps are stored in y[0..nvar-1]
-int PARTICLE::rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate)
+int PARTICLE::rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate, bool returnLastStep)
 {
 int k, chk;
 bool old_n0only;
@@ -921,7 +985,11 @@ for (k=1;k<=nstep;k++)
 	x = x1 + k*dx; // Better than x+=dx
 
 	// Integration terminates outside of boundary box
-	if(outofBndy(x*rTOd,yout(0),yout(1),EQDr) == true) return -1;
+	if(outofBndy(x*rTOd,yout(0),yout(1),EQDr) == true)
+	{
+		if(returnLastStep) y = yout;
+		return -1;
+	}
 
 	// set additional Parameter or not
 	if(doNotUpdate)
