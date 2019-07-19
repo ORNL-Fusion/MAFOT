@@ -83,19 +83,20 @@ bool use_Tprofile = false;
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hX:V:S:I:E:T:")) != -1)
+while ((c = getopt(argc, argv, "hX:V:S:I:E:T:s")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> dtplot_mpi [-h] [-E ErProfile] [-I island] [-S siesta] [-T Tprofile] [-V wout] [-X xpand] file [tag]" << endl << endl;
+		cout << "usage: mpirun -n <cores> dtplot_mpi [-h] [-s] [-E ErProfile] [-I island] [-S siesta] [-T Tprofile] [-V wout] [-X xpand] file [tag]" << endl << endl;
 		cout << "Calculate a Poincare plot." << endl << endl;
 		cout << "positional arguments:" << endl;
 		cout << "  file          Contol file (starts with '_')" << endl;
 		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 		cout << endl << "optional arguments:" << endl;
 		cout << "  -h            show this help message and exit" << endl;
+		cout << "  -s            use a simple boundary box instead of real wall for field line termination" << endl;
 		cout << "  -E            use electric field with particle drifts. Filename of Er(psi) profile." << endl;
 		cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
 		cout << "  -S            filename for SIESTA; default, see below" << endl;
@@ -140,6 +141,9 @@ case 'E':
 case 'T':
 	TprofileFile = optarg;
 	use_Tprofile = true;
+	break;
+case 's':
+	simpleBndy = 1;
 	break;
 case '?':
 	if(mpi_rank < 1)
