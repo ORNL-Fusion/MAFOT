@@ -1466,18 +1466,27 @@ class set_fix_tab(common_tab):		# inherit common tab class
 
 		# --- x -> theta ---
 		row += 1
-		tk.Label(frame, text = "R [m]").grid(column = 1, row = row, sticky = tk.E)
+		self.x_label = tk.Label(frame, text = "R [m]")
+		self.x_label.grid(column = 1, row = row, sticky = tk.E)
 		
 		self.set_MinMax_elements(row)
 		
 		# --- y -> r ---
 		row += 2
-		tk.Label(frame, text = "Z [m]").grid(column = 1, row = row, sticky = tk.E )
-		
+		self.y_label = tk.Label(frame, text = "Z [m]")
+		self.y_label.grid(column = 1, row = row, sticky = tk.E )
+		 
 		row += 2
 				
-		# --- invisible separator ---
-		tk.Label(frame, text = "").grid(column = 1, row = row, columnspan = 5, sticky = tk.E + tk.W, ipady = 1)
+		# --- grid  type ---
+		self.createFlag = tk.StringVar(); self.createFlag.set('RZ')
+		self.create_R1 = tk.Radiobutton(frame, text = 'RZ', variable = self.createFlag, value = 'RZ', 
+			command = self.refresh_grid_labels)
+		self.create_R1.grid(column = 2, row = row, sticky = tk.W + tk.E )
+		self.create_R2 = tk.Radiobutton(frame, text = 'psi_n', variable = self.createFlag, value = 'psi', 
+			command = self.refresh_grid_labels)
+		self.create_R2.grid(column = 3, row = row, sticky = tk.W + tk.E )
+		tk.Label(frame, text = "Coordinate Type").grid(column = 1, row = row, sticky = tk.E )
 		row += 1
 
 		# --- phistart ---
@@ -1501,12 +1510,28 @@ class set_fix_tab(common_tab):		# inherit common tab class
 		self.set_defaults()
 
 
+	# --- Change Labels on grid variables, depending on createFlag ---
+	def refresh_grid_labels(self):
+		if(self.createFlag.get() == 'psi'):
+			self.x_label.configure(text = "theta [rad]")
+			self.y_label.configure(text = "psi_n")
+			self.pi_text.grid(column = 4, row = self.pi_row, columnspan = 2)
+		else:
+			self.x_label.configure(text = "R [m]")
+			self.y_label.configure(text = "Z [m]")
+			self.pi_text.grid_forget()
+
+
 	# --- turn on/off period entry ---
 	def activate_entrys(self):
 		data = self.read_par_file(['_fix.dat'])
 		if(abs(self.HypRPt.get()) == 1):
 			data = self.tool_defaults(None)	# always overwrite whats in any existing file
 			self.period_entry.configure(state=tk.DISABLED)
+			self.createFlag.set('RZ')
+			self.refresh_grid_labels()
+			self.create_R1.configure(state=tk.DISABLED)
+			self.create_R2.configure(state=tk.DISABLED)
 			if(self.HypRPt.get() == 1): # lower X-point
 				self.ymin.set(repr(data[4]))
 				self.ymax.set(repr(data[5]))
@@ -1519,6 +1544,8 @@ class set_fix_tab(common_tab):		# inherit common tab class
 			self.ymin.set(repr(data[4]))
 			self.ymax.set(repr(data[5]))
 			self.period_entry.configure(state=tk.NORMAL)
+			self.create_R1.configure(state=tk.NORMAL)
+			self.create_R2.configure(state=tk.NORMAL)
 		self.Nx.set(str(int(data[6]**0.5)))
 		self.xmin.set(repr(data[2]))
 		self.xmax.set(repr(data[3]))
@@ -1548,7 +1575,24 @@ class set_fix_tab(common_tab):		# inherit common tab class
 		data = self.read_par_file(['_fix.dat'])
 		data = self.set_machine_defaults(data, self.MachFlag.get())						
 		self.shift = data['0-8'][0]
+		if(data['create'] == 3) | (data['create'] == 4): self.createFlag.set('psi')
+		else: self.createFlag.set('RZ')	
+		if(self.createFlag.get() == 'RZ'): 
+			self.xmin.set(repr(data['0-8'][2]))
+			self.xmax.set(repr(data['0-8'][3]))
+			self.ymin.set(repr(data['0-8'][4]))
+			self.ymax.set(repr(data['0-8'][5]))
+			self.Nx.set(str(int(data['0-8'][6])))
+			self.Ny.set(str(int(data['0-8'][0])))
+		else: 
+			self.xmin.set(repr(data['0-8'][4]))
+			self.xmax.set(repr(data['0-8'][5]))
+			self.ymin.set(repr(data['0-8'][2]))
+			self.ymax.set(repr(data['0-8'][3]))
+			self.Nx.set(str(int(data['0-8'][0])))
+			self.Ny.set(str(int(data['0-8'][6])))
 		self.activate_entrys()
+		self.refresh_grid_labels()
 		
 
 	# --- Function, executed when Button is pressed ---
@@ -1571,15 +1615,24 @@ class set_fix_tab(common_tab):		# inherit common tab class
 		with open(name, 'w') as f:
 			self.write_headerLines(self.MachFlag.get(), f)
 			f.write('shift=\t' + repr(self.shift) + '\n')
-			f.write('itt=\t0\n')			
-			f.write('Rmin=\t' + self.xmin.get() + '\n')
-			f.write('Rmax=\t' + self.xmax.get() + '\n')
-			f.write('Zmin=\t' + self.ymin.get() + '\n')
-			f.write('Zmax=\t' + self.ymax.get() + '\n')
+			f.write('itt=\t0\n')
+			if(self.createFlag.get() == 'RZ'): 	
+				f.write('Rmin=\t' + self.xmin.get() + '\n')
+				f.write('Rmax=\t' + self.xmax.get() + '\n')
+				f.write('Zmin=\t' + self.ymin.get() + '\n')
+				f.write('Zmax=\t' + self.ymax.get() + '\n')
+			else:
+				f.write('psimin=\t' + self.ymin.get() + '\n')
+				f.write('psimax=\t' + self.ymax.get() + '\n')
+				f.write('thmin=\t' + self.xmin.get() + '\n')
+				f.write('thmax=\t' + self.xmax.get() + '\n')
 			f.write('N=\t' + str(N) + '\n')
 			self.write_Ctrl_center(f)
-			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t0\n')			
-			f.write('createPoints(0=setr,3=setpsi,5=setR)=\t5\n')			
+			f.write('target(0=cp,1=inner,2=outer,3=shelf)=\t0\n')
+			if(self.createFlag.get() == 'RZ'): 
+				f.write('createPoints(0=setr,4=randompsi,5=setR)=\t5\n')
+			else:
+				f.write('createPoints(0=setr,4=randompsi,5=setR)=\t4\n')	
 			self.write_Ctrl_bottom(f)
 
 
