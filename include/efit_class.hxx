@@ -411,6 +411,16 @@ for(i=1;i<=2*Nwall;i++) in >> wall(i);	// Position of the Wall in R,Z plane; R,Z
 
 in.close();
 
+// check if wall closes back into itself. If not, fix it
+if((wall(2*Nwall-1) == wall(1)) && (wall(2*Nwall) == wall(2))) dummy = 0;	// just a dummy statement here. Only the else clause is relevant
+else
+{
+	Nwall += 1;
+	wall.resizeAndPreserve(2*Nwall);
+	wall(2*Nwall-1) = wall(1);
+	wall(2*Nwall) = wall(2);
+}
+
 // shift R,Z grid
 if(Raxis > 0)
 {
