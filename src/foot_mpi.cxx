@@ -169,7 +169,7 @@ if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use mo
 
 // Read Parameterfile
 if(mpi_rank < 1) cout << "Read Parameterfile " << parfilename << endl;
-ofs2 << "Read Parameterfile " << parfilename << endl;
+//ofs2 << "Read Parameterfile " << parfilename << endl;
 IO PAR(EQD,parfilename,11,mpi_rank);
 
 // Set target type for output-filename
