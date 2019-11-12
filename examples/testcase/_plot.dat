@@ -21,6 +21,9 @@ ParticleDirection(1=pass,-1=co-pass,0=field-lines)=	0
 PartileCharge(-1=electrons,>=1=ions)=	1
 Ekin[keV]=	100
 lambda=	0.1
+Mass=	2
 useFilament(0=no)=	0
+useBusError(0=no,1=yes)= 0
+useBcoilError(0=no,1=yes)= 0
 pi=	3.141592653589793
 2*pi=	6.283185307179586
