@@ -173,6 +173,7 @@ public:
 	double getEfield(const double x); 		// Spline interpolates Eradial
 	double getscalPot(const double x); 		// Spline interpolates scalar Potential
 	double getTprofile(const double x); 	// Spline interpolates Tprofile
+	double wallDistance(double R, double Z);// returns disntance of R,Z from wall in m
 
 }; //end of class
 
@@ -917,6 +918,32 @@ splint(Tpsi,Tprofile,d2Tprofile,NT,x,y,dy);
 return y;
 }
 
+//-------------- wallDistance --------------------------------------------------------------------------------------------
+// returns distance of point R,Z from the wall in m
+// assumes wall closes back into itself, which is ensured in ReadData
+double EFIT::wallDistance(double R, double Z)
+{
+int n;
+double dR,dZ,s,d1,d2,d;
+double dmin = 1e+16;
+for(n=1;n<Nwall;n++)
+{
+	dR = wall(2*n+1) - wall(2*n-1);
+	dZ = wall(2*n+2) - wall(2*n);
+	if ((dR == 0) && (dZ == 0)) continue;
+	s = ((R-wall(2*n-1))*dR + (Z-wall(2*n))*dZ)/(dR*dR + dZ*dZ);
+	if ((s < 0) || (s > 1))
+	{
+		d1 = sqrt((R-wall(2*n-1))*(R-wall(2*n-1)) + (Z-wall(2*n))*(Z-wall(2*n)));
+		d2 = sqrt((R-wall(2*n+1))*(R-wall(2*n+1)) + (Z-wall(2*n+2))*(Z-wall(2*n+2)));
+		if (d1 < d2) d = d1;
+		else d = d2;
+	}
+	else d = sqrt((R-wall(2*n-1)-s*dR)*(R-wall(2*n-1)-s*dR) + (Z-wall(2*n)-s*dZ)*(Z-wall(2*n)-s*dZ));
+	if (d < dmin) dmin = d;
+}
+return dmin;
+}
 
 //----------------------- End of Member Functions -------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------

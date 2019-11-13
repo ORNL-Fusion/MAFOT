@@ -79,23 +79,29 @@ LA_STRING ErProfileFile = "None";
 bool use_ErProfile = false;
 LA_STRING TprofileFile = "None";
 bool use_Tprofile = false;
+vector<string>  sheath_params;
+double sheath_width = 0.01;		// in m
+double sheath_te = 20;			// in eV
+double sheath_sec = 0.5;
+bool use_sheath = false;
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hX:V:S:I:E:T:")) != -1)
+while ((c = getopt(argc, argv, "hX:V:S:I:E:T:s:")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> dtfoot_mpi [-h] [-E ErProfile] [-I island] [-S siesta] [-T Tprofile] [-V wout] [-X xpand] file [tag]" << endl << endl;
+		cout << "usage: mpirun -n <cores> dtfoot_mpi [-h] [-s width,Te,gamma] [-E ErProfile] [-I island] [-S siesta] [-T Tprofile] [-V wout] [-X xpand] file [tag]" << endl << endl;
 		cout << "Calculate field line connection length and penetration depth on the vessel wall." << endl << endl;
 		cout << "positional arguments:" << endl;
-		cout << "  file          Contol file (starts with '_')" << endl;
+		cout << "  file          Control file (starts with '_')" << endl;
 		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 		cout << endl << "optional arguments:" << endl;
 		cout << "  -h            show this help message and exit" << endl;
+		cout << "  -s            use sheath with particle drifts. Provide parameters: width in m, Te in eV, secondary emission." << endl;
 		cout << "  -E            use electric field with particle drifts. Filename of Er(psi) profile." << endl;
 		cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
 		cout << "  -S            filename for SIESTA; default, see below" << endl;
@@ -139,6 +145,13 @@ case 'T':
 	TprofileFile = optarg;
 	use_Tprofile = true;
 	break;
+case 's':
+	sheath_params = split(optarg,',');
+	if(sheath_params.size() > 0) sheath_width = atof(sheath_params[0].c_str());
+	if(sheath_params.size() > 1) sheath_te = atof(sheath_params[1].c_str());
+	if(sheath_params.size() > 2) sheath_sec = atof(sheath_params[2].c_str());
+	use_sheath = true;
+	break;
 case '?':
 	if(mpi_rank < 1)
 	{
@@ -169,8 +182,12 @@ if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use mo
 
 // Read Parameterfile
 if(mpi_rank < 1) cout << "Read Parameterfile " << parfilename << endl;
-//ofs2 << "Read Parameterfile " << parfilename << endl;
 IO PAR(EQD,parfilename,11,mpi_rank);
+if(use_sheath)
+{
+	PAR.set_sheath(use_sheath, sheath_width, sheath_te, sheath_sec);
+	if(mpi_rank < 1) cout << "Using sheath: width = " << PAR.sheath_width << " m, Te = " << PAR.sheath_te << " eV, secondary emission = " << PAR.sheath_sec << endl;
+}
 
 // Set target type for output-filename
 LA_STRING type;
@@ -224,6 +241,8 @@ if(mpi_rank < 1) // Master log file
 	ofs3.open("log_" + LA_STRING(program_name) + type + praefix + "_Master" + ".dat", ios::app);	// append to log file here
 	ofs3.precision(16);
 }
+ofs2 << "Read Parameterfile " << parfilename << endl;
+if(use_sheath) ofs2 << "Using sheath: width = " << PAR.sheath_width << " m, Te = " << PAR.sheath_te << " eV, secondary emission = " << PAR.sheath_sec << endl;
 
 // Output
 LA_STRING filenameout = "foot" + type + praefix + ".dat";
@@ -503,11 +522,12 @@ if(mpi_rank < 1)
 					results_all(tag,2,i) = t;
 					results_all(tag,6,i) = FLT.R;
 					results_all(tag,7,i) = FLT.Z;
+					//FLT.NstepsInSheath = 0;
 
 					chk = FLT.connect(ntor,length,psimin,PAR.itt,PAR.MapDirection);
 
 					//Store results
-					results_all(tag,3,i) = ntor;
+					results_all(tag,3,i) = ntor; //FLT.NstepsInSheath/4.0;
 					results_all(tag,4,i) = length/1000.0;
 					results_all(tag,5,i) = psimin;
 
@@ -579,11 +599,12 @@ if(mpi_rank > 0)
 			results(2,i) = t;
 			results(6,i) = FLT.R;
 			results(7,i) = FLT.Z;
+			//FLT.NstepsInSheath = 0;
 
 			chk = FLT.connect(ntor,length,psimin,PAR.itt,PAR.MapDirection);
 
 			//Store results
-			results(3,i) = ntor;
+			results(3,i) = ntor; //FLT.NstepsInSheath/4.0;
 			results(4,i) = length/1000.0;
 			results(5,i) = psimin;
 

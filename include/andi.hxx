@@ -514,6 +514,20 @@ string a;
 while(sstr >> a) vstr.push_back(a);
 return vstr;
 }
+// ---
+// splits along delimiter
+vector<string> split(string str, char delim)
+{
+stringstream sstr(str);
+string segment;
+vector<string>  seglist;
+
+while(getline(sstr, segment, delim))
+{
+   seglist.push_back(segment);
+}
+return seglist;
+}
 
 //----------------------- count_column -----------------------------------------------------------------------------------------
 // counts number of columns in file, separated by taps

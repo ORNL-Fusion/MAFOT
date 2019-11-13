@@ -68,6 +68,10 @@ public:
 	int response;								// 1: use M3D-C1 plasma response solution; 0: no plasma response included -> vacuum field as used in M3D-C1
 	int response_field;							// -1: use vacuum field from g-file (= M3D-C1 off); 0: equilibrium only; 1: perturbation only; 2: total field
 	int output_step_size;
+	bool use_sheath;							// include sheath model: true = yes, false = no
+	double sheath_width;						// distance from the wall which marks the beginning of the sheath, in m, default is 1 cm
+	double sheath_te;							// electron temperature at the entrance to the sheath at sheath_width distance from the wall, in eV, default is 20 eV
+	double sheath_sec;							// secondary emission coefficient in the sheath, default is 0.5
 
 	parstruct* pv;								// parstruct array
 
@@ -83,6 +87,7 @@ public:
 	void readiodata(char* name, int mpi_rank=0);
 	void writeiodata(ofstream& out, double bndy[], vector<LA_STRING>& var);
 	void set_pv(int size);
+	void set_sheath(bool use = false, double width = 0.01, double te = 20, double sec = 0.5);
 
 }; //end of class
 
@@ -97,6 +102,7 @@ IO::IO(EFIT& EQD): EQDr(EQD)										// Default
 	psize = 0;
 	pv = 0;
 	output_step_size = 360;
+	set_sheath();
 }					
 IO::IO(EFIT& EQD, LA_STRING name, int size, int mpi_rank): EQDr(EQD)	// with readiodata
 {
@@ -105,6 +111,7 @@ IO::IO(EFIT& EQD, LA_STRING name, int size, int mpi_rank): EQDr(EQD)	// with rea
 	if(psize > 0) pv = new parstruct[psize];
 	else pv = 0;
 	output_step_size = 360;
+	set_sheath();
 }	
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
@@ -175,6 +182,12 @@ useErProfile = PAR.useErProfile;
 // M3D-C1 parameter
 response = PAR.response;
 response_field = PAR.response_field;
+
+// Sheath parameter
+use_sheath = PAR.use_sheath;
+sheath_width = PAR.sheath_width;
+sheath_te = PAR.sheath_te;
+sheath_sec = PAR.sheath_sec;
 
 // Parstruct array
 if(pv) delete[] pv;
@@ -256,6 +269,14 @@ out << "useFilament = " << PAR.useFilament << endl;
 out << "useTprofile = " << PAR.useTprofile << endl;
 out << "useErProfile = " << PAR.useErProfile << endl;
 out << endl;
+
+out << "--- Sheath ---" << endl;
+out << "use sheath = " << PAR.use_sheath << endl;
+out << "sheath width = " << PAR.sheath_width << endl;
+out << "sheath Te = " << PAR.sheath_te << endl;
+out << "second. emission = " << PAR.sheath_sec << endl;
+out << endl;
+
 
 #ifdef m3dc1
 	out << "--- M3D-C1 ---" << endl;
@@ -408,6 +429,9 @@ useErProfile = 0;
 
 // Fix possible error
 if (Mass == 0) Mass = 2;
+
+// turn sheath off for field lines
+if(sigma == 0) use_sheath = false;
 }
 
 
@@ -461,6 +485,13 @@ out << "# Create Points (0=r-grid, 1=r-random, 2=target, 3=psi-grid, 4=psi-rando
 out << "# Direction of particles (1=co-pass, -1=count-pass, 0=field lines): " << sigma << endl;
 out << "# Charge number of particles (=-1:electrons, >=1:ions): " << Zq << endl;
 out << "# Effective mass number of particles (electrons:1, ions:>=1): " << Mass << endl;
+if (use_sheath)
+{
+	out << "# sheath width in m: " << sheath_width << endl;
+	out << "# te at sheath entrance in eV: " << sheath_te << endl;
+	out << "# secondary emission: " << sheath_sec << endl;
+
+}
 out << "# Boundary (0=Wall, 1=Box): " << simpleBndy << endl;
 out << "#-------------------------------------------------" << endl;
 out << "### Global Parameters:" << endl;
@@ -493,10 +524,19 @@ psize = size;
 pv = new parstruct[psize];
 }
 
+// ------------------- set_sheath -----------------------------------------------------------------------------------------
+void IO::set_sheath(bool use, double width, double te, double sec)
+{
+use_sheath = use;
+sheath_width = width;
+sheath_te = te;
+sheath_sec = sec;
+}
+
 //----------------------- End of Member Functions -------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
-// ------------- readparfile ---------------------------------------------------------------------------------------------
+// ------------- readparfile ----------------------------------------------------------------------------------------------
 void readparfile_new(char* name, vector<double>& vec, int& shot, int& time, LA_STRING& path)
 {
 // Variables

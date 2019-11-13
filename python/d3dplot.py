@@ -104,6 +104,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if(filename[0:4] == 'foot'):
 			if(forceY == 'Z'): y = data[:,6].reshape(Nth,Npsi)
 			elif(forceY == 'R'): y = data[:,5].reshape(Nth,Npsi)
+		Ntor = data[:,2].reshape(Nth,Npsi)
 		Lc = data[:,3].reshape(Nth,Npsi)
 		psimin = data[:,4].reshape(Nth,Npsi)
 		try:
@@ -307,6 +308,16 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		base = plt.cm.get_cmap(cmap)
 		cdict = base(np.linspace(0,1,len(b)))
 	
+	elif(what == 'ntor'):
+		if(b is None): b = np.linspace(0,60,N)
+		z = Ntor
+		if not latex: C_label = 'N$_{tor}$'
+		else: C_label = 'N$_{tor}$'
+		#usecolormap = cm.jet_r	#  'myjet', 'jet' or cm.jet, cm.jet_r
+		#cdict = plt.cm.get_cmap(cmap)._segmentdata
+		base = plt.cm.get_cmap(cmap)
+		cdict = base(np.linspace(0,1,len(b)))
+
 	elif(what == 'None'):
 		b = np.zeros(N)
 		z = np.zeros(x.shape)

@@ -75,6 +75,8 @@ private:
 	int rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate = false, bool returnLastStep = false);
 	int rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout);
 	double bisec(double p, double th, double a, double b, int flag);
+	double getEfield(double r, double z, double& pot);
+	void sheath(double R, double Z, double& pot, double& Er, double& Ez);
 
 public: 
 // Member Variables
@@ -95,6 +97,7 @@ public:
 	int Mass;		// effective partice mass number; electrons Mass = 1, Hydrogen Mass = 1, Deuterium Mass = 2, Helium Mass = 4
 
 	double Lmfp_total;	// Sum of all mean free paths along the trajectory (PARr.useTprofile == 1 only)
+	int NstepsInSheath;
 
 // Constructors
 PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
@@ -120,7 +123,6 @@ PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 	void set_surface(int i, int N, double thmin, double thmax, double phimin, double phimax, int N_phi = 1);
 	void convertRZ(double theta, double r);
 	void getRZ(double x, double y, double& r, double& z);
-	double getEfield(double r, double z, double& pot);
 
 }; //end of class
 
@@ -160,6 +162,7 @@ Zq = PAR.Zq;		// Charge number: 1: ions are calculated	-1: electrons are calcula
 Mass = PAR.Mass;	// effective partice mass number; electrons Mass = 1, Hydrogen Mass = 1, Deuterium Mass = 2, Helium Mass = 4
 
 Lmfp_total = 0;
+NstepsInSheath = 0;
 
 // dependent Private Member Variables
 if(sigma == 0)
@@ -174,8 +177,8 @@ else
 	{
 		mc2 = E0p*Mass;						// Rest Energy in [keV]
 		omegac = e*EQD.Bt0/(mp*Mass);		// normalized gyro frequency (SI-System)
-		if(mpi_rank < 1) cout << "Ions are calculated" << endl;
-		ofs2 << "Ions are calculated" << endl;
+		if(mpi_rank < 1) cout << "Ions are calculated. Charge: Z= " << Zq << endl;
+		ofs2 << "Ions are calculated. Charge: Z= " << Zq << endl;
 	}
 	else // Electrons
 	{
@@ -228,6 +231,7 @@ Zq = FLT.Zq;
 Mass = FLT.Mass;
 
 Lmfp_total = FLT.Lmfp_total;
+NstepsInSheath = FLT.NstepsInSheath;
 return(*this);
 }
 
@@ -924,6 +928,47 @@ pot = EQDr.getscalPot(Epsi);
 return Er;
 }
 
+//---------------- sheath -------------------------------------------------------------------------------------------------
+// calculate sheath potential and electric field at R,Z
+// the field has no toroidal component, because the potential is assumed to be axisymmetric like the wall
+// potential is in kV and electric field is in kV/m
+void PARTICLE::sheath(double R, double Z, double& pot, double& Er, double& Ez)
+{
+const double me=9.10938188*1e-31;	// Electron mass in kg
+const double mp=1.67262158*1e-27;	// Proton mass in kg
+double mi = Mass*mp;				// Ion mass
+double ti = PARr.sheath_te;			// assume Ti = Te at sheath entrance
+const double delta = 1e-5;
+double potmax,te,d,dd;
+
+d = EQDr.wallDistance(R,Z);
+if (d <= PARr.sheath_width)
+{
+	te = PARr.sheath_te;
+	potmax = -0.5e-3*te * log(pi2*(me/mi)*(1+te/ti)*(1.0/(1-PARr.sheath_sec*PARr.sheath_sec)));
+
+	te = d/PARr.sheath_width*PARr.sheath_te;		// drop te linearly within the sheath from PARr.sheath_te at d = w to 0 at d = 0
+	pot = -0.5e-3*te * log(pi2*(me/mi)*(1+te/ti)*(1.0/(1-PARr.sheath_sec*PARr.sheath_sec)));
+
+	dd = EQDr.wallDistance(R+delta,Z);
+	te = dd/PARr.sheath_width*PARr.sheath_te;
+	Er = -(-0.5e-3*te * log(pi2*(me/mi)*(1+te/ti)*(1.0/(1-PARr.sheath_sec*PARr.sheath_sec))) - pot)/delta;
+
+	dd = EQDr.wallDistance(R,Z+delta);
+	te = dd/PARr.sheath_width*PARr.sheath_te;
+	Ez = -(-0.5e-3*te * log(pi2*(me/mi)*(1+te/ti)*(1.0/(1-PARr.sheath_sec*PARr.sheath_sec))) - pot)/delta;
+
+	pot -= potmax;
+	//NstepsInSheath += 1;
+}
+else
+{
+	pot = 0;
+	Er = 0;
+	Ez = 0;
+}
+}
+
 //---------------- dgls ---------------------------------------------------------------------------------------------------
 // Type the differential equations (dgls) as they are written, while x is the independent variable
 // Here: x = phi, y(0) = R, y(1) = Z, dydx(0) = dR/dphi, dydx(1) = dZ/dphi
@@ -935,6 +980,8 @@ double S;
 double Er,a;
 double scalPot = 0;
 double gamma = GAMMA;
+double sheathPot = 0;
+double sheathEr,sheathEz;
 
 chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
 if (chk == -1) return -1;
@@ -944,10 +991,15 @@ dydx(1) = y(0)*B_Z/B_phi;
 
 if(sigma != 0)
 {
+	if(PARr.use_sheath)
+	{
+		sheath(y(0),y(1),sheathPot,sheathEr,sheathEz);
+		gamma = 1 + fabs(Ekin - Zq*sheathPot)/mc2;	// mc2 = mc^2/e/1e+3 is in keV; Ekin in keV; sheathPot in kV
+	}
 	if(EQDr.hasEfield)
 	{
 		Er = getEfield(y(0),y(1),scalPot);
-		if(EQDr.addScalPot) gamma = 1 + fabs(Ekin - Zq*scalPot)/mc2;	// mc2 = mc^2/e/1e+3 is in keV; Ekin in keV; scalPot in kV
+		if(EQDr.addScalPot) gamma = 1 + fabs(Ekin - Zq*(scalPot + sheathPot))/mc2;	// mc2 = mc^2/e/1e+3 is in keV; Ekin in keV; scalPot in kV; sheathPot in kV
 	}
 	S = eps0*(gamma*gamma-1)-2*EQDr.R0*Ix/y(0);
 	if(S<0) {ofs2 << "dgls: Sqrt argument negative => Abort" << endl; return -1;}	// Error -> Abort program
@@ -957,6 +1009,12 @@ if(sigma != 0)
 		a = 1 + sigma*sqeps0*gamma*y(0)/S*Er;
 		dydx(0) *= a;
 		dydx(1) *= a;
+	}
+	if(PARr.use_sheath)
+	{
+		a = sigma*eps0e_mc2*gamma*y(0)*y(0)/S;
+		dydx(0) += a*sheathEz;
+		dydx(1) -= a*sheathEr;
 	}
 	dydx(1) += -sigma/double(Zq)*(y(0)*S + EQDr.R0*Ix/S);	// sign corrected: sigma = +1 is indeed co-passing
 }
