@@ -548,6 +548,10 @@ FLT.get_psi(p(1),p(2),FLT.psi);
 
 FLT.Lc = 0;
 FLT.psimin = 10;
+FLT.psimax = 0;
+FLT.psiav = 0;
+FLT.steps = 0;
+FLT.dpsidLcav = 0;
 
 if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin);}
 return t;

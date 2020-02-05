@@ -271,8 +271,8 @@ LA_STRING filenameout = "struct" + praefix + ".dat";
 outputtest(filenameout);
 ofstream out(filenameout);
 out.precision(16);
-vector<LA_STRING> var(5);
-var[0] = "X[m]";  var[1] = "Y[m]";  var[2] = "Z[m]";  var[3] = "R[m]";  var[4] = "phi[deg]";
+vector<LA_STRING> var(8);
+var[0] = "X[m]";  var[1] = "Y[m]";  var[2] = "Z[m]";  var[3] = "R[m]";  var[4] = "phi[deg]";  var[5] = "psi";  var[6] = "Lc[m]";  var[7] = "dpsidLc[1/m]";
 if(not angleInDeg) var[4] = "phi[rad]";
 PAR.writeiodata(out,bndy,var);
 
@@ -283,7 +283,7 @@ ofs2 << "Start Tracer for " << PAR.N << " points ... " << endl;
 
 // Follow the field lines
 int size = PAR.itt*int(360.0/double(dphi));
-Array<double,2> data(Range(1,size),Range(1,3));
+Array<double,2> data(Range(1,size),Range(1,6));
 for(i=1;i<=PAR.N;i++)
 {
 	// Set initial conditions
@@ -291,6 +291,10 @@ for(i=1;i<=PAR.N;i++)
 	PAR.phistart = initial(i,2);
 	FLT.Z = initial(i,3);
 	FLT.phi = PAR.phistart;
+	FLT.Lc = 0;
+	FLT.psimin = 10;
+	FLT.steps = 0;
+	FLT.dpsidLc = 0;
 	FLT.get_psi(FLT.R,FLT.Z,FLT.psi);
 	if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin);}
 
@@ -327,23 +331,25 @@ for(i=1;i<=PAR.N;i++)
 			FLT.phi = -j*dpinit*dphi + PAR.phistart;
 
 			//Store Values
-			data(j,1) = FLT.R;	data(j,2) = FLT.Z;	data(j,3) = FLT.phi;
+			data(j,1) = FLT.R;	data(j,2) = FLT.Z;	data(j,3) = FLT.phi;	data(j,4) = FLT.psi;	data(j,5) = FLT.Lc;	data(j,6) = FLT.dpsidLc;
 			if(chk==-1) break;
 		}
 		// Write stored values in reverse direction
-		if(angleInDeg) {for(k=j;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << modulo(360.0 - data(k,3), 360.0) << endl;}
-		else {for(k=j;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << data(k,3)/rTOd << endl;}
+		if(angleInDeg) {for(k=j;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << modulo(360.0 - data(k,3), 360.0) << "\t" << data(k,4) << "\t" << FLT.Lc-data(k,5) << "\t" << data(k,6) << endl;}
+		else {for(k=j;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << data(k,3)/rTOd << "\t" << data(k,4) << "\t" << FLT.Lc-data(k,5) << "\t" << data(k,6) << endl;}
+		FLT.dpsidLc = data(1,6);
+		FLT.Lcmin = FLT.Lc - FLT.Lcmin;
 	}
 
-	// Restore start values and write them
+	// Restore start values and write them, keep Lc and others though
 	FLT.R = initial(i,1);
 	PAR.phistart = initial(i,2);
 	FLT.Z = initial(i,3);
 	FLT.phi = PAR.phistart;
 	FLT.get_psi(FLT.R,FLT.Z,FLT.psi);
 	if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin);}
-	if(angleInDeg) {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << modulo(360.0 - FLT.phi, 360.0) << endl;}
-	else {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << endl;}
+	if(angleInDeg) {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << modulo(360.0 - FLT.phi, 360.0) << "\t" << FLT.psi << "\t" << FLT.Lc << "\t" << FLT.dpsidLc << endl;}
+	else {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << "\t" << FLT.psi << "\t" << FLT.Lc << "\t" << FLT.dpsidLc  << endl;}
 
 	//positive direction
 	if(PAR.MapDirection >= 0)
@@ -354,11 +360,14 @@ for(i=1;i<=PAR.N;i++)
 			if(fabs(FLT.phi - j*dpinit*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi - j*dpinit*dphi - PAR.phistart) << endl;
 			FLT.phi = j*dpinit*dphi + PAR.phistart;
 
-			if(angleInDeg) {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << modulo(360.0 - FLT.phi, 360.0) << endl;}
-			else {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << endl;}
+			if(angleInDeg) {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << modulo(360.0 - FLT.phi, 360.0) << "\t" << FLT.psi << "\t" << FLT.Lc << "\t" << FLT.dpsidLc << endl;}
+			else {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << "\t" << FLT.psi << "\t" << FLT.Lc << "\t" << FLT.dpsidLc << endl;}
 			if(chk==-1) break;
 		}
 	}
+
+	// Write field line averaged statistics
+	cout << "psimin = " << FLT.psimin << "\t" << "Lc at psimin = " << FLT.Lcmin << "\t" << "<dpsi/dLc> = " << FLT.get_dpsidLc_average() << "\t" << "Lc = " << FLT.Lc << "\t" << "steps = " << FLT.steps << endl;
 }
 
 // Close previous output file and clear ofstream
@@ -387,7 +396,7 @@ Array<double,1> jstart(PAR.N),jend(PAR.N);
 
 // Read Data
 data.free();
-readfile(filenameout,5,data);
+readfile(filenameout,8,data);
 
 // find individual flux tubes
 jstart(0) = 1;

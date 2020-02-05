@@ -58,7 +58,7 @@ int mpi_size = MPI::COMM_WORLD.Get_size();
 // Variables
 int i,j;
 int chk;
-double t,ntor,length,psimin;
+double t,ntor;
 Range all = Range::all();
 EFIT EQD;
 
@@ -303,7 +303,7 @@ if(use_Tprofile)
 }
 
 // Set starting parameters
-int N_variables = 7;
+int N_variables = 8;
 int Nt_slave = 1;
 int N = PAR.Nt*PAR.Nphi;
 int N_slave = PAR.Nphi*Nt_slave;
@@ -362,8 +362,8 @@ if(mpi_rank < 1)
 	// Output
 	ofstream out(filenameout);
 	out.precision(16);
-	vector<LA_STRING> var(7);
-	var[0] = "phi[rad]";  var[1] = "length t";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";  var[5] = "R [m]";  var[6] = "Z [m]";
+	vector<LA_STRING> var(8);
+	var[0] = "phi[rad]";  var[1] = "length t";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";  var[5] = "R [m]";  var[6] = "Z [m]";  var[7] = "Lc at psimin [km]";
 	PAR.writeiodata(out,bndy,var);
 
 	// restart run, if necessary
@@ -524,12 +524,13 @@ if(mpi_rank < 1)
 					results_all(tag,7,i) = FLT.Z;
 					//FLT.NstepsInSheath = 0;
 
-					chk = FLT.connect(ntor,length,psimin,PAR.itt,PAR.MapDirection);
+					chk = FLT.connect(ntor,PAR.itt,PAR.MapDirection);
 
 					//Store results
 					results_all(tag,3,i) = ntor; //FLT.NstepsInSheath/4.0;
-					results_all(tag,4,i) = length/1000.0;
-					results_all(tag,5,i) = psimin;
+					results_all(tag,4,i) = FLT.Lc/1000.0;
+					results_all(tag,5,i) = FLT.psimin;
+					results_all(tag,8,i) = FLT.Lcmin;
 
 					if(i%100==0) ofs2 << "Trax: " << i << endl;
 				} // end for
@@ -601,12 +602,13 @@ if(mpi_rank > 0)
 			results(7,i) = FLT.Z;
 			//FLT.NstepsInSheath = 0;
 
-			chk = FLT.connect(ntor,length,psimin,PAR.itt,PAR.MapDirection);
+			chk = FLT.connect(ntor,PAR.itt,PAR.MapDirection);
 
 			//Store results
 			results(3,i) = ntor; //FLT.NstepsInSheath/4.0;
-			results(4,i) = length/1000.0;
-			results(5,i) = psimin;
+			results(4,i) = FLT.Lc/1000.0;
+			results(5,i) = FLT.psimin;
+			results(8,i) = FLT.Lcmin;
 
 			if(i%100==0) ofs2 << "Trax: " << i << endl;
 		}

@@ -62,7 +62,6 @@ private:
 	EFIT& EQDr;		// Only a Reference, not a copy
 	IO& PARr;		// Only a Reference, not a copy
 
-	int steps;		// total number of integration steps along trajectory
 	double GAMMA;
 	double eps0;
 	double Ix;		// normalized angular momentum of the particle gyration. This is a constant of motion here
@@ -90,6 +89,10 @@ public:
 	double psimin;	// minimum of normalized flux reached by trajectory
 	double psimax;	// maximum of normalized flux reached by trajectory
 	double psiav;	// average normalized flux along trajectory
+	double Lcmin;	// connection length at psimin [m]
+	double dpsidLc;	// local gradient of psi along field line
+	int steps;		// total number of integration steps along trajectory
+	double dpsidLcav;	// average gradient of psi along field line
 
 	double Ekin;	// kinitic particle energy [keV]
 	int sigma;		// 1: co-passing particles		-1: count-passing particles		0: field lines only
@@ -114,8 +117,9 @@ PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 	void set_Energy();
 	int mapit(const int itt,int MapDirection=1);
 	int mapstep(int MapDirection=1, int nstep=ilt, bool checkBndyInBetween = false, bool returnLastStep = false);
-	int connect(double& ntor, double& length, double& psimintotal, double& psimaxtotal, double& psiavtotal, const int itt, int MapDirection=0);	// with psimax
-	int connect(double& ntor, double& length, double& psimintotal, const int itt, int MapDirection=0);						// without psimax (old version, kept for compatibility reasons)
+	int connect(double& ntor, double& length, double& psimintotal, double& psimaxtotal, double& psiavtotal, const int itt, int MapDirection=0);	// --- OBSOLETE --- with psimax
+	int connect(double& ntor, double& length, double& psimintotal, const int itt, int MapDirection=0);						// --- OBSOLETE --- without psimax (old version, kept for compatibility reasons)
+	int connect(double& ntor, const int itt, int MapDirection);			// this version combines the old versions and adds the new variables Lcmin, dpsidLcav.
 	int intersect(const int itt, int MapDirection=1, int nstep = 10);	// similar to mapit, but returns intersection point with boundary
 
 	void set(int i, int N, double Rmin, double Rmax, double Zmin, double Zmax, int N_Z=1, int flag=0);
@@ -123,6 +127,7 @@ PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 	void set_surface(int i, int N, double thmin, double thmax, double phimin, double phimax, int N_phi = 1);
 	void convertRZ(double theta, double r);
 	void getRZ(double x, double y, double& r, double& z);
+	double get_dpsidLc_average(void);
 
 }; //end of class
 
@@ -155,6 +160,9 @@ psimin = 10;		// minimum of normalized flux reached by trajectory
 psimax = 0;			// maximum of normalized flux reached by trajectory
 psiav = 0;
 steps = 0;
+Lcmin = 0;
+dpsidLc = 0;
+dpsidLcav = 0;
 
 Ekin = PAR.Ekin;	// kinitic particle energy
 sigma = PAR.sigma;	// 1: co-passing particles		-1: count-passing particles		0: field lines only
@@ -224,6 +232,9 @@ Lc = FLT.Lc;
 psimin = FLT.psimin;
 psimax = FLT.psimax;
 psiav = FLT.psiav;
+Lcmin = FLT.Lcmin;
+dpsidLc = FLT.dpsidLc;
+dpsidLcav = FLT.dpsidLcav;
 
 Ekin = FLT.Ekin;
 sigma = FLT.sigma;
@@ -250,6 +261,8 @@ out << "--- Trajectory ---" << endl;
 out << "Lc = " << FLT.Lc << endl;	
 out << "psimin = " << FLT.psimin << endl;
 out << "psimax = " << FLT.psimax << endl;
+out << "Lcmin = " << FLT.Lcmin << endl;
+out << "dpsidLc = " << FLT.dpsidLc << endl;
 if(FLT.steps > 0) out << "psiav = " << FLT.psiav/FLT.steps << endl;
 else out << "psiav = 0" << endl;
 
@@ -331,6 +344,14 @@ if((PARr.response_field == 0) || (PARr.response_field == 2))
 else chk = EQDr.get_psi(x1,x2,y,dummy,dummy);
 
 return chk;
+}
+
+//---------------- get_dpsidLc_average ------------------------------------------------------------------------------------
+double PARTICLE::get_dpsidLc_average(void)
+{
+if(steps > 0) dpsidLcav /= steps;
+else dpsidLcav = 0;
+return dpsidLcav;
 }
 
 //---------------- set_Energy ---------------------------------------------------------------------------------------------
@@ -459,6 +480,7 @@ return (ntor*nstep)/ilt;
 }
 
 //------------------ connect ----------------------------------------------------------------------------------------------
+// --- OBSOLETE --- Use new version below
 // Integration goes in respecive direction, depending on MapDirection
 // MapDirection=0 means both directions are calculated and results are added
 // phistart has to be in deg!
@@ -474,6 +496,10 @@ const double Estart = Ekin;
 const double GAMMAstart = GAMMA;
 const double Ixstart = Ix;
 const double Lmfpstart = Lmfp_total;
+
+steps = 0;
+psiav = 0;
+dpsidLcav = 0;
 
 // positive phi direction
 if(MapDirection >= 0)
@@ -525,6 +551,7 @@ return 0;
 }
 
 //------------------ connect ----------------------------------------------------------------------------------------------
+// --- OBSOLETE --- Use new version below
 // Integration goes in respecive direction, depending on MapDirection
 // MapDirection=0 means both directions are calculated and results are added
 // phistart has to be in deg!
@@ -540,6 +567,10 @@ const double Estart = Ekin;
 const double GAMMAstart = GAMMA;
 const double Ixstart = Ix;
 const double Lmfpstart = Lmfp_total;
+
+steps = 0;
+psiav = 0;
+dpsidLcav = 0;
 
 // positive phi direction
 if(MapDirection >= 0)
@@ -574,11 +605,71 @@ if(MapDirection <= 0)
 	chk = mapit(itt,-1);
 	ntor += fabs(phi-phistart)/360.0;
 	length += Lc;
-	if(psimin < psimintotal) psimintotal = psimin;
+	if(psimin < psimintotal)
+	{
+		psimintotal = psimin;
+	}
 }
 
 return 0;
 }
+
+//------------------ connect ----------------------------------------------------------------------------------------------
+// Integration goes in respecive direction, depending on MapDirection
+// MapDirection=0 means both directions are calculated and results are added
+// phistart has to be in deg!
+int PARTICLE::connect(double& ntor, const int itt, int MapDirection)
+{
+int chk;
+const double Rstart = R;
+const double Zstart = Z;
+const double phistart = phi;
+const double psistart = psi;
+
+const double Estart = Ekin;
+const double GAMMAstart = GAMMA;
+const double Ixstart = Ix;
+const double Lmfpstart = Lmfp_total;
+
+steps = 0;
+psiav = 0;
+dpsidLcav = 0;
+
+// negative phi direction
+if(MapDirection <= 0)
+{
+	chk = mapit(itt,-1);
+	ntor = fabs(phi-phistart)/360.0;
+	if(MapDirection == 0) Lcmin = Lc - Lcmin;	// reverse, as field line is traced backwards here and forwards later; In this case Lc = 0 is at the beginning of field line in direction of positive phi tracing; typically outer target in DIII-D; this is usefull for laminar
+												// else Lc = 0 is at start point of trace and Lcmin is distance from start point of trace to reach psimin; this is usefull for foot
+}
+else
+{
+	ntor = 0;
+}
+
+// positive phi direction
+R = Rstart;
+Z = Zstart;
+phi = phistart;
+psi = psistart;
+
+Ekin = Estart;
+GAMMA = GAMMAstart;
+Ix = Ixstart;
+Lmfp_total = Lmfpstart;
+
+if(MapDirection >= 0)
+{
+	chk = mapit(itt,1);
+	ntor += fabs(phi-phistart)/360.0;
+}
+if(steps > 0) psiav /= steps;
+else psiav = 0;
+
+return 0;
+}
+
 
 //-------------- set ------------------------------------------------------------------------------------------------------
 // creates initial condition i: (R,Z) on a grid with N points
@@ -663,6 +754,7 @@ psimin = 10;
 psimax = 0;
 psiav = 0;
 steps = 0;
+dpsidLcav = 0;
 
 if(sigma != 0 && PARr.useTprofile == 1) {set_Energy(); Lmfp_total = get_Lmfp(Ekin);}
 }
@@ -733,6 +825,7 @@ psimin = 10;
 psimax = 0;
 psiav = 0;
 steps = 0;
+dpsidLcav = 0;
 
 if(sigma != 0 && PARr.useTprofile == 1) {set_Energy(); Lmfp_total = get_Lmfp(Ekin);}
 }
@@ -782,6 +875,7 @@ psimin = 10;
 psimax = 0;
 psiav = 0;
 steps = 0;
+dpsidLcav = 0;
 
 if(sigma != 0 && PARr.useTprofile == 1) {set_Energy(); Lmfp_total = get_Lmfp(Ekin);}
 }
@@ -1030,12 +1124,13 @@ int PARTICLE::rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& 
 int k, chk;
 bool old_n0only;
 double x1 = x;	//Store first value (helps reduce Error in x)
-double Lmfp;
+double Lmfp,lcstep,psiold;
 Array<double,1> yout(nvar),dydx(nvar);
 
 //Take nstep steps
 for (k=1;k<=nstep;k++) 
 { 
+	psiold = psi;
 	chk = dgls(x,y,dydx);
 	if (chk == -1) return -1;
 	chk = rungekutta4(y,dydx,nvar,x,dx,yout);
@@ -1057,7 +1152,8 @@ for (k=1;k<=nstep;k++)
 	}
 
 	// Get additional Parameter
-	Lc += sqrt((yout(0)-y(0))*(yout(0)-y(0)) + (yout(1)-y(1))*(yout(1)-y(1)) + 0.25*(yout(0)+y(0))*(yout(0)+y(0))*dx*dx);
+	lcstep = sqrt((yout(0)-y(0))*(yout(0)-y(0)) + (yout(1)-y(1))*(yout(1)-y(1)) + 0.25*(yout(0)+y(0))*(yout(0)+y(0))*dx*dx);
+	Lc += lcstep;
 
 	if(PARr.response_field == -2)
 	{
@@ -1094,10 +1190,16 @@ for (k=1;k<=nstep;k++)
 		if (chk == -1) return -1;
 	}
 
-	if(psi < psimin) psimin = psi;
+	if(psi < psimin)
+	{
+		psimin = psi;
+		Lcmin = Lc;
+	}
 	if(psi > psimax) psimax = psi;
 	psiav += psi;
 	steps += 1;
+	dpsidLc = sign(dx)*(psi-psiold)/lcstep; // dpsidLc is negative, if the field line is followed in reverse direction
+	dpsidLcav += dpsidLc;
 
 	y = yout;
 
