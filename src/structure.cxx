@@ -335,6 +335,7 @@ for(i=1;i<=PAR.N;i++)
 			if(chk==-1) break;
 		}
 		// Write stored values in reverse direction
+		if(j > size) j = size;
 		if(angleInDeg) {for(k=j;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << modulo(360.0 - data(k,3), 360.0) << "\t" << data(k,4) << "\t" << FLT.Lc-data(k,5) << "\t" << data(k,6) << endl;}
 		else {for(k=j;k>=1;k--) out << data(k,1)*cos(data(k,3)/rTOd) << "\t" << data(k,1)*sin(data(k,3)/rTOd) << "\t" << data(k,2) << "\t" << data(k,1) << "\t" << data(k,3)/rTOd << "\t" << data(k,4) << "\t" << FLT.Lc-data(k,5) << "\t" << data(k,6) << endl;}
 		FLT.dpsidLc = data(1,6);
