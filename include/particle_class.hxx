@@ -1033,24 +1033,24 @@ const double mp=1.67262158*1e-27;	// Proton mass in kg
 double mi = Mass*mp;				// Ion mass
 double ti = PARr.sheath_te;			// assume Ti = Te at sheath entrance
 const double delta = 1e-5;
-double potmax,te,d,dd;
+double potmax,te,d,dd,potdd;
 
 d = EQDr.wallDistance(R,Z);
 if (d <= PARr.sheath_width)
 {
 	te = PARr.sheath_te;
-	potmax = -0.5e-3*te * log(pi2*(me/mi)*(1+te/ti)*(1.0/(1-PARr.sheath_sec*PARr.sheath_sec)));
+	potmax = -0.5e-3*te * log(pi2*(me/mi)*(1+ti/te)*(1.0/(1-PARr.sheath_sec)/(1-PARr.sheath_sec)));
 
-	te = d/PARr.sheath_width*PARr.sheath_te;		// drop te linearly within the sheath from PARr.sheath_te at d = w to 0 at d = 0
-	pot = -0.5e-3*te * log(pi2*(me/mi)*(1+te/ti)*(1.0/(1-PARr.sheath_sec*PARr.sheath_sec)));
+	// drop phi linearly within the sheath from potmax at d = w to 0 at d = 0
+	pot = potmax * d/PARr.sheath_width;
 
 	dd = EQDr.wallDistance(R+delta,Z);
-	te = dd/PARr.sheath_width*PARr.sheath_te;
-	Er = -(-0.5e-3*te * log(pi2*(me/mi)*(1+te/ti)*(1.0/(1-PARr.sheath_sec*PARr.sheath_sec))) - pot)/delta;
+	potdd = potmax * dd/PARr.sheath_width;
+	Er = -(potdd - pot)/delta;
 
 	dd = EQDr.wallDistance(R,Z+delta);
-	te = dd/PARr.sheath_width*PARr.sheath_te;
-	Ez = -(-0.5e-3*te * log(pi2*(me/mi)*(1+te/ti)*(1.0/(1-PARr.sheath_sec*PARr.sheath_sec))) - pot)/delta;
+	potdd = potmax * dd/PARr.sheath_width;
+	Ez = -(potdd - pot)/delta;
 
 	pot -= potmax;
 	//NstepsInSheath += 1;
