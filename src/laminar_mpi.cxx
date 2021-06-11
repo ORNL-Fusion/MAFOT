@@ -93,17 +93,18 @@ LA_STRING ErProfileFile = "None";
 bool use_ErProfile = false;
 LA_STRING TprofileFile = "None";
 bool use_Tprofile = false;
+simpleBndy = 0;
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:E:T:c")) != -1)
+while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:E:T:cb")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-c] [-l limit] [-s] [-A Raxis,Zaxis] [-E ErProfile] [-I island] " << endl;
+		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-b] [-c] [-l limit] [-s] [-A Raxis,Zaxis] [-E ErProfile] [-I island] " << endl;
 		cout << "                                       [-P points] [-S siesta] [-T Tprofile] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
 		cout << "Calculate field line connection length and penetration depth in a poloidal cross-section." << endl << endl;
 		cout << "positional arguments:" << endl;
@@ -111,6 +112,7 @@ case 'h':
 		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 		cout << endl << "optional arguments:" << endl;
 		cout << "  -h            show this help message and exit" << endl;
+		cout << "  -b            use simple boundary instead of g-file wall as limiter" << endl;
 		cout << "  -c            check if field line crosses wall during first step; only with 3D wall, default = No" << endl;
 		cout << "  -l            flux limit for spare interior, default = 0.85" << endl;
 		cout << "  -s            spare calculation of interior, default = No" << endl;
@@ -145,6 +147,9 @@ case 'h':
 	}
 	MPI::Finalize();
 	return 0;
+case 'b':
+	simpleBndy = 1;
+	break;
 case 'c':
 	checkFistStep = true;
 	break;
@@ -620,9 +625,16 @@ if(mpi_rank < 1)
 					psiav = 0;
 
 					// Integration terminates outside of boundary box
-					simpleBndy = 1;
-					if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true) skip_connect = 1;
-					simpleBndy = 0;
+					if(simpleBndy == 0)
+					{
+						simpleBndy = 1;
+						if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true) skip_connect = 1;
+						simpleBndy = 0;
+					}
+					else
+					{
+						if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true) skip_connect = 1;
+					}
 
 					// Spare the calculation of the interior
 					if(spare_interior == 1 && FLT.psi <= psi_interior_limit && FLT.Z > -1.25)
@@ -803,9 +815,16 @@ if(mpi_rank > 0)
 			psiav = 0;
 
 			// Integration terminates outside of boundary box
-			simpleBndy = 1;
-			if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true) skip_connect = 1;
-			simpleBndy = 0;
+			if(simpleBndy == 0)
+			{
+				simpleBndy = 1;
+				if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true) skip_connect = 1;
+				simpleBndy = 0;
+			}
+			else
+			{
+				if(outofBndy(FLT.phi,FLT.R,FLT.Z,EQD) == true) skip_connect = 1;
+			}
 
 			// Spare the calculation of the interior
 			if(spare_interior == 1 && FLT.psi <= psi_interior_limit && FLT.Z > -1.25)
