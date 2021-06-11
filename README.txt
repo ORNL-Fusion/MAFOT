@@ -51,6 +51,8 @@ GUI 2.2
 
 Version Notes: 
 ----------------
+SULI branch
+
 MAFOT 5.0 -- Jan 2019
 - Zeff added to all input files. This required some minor restructuring, which makes old ITER and NSTX input files incompatible.
   For D3D, only the position of useFilaments shifted by one. MAST and C-Mod are unchanged
