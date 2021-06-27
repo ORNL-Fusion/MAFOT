@@ -1,17 +1,17 @@
 # ---- Folder ----
-MAFOT_DIR = /Users/wingen/Documents/Eclipse/Source/MAFOT
-BIN_DIR = /Users/wingen/c++/bin
-LIB_DIR = /Users/wingen/Documents/Eclipse/Lib
+MAFOT_DIR = /home/lewisj/source/MAFOT
+BIN_DIR = /home/lewisj/bin
+LIB_DIR = /home/lewisj/lib/64
 
 # ---- Support codes ----
 # True or False
-M3DC1 = False
+M3DC1 = True
 VMEC = True
 SIESTA = True
 
 # ---- Compiler ----
 CXX = g++
-CFLAGS = -O3 -fPIC
+CFLAGS = -O3 -fPIC -std=c++11
 OMPFLAGS = -fopenmp -w
 
 F90 = gfortran
@@ -24,18 +24,18 @@ LDD = g++ --shared
 LDFLAGS =
 
 # ---- external Libraries ---- 
-BLITZLIBS = -L/Users/wingen/Documents/Eclipse/Lib/blitz/lib -lblitz
-FLIBS = -L/usr/local/gfortran/lib -lgfortran
+BLITZLIBS = -L/home/wingen/lib/64/blitz/lib -lblitz
+FLIBS = -L/usr/lib -lgfortran -L/lib64 -lpthread
 OMPLIBS = -L/usr/local/openmpi/lib -lmpi -lmpi_cxx
-M3DC1LIBS = 
-HDF5LIBS = 
-NETCDFLIBS = -L/opt/local/lib -lnetcdf
+M3DC1LIBS = -L/usr/local/m3dc1/lib -lfusionio -lm3dc1
+HDF5LIBS = -L/usr/local/hdf5/lib -lhdf5 -lz -Wl,-rpath,/usr/local/hdf5/lib -lstdc++
+NETCDFLIBS = -L/usr/lib64 -lnetcdf
 
 # ---- external Includes ----
-BLITZINCLUDE = -I/Users/wingen/Documents/Eclipse/Lib/blitz/include
+BLITZINCLUDE = -I/home/wingen/lib/64/blitz/include
 OMPINCLUDE = -I/usr/local/openmpi/include -I/usr/local/openmpi/include/openmpi
-M3DC1INCLUDE = 
-NETCDFINCLUDE = -I/opt/local/include
+M3DC1INCLUDE = -I/usr/local/m3dc1/include -Dm3dc1_newfio
+NETCDFINCLUDE = -I/usr/include
 
 # ---- build GUI with python (optional) ----
-PYINSTALLER = /Library/Frameworks/EPD64.framework/Versions/7.2/bin/pyinstaller
+#PYINSTALLER = /usr/local/enthought/bin/pyinstaller
