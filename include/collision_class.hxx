@@ -13,7 +13,7 @@ class COLLISION
 {	
 public:
 	bool occurs(double Lc, const double x);
-	void collide(double& R, double& Z);
+	void collide(double& R, double& Z, double modB, double x);
 
 // default constructor
 	COLLISION();
@@ -25,7 +25,6 @@ private:
 	double zeff, stdev, m_e, e_0, e, kb, te_const, ln1e20, mfp_const, sq2;
 	double last_coll;  // connection length at last collision
 	long seed;
-	double rho;  // larmor radius
 	
 	// Temperature
 	
@@ -43,6 +42,7 @@ private:
 	
 // member functions
 	double meanFreePath(const double x);  // calculates mean free path
+	double getRho(double modB, double x);  // gets the larmor radius
 	
 	// General
 	void readProfile(LA_STRING file, int& N, Array<double, 2>& File, Array<double, 1>& d2Profile);
@@ -61,7 +61,6 @@ COLLISION::COLLISION(LA_STRING filename_te, LA_STRING filename_ne, double f, dou
 {
 	last_coll = 0;
 	zeff = (f + pow(zbar, 2)) / (f + zbar);  // this is actually the effective charge squared
-	rho = 1;
 	
 	// define constants
 	m_e = 9.10938e-31;
@@ -105,6 +104,14 @@ double COLLISION::meanFreePath(const double x)
 	return mfp;
 }
 
+//----------- getRho
+// params: modB - magnitude of magnetic field, x - flux of particle
+double COLLISION::getRho(double modB, double x) 
+{
+	double temp = getProfile(NT, Tfile, d2Tprofile, x);
+	return (1.07e-4) * sqrt(temp) / modB;
+}
+
 //------------ check for collision (eventually...)
 bool COLLISION::occurs(double Lc, const double x) 
 {
@@ -137,9 +144,10 @@ bool COLLISION::occurs(double Lc, const double x)
 }
 
 //----------- collide
-void COLLISION::collide(double& R, double& Z)  // add modB as input
+void COLLISION::collide(double& R, double& Z, double modB, double x)
 {
 	double theta = ran0(seed) * 2 * M_PI;
+	double rho = getRho(modB, x);
 	R += rho * cos(theta);
 	Z += rho * sin(theta);
 }
