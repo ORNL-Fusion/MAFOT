@@ -27,26 +27,23 @@ private:
 	long seed;
 	
 	// Temperature
-	
 	int NT;  // number of rows in T profile
 	
-	Array<double, 2> Tfile;  // 2 dimensional array of temperature profile data
+	Array<double, 2> Tdata;  // 2 dimensional array of temperature profile data
 	Array<double, 1> d2Tprofile;  // T profile spline
 	
 	// Density
 	int ND;  // number of rows in N profile
-	Array<double, 2> Nfile;  // 2 dimensional array of temperature profile data
+	Array<double, 2> Ndata;  // 2 dimensional array of temperature profile data
 	Array<double, 1> d2Nprofile;  // N profile spline
 	
 	
 	
 // member functions
-	double meanFreePath(const double x);  // calculates mean free path
-	double getRho(double modB, double x);  // gets the larmor radius
-	
-	// General
-	void readProfile(LA_STRING file, int& N, Array<double, 2>& File, Array<double, 1>& d2Profile);
-	double getProfile(int N, Array<double, 2> File, Array<double, 1>& d2Profile, const double x);
+	double meanFreePath(const double x);  // calculates and returns mean free path
+	double getRho(double modB, double x);  // calculates and returns the larmor radius
+	void readProfile(LA_STRING file, int& N, Array<double, 2>& Data, Array<double, 1>& d2Profile);  // reads profiles from external file, prepares splines
+	double getProfile(int N, Array<double, 2> Data, Array<double, 1>& d2Profile, const double x);  // evaluates splines of profiles
 	
 }; //end of class
 
@@ -54,6 +51,9 @@ private:
 COLLISION::COLLISION() 
 {
 	last_coll = 0;
+	zeff = 0;
+	seed = 0;
+	stdev = 0;
 }
 
 //----------- actual constructor
@@ -79,8 +79,8 @@ COLLISION::COLLISION(LA_STRING filename_te, LA_STRING filename_ne, double f, dou
 	
 	
 	// read the profiles
-	readProfile(filename_te, NT, Tfile, d2Tprofile);  // rename file array..?
-	readProfile(filename_ne, ND, Nfile, d2Nprofile);
+	readProfile(filename_te, NT, Tdata, d2Tprofile);  // rename file array..?
+	readProfile(filename_ne, ND, Ndata, d2Nprofile);
 	//readTprofile("profile_te");
 	//readNprofile("profile_ne");
 }
@@ -89,9 +89,9 @@ COLLISION::COLLISION(LA_STRING filename_te, LA_STRING filename_ne, double f, dou
 // for psi=0.99, n=0.084(1e20/m^-3), T=0.165keV, lnA=14.64, tau_e=5.95e-6s, mfp=32.1m
 double COLLISION::meanFreePath(const double x)
 {
-	double Tprof = getProfile(NT, Tfile, d2Tprofile, x);
+	double Tprof = getProfile(NT, Tdata, d2Tprofile, x);
 	std::cout << "Tprof: " << Tprof << endl;
-	double Nprof = getProfile(ND, Nfile, d2Nprofile, x);
+	double Nprof = getProfile(ND, Ndata, d2Nprofile, x);
 	std::cout << "Nprof: " << Nprof << endl;
 		
 	// constants te_const and oosme calculated in constructor for efficiency
@@ -108,7 +108,7 @@ double COLLISION::meanFreePath(const double x)
 // params: modB - magnitude of magnetic field, x - flux of particle
 double COLLISION::getRho(double modB, double x) 
 {
-	double temp = getProfile(NT, Tfile, d2Tprofile, x);
+	double temp = getProfile(NT, Tdata, d2Tprofile, x);
 	return (1.07e-4) * sqrt(temp) / modB;
 }
 
@@ -129,17 +129,8 @@ bool COLLISION::occurs(double Lc, const double x)
 	if (occured) {
 		std::cout << "collision\n";
 		last_coll = Lc;
-	} else {
-		std::cout << "no collision\n";
-	}
+	} else std::cout << "no collision\n";
 	
-	// some more testing
-	//std::cout << "psi:\tT:\tN:\n" << endl;
-	/*for (double d = 0.0; d < 1.2; d += 0.005) 
-	{
-		std::cout << d << "\t" << getProfile(NT, Tfile, d2Tprofile, d) << "\t" << getProfile(ND, Nfile, d2Nprofile, d) << endl;
-	}*/
-
 	return occured;
 }
 
@@ -152,21 +143,19 @@ void COLLISION::collide(double& R, double& Z, double modB, double x)
 	Z += rho * sin(theta);
 }
 
-// getrho
-
 //----------- readProfile
 // params:
 // file - the file to read from, N - # columns in file, File - 2D array for file data, 
 // Psi - 1D array for psi values, Profile - 1D array for profile values, d2Profile - array for spline
-void COLLISION::readProfile(LA_STRING file, int& N, Array<double, 2>& File, Array<double, 1>& d2Profile)
+void COLLISION::readProfile(LA_STRING file, int& N, Array<double, 2>& Data, Array<double, 1>& d2Profile)
 {
 	double d1, dn, dpsi;
 	Array <double, 1> Psi, Profile;
 	
-	readfile(file, 2, File);
-	N = File.rows();
-	Psi.reference(File(Range::all(), 1));
-	Profile.reference(File(Range::all(), 2));
+	readfile(file, 2, Data);
+	N = Data.rows();
+	Psi.reference(Data(Range::all(), 1));
+	Profile.reference(Data(Range::all(), 2));
 	
 	// prepare splines
 	d2Profile.resize(N);
@@ -180,11 +169,11 @@ void COLLISION::readProfile(LA_STRING file, int& N, Array<double, 2>& File, Arra
 // params:
 // N - # columns in file, Psi - 1D array for psi values, Profile - 1D array for profile values
 // d2Profile - 1D array of splines calculated in readProfile(), x - psi for which to calculate profile
-double COLLISION::getProfile(int N, Array <double, 2> File, Array<double, 1>& d2Profile, const double x) 
+double COLLISION::getProfile(int N, Array <double, 2> Data, Array<double, 1>& d2Profile, const double x) 
 {
 	Array<double, 1> Psi, Profile;
-	Psi.reference(File(Range::all(), 1));
-	Profile.reference(File(Range::all(), 2));
+	Psi.reference(Data(Range::all(), 1));
+	Profile.reference(Data(Range::all(), 2));
 		
 	if (x > Psi(N)) return Profile(N);
 	double y, dy;
