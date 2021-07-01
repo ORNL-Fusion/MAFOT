@@ -77,12 +77,15 @@ LA_STRING siestafile = "siesta.dat";
 LA_STRING islandfile = "fakeIslands.in";
 LA_STRING ErProfileFile = "None";
 bool use_ErProfile = false;
-LA_STRING TprofileFile = "None";
+LA_STRING TprofileFile = "profile_te";
+LA_STRING NprofileFile = "profile_ne";
 bool use_Tprofile = false;
 vector<string>  sheath_params;
 double sheath_width = 0.01;		// in m
 double sheath_te = 20;			// in eV
 double sheath_sec = 0.5;
+double f = 0;  // ratio of impurity to hydrogen ions
+double zbar = 1;  // average over impurity ion charge states
 bool use_sheath = false;
 
 // Command line input parsing
@@ -322,8 +325,10 @@ if(dt == 0) PAR.tmax = PAR.tmin;
 // Use box as boundary
 simpleBndy = 1;
 
+// Prepare collisions
+COLLISION COL(TprofileFile, NprofileFile, f, zbar);
 // Prepare particles
-PARTICLE FLT(EQD,PAR,mpi_rank);
+PARTICLE FLT(EQD,PAR,COL,mpi_rank);
 
 MPI::COMM_WORLD.Barrier();	// Syncronize all Nodes
 

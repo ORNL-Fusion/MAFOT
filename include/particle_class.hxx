@@ -22,6 +22,7 @@
 #include <blitz/tinyvec-et.h>
 #include <efit_class.hxx>
 #include <io_class.hxx>
+#include <collision_class.hxx>
 #if defined(m3dc1)
 	#include <m3dc1_class.hxx>
 #endif
@@ -61,6 +62,7 @@ private:
 // Member Variables
 	EFIT& EQDr;		// Only a Reference, not a copy
 	IO& PARr;		// Only a Reference, not a copy
+	COLLISION& COLr;  // Only a Reference, not a copy
 
 	double GAMMA;
 	double eps0;
@@ -103,7 +105,7 @@ public:
 	int NstepsInSheath;
 
 // Constructors
-PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
+PARTICLE(EFIT& EQD, IO& PAR, COLLISION& COL, int mpi_rank=0);		// Default Constructor
 
 // Member-Operators
 	PARTICLE& operator =(const PARTICLE& FLT);								// Operator =
@@ -136,7 +138,7 @@ PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 
 //--------- Default Constructor -------------------------------------------------------------------------------------------
 // Constructor list necessary to set EQDr and PARr since references cannot be empty
-PARTICLE::PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank): EQDr(EQD), PARr(PAR)
+PARTICLE::PARTICLE(EFIT& EQD, IO& PAR, COLLISION& COL, int mpi_rank): EQDr(EQD), PARr(PAR), COLr(COL)
 {
 // Variables
 double omegac;
@@ -1130,6 +1132,16 @@ Array<double,1> yout(nvar),dydx(nvar);
 //Take nstep steps
 for (k=1;k<=nstep;k++) 
 { 
+	// check for collision
+	if (COLr.occurs(Lc, psi)) 
+	{
+		double B_R, B_Z, B_phi, modB;
+		chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
+		if (chk == -1) return -1;
+		modB = sqrt(pow(B_R, 2) + pow(B_Z, 2) + pow(B_phi, 2));
+		COLr.collide(yout(0), yout(1), modB, psi);
+	}
+	
 	psiold = psi;
 	chk = dgls(x,y,dydx);
 	if (chk == -1) return -1;
