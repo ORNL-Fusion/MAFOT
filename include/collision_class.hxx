@@ -22,7 +22,8 @@ public:
 
 private:
 // member variables
-	double zeff, stdev, m_e, e_0, e, kb, te_const, ln1e20, mfp_const, sq2;
+	bool use_me;
+	double zeff, stdev, te_const, mfp_const, sq2;
 	double last_coll;  // connection length at last collision
 	long seed;
 	
@@ -43,35 +44,41 @@ private:
 	double meanFreePath(const double x);  // calculates and returns mean free path
 	double getRho(double modB, double x);  // calculates and returns the larmor radius
 	void readProfile(LA_STRING file, int& N, Array<double, 2>& Data, Array<double, 1>& d2Profile);  // reads profiles from external file, prepares splines
-	double getProfile(int N, Array<double, 2> Data, Array<double, 1>& d2Profile, const double x);  // evaluates splines of profiles
+	double getProfile(int N, Array<double, 2>& Data, Array<double, 1>& d2Profile, const double x);  // evaluates splines of profiles
 	
 }; //end of class
 
 // default constructor...
 COLLISION::COLLISION() 
 {
-	last_coll = 0;
+	// initialize everything to zero
+	use_me = false;
 	zeff = 0;
-	seed = 0;
 	stdev = 0;
+	te_const = 0;
+	mfp_const = 0;
+	sq2 = 0;
+	last_coll = 0;
+	seed = 0;
+	NT = 0;
+	ND = 0;	
 }
 
 //----------- actual constructor
 COLLISION::COLLISION(LA_STRING filename_te, LA_STRING filename_ne, double f, double zbar)
 {
+	use_me = true;
 	last_coll = 0;
 	zeff = (f + pow(zbar, 2)) / (f + zbar);  // this is actually the effective charge squared
 	
 	// define constants
-	m_e = 9.10938e-31;
-	e_0 = 8.854187817e-12;
-	e = 1.60217662e-19;
-	kb = 1.38064852e-23;
+	double m_e = 9.10938e-31;
+	double e_0 = 8.854187817e-12;
+	double e = 1.60217662e-19;
 	
 	seed = (long) time(NULL);
 	
 	te_const = (1.09e16) / zeff;  // Wesson Tokamaks p729
-	//ln1e20 = log(1e20);
 	mfp_const = sqrt(1000 * e / m_e);
 	sq2 = sqrt(2);
 	
@@ -90,9 +97,9 @@ COLLISION::COLLISION(LA_STRING filename_te, LA_STRING filename_ne, double f, dou
 double COLLISION::meanFreePath(const double x)
 {
 	double Tprof = getProfile(NT, Tdata, d2Tprofile, x);
-	std::cout << "Tprof: " << Tprof << endl;
+	//std::cout << "Tprof: " << Tprof << endl;
 	double Nprof = getProfile(ND, Ndata, d2Nprofile, x);
-	std::cout << "Nprof: " << Nprof << endl;
+	//std::cout << "Nprof: " << Nprof << endl;
 		
 	// constants te_const and oosme calculated in constructor for efficiency
 	double lnA = 15.2 - (0.5)*log(Nprof) + log(Tprof);  // coulomb logarithm
@@ -112,24 +119,24 @@ double COLLISION::getRho(double modB, double x)
 	return (1.07e-4) * sqrt(temp) / modB;
 }
 
-//------------ check for collision (eventually...)
+//------------ check for collision
 bool COLLISION::occurs(double Lc, const double x) 
 {
+	if (not use_me) return false;
+	
 	double l = Lc - last_coll;  // distance since last collision
+	if (l == 0) return false;  // don't collide on first integration step
+	
 	double mfp = meanFreePath(x);
-	//double mfp = 1;
-	std::cout << "mean free path: " << mfp << endl;
+	//std::cout << "mean free path: " << mfp << endl;
 	
     double rnum = ran0(seed);
-	std::cout << "rnum: " << rnum << endl;
+	//std::cout << "rnum: " << rnum << endl;
 	double prob = 0.5 + 0.5 * erf((l - mfp)/((double)stdev * sq2)); // sqrt(2) calculated in constructor for efficiency
-	std::cout << "prob: " << prob << endl;
+	//std::cout << "prob: " << prob << endl;
 	bool occured = (rnum < prob);
 	
-	if (occured) {
-		std::cout << "collision\n";
-		last_coll = Lc;
-	} else std::cout << "no collision\n";
+	if (occured) last_coll = Lc;
 	
 	return occured;
 }
@@ -169,7 +176,7 @@ void COLLISION::readProfile(LA_STRING file, int& N, Array<double, 2>& Data, Arra
 // params:
 // N - # columns in file, Psi - 1D array for psi values, Profile - 1D array for profile values
 // d2Profile - 1D array of splines calculated in readProfile(), x - psi for which to calculate profile
-double COLLISION::getProfile(int N, Array <double, 2> Data, Array<double, 1>& d2Profile, const double x) 
+double COLLISION::getProfile(int N, Array <double, 2>& Data, Array<double, 1>& d2Profile, const double x) 
 {
 	Array<double, 1> Psi, Profile;
 	Psi.reference(Data(Range::all(), 1));
