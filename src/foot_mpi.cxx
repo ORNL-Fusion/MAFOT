@@ -85,8 +85,9 @@ double sheath_width = 0.01;		// in m
 double sheath_te = 20;			// in eV
 double sheath_sec = 0.5;
 double f = 0;  // ratio of impurity to hydrogen ions
-double zbar = 1;  // average over impurity ion charge states
+double zbar = 2;  // average over impurity ion charge states
 bool use_sheath = false;
+bool use_collision = true;
 
 // Command line input parsing
 int c;
@@ -326,7 +327,8 @@ if(dt == 0) PAR.tmax = PAR.tmin;
 simpleBndy = 1;
 
 // Prepare collisions
-COLLISION COL(TprofileFile, NprofileFile, f, zbar);
+COLLISION COL;
+if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mass, mpi_rank);
 // Prepare particles
 PARTICLE FLT(EQD,PAR,COL,mpi_rank);
 

@@ -105,7 +105,7 @@ public:
 	int NstepsInSheath;
 
 // Constructors
-PARTICLE(EFIT& EQD, IO& PAR, COLLISION& COL, int mpi_rank=0);		// Default Constructor
+	PARTICLE(EFIT& EQD, IO& PAR, COLLISION& COL, int mpi_rank=0);		// Default Constructor
 
 // Member-Operators
 	PARTICLE& operator =(const PARTICLE& FLT);								// Operator =
@@ -1124,6 +1124,7 @@ return 0;
 int PARTICLE::rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate, bool returnLastStep)
 {
 int k, chk;
+double B_R, B_Z, B_phi, modB;
 bool old_n0only;
 double x1 = x;	//Store first value (helps reduce Error in x)
 double Lmfp,lcstep,psiold;
@@ -1132,14 +1133,16 @@ Array<double,1> yout(nvar),dydx(nvar);
 //Take nstep steps
 for (k=1;k<=nstep;k++) 
 { 
+	//if(k=1) std::cout << "First Lc: " << Lc << endl;
 	// check for collision
 	if (COLr.occurs(Lc, psi)) 
 	{
-		double B_R, B_Z, B_phi, modB;
+		std::cout << "collision occured" << endl << "Old:" << endl << "R = " << y(0) << " Z = " << y(1) << endl;
 		chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
 		if (chk == -1) return -1;
 		modB = sqrt(pow(B_R, 2) + pow(B_Z, 2) + pow(B_phi, 2));
-		COLr.collide(yout(0), yout(1), modB, psi);
+		COLr.collide(y(0), y(1), modB, psi);
+		std:cout << "New:" << endl << "R = " << y(0) << " Z = " << y(1) << endl;
 	}
 	
 	psiold = psi;
@@ -1223,6 +1226,7 @@ for (k=1;k<=nstep;k++)
 		Lmfp_total += Lmfp;
 	}
 } 
+
 return 0;
 }
 
