@@ -14,17 +14,17 @@ class COLLISION
 public:
 	bool occurs(double Lc, const double x);
 	void collide(double& R, double& Z, double modB, double x);
+	void init(LA_STRING filename_te, LA_STRING filename_ne, double f, double zbar, int Zq, int Mass, int mpi_rank=0); // set up collision module
 
 // default constructor
 	COLLISION();
-// constructor
-	COLLISION(LA_STRING filename_te, LA_STRING filename_ne, double f, double zbar); // add inputs for profiles etc.
 
 private:
 // member variables
 	bool use_me;
-	double zeff, stdev, te_const, mfp_const, sq2;
+	double zeff, stdev, te_const, mfp_const, rho_const, sq2;
 	double last_coll;  // connection length at last collision
+	double rho_coeff, mfp_coeff;
 	long seed;
 	
 	// Temperature
@@ -57,56 +57,69 @@ COLLISION::COLLISION()
 	stdev = 0;
 	te_const = 0;
 	mfp_const = 0;
+	rho_const = 0;
 	sq2 = 0;
 	last_coll = 0;
 	seed = 0;
 	NT = 0;
 	ND = 0;	
+	
+	rho_coeff = 0;
+	mfp_coeff = 0;
 }
 
-//----------- actual constructor
-COLLISION::COLLISION(LA_STRING filename_te, LA_STRING filename_ne, double f, double zbar)
+//----------- initializer
+void COLLISION::init(LA_STRING filename_te, LA_STRING filename_ne, double f, double zbar, int Zq, int Mass, int mpi_rank)
 {
 	use_me = true;
 	last_coll = 0;
-	zeff = (f + pow(zbar, 2)) / (f + zbar);  // this is actually the effective charge squared
 	
+	rho_coeff = 1;
+	mfp_coeff = 1;
+	
+	// determine whether particle is electron or ion
+	if (Zq < 0) 
+	{
+		rho_const = 1.07e-4;
+		zeff = 1;
+	} else {
+		rho_const = 4.57e-3 * sqrt(Mass);
+		zeff = (f + pow(zbar, 2)) / (f + zbar);  // this is actually the effective charge squared	
+	}
+		
 	// define constants
 	double m_e = 9.10938e-31;
 	double e_0 = 8.854187817e-12;
 	double e = 1.60217662e-19;
 	
-	seed = (long) time(NULL);
+	//seed = (long) time(NULL);
+	seed = 1625616217;
+	
+	if (mpi_rank == 0) 
+	{
+		std::cout << "Using collision class: Tprofile= " << filename_te << " Nprofile= " << filename_ne << " Zeff=" << sqrt(zeff) << endl;
+		std::cout << "Seed: " << seed << endl;
+		std::cout << "rho_coeff=" << rho_coeff << " mfp_coeff=" << mfp_coeff << endl;
+	}
 	
 	te_const = (1.09e16) / zeff;  // Wesson Tokamaks p729
 	mfp_const = sqrt(1000 * e / m_e);
 	sq2 = sqrt(2);
 	
-	stdev = 10;
-	
-	
 	// read the profiles
-	readProfile(filename_te, NT, Tdata, d2Tprofile);  // rename file array..?
+	readProfile(filename_te, NT, Tdata, d2Tprofile);
 	readProfile(filename_ne, ND, Ndata, d2Nprofile);
-	//readTprofile("profile_te");
-	//readNprofile("profile_ne");
 }
 
 //----------- mean free path
-// for psi=0.99, n=0.084(1e20/m^-3), T=0.165keV, lnA=14.64, tau_e=5.95e-6s, mfp=32.1m
 double COLLISION::meanFreePath(const double x)
 {
 	double Tprof = getProfile(NT, Tdata, d2Tprofile, x);
-	//std::cout << "Tprof: " << Tprof << endl;
 	double Nprof = getProfile(ND, Ndata, d2Nprofile, x);
-	//std::cout << "Nprof: " << Nprof << endl;
 		
-	// constants te_const and oosme calculated in constructor for efficiency
+	// constants te_const and mfp_const calculated in constructor for efficiency
 	double lnA = 15.2 - (0.5)*log(Nprof) + log(Tprof);  // coulomb logarithm
-	//std::cout << "lnA: " << lnA << endl;
-	//std::cout << "te_const: " << te_const << endl;
 	double tau_e = te_const * pow(Tprof, 1.5) / (Nprof * 1e20 * lnA);  //electron collision time
-	//std::cout << "tau_e: " << tau_e << endl;
 	double mfp = mfp_const * sqrt(Tprof) * tau_e;  // mean free path
 	return mfp;
 }
@@ -116,7 +129,7 @@ double COLLISION::meanFreePath(const double x)
 double COLLISION::getRho(double modB, double x) 
 {
 	double temp = getProfile(NT, Tdata, d2Tprofile, x);
-	return (1.07e-4) * sqrt(temp) / modB;
+	return rho_const * sqrt(temp) / modB;
 }
 
 //------------ check for collision
@@ -127,16 +140,24 @@ bool COLLISION::occurs(double Lc, const double x)
 	double l = Lc - last_coll;  // distance since last collision
 	if (l == 0) return false;  // don't collide on first integration step
 	
-	double mfp = meanFreePath(x);
-	//std::cout << "mean free path: " << mfp << endl;
-	
+	double mfp = mfp_coeff * meanFreePath(x);
+	stdev = 0.2 * mfp;
     double rnum = ran0(seed);
-	//std::cout << "rnum: " << rnum << endl;
-	double prob = 0.5 + 0.5 * erf((l - mfp)/((double)stdev * sq2)); // sqrt(2) calculated in constructor for efficiency
-	//std::cout << "prob: " << prob << endl;
+	double prob = 0.5 + 0.5 * erf((l - mfp)/(stdev * sq2)); // sqrt(2) calculated in constructor for efficiency
 	bool occured = (rnum < prob);
 	
-	if (occured) last_coll = Lc;
+	if (occured)
+	{
+		std::cout << "/----------/" << endl;
+		std::cout << "Lc: " << Lc << endl;
+		std::cout << "last_coll: " << last_coll << endl;
+		std::cout << "l: " << l << endl;
+		std::cout << "stdev: " << stdev << endl;
+		std::cout << "mean free path: " << mfp << endl;
+		std::cout << "prob: " << prob << endl;
+	
+		last_coll = Lc;
+	}
 	
 	return occured;
 }
@@ -145,7 +166,8 @@ bool COLLISION::occurs(double Lc, const double x)
 void COLLISION::collide(double& R, double& Z, double modB, double x)
 {
 	double theta = ran0(seed) * 2 * M_PI;
-	double rho = getRho(modB, x);
+	double rho = rho_coeff * getRho(modB, x);
+	std::cout << "Angle: " << theta << " Rho: " << rho << endl;
 	R += rho * cos(theta);
 	Z += rho * sin(theta);
 }
