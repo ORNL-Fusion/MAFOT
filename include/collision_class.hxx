@@ -12,18 +12,21 @@ using namespace blitz;
 class COLLISION 
 {	
 public:
-	bool occurs(double Lc, const double x);
-	void collide(double& R, double& Z, double modB, double x);
-	void init(LA_STRING filename_te, LA_STRING filename_ne, double f, double zbar, int Zq, int Mass, int mpi_rank=0); // set up collision module
-
+	double last_coll;  // connection length at last collision
+	int num_colls;
+	bool occurs(double Lc, const double x, double & meanfreepath, double & probability);
+	void collide(double& R, double& Z, double modB, double x, double Lc);
+	void reset();
+	
+// initializer	
+	void init(LA_STRING filename_te, LA_STRING filename_ne, double f, double zbar, int Zq, int Mass, double rc=1, double mc=1, int mpi_rank=0); // set up collision module
 // default constructor
 	COLLISION();
 
 private:
 // member variables
 	bool use_me;
-	double zeff, stdev, te_const, mfp_const, rho_const, sq2;
-	double last_coll;  // connection length at last collision
+	double zeff, stdev, te_const, mfp_const, rho_const, sq2, rnum;
 	double rho_coeff, mfp_coeff;
 	long seed;
 	
@@ -63,19 +66,21 @@ COLLISION::COLLISION()
 	seed = 0;
 	NT = 0;
 	ND = 0;	
+	rnum = 0;
+	num_colls = 0;
 	
 	rho_coeff = 0;
 	mfp_coeff = 0;
 }
 
 //----------- initializer
-void COLLISION::init(LA_STRING filename_te, LA_STRING filename_ne, double f, double zbar, int Zq, int Mass, int mpi_rank)
+void COLLISION::init(LA_STRING filename_te, LA_STRING filename_ne, double f, double zbar, int Zq, int Mass, double rc, double mc, int mpi_rank)
 {
 	use_me = true;
 	last_coll = 0;
 	
-	rho_coeff = 1;
-	mfp_coeff = 1;
+	rho_coeff = rc;
+	mfp_coeff = 1.0/mc;
 	
 	// determine whether particle is electron or ion
 	if (Zq < 0) 
@@ -92,14 +97,14 @@ void COLLISION::init(LA_STRING filename_te, LA_STRING filename_ne, double f, dou
 	double e_0 = 8.854187817e-12;
 	double e = 1.60217662e-19;
 	
-	//seed = (long) time(NULL);
-	seed = 1625616217;
-	
+	//seed = (long) time(NULL) + mpi_rank; // add mpi_rank to give each process a unique seed
+	seed = 1625981776;
+	rnum = ran0(seed);
 	if (mpi_rank == 0) 
 	{
-		std::cout << "Using collision class: Tprofile= " << filename_te << " Nprofile= " << filename_ne << " Zeff=" << sqrt(zeff) << endl;
-		std::cout << "Seed: " << seed << endl;
-		std::cout << "rho_coeff=" << rho_coeff << " mfp_coeff=" << mfp_coeff << endl;
+		std::cout << "#Using collision class: Tprofile= " << filename_te << " Nprofile= " << filename_ne << " Zeff=" << sqrt(zeff) << endl;
+		std::cout << "#Seed: " << seed << endl;
+		std::cout << "#rho_coeff=" << rho_coeff << " mfp_coeff=" << mfp_coeff << endl;
 	}
 	
 	te_const = (1.09e16) / zeff;  // Wesson Tokamaks p729
@@ -109,6 +114,13 @@ void COLLISION::init(LA_STRING filename_te, LA_STRING filename_ne, double f, dou
 	// read the profiles
 	readProfile(filename_te, NT, Tdata, d2Tprofile);
 	readProfile(filename_ne, ND, Ndata, d2Nprofile);
+	
+	std::cout << "flag last_coll\tmfp\tprob\tR\tZ\tPhi\tPsi\tLc" << endl;
+}
+
+void COLLISION::reset() 
+{
+	last_coll = 0;
 }
 
 //----------- mean free path
@@ -129,52 +141,61 @@ double COLLISION::meanFreePath(const double x)
 double COLLISION::getRho(double modB, double x) 
 {
 	double temp = getProfile(NT, Tdata, d2Tprofile, x);
-	return rho_const * sqrt(temp) / modB;
+	double rho = rho_const * sqrt(temp) / modB;
+	//std::cout << "Psi: " << x << endl;
+	//std::cout << "Temp (kev): " << temp << endl;
+	//std::cout << "Rho: " << rho << endl;
+	return rho;
 }
 
 //------------ check for collision
-bool COLLISION::occurs(double Lc, const double x) 
+bool COLLISION::occurs(double Lc, const double x, double & meanfreepath, double & probability) 
 {
 	if (not use_me) return false;
 	
 	double l = Lc - last_coll;  // distance since last collision
-	if (l == 0) return false;  // don't collide on first integration step
+	if (l == 0) 
+	{
+		std::cout << "# early exit" << endl;
+		return false;  // don't collide on first integration step
+	}
 	
 	double mfp = mfp_coeff * meanFreePath(x);
+	meanfreepath = mfp;
 	stdev = 0.2 * mfp;
-    double rnum = ran0(seed);
 	double prob = 0.5 + 0.5 * erf((l - mfp)/(stdev * sq2)); // sqrt(2) calculated in constructor for efficiency
+	probability = prob;
 	bool occured = (rnum < prob);
 	
 	if (occured)
 	{
-		std::cout << "/----------/" << endl;
-		std::cout << "Lc: " << Lc << endl;
-		std::cout << "last_coll: " << last_coll << endl;
-		std::cout << "l: " << l << endl;
-		std::cout << "stdev: " << stdev << endl;
-		std::cout << "mean free path: " << mfp << endl;
-		std::cout << "prob: " << prob << endl;
-	
-		last_coll = Lc;
+		std::cout << "#/----------/" << endl;
+		std::cout << "#Lc: " << Lc << endl;
+		std::cout << "#last_coll: " << last_coll << endl;
+		std::cout << "#l: " << l << endl;
+		std::cout << "#stdev: " << stdev << endl;
+		std::cout << "#mean free path: " << mfp << endl;
+		std::cout << "#prob: " << prob << endl;
 	}
-	
 	return occured;
 }
 
 //----------- collide
-void COLLISION::collide(double& R, double& Z, double modB, double x)
+void COLLISION::collide(double& R, double& Z, double modB, double x, double Lc)
 {
+	last_coll = Lc;
+	rnum = ran0(seed);	
 	double theta = ran0(seed) * 2 * M_PI;
 	double rho = rho_coeff * getRho(modB, x);
-	std::cout << "Angle: " << theta << " Rho: " << rho << endl;
+	std::cout << "#Angle: " << theta << " Rho: " << rho << endl;
 	R += rho * cos(theta);
 	Z += rho * sin(theta);
+	num_colls++;
 }
 
 //----------- readProfile
 // params:
-// file - the file to read from, N - # columns in file, File - 2D array for file data, 
+// file - the file to read from, N - # columns in file, Data - 2D array for file data, 
 // Psi - 1D array for psi values, Profile - 1D array for profile values, d2Profile - array for spline
 void COLLISION::readProfile(LA_STRING file, int& N, Array<double, 2>& Data, Array<double, 1>& d2Profile)
 {

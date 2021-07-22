@@ -77,7 +77,7 @@ LA_STRING siestafile = "siesta.dat";
 LA_STRING islandfile = "fakeIslands.in";
 LA_STRING ErProfileFile = "None";
 bool use_ErProfile = false;
-LA_STRING TprofileFile = "profile_te";
+LA_STRING TprofileFile = "profile_te1";
 LA_STRING NprofileFile = "profile_ne";
 bool use_Tprofile = false;
 vector<string>  sheath_params;
@@ -88,11 +88,14 @@ double f = 0;  // ratio of impurity to hydrogen ions
 double zbar = 2;  // average over impurity ion charge states
 bool use_sheath = false;
 bool use_collision = true;
+vector<string> coeffs;
+double rc = 1;
+double mc = 1;
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hX:V:S:I:E:T:s:")) != -1)
+while ((c = getopt(argc, argv, "hX:V:S:I:E:T:s:c:")) != -1)
 switch (c)
 {
 case 'h':
@@ -156,6 +159,11 @@ case 's':
 	if(sheath_params.size() > 2) sheath_sec = atof(sheath_params[2].c_str());
 	use_sheath = true;
 	break;
+case 'c':  // input coefficients for larmor radius and mean free path in collision_class.hxx
+	coeffs = split(optarg,',');
+	rc = stod(coeffs[0]);
+	mc = stod(coeffs[1]);
+	break;
 case '?':
 	if(mpi_rank < 1)
 	{
@@ -182,7 +190,7 @@ else	// No Input: Abort
 }
 basename = checkparfilename(basename);
 LA_STRING parfilename = "_" + basename + ".dat";
-if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
+//if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
 
 // Read Parameterfile
 if(mpi_rank < 1) cout << "Read Parameterfile " << parfilename << endl;
@@ -328,7 +336,7 @@ simpleBndy = 1;
 
 // Prepare collisions
 COLLISION COL;
-if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mass, mpi_rank);
+if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mass, rc, mc, mpi_rank);
 // Prepare particles
 PARTICLE FLT(EQD,PAR,COL,mpi_rank);
 
@@ -632,6 +640,7 @@ if(mpi_rank < 1)
 {
 	cout << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 	ofs3 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
+	cout << "Number of collisions: " << COL.num_colls << endl;
 }
 ofs2 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 

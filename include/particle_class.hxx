@@ -374,6 +374,7 @@ int PARTICLE::mapit(const int itt, int MapDirection)
 {
 int chk = 0;
 const double phistart = phi;
+COLr.reset();	// reset collision module for new orbit trace
 
 // Integrate
 for(int i=1;i<=itt;i++)
@@ -1129,22 +1130,28 @@ bool old_n0only;
 double x1 = x;	//Store first value (helps reduce Error in x)
 double Lmfp,lcstep,psiold;
 Array<double,1> yout(nvar),dydx(nvar);
+double mfp;
+double prob;
 
 //Take nstep steps
 for (k=1;k<=nstep;k++) 
 { 
 	//if(k=1) std::cout << "First Lc: " << Lc << endl;
 	// check for collision
-	if (COLr.occurs(Lc, psi)) 
+	if (COLr.occurs(Lc, psi, mfp, prob)) 
 	{
-		std::cout << "collision occured" << endl << "Old:" << endl << "R = " << y(0) << " Z = " << y(1) << endl;
+		//std::cout << "#collision occured" << endl << "#Old:" << endl << "R = " << y(0) << " Z = " << y(1) << " phi: " << x << endl;
+		std::cout << "1\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
 		chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
 		if (chk == -1) return -1;
 		modB = sqrt(pow(B_R, 2) + pow(B_Z, 2) + pow(B_phi, 2));
-		COLr.collide(y(0), y(1), modB, psi);
-		std:cout << "New:" << endl << "R = " << y(0) << " Z = " << y(1) << endl;
+		COLr.collide(y(0), y(1), modB, psi, Lc);
+		std::cout << "-1\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
+		//std::cout << "#New:" << endl << "#R = " << y(0) << " Z = " << y(1) << " phi: " << x << endl;
+	} else 
+	{
+	std::cout << "0\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
 	}
-	
 	psiold = psi;
 	chk = dgls(x,y,dydx);
 	if (chk == -1) return -1;
