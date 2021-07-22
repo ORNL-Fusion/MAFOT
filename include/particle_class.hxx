@@ -1138,6 +1138,7 @@ for (k=1;k<=nstep;k++)
 { 
 	//if(k=1) std::cout << "First Lc: " << Lc << endl;
 	// check for collision
+<<<<<<< HEAD
 	if (COLr.occurs(Lc, psi, mfp, prob)) 
 	{
 		//std::cout << "#collision occured" << endl << "#Old:" << endl << "R = " << y(0) << " Z = " << y(1) << " phi: " << x << endl;
@@ -1152,6 +1153,18 @@ for (k=1;k<=nstep;k++)
 	{
 	std::cout << "0\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
 	}
+=======
+	if (COLr.occurs(Lc, psi)) 
+	{
+		std::cout << "collision occured" << endl << "Old:" << endl << "R = " << y(0) << " Z = " << y(1) << endl;
+		chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
+		if (chk == -1) return -1;
+		modB = sqrt(pow(B_R, 2) + pow(B_Z, 2) + pow(B_phi, 2));
+		COLr.collide(y(0), y(1), modB, psi);
+		std:cout << "New:" << endl << "R = " << y(0) << " Z = " << y(1) << endl;
+	}
+	
+>>>>>>> 7f9abe6e0aa4455a8df5f01b76db834000aeb6db
 	psiold = psi;
 	chk = dgls(x,y,dydx);
 	if (chk == -1) return -1;

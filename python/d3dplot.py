@@ -11,9 +11,9 @@ HOST = socket.gethostname()
 
 def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', machine = 'd3d', 
 			tag = None, graphic = 'png', physical = 1, b = None, N = 60, Title = None,
-			typeOfPlot = 'contourf', xlimit = None, ylimit = None, figwidth = None, figheight = None, 
+			typeOfPlot = 'pcolormesh', xlimit = None, ylimit = None, figwidth = None, figheight = None, 
 			latex = True, cmap = 'jet', toroidal_angle = 0, wall3Dfile = None, use_z_logscale = False,
-			reverse_y = False,manifolds = None):
+			reverse_y = False,manifolds = None, correctPFR = True):
 	"""
 	plot MAFOT results
 	--- user input ------------------
@@ -28,7 +28,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	b           array, user defined color range (e.g. use linspace), None: defaults are used
 	N           int, Number of color levels, used only in default color array
 	Title       string, Figure title
-	typeOfPlot  'contourf', 'imshow'
+	typeOfPlot  'contourf', 'imshow', 'pcolormesh', 'manifold', 'poincare'
 	x-,ylimit   tuple (min,max) for the respective axis limits, None: defaults are used
 	latex		True: create labels with LaTeX, False: use unicode chars (on systems that do not support LaTeX)
 	cmap		string, specifying a matplotlib colormap
@@ -341,12 +341,13 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	if('d3d' in machine): Lcmin = 0.075
 	elif(machine == 'iter'): Lcmin = 0.22
 	
-	if(coordinates == 'RZ') | (coordinates == 'phi'): 
-		if('psi' in what):
-			z[Lc < Lcmin] = 1.01*b.max()
-	elif not ('phi' in coordinates): 
-		if(what == 'Lc'): z[(y >= 1) & (z >= 2)] = 0 #z[(y >= 1) & (z >= 4)] = b.min()
-		elif('psi' in what): z[(z < 0.5) & (y > 0.995)] = b.max()
+	if correctPFR:
+		if(coordinates == 'RZ') | (coordinates == 'phi'): 
+			if('psi' in what):
+				z[Lc < Lcmin] = 1.01*b.max()
+		elif not ('phi' in coordinates): 
+			if(what == 'Lc'): z[(y >= 1) & (z >= 2)] = 0 #z[(y >= 1) & (z >= 4)] = b.min()
+			elif('psi' in what): z[(z < 0.5) & (y > 0.995)] = b.max()
 	
 	# reverse axes for footprint
 	if(coordinates == 'phi') & (physical > 0):
@@ -453,8 +454,9 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		plt.plot(x,y,'ko',markersize = 0.5)
 	elif(typeOfPlot == 'manifold'):
 		plt.plot(x,y,'k-',lw = 1)
+	elif(typeOfPlot == 'imshow'):
+		cs = plt.imshow(z.T, extent = [x.min(), x.max(), y.min(), y.max()], cmap = usecolormap, origin = 'lower', vmin = b.min(), vmax = b.max(), aspect = 'auto', interpolation = 'nearest')
 	else:
-		#cs = plt.imshow(z.T, extent = [x.min(), x.max(), y.min(), y.max()], cmap = usecolormap, origin = 'lower', vmin = b.min(), vmax = b.max(), aspect = 'auto', interpolation = 'bilinear')
 		cs = plt.pcolormesh(x, y, z, cmap = usecolormap, vmin = b.min(), vmax = b.max(), shading = 'gouraud')
 
 	# --- additional plots ------------
@@ -748,7 +750,7 @@ if __name__ == '__main__':
 	N = 60
 	cmap = 'jet'
 	Title = None
-	toP = 'contourf'
+	toP = 'pcolormesh'
 	figwidth = None
 	figheight = None
 	#if(HOST == 'head.cluster'): latex = False	# Drop does not support LaTeX
@@ -762,13 +764,14 @@ if __name__ == '__main__':
 	use_z_logscale = False
 	reverse_y = False
 	manifolds = None
+	cPFR = True
 
-	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:C:T:iW:H:Ub:x:y:L:lRM:", ["help", "coord=", "what=", 
+	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:C:T:ifW:H:Ub:x:y:L:lRM:F", ["help", "coord=", "what=", 
 																 "machine=", "printme", "graphic=", 
-																 "tag=", "physical=", "cmap=", "Title=", "imshow", 	 
+																 "tag=", "physical=", "cmap=", "Title=", "imshow", "contourf"	 
 																 "figwidth=", "figheight=", "unicode",
 																 "range=", "xlim=", "ylim=", "wall=", "log",
-																 "Reverse","Manifold="])
+																 "Reverse", "Manifold=", "pfr"])
 	for o, a in opts:
 		if o in ("-h", "--help"):
 			print "usage: d3dplot.py [-h] [-c COORDINATES] [-w WHAT] [-m MACHINE] [-p]"
@@ -790,9 +793,10 @@ if __name__ == '__main__':
 			print "  -b, --range <Arg>     ColorBar range: Min,Max (no spaces)"
 			print "  -c, --coord <Arg>     Coordinate sytem for plot. <Arg> = "
 			print "                        RZ, psi(default), phi, pest, phitheta, phiZ"
+			print "  -f, --contourf        Use contourf instead of pcolormesh (default)"
 			print "  -g, --graphic <Arg>   Graphic extension. <Arg> = "
 			print "                        png (default), eps, pdf"
-			print "  -i, --imshow          Use imshow instead of contourf (default)"
+			print "  -i, --imshow          Use imshow instead of pcolormesh (default)"
 			print "  -l, --log             Plot colorbar in log10 scale"
 			print "  -m, --machine <Arg>   Machine. <Arg> = d3d (default), iter"
 			print "  -p, --printme         Save to File"
@@ -803,6 +807,7 @@ if __name__ == '__main__':
 			print "  -x, --xlim <Arg>      X-Axis range: Min,Max (no spaces)"
 			print "  -y, --ylim <Arg>      Y-Axis range: Min,Max (no spaces)"
 			print "  -C, --cmap <Arg>      colormap, default = jet"
+			print "  -F, --pfr             Do not correct for the private flux region (default is yes)"
 			print "  -H, --figheight <Arg> Force height of figure from default to <Arg>"
 			print "  -L, --wall <Arg>      Wall info (can be 3D): filename,angle (no spaces)"
 			print "  -M, --Manifold <Arg>  List of files to plot: name1,name2,... (no spaces)"
@@ -839,6 +844,8 @@ if __name__ == '__main__':
 			cmap = a
 		elif o in ("-T", "--Title"):
 			Title = a
+		elif o in ("-f", "--contourf"):
+			toP = 'contourf'
 		elif o in ("-i", "--imshow"):
 			toP = 'imshow'
 		elif o in ("-W", "--figwidth"):
@@ -866,6 +873,8 @@ if __name__ == '__main__':
 			reverse_y = True
 		elif o in ("-M", "--Manifold"):
 			manifolds = a.split(',')
+		elif o in ("-F", "--pfr"):
+			cPFR = False
 		else:
 			raise AssertionError("unknown option")
 			
@@ -875,7 +884,7 @@ if __name__ == '__main__':
 			tag = tag, graphic = graphic, physical = physical, b = b, N = N, Title = Title,
 			typeOfPlot = toP, xlimit = xlim, ylimit = ylim, figwidth = figwidth, figheight = figheight,
 			latex = latex, cmap = cmap, toroidal_angle = angle, wall3Dfile = wall3Dfile, use_z_logscale = use_z_logscale,
-			reverse_y = reverse_y, manifolds = manifolds)
+			reverse_y = reverse_y, manifolds = manifolds, correctPFR = cPFR)
 
 	plt.show()
 
