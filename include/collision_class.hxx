@@ -13,10 +13,9 @@ class COLLISION
 {	
 public:
 	double last_coll;  // connection length at last collision
-	int num_colls;
-	bool occurs(double Lc, const double x, double & meanfreepath, double & probability);
-	void collide(double& R, double& Z, double modB, double x, double Lc);
-	void reset();
+	bool occurs(double Lc, const double x, double & meanfreepath, double & probability);  // determines probability of collision occurring, checks to see if it does
+	void collide(double& R, double& Z, double modB, double x, double Lc);  // displaces particle to model collision
+	void reset();  // gets module ready for next package
 	
 // initializer	
 	void init(LA_STRING filename_te, LA_STRING filename_ne, double f, double zbar, int Zq, int Mass, double rc=1, double mc=1, int mpi_rank=0); // set up collision module
@@ -32,7 +31,6 @@ private:
 	
 	// Temperature
 	int NT;  // number of rows in T profile
-	
 	Array<double, 2> Tdata;  // 2 dimensional array of temperature profile data
 	Array<double, 1> d2Tprofile;  // T profile spline
 	
@@ -40,8 +38,6 @@ private:
 	int ND;  // number of rows in N profile
 	Array<double, 2> Ndata;  // 2 dimensional array of temperature profile data
 	Array<double, 1> d2Nprofile;  // N profile spline
-	
-	
 	
 // member functions
 	double meanFreePath(const double x);  // calculates and returns mean free path
@@ -67,7 +63,6 @@ COLLISION::COLLISION()
 	NT = 0;
 	ND = 0;	
 	rnum = 0;
-	num_colls = 0;
 	
 	rho_coeff = 0;
 	mfp_coeff = 0;
@@ -80,7 +75,7 @@ void COLLISION::init(LA_STRING filename_te, LA_STRING filename_ne, double f, dou
 	last_coll = 0;
 	
 	rho_coeff = rc;
-	mfp_coeff = 1.0/mc;
+	mfp_coeff = mc;
 	
 	// determine whether particle is electron or ion
 	if (Zq < 0) 
@@ -97,9 +92,10 @@ void COLLISION::init(LA_STRING filename_te, LA_STRING filename_ne, double f, dou
 	double e_0 = 8.854187817e-12;
 	double e = 1.60217662e-19;
 	
-	//seed = (long) time(NULL) + mpi_rank; // add mpi_rank to give each process a unique seed
-	seed = 1625981776;
-	rnum = ran0(seed);
+	seed = (long) time(NULL) + mpi_rank; // add mpi_rank to give each process a unique seed
+	//seed = 1625981776;
+	rnum = ran0(seed);  // get first random number
+	
 	if (mpi_rank == 0) 
 	{
 		std::cout << "#Using collision class: Tprofile= " << filename_te << " Nprofile= " << filename_ne << " Zeff=" << sqrt(zeff) << endl;
@@ -108,16 +104,17 @@ void COLLISION::init(LA_STRING filename_te, LA_STRING filename_ne, double f, dou
 	}
 	
 	te_const = (1.09e16) / zeff;  // Wesson Tokamaks p729
-	mfp_const = sqrt(1000 * e / m_e);
+	mfp_const = sqrt(1000 * e / m_e);  // Wesson Tokamaks ch14
 	sq2 = sqrt(2);
 	
 	// read the profiles
 	readProfile(filename_te, NT, Tdata, d2Tprofile);
 	readProfile(filename_ne, ND, Ndata, d2Nprofile);
 	
-	std::cout << "flag last_coll\tmfp\tprob\tR\tZ\tPhi\tPsi\tLc" << endl;
+	//std::cout << "flag last_coll\tmfp\tprob\tR\tZ\tPhi\tPsi\tLc" << endl;
 }
 
+//----------- reset
 void COLLISION::reset() 
 {
 	last_coll = 0;
@@ -149,6 +146,8 @@ double COLLISION::getRho(double modB, double x)
 }
 
 //------------ check for collision
+// params: Lc - connection length, x - flux of particle, meanfreepath - mfp reference, 
+// probability - prob reference
 bool COLLISION::occurs(double Lc, const double x, double & meanfreepath, double & probability) 
 {
 	if (not use_me) return false;
@@ -156,10 +155,11 @@ bool COLLISION::occurs(double Lc, const double x, double & meanfreepath, double 
 	double l = Lc - last_coll;  // distance since last collision
 	if (l == 0) 
 	{
-		std::cout << "# early exit" << endl;
+		//std::cout << "# early exit" << endl;
 		return false;  // don't collide on first integration step
 	}
 	
+	// calculate mean free path, collision probability
 	double mfp = mfp_coeff * meanFreePath(x);
 	meanfreepath = mfp;
 	stdev = 0.2 * mfp;
@@ -167,7 +167,7 @@ bool COLLISION::occurs(double Lc, const double x, double & meanfreepath, double 
 	probability = prob;
 	bool occured = (rnum < prob);
 	
-	if (occured)
+	/*if (occured)
 	{
 		std::cout << "#/----------/" << endl;
 		std::cout << "#Lc: " << Lc << endl;
@@ -176,21 +176,24 @@ bool COLLISION::occurs(double Lc, const double x, double & meanfreepath, double 
 		std::cout << "#stdev: " << stdev << endl;
 		std::cout << "#mean free path: " << mfp << endl;
 		std::cout << "#prob: " << prob << endl;
-	}
+	}*/
 	return occured;
 }
 
 //----------- collide
+// params: R - particle R value, Z - particle Z value, modB - magnitude of B field at location of particle, 
+// x - particle flux, Lc - connection length
 void COLLISION::collide(double& R, double& Z, double modB, double x, double Lc)
 {
 	last_coll = Lc;
 	rnum = ran0(seed);	
-	double theta = ran0(seed) * 2 * M_PI;
+	double theta = ran0(seed) * 2 * M_PI;  // get random angle
 	double rho = rho_coeff * getRho(modB, x);
-	std::cout << "#Angle: " << theta << " Rho: " << rho << endl;
+	//std::cout << "#Angle: " << theta << " Rho: " << rho << endl;
+	
+	// move particle by one Larmor radius at a random angle
 	R += rho * cos(theta);
 	Z += rho * sin(theta);
-	num_colls++;
 }
 
 //----------- readProfile
@@ -224,7 +227,8 @@ double COLLISION::getProfile(int N, Array <double, 2>& Data, Array<double, 1>& d
 	Array<double, 1> Psi, Profile;
 	Psi.reference(Data(Range::all(), 1));
 	Profile.reference(Data(Range::all(), 2));
-		
+	
+	// evaluate splines
 	if (x > Psi(N)) return Profile(N);
 	double y, dy;
 	splint(Psi, Profile, d2Profile, N, x, y, dy);

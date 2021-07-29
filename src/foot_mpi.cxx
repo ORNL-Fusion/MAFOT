@@ -87,7 +87,7 @@ double sheath_sec = 0.5;
 double f = 0;  // ratio of impurity to hydrogen ions
 double zbar = 2;  // average over impurity ion charge states
 bool use_sheath = false;
-bool use_collision = true;
+bool use_collision = false;
 vector<string> coeffs;
 double rc = 1;
 double mc = 1;
@@ -110,6 +110,7 @@ case 'h':
 		cout << "  -h            show this help message and exit" << endl;
 		cout << "  -s            use sheath with particle drifts. Provide parameters: width in m, Te in eV, secondary emission." << endl;
 		cout << "  -E            use electric field with particle drifts. Filename of Er(psi) profile." << endl;
+		cout << "  -c			 use collision module. Provide parameters: scaling factor of Larmor radius, scaling factor of mean free path; default, 1,1" << endl;
 		cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
 		cout << "  -S            filename for SIESTA; default, see below" << endl;
 		cout << "  -T            use temperature profile with particle drifts. Filename of T(psi) profile." << endl;
@@ -159,7 +160,8 @@ case 's':
 	if(sheath_params.size() > 2) sheath_sec = atof(sheath_params[2].c_str());
 	use_sheath = true;
 	break;
-case 'c':  // input coefficients for larmor radius and mean free path in collision_class.hxx
+case 'c':
+	use_collision = true;
 	coeffs = split(optarg,',');
 	rc = stod(coeffs[0]);
 	mc = stod(coeffs[1]);
@@ -640,7 +642,6 @@ if(mpi_rank < 1)
 {
 	cout << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 	ofs3 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
-	cout << "Number of collisions: " << COL.num_colls << endl;
 }
 ofs2 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 
