@@ -46,11 +46,21 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 5.0
+MAFOT 5.2
 GUI 2.2
 
 Version Notes: 
 ----------------
+MAFOT 5.2 -- Aug 2021
+- TCABR tokamak support added, also to d3dplot.py
+
+MAFOT 5.11 -- Nov 2019
+- sheath model added
+
+MAFOT 5.1 -- July 2019
+- new tools trace and lcfs added
+- bug fixes
+
 MAFOT 5.0 -- Jan 2019
 - Zeff added to all input files. This required some minor restructuring, which makes old ITER and NSTX input files incompatible.
   For D3D, only the position of useFilaments shifted by one. MAST and C-Mod are unchanged

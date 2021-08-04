@@ -191,11 +191,13 @@ if(PAR.useCcoil == 1 || PAR.useIcoil == 1 || (PAR.response_field > 0 && chk == -
 		if (words.size() == 0) continue;	// line just has blanks
 
 		if (words[0].find("ECcur") != std::string::npos) {ECband += 1; ECrow = 0;}
-		if (ECband == 3)
+		if ((ECband == 3) && (ECrow == 0))
 		{
+			cout << "Setting all CP-coil currents to zero" << endl;
 			for(i=0;i<mxECbands;i++) {for(j=0;j<mxECloops;j++) eccurrents_.ECcur[i][j] = 0;}
+			ECrow = -1;
 		}
-		if (ECband >3) {cout << "Error in reading CP-coil currents in tcabr.in file " << endl; break;}
+		if (ECband >3) {cout << "Error in reading CP-coil currents in tcabr.in file" << endl; break;}
 		if (ECrow == 2)
 		{
 			for(j=12;j<18;j++) eccurrents_.ECcur[ECband][j] = atof(words[j-12].c_str());
@@ -217,11 +219,13 @@ if(PAR.useCcoil == 1 || PAR.useIcoil == 1 || (PAR.response_field > 0 && chk == -
 		}
 
 		if (words[0].find("Icur") != std::string::npos) {Iband += 1; Irow = 0;}
-		if (Iband == 3)
+		if ((Iband == 3) && (Irow == 0))
 		{
+			cout << "Setting all I-coil currents to zero" << endl;
 			for(i=0;i<mxIbands;i++) {for(j=0;j<mxIloops;j++) icurrents_.Icur[i][j] = 0;}
+			Irow = -1;
 		}
-		if (Iband >3) {cout << "Error in reading I-coil currents in tcabr.in file " << endl; break;}
+		if (Iband >3) {cout << "Error in reading I-coil currents in tcabr.in file" << endl; break;}
 		if (Irow == 2)
 		{
 			for(j=12;j<18;j++) icurrents_.Icur[Iband][j] = atof(words[j-12].c_str());

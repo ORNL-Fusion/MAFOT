@@ -207,6 +207,16 @@ c      write(81,*) nbands,' TCABR I-coil bands'
  
       nloops = Iloops			! f90 array assign
       curnt  = Icur
+
+c      WRITE(0,*) 'Icur:'
+c      do L=1,nbands
+c       WRITE(0,'(8f10.0 )') (Icur(k,L),k=1,nloops(L))
+c      end do
+c      WRITE(0,*) ''
+c      write(0,*) 'Iadj:'
+c      do L=1,nbands
+c       write(0,'(8f10.3 )') (Iadj(k,L),k=1,3)
+c      end do
   
 c adjust currents by scale factors from Iajd(3)
       DO  L=1,nbands  	! do all bands of I-coils

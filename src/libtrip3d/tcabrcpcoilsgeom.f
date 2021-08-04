@@ -214,14 +214,14 @@ c      do L=1,nbands
 c       write(81,'(8f10.3 )') (ECgeom(k,L),k=1,7)
 c      end do
 C      WRITE(81,*) ''
-C      WRITE(81,*) 'ECcur:'
-C      do L=1,nbands
-C       WRITE(81,'(8f10.0 )') (ECcur(k,L),k=1,nloops(L))
-C      end do
-C      WRITE(81,*) ''
-c      write(81,*) 'ECadj:'
+c      WRITE(0,*) 'ECcur:'
 c      do L=1,nbands
-c       write(81,'(8f10.3 )') (ECadj(k,L),k=1,3)
+c       WRITE(0,'(8f10.0 )') (ECcur(k,L),k=1,nloops(L))
+c      end do
+c      WRITE(0,*) ''
+c      write(0,*) 'ECadj:'
+c      do L=1,nbands
+c       write(0,'(8f10.3 )') (ECadj(k,L),k=1,3)
 c      end do
  
 c adjust currents by scale factors from ECajd(3)
