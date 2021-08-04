@@ -6,7 +6,7 @@ include ./make.inc
 
 # ---- set directories ----
 OBJDIR := $(MAFOT_DIR)/release
-DIRS = $(OBJDIR)/d3d $(OBJDIR)/iter $(OBJDIR)/nstx $(OBJDIR)/mast $(OBJDIR)/cmod $(LIB_DIR) $(BIN_DIR)
+DIRS = $(OBJDIR)/d3d $(OBJDIR)/iter $(OBJDIR)/nstx $(OBJDIR)/mast $(OBJDIR)/cmod $(OBJDIR)/tcabr $(LIB_DIR) $(BIN_DIR)
 
 
 # ---- M3DC1 setup ----
@@ -59,11 +59,13 @@ MPIOBJS_ITER = $(addprefix $(OBJDIR)/iter/, $(MPIOBJS))
 MPIOBJS_NSTX = $(addprefix $(OBJDIR)/nstx/, $(MPIOBJS))
 MPIOBJS_MAST = $(addprefix $(OBJDIR)/mast/, $(MPIOBJS))
 MPIOBJS_CMOD = $(addprefix $(OBJDIR)/cmod/, $(MPIOBJS))
+MPIOBJS_TCABR = $(addprefix $(OBJDIR)/tcabr/, $(MPIOBJS))
 MPIDEPS_D3D = $(MPIOBJS_D3D:.o=.d)
 MPIDEPS_ITER = $(MPIOBJS_ITER:.o=.d)
 MPIDEPS_NSTX = $(MPIOBJS_NSTX:.o=.d)
 MPIDEPS_MAST = $(MPIOBJS_MAST:.o=.d)
 MPIDEPS_CMOD = $(MPIOBJS_CMOD:.o=.d)
+MPIDEPS_TCABR = $(MPIOBJS_TCABR:.o=.d)
 
 SERSRCS = fix.cxx man.cxx plot.cxx structure.cxx lcfs.cxx
 SEROBJS = $(SERSRCS:.cxx=.o)
@@ -72,20 +74,23 @@ SEROBJS_ITER = $(addprefix $(OBJDIR)/iter/, $(SEROBJS))
 SEROBJS_NSTX = $(addprefix $(OBJDIR)/nstx/, $(SEROBJS))
 SEROBJS_MAST = $(addprefix $(OBJDIR)/mast/, $(SEROBJS))
 SEROBJS_CMOD = $(addprefix $(OBJDIR)/cmod/, $(SEROBJS))
+SEROBJS_TCABR = $(addprefix $(OBJDIR)/tcabr/, $(SEROBJS))
 SERDEPS_D3D = $(SEROBJS_D3D:.o=.d)
 SERDEPS_ITER = $(SEROBJS_ITER:.o=.d)
 SERDEPS_NSTX = $(SEROBJS_NSTX:.o=.d)
 SERDEPS_MAST = $(SEROBJS_MAST:.o=.d)
 SERDEPS_CMOD = $(SEROBJS_CMOD:.o=.d)
+SERDEPS_TCABR = $(SEROBJS_TCABR:.o=.d)
 
 FSRCS = biotloop.f circleb.f d3icoils.f nstxecgeom.f polygonb.f d3busgeom.f\
-        d3ccoils.f d3pferr.f ellipints.f itericoilsgeom.f masteccoilsgeom.f masticoilsgeom.f
+        d3ccoils.f d3pferr.f ellipints.f itericoilsgeom.f masteccoilsgeom.f masticoilsgeom.f\
+        tcabrcpcoilsgeom.f tcabricoilsgeom.f
 FOBJS = $(FSRCS:.f=.o)
 FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 
 
 # ---- Common Targets ----
-all : $(DIRS) d3d iter nstx mast cmod gui xpand d3dplot
+all : $(DIRS) d3d iter nstx mast cmod tcabr gui xpand d3dplot
 
 .PHONY : d3d
 d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi dtstructure dtlcfs dttrace
@@ -102,23 +107,26 @@ mast : $(DIRS) mastplot mastfix mastman mastlaminar_mpi mastfoot_mpi mastplot_mp
 .PHONY : cmod 
 cmod : $(DIRS) cmodplot cmodfix cmodman cmodlaminar_mpi cmodfoot_mpi cmodplot_mpi cmodstructure
 
+.PHONY : tcabr 
+tcabr : $(DIRS) tcabrplot tcabrfix tcabrman tcabrlaminar_mpi tcabrfoot_mpi tcabrplot_mpi tcabrstructure
+
 .PHONY : plot
-plot : $(DIRS) dtplot_mpi iterplot_mpi nstxplot_mpi mastplot_mpi cmodplot_mpi
+plot : $(DIRS) dtplot_mpi iterplot_mpi nstxplot_mpi mastplot_mpi cmodplot_mpi tcabrplot_mpi
 
 .PHONY : fix
-fix : $(DIRS) dtfix iterfix nstxfix mastfix cmodfix
+fix : $(DIRS) dtfix iterfix nstxfix mastfix cmodfix tcabrfix
 
 .PHONY : man
-man : $(DIRS) dtman iterman nstxman mastman cmodman
+man : $(DIRS) dtman iterman nstxman mastman cmodman tcabrman
 
 .PHONY : laminar
-laminar : $(DIRS) dtlaminar_mpi iterlaminar_mpi nstxlaminar_mpi mastlaminar_mpi cmodlaminar_mpi
+laminar : $(DIRS) dtlaminar_mpi iterlaminar_mpi nstxlaminar_mpi mastlaminar_mpi cmodlaminar_mpi tcabrlaminar_mpi
 
 .PHONY : foot
-foot : $(DIRS) dtfoot_mpi iterfoot_mpi nstxfoot_mpi mastfoot_mpi cmodfoot_mpi
+foot : $(DIRS) dtfoot_mpi iterfoot_mpi nstxfoot_mpi mastfoot_mpi cmodfoot_mpi tcabrfoot_mpi
 
 .PHONY : structure
-structure : $(DIRS) dtstructure iterstructure nstxstructure maststructure cmodstructure
+structure : $(DIRS) dtstructure iterstructure nstxstructure maststructure cmodstructure tcabrstructure
 
 .PHONY : gui
 gui : $(MAFOT_DIR)/python/mafot_gui.py
@@ -289,6 +297,29 @@ cmodstructure : $(OBJDIR)/cmod/structure.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/cmod/structure.o -o $(BIN_DIR)/$@ $(LIBS)
 
 
+# ---- TCABR Targets ----
+tcabrplot : $(OBJDIR)/tcabr/plot.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/tcabr/plot.o -o $(BIN_DIR)/$@ $(LIBS)
+
+tcabrfix : $(OBJDIR)/tcabr/fix.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/tcabr/fix.o -o $(BIN_DIR)/$@ $(LIBS)
+
+tcabrman : $(OBJDIR)/tcabr/man.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/tcabr/man.o -o $(BIN_DIR)/$@ $(LIBS)
+
+tcabrlaminar_mpi : $(OBJDIR)/tcabr/laminar_mpi.o libla_string.a libtrip3d.a
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/tcabr/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
+tcabrfoot_mpi : $(OBJDIR)/tcabr/foot_mpi.o libla_string.a libtrip3d.a
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/tcabr/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
+tcabrplot_mpi : $(OBJDIR)/tcabr/plot_mpi.o libla_string.a libtrip3d.a
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/tcabr/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
+tcabrstructure : $(OBJDIR)/tcabr/structure.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/tcabr/structure.o -o $(BIN_DIR)/$@ $(LIBS)
+
+
 # ---- Include Dependencies ----
 -include $(DEPS)
 -include $(SERDEPS_D3D)
@@ -296,11 +327,13 @@ cmodstructure : $(OBJDIR)/cmod/structure.o libla_string.a libtrip3d.a
 -include $(SERDEPS_NSTX)
 -include $(SERDEPS_MAST)
 -include $(SERDEPS_CMOD)
+-include $(SERDEPS_TCABR)
 -include $(MPIDEPS_D3D)
 -include $(MPIDEPS_ITER)
 -include $(MPIDEPS_NSTX)
 -include $(MPIDEPS_MAST)
 -include $(MPIDEPS_CMOD)
+-include $(MPIDEPS_TCABR)
 
 
 # ---- Compile ----
@@ -324,6 +357,9 @@ $(MPIOBJS_NSTX) : $(OBJDIR)/nstx/%.o : $(MAFOT_DIR)/src/%.cxx
 	
 $(MPIOBJS_CMOD) : $(OBJDIR)/cmod/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DCMOD $< -o $@
+	
+$(MPIOBJS_TCABR) : $(OBJDIR)/tcabr/%.o : $(MAFOT_DIR)/src/%.cxx
+	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DTCABR $< -o $@
 
 $(SEROBJS_D3D) : $(OBJDIR)/d3d/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) -DD3D $< -o $@
@@ -339,4 +375,7 @@ $(SEROBJS_NSTX) : $(OBJDIR)/nstx/%.o : $(MAFOT_DIR)/src/%.cxx
 
 $(SEROBJS_CMOD) : $(OBJDIR)/cmod/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) -DCMOD $< -o $@
+	
+$(SEROBJS_TCABR) : $(OBJDIR)/tcabr/%.o : $(MAFOT_DIR)/src/%.cxx
+	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) -DCTCABR $< -o $@
 

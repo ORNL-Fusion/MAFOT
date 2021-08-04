@@ -22,6 +22,10 @@
 	#define program_name "nstxfoot_mpi"
 #elif defined(MAST)
 	#define program_name "mastfoot_mpi"
+#elif defined(CMOD)
+	#define program_name "cmodfoot_mpi"
+#elif defined(TCBR)
+	#define program_name "tcabrfoot_mpi"
 #else
 	#define program_name "dtfoot_mpi"
 #endif

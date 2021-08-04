@@ -22,6 +22,8 @@
 	#define program_name "mastplot_mpi"
 #elif defined(CMOD)
 	#define program_name "cmodplot_mpi"
+#elif defined(TCABR)
+	#define program_name "tcabrplot_mpi"
 #else
 	#define program_name "dtplot_mpi"
 #endif
@@ -171,7 +173,7 @@ else	// No Input: Abort
 }
 basename = checkparfilename(basename);
 LA_STRING parfilename = "_" + basename + ".dat";
-if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
+//if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
 
 // log file
 ofs2.open("log_" + LA_STRING(program_name) + praefix + "_Node" + LA_STRING(mpi_rank) + ".dat");

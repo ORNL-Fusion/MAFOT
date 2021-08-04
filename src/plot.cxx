@@ -14,6 +14,10 @@
 	#define program_name "nstxplot"
 #elif defined(MAST)
 	#define program_name "mastplot"
+#elif defined(CMOD)
+	#define program_name "cmodplot"
+#elif defined(TCABR)
+	#define program_name "tcabrplot"
 #else
 	#define program_name "dtplot"
 #endif

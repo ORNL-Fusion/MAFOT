@@ -16,6 +16,10 @@
 	#define program_name "nstxstructure"
 #elif defined(MAST)
 	#define program_name "maststructure"
+#elif defined(CMOD)
+	#define program_name "cmodstructure"
+#elif defined(TCABR)
+	#define program_name "tcabrstructure"
 #else
 	#define program_name "dtstructure"
 #endif

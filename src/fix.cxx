@@ -17,6 +17,10 @@
 	#define program_name "nstxfix"
 #elif defined(MAST)
 	#define program_name "mastfix"
+#elif defined(CMOD)
+	#define program_name "cmodfix"
+#elif defined(TCABR)
+	#define program_name "tcabrfix"
 #else
 	#define program_name "dtfix"
 #endif

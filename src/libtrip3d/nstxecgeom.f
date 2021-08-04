@@ -167,7 +167,7 @@ c      ECadj   = dp0
       ECgeom(1:7,1)=(/1.7608,-0.4826,1.7608,+0.4826,-030.,057.,060./)
 
  ! ECadj(1:3,L) = addangle, arcmax (deg), scalec (dimless)
-      ECadj(2,1) = arcmax
+c      ECadj(2,1) = arcmax
  
 c-----------------------------------------------------------------------
 c Open namelist input file 'nstx.in' and read input data

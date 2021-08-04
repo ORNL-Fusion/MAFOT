@@ -148,8 +148,8 @@ c-----------------------------------------------------------------------
  
       Iloops = 0		! using fortran90 array assignment
       Igeom  = dp0
-      Icur   = dp0
-      Iadj   = dp0
+c      Icur   = dp0
+c      Iadj   = dp0
  
   ! Initialize output arguments
       kuse   = 0
@@ -178,8 +178,8 @@ c-----------------------------------------------------------------------
 
  ! Iadj(1:4,L) = addangle, arcmax, arcHmax = max. helical arc, (deg) 
  !               current scale factor (dimless)   for row L
-      Iadj(2,1) = arcmax
-      Iadj(2,2) = arcmax
+c      Iadj(2,1) = arcmax
+c      Iadj(2,2) = arcmax
 
 c-----------------------------------------------------------------------
 c Open namelist input file 'mast.in' and read input data

@@ -17,6 +17,10 @@
 	#define program_name "nstxman"
 #elif defined(MAST)
 	#define program_name "mastman"
+#elif defined(CMOD)
+	#define program_name "cmodman"
+#elif defined(TCABR)
+	#define program_name "tcabrman"
 #else
 	#define program_name "dtman"
 #endif

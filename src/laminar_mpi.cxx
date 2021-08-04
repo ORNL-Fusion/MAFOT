@@ -22,6 +22,10 @@
 	#define program_name "nstxlaminar_mpi"
 #elif defined(MAST)
 	#define program_name "mastlaminar_mpi"
+#elif defined(CMOD)
+	#define program_name "cmodlaminar_mpi"
+#elif defined(TCABR)
+	#define program_name "tcabrlaminar_mpi"
 #else
 	#define program_name "dtlaminar_mpi"
 #endif

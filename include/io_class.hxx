@@ -406,6 +406,17 @@ useErProfile = 0;
 	useIcoil = 0;
 	useBuswork = 0;
 	useBcoil = 0;
+#elif defined(TCABR)
+	// Set switches
+	useCcoil = int(vec[13]);
+	useIcoil = int(vec[14]);
+	//useFilament = int(vec[15]);
+
+	// Set unused Parameters to defaults
+	useFcoil = 0;
+	useBuswork = 0;
+	useBcoil = 0;
+	useFilament = 0;
 #else
 	// Set switches
 	useFcoil = int(vec[13]);
@@ -460,6 +471,9 @@ out << "### Switches:" << endl;
 	out << "# ECC-coil active (0=no, 1=yes): " << useCcoil << endl;
 	out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
 #elif defined(CMOD)
+#elif defined(TCABR)
+	out << "# CP-coil active (0=no, 1=yes): " << useCcoil << endl;
+	out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
 #else
 	out << "# F-coil active (0=no, 1=yes): " << useFcoil << endl;
 	out << "# C-coil active (0=no, 1=yes): " << useCcoil << endl;
@@ -478,6 +492,8 @@ out << "# Use radial Electric Field Profile (0=off, 1=on): " << useErProfile << 
 	out << "# Target (0=fullWall, 1=inner, 2=outer): " << which_target_plate << endl;
 #elif defined(CMOD)
 	out << "# Target (0=fullWall): " << which_target_plate << endl;
+#elif defined(TCABR)
+	out << "# Target (0=fullWall, 1=inner, 2=outer): " << which_target_plate << endl;
 #else
 	out << "# Target (0=fullWall, 1=inner, 2=outer, 3=shelf, 4=SAS): " << which_target_plate << endl;
 #endif
