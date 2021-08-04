@@ -77,8 +77,8 @@ LA_STRING siestafile = "siesta.dat";
 LA_STRING islandfile = "fakeIslands.in";
 LA_STRING ErProfileFile = "None";
 bool use_ErProfile = false;
-LA_STRING TprofileFile = "profile_te1";
-LA_STRING NprofileFile = "profile_ne";
+LA_STRING TprofileFile = "prof_t.dat";
+LA_STRING NprofileFile = "prof_n.dat";
 bool use_Tprofile = false;
 vector<string>  sheath_params;
 double sheath_width = 0.01;		// in m

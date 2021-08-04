@@ -1130,6 +1130,7 @@ bool old_n0only;
 double x1 = x;	//Store first value (helps reduce Error in x)
 double Lmfp,lcstep,psiold;
 Array<double,1> yout(nvar),dydx(nvar);
+// values for debugging
 double mfp;
 double prob;
 

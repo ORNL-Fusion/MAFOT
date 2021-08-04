@@ -47,7 +47,7 @@ private:
 	
 }; //end of class
 
-// default constructor...
+// default constructor
 COLLISION::COLLISION() 
 {
 	// initialize everything to zero
@@ -108,8 +108,8 @@ void COLLISION::init(LA_STRING filename_te, LA_STRING filename_ne, double f, dou
 	sq2 = sqrt(2);
 	
 	// read the profiles
-	readProfile(filename_te, NT, Tdata, d2Tprofile);
 	readProfile(filename_ne, ND, Ndata, d2Nprofile);
+	readProfile(filename_te, NT, Tdata, d2Tprofile);
 	
 	//std::cout << "flag last_coll\tmfp\tprob\tR\tZ\tPhi\tPsi\tLc" << endl;
 }
@@ -204,14 +204,13 @@ void COLLISION::readProfile(LA_STRING file, int& N, Array<double, 2>& Data, Arra
 {
 	double d1, dn, dpsi;
 	Array <double, 1> Psi, Profile;
-	
 	readfile(file, 2, Data);
 	N = Data.rows();
 	Psi.reference(Data(Range::all(), 1));
 	Profile.reference(Data(Range::all(), 2));
 	
 	// prepare splines
-	d2Profile.resize(N);
+	d2Profile.resize(Range(1, N));
 	dpsi = Psi(2) - Psi(1);
 	d1 = (Profile(2) - Profile(1)) / dpsi;
 	dn = (Profile(N) - Profile(N - 1)) / dpsi;
