@@ -1,0 +1,228 @@
+
+ &input
+! 	Input file to specify TCABR parameters.                       2015
+!
+!========================  MAIN  MODEL SWITCHES  =======================
+! .f or .f. to skip, .t or .t. to use
+!
+  useTCABRIcoil   = .t	! for TCABR Internal I-coils
+  useTCABRCPcoil  = .t	! for TCABR Centerpost CP-coils
+!  
+  useTCABRPcoil   = .f	! for TCABR Perturbation (P) coils
+  useTCABRPGcoil  = .f	! for TCABR General Perturbation (PG) coils
+!
+!=======================================================================
+!
+!
+!
+!==============  Parameters for TCABR 18-loop CP-Coil model  ==============
+! 1 row of 4 coils
+! Rows L=1 (mid)
+! Tor Angle 000     090     180     270 deg (coil centers)
+! Ordered N= 01      02      03      04     (4 coils)
+! ECcur(1:N,L) = currents in L=1,2,3 CP row to N coils (single turn, Amp)
+! ECadj(1:3,L) = addangle (deg), arcmax (deg), current scale factor (no dim)
+! Positive coil current makes positive B_normal at tokamak outer boundary.
+!
+! Each CP coil has 10 turns. ECcur will multiplied by 16 in the code.
+!=======================================================================
+!
+! 18x3 EC coils in EAST:
+ ECcur(1:,1) = +1000  +1000  -1000  -1000  +1000  +1000
+               -1000  -1000  +1000  +1000  -1000  -1000  
+  	       +1000  +1000  -1000  -1000  +1000  +1000
+ ECadj(1:,1) = +000.   15.0  0.1
+
+ ECcur(1:,2) = +1000  +1000  -1000  -1000  +1000  +1000
+               -1000  -1000  +1000  +1000  -1000  -1000  
+  	       +1000  +1000  -1000  -1000  +1000  +1000
+ ECadj(1:,2) = +000.   15.0  0.1
+ 
+ ECcur(1:,3) = +1000  +1000  -1000  -1000  +1000  +1000
+               -1000  -1000  +1000  +1000  -1000  -1000  
+  	       +1000  +1000  -1000  -1000  +1000  +1000
+
+ ECadj(1:,3) = +000.   15.0  0.1
+
+! ECcur(:,:) = 54*0.			! zero all 4 coil currents
+!=======================================================================
+!
+!
+!
+!============  Parameters for 3x18 TCABR Internal ELM Coils  ==========
+! 3 rows of 18 coils
+! Rows L=1 (upper), L=2 (middle), L=3 (lower)
+! Currently, the first octant is centered at phi=0:
+! First Upper row coil is centered at phi=0
+! Second Lower row coil is centered at phi=0
+! Icur(1:N,L) = currents in L=1,2 I rows to N coils (single turn, Amp)
+! Iadj(1:3,L) = addangle (deg), arcmax (deg), current scale factor (no dim) 
+! Positive coil current makes positive B_normal at tokamak outer boundary.
+!
+ Icur(1:,1) =  +1000  +1000  -1000  -1000  +1000  +1000
+               -1000  -1000  +1000  +1000  -1000  -1000  
+  	       +1000  +1000  -1000  -1000  +1000  +1000
+ Iadj(1:,1) = +000.0, 15.0, 0.1
+
+ Icur(1:,2) =  +1000  +1000  -1000  -1000  +1000  +1000
+               -1000  -1000  +1000  +1000  -1000  -1000  
+  	       +1000  +1000  -1000  -1000  +1000  +1000
+ Iadj(1:,2) = +000.0, 15.0, 0.1
+
+ Icur(1:,3) =  +1000  +1000  -1000  -1000  +1000  +1000
+               -1000  -1000  +1000  +1000  -1000  -1000  
+  	       +1000  +1000  -1000  -1000  +1000  +1000 
+ Iadj(1:,3) = +000.0, 15.0, 0.1
+!
+!
+! Icur(:,:) = 54*0.			! ZERO all 32 coil currents
+!=======================================================================
+!
+!
+!================ Parameters for TCABR P-COIL model  =====================
+! NOTE:
+! The two previously poloidal legs of a loop have been generalized to
+! HELICAL spirals on a conical surface between R1 and R2. The toroidal
+! span or extent of all helices in row L is specified by Pgeom(8,L). 
+! THIS AFFECTS INPUTS ***  Pgeom(8, L) and Padj(2:4, :)  ***
+!=======================================================================
+!
+! The PERTURBATION coils (P-coils) are represented as sets of polygon
+! current loops, each comprised of straight-line segments. To offer the
+! user considerable flexibility in defining arrays of coils, the total
+! array is divided into toroidal "bands" or "rows".
+!  A band is a set of IDENTICAL coils spaced circumferentially around
+!   the torus on an imaginary CONICAL surface. Conical includes cylin-
+!   drical and planar surfaces as limiting cases.
+!  All coils in a band have same defining values of radii R, elevations
+!   (heights) Z, coil TOROIDAL ANGLE SPAN phispan, coil-to-coil toroidal
+!   angle spacing dphi, and HELICAL ARC TOROIDAL SPAN phiHel (deg). 
+!   The 1st coil in a band is CENTERED at toroidal angle phicentr1.
+!  An individual coil is a single polygon loop, constructed of
+!   straight-line segments. Each coil has its own specified current.
+!
+!================  Parameters for TCABR P-COIL model  ===================
+! Presently dimensioned for 20 bands, 60 loops/band, 100 segments/loop
+!  Ploops(L)   = N = number of coils (loops)   in band (row) L
+!  Pgeom(1:8,L)= R1, Z1, R2, Z2, (m) 
+!                phicentr1, phispan, dphi, phiHel (deg)   for row L
+!  Pcur(1:N,L) = currents in Ploops(L) coils (single turn, Amp)
+!  Padj(1:4,L) = addangle, arcmax, arcHmax = max. helical arc, (deg) 
+!                current scale factor (dimless)   for row L
+!=======================================================================
+!
+! USER SHOULD CHOOSE 1ST CONDUCTOR FOR DESIRED B VS CURRENT SIGN!
+! Current in R1,Z1 conductor flows in the  + phi coordinate direction and
+! returns in R2,Z2 conductor       in the  - phi direction.
+! To make a positive value of current give a positive value of Br 
+! (i.e., Br out away from the plasma in the minor radius sense), type
+! the coil's lower-theta (CCW poloidal angle) conductor's R,Z coordinates
+! into the R1,Z1 elements of Pgeom,
+! and the coil's higher-theta conductor's R,Z coordinates
+! into the R2,Z2 elements of Pgeom. 
+!=======================================================================
+!
+! Ploops(1)  = 8    		! TCABR upper row of 8 coils
+! Pgeom(1:,1)= 2.975 +1.940 3.398 +1.634  0.0 40.0 45.0	0.0
+! Pcur(1:,1) = 
+!  1000.   174.  -940.  -500.   766.   766.  -500.  -940.    !N=8, n=4
+! Padj(1:,1) = -0.0  4.0  +110.0 0.0  !kA
+!
+! Ploops(2)  = 24    		! TCABR upper row of 24 coils
+! Pgeom(1:,2)= 3.839 +0.622 3.644 -0.558  0.0 12.0 15.0	0.0
+! Pcur(1:,2) = 
+!  1000.   174.  -940.  -500.   766.   766.  -500.  -940.   174. !N=24, n=4
+!  1000.   174.  -940.  -500.   766.   766.  -500.  -940.   174.
+!  1000.   174.  -940.  -500    766.   766.
+! Padj(1:,2) = -0.0  4.0  +110.0 0.0 !kA
+! 
+! Ploops(3)  = 16    		! TCABR bottom row of 16 coils
+! Pgeom(1:,3)= 3.010 -1.335 3.290 -1.152  0.0 20.0 22.5	0.0
+! Pcur(1:,3) = 
+!  1000.   174.  -940.  -500.   766.   766.  -500.  -940.    !N=16, n=4
+!  1000.   174.  -940.  -500.   766.   766.  -500.  -940.   
+! Padj(1:,3) = -0.0  4.0  +110.0  100.0 !kA
+!
+! 
+! Pcur(:,:) = 144*0.			! zero all loops x 3 bands
+!
+! Unspecified bands and loops are defaulted to zero current.
+!-----------------------------------------------------------------------
+!
+!
+!
+!=============== Parameters for Polygon (PG) Coil model ================
+! The Polygon coils (PG-coils) are repersented as sets of polygon current
+! loops, each comprised of straight-line segments. To offer the
+! user considerable flexibility in defining arrays of coils, the total
+! array is divided into toroidal "bands" or "rows".
+!  A band is a set of IDENTICAL coils spaced circumferentially around
+!   the torus on an imaginary CONICAL surface. Conical includes cylin-
+!   drical and planar surfaces as limiting cases.
+!  All coils in a band have the same defining SHAPE.
+!  The 1st coil in a band BEGINS at toroidal angle addangle and the
+!   first point specified in PGgeom. It will then connect to the 2nd, 3rd
+!   ... points till the last point, and then will connect back to the 1st
+!  Each coil has its own specified current.
+! 
+!=======================================================================
+! Presently dimensioned for 50 bands, 50 loops/band, 100 segments/loop
+!				30 points/segment
+! PGloops(1:2,L) = number of coils (loops)   in band (row) L,
+!		   number of points on loops in band (row) L
+! PGgeom(3,8,L)= R1, Z1, PHI1,
+!		 R2, Z2, PHI2,
+!		 R3, Z3, PHI3, (...)
+! PGadj(1:3,L) = addangle (deg), arcmax (deg), 
+!		 looprepeat (deg), current scale factor (no dim) 
+! PGcur(1:N,L) = currents in L=1 PG row to N coils (single turn, Amp)
+!=======================================================================
+!
+!
+! PGloops(1:2,1)  =		8,	4
+! PGgeom(:3,:,1)  =		3.1483	+1.8246 0
+!				3.1483	+1.8246 40
+!				3.3582 	+1.6777 40
+!				3.3582 	+1.6777 0
+! PGadj(1:4,1) = 		0 	4.	45	32.0
+! PGcur(:,1) =        		
+!  1000.0   -853.6    500.0   -146.4      0.0   -146.4    500.0   -853.6
+!
+! PGloops(1:2,2)  =		24,	4
+! PGgeom(:3,:,2)  =		3.3623	+1.6744 0
+!				3.3623	+1.6744 12
+!				3.5528	+1.5029	12
+!				3.5528	+1.5029	0
+! PGadj(1:4,2) = 		30 	4.	15	32.0
+! PGcur(:,2) =        	
+!  1000.0    603.6   -250.0   -853.6   -750.0   -103.6    500.0    603.6    !250.0   -146.4   -250.0   -103.6      0.0   -103.6   -250.0   -146.4    250.0   ! 603.6    500.0   -103.6   -750.0   -853.6   -250.0    603.6
+!
+! PGloops(1:2,3)  =		16,	4
+! PGgeom(:3,:,3)  =		3.6479	-0.9451 0
+!				3.6479	-0.9451 20
+!				3.3929	-1.1748	20
+!				3.3929	-1.1748	0
+!
+!
+! PGadj(1:4,3) = 		1.25 	4.	22.5	32.0
+! PGcur(:,3) =        		
+!		1000	1000	-1000	-1000	1000	1000	-1000
+!	-1000	1000	1000	-1000	-1000	1000	1000	-1000 -1000
+!
+!
+! Pcur(:,:) = 144*0.			! zero all loops x 3 bands
+!
+! Unspecified bands and loops are defaulted to zero current.
+!-----------------------------------------------------------------------
+!
+!
+!
+!
+!======================  Paths to g-files  =============================
+  gpath= './' 
+  gname= 'g000100.00100'
+!
+!  
+!-----------------------------------------------------------------------
+!
+ &END

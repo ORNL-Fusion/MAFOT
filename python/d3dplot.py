@@ -354,7 +354,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	# correct for PFR
 	if('d3d' in machine): Lcmin = 0.075
 	elif(machine == 'iter'): Lcmin = 0.22
-	elif('tcabr' in machine): Lcmin = 0.0
+	elif('tcabr' in machine): Lcmin = 0.014
 	
 	if correctPFR:
 		if(coordinates == 'RZ') | (coordinates == 'phi'): 
@@ -365,10 +365,11 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			elif('psi' in what): z[(z < 0.5) & (y > 0.995)] = b.max()
 	
 	# reverse axes for footprint
-	if(coordinates == 'phi') & (physical > 0):
-		z = z[:,::-1]		# reverse x-axis
-		if(target== 'in') & (physical == 1):
-			z = z[::-1,:]	# reverse y-axis
+	if('d3d' in machine): 
+		if(coordinates == 'phi') & (physical > 0):
+			z = z[:,::-1]		# reverse x-axis
+			if(target== 'in') & (physical == 1):
+				z = z[::-1,:]	# reverse y-axis
 		
 	# correct orientation in RZ plot and footprint
 	if((coordinates == 'RZ') | (coordinates == 'phi')) & (not (typeOfPlot in ['poincare','manifold'])): x, y, z = x.T, y.T, z.T

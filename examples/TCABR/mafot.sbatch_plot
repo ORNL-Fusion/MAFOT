@@ -1,0 +1,15 @@
+#!/bin/bash
+#SBATCH --job-name=mafotPtest
+#SBATCH -p preemptable
+#SBATCH -o batch_mafot.out
+#SBATCH -n 10 
+#SBATCH -t 120
+#SBATCH --mem-per-cpu=1G
+#SBATCH --mail-user=
+#SBATCH --mail-type=FAIL  ## or BEGIN,END,FAIL,ALL 
+#SBATCH --export=ALL
+##module purge
+module load default-paths
+module load mafot
+module list
+mpirun -n 10 tcabrplot_mpi _plot.dat test

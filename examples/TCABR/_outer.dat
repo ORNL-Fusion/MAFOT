@@ -1,0 +1,26 @@
+# Parameterfile for TCABR Programs
+# Shot: 100	Time: 0100ms
+# Path: /fusion/projects/results/mafot/wingen/tcabr/
+Nphi=	100
+itt=	500
+tmin=	0
+tmax=	1
+phimin=	0
+phimax=	6.283185307179586
+Nt=	120
+phistart(deg)=	0
+MapDirection=	1
+PlasmaResponse(0=no,>1=yes)=	0
+Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=	-1
+target(0=wall,1=inner,2=outer,3=shelf)=	2
+createPoints(2=target)=	2
+useECcoil(0=no,1=yes)=	1
+useIcoil(0=no,1=yes)=	1
+useFilament(0=no)=	0
+ParticleDirection(1=co-pass,-1=ctr-pass,0=field-lines)=	0
+PartileCharge(-1=electrons,>=1=ions)=	1
+Ekin[keV]=	100.0
+lambda=	0.1
+Mass=	2
+pi=	3.141592653589793
+2*pi=	6.283185307179586
