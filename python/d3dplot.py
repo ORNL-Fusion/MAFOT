@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 import os, sys, socket
 import getopt
 import numpy as np
@@ -61,7 +61,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		elif(filename[5:7] == 'wa'): target = 'wall'
 		elif(filename[5:7] == 'bs'): target = 'bsas'
 		else: 
-			print 'cannot identify target'
+			print ('cannot identify target')
 			return
 	else: target = None
 
@@ -86,7 +86,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	# --- shot and time from file header ---
 	with open(path + filename, 'r') as f:
 		# Skip first 3 lines
-		for i in xrange(3): head = f.readline()
+		for i in range(3): head = f.readline()
 		# read Shot and Time
 		head = f.readline().split()
 		shot = int(head[-1])
@@ -204,7 +204,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		if (typeOfPlot == 'poincare'): 
 			x,y = data[:,2]%(2*np.pi),data[:,1]; x,y = x[:,np.newaxis],y[:,np.newaxis]
 			yLabel = 'r [m]'
-		elif (typeOfPlot == 'manifold'): print 'coordinates not defined for this plot'; return
+		elif (typeOfPlot == 'manifold'): print ('coordinates not defined for this plot'); return
 			
 	elif(coordinates == 'phitheta'):
 		if not latex:
@@ -214,7 +214,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			xLabel = '$\\varphi$ $\\mathrm{[deg]}$'
 			yLabel = '$\\theta$ $\\mathrm{[rad]}$'
 		if (typeOfPlot == 'poincare'): x,y = data[:,2]%(2*np.pi),data[:,0]; x,y = x[:,np.newaxis],y[:,np.newaxis]
-		elif (typeOfPlot == 'manifold'): print 'coordinates not defined for this plot'; return
+		elif (typeOfPlot == 'manifold'): print ('coordinates not defined for this plot'); return
 
 	elif(coordinates == 'phiZ'):
 		if not latex:
@@ -224,7 +224,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			xLabel = '$\\varphi$ $\\mathrm{[deg]}$'
 			yLabel = 'Z [m]'
 		if (typeOfPlot == 'poincare'): x,y = data[:,2]%(2*np.pi),data[:,5]; x,y = x[:,np.newaxis],y[:,np.newaxis]
-		elif (typeOfPlot == 'manifold'): print 'coordinates not defined for this plot'; return
+		elif (typeOfPlot == 'manifold'): print ('coordinates not defined for this plot'); return
 	
 	elif(coordinates == 'rtheta'):
 		if not latex:
@@ -237,7 +237,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		elif (typeOfPlot == 'manifold'): x,y = data[:,3],data[:,4]; x,y = x[:,np.newaxis],y[:,np.newaxis]
 
 	else:
-		print 'coordinates: Unknown input'
+		print ('coordinates: Unknown input')
 		return
 
 	# --- set z data ------------------
@@ -272,7 +272,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 	elif(what == 'psimax'):
 		if not use_psimaxav:
-			print "psimax data is not available in this file"
+			print ("psimax data is not available in this file")
 			return
 		if(b is None): b = np.linspace(0.88,1.02,N)
 		z = psimax
@@ -285,7 +285,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		
 	elif(what == 'psiav'):
 		if not use_psimaxav:
-			print "psiav data is not available in this file"
+			print ("psiav data is not available in this file")
 			return
 		if(b is None): b = np.linspace(0.88,1.02,N)
 		z = psiav
@@ -298,7 +298,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 	elif(what == 'pitch'):
 		if not use_pitch_yaw:
-			print "pitch angle data is not available in this file"
+			print ("pitch angle data is not available in this file")
 			return
 		if(b is None): b = np.linspace(-5,20,N)
 		z = pitch/np.pi*180
@@ -311,7 +311,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 	elif(what == 'yaw'):
 		if not use_pitch_yaw:
-			print "yaw angle data is not available in this file"
+			print ("yaw angle data is not available in this file")
 			return
 		if(b is None): b = np.linspace(-10,10,N)
 		z = yaw/np.pi*180
@@ -341,7 +341,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		cdict = base(np.linspace(0,1,len(b)))
 		
 	else: 
-		print 'what: Unknown input'
+		print ('what: Unknown input')
 		return
 	
 	# autoscale color, if all(b == 0)
@@ -392,7 +392,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			xp = sfc.ev(x,y)
 			if (typeOfPlot in ['poincare','manifold']): x = xp
 			else:
-				for i in xrange(Npsi):
+				for i in range(Npsi):
 					spline = inter.UnivariateSpline(xp[:,i], z[:,i], s = 0)
 					z[:,i] = spline(x[:,i])
 		except:
@@ -466,7 +466,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 		plt.contour(x, y, z, b, cmap = usecolormap, extend = 'both')
 		cs = plt.contourf(x, y, z, b, cmap = usecolormap, extend = 'both')
 	elif(typeOfPlot == 'poincare'):
-		print len(np.where(data[:,2] == 360)[0]), 'Orbits found in File'
+		print (len(np.where(data[:,2] == 360)[0]), 'Orbits found in File')
 		plt.plot(x,y,'ko',markersize = 0.5)
 	elif(typeOfPlot == 'manifold'):
 		plt.plot(x,y,'k-',lw = 1)
@@ -824,7 +824,7 @@ def read_3Dwall(file):
 		if '#' in line: idx += 1
 		else: break
 		
-	for i in xrange(360):
+	for i in range(360):
 		if idx >= len(lines): break
 		try:
 			N = int(lines[idx].strip())
@@ -833,7 +833,7 @@ def read_3Dwall(file):
 			N = int(lines[idx].strip())
 		idx += 1
 		wall[i] = np.array([np.zeros(N),np.zeros(N)])
-		for n in xrange(N):
+		for n in range(N):
 			wall[i][0,n], wall[i][1,n] = [np.float64(item) for item in lines[idx].strip().split()]
 			idx += 1
 		
@@ -878,55 +878,55 @@ if __name__ == '__main__':
 																 "Reverse", "Manifold=", "pfr"])
 	for o, a in opts:
 		if o in ("-h", "--help"):
-			print "usage: d3dplot.py [-h] [-c COORDINATES] [-w WHAT] [-m MACHINE] [-p]"
-			print "                  [-g GRAPHIC] [-t TAG] [-P PHYSICAL] [-N N] [-C CMAP]"
-			print "                  [-T TITLE] [-i] [-W FIGWIDTH] [-H FIGHEIGHT] [-U] [-l]"
-			print "                  [-b MIN,MAX] [-x MIN,MAX] [-y MIN,MAX] [-L FILE,ANGLE]"
-			print "                  [-R] [-M name1,name2,...]"
-			print "                  pathname"
-			print ""			
-			print "most typical use: d3dplot.py -c COORDINATES -w WHAT -p -i pathname"
-			print ""
-			print "Plot MAFOT output"
-			print ""
-			print "positional arguments:"
-			print "  pathname              file name or (full or rel.) pathname"
-			print ""
-			print "optional arguments:"
-			print "  -h, --help            show this help message and exit"
-			print "  -b, --range <Arg>     ColorBar range: Min,Max (no spaces)"
-			print "  -c, --coord <Arg>     Coordinate sytem for plot. <Arg> = "
-			print "                        RZ, psi(default), phi, pest, phitheta, phiZ"
-			print "  -f, --contourf        Use contourf instead of pcolormesh (default)"
-			print "  -g, --graphic <Arg>   Graphic extension. <Arg> = "
-			print "                        png (default), eps, pdf"
-			print "  -i, --imshow          Use imshow instead of pcolormesh (default)"
-			print "  -l, --log             Plot colorbar in log10 scale"
-			print "  -m, --machine <Arg>   Machine. <Arg> = d3d (default), iter"
-			print "  -p, --printme         Save to File"
-			print "  -t, --tag <Arg>       Arbitary string, attached to the file name of"
-			print "                        the saved figure"
-			print "  -w, --what <Arg>      Data to plot. <Arg> = "
-			print "                        Lc, psimin (default), psimax, psiav"
-			print "  -x, --xlim <Arg>      X-Axis range: Min,Max (no spaces)"
-			print "  -y, --ylim <Arg>      Y-Axis range: Min,Max (no spaces)"
-			print "  -C, --cmap <Arg>      colormap, default = jet"
-			print "  -F, --pfr             Do not correct for the private flux region (default is yes)"
-			print "  -H, --figheight <Arg> Force height of figure from default to <Arg>"
-			print "  -L, --wall <Arg>      Wall info (can be 3D): filename,angle (no spaces)"
-			print "  -M, --Manifold <Arg>  List of files to plot: name1,name2,... (no spaces)"
-			print "  -N <Arg>              Number of color levels in plot, default = 60"
-			print "  -P, --physical <Arg>  Type of y-Axis in fooprint. <Arg> = "
-			print "                        0: native, 1: RZ(default), 2: t in cm"
-			print "  -R, --Reverse         reverse the y-axis"
-			print "  -T, --Title <Arg>     Figure title, default = None"
-			print "  -U, --unicode         Use Unicode instead of LaTeX (default) in labels"
-			print "                        Note: Drop Cluster uses Unicode by default"
-			print "  -W, --figwidth <Arg>  Force width of figure from default to <Arg>"
-			print ""
-			print "Examples: d3dplot.py foot_in_test.dat"
-			print "          d3dplot.py /path/to/gfile/foot_in_test.dat -p -c RZ"
-			print "          d3dplot.py -c RZ -w Lc -p -i lam_psi_nopr.dat"
+			print ("usage: d3dplot.py [-h] [-c COORDINATES] [-w WHAT] [-m MACHINE] [-p]")
+			print ("                  [-g GRAPHIC] [-t TAG] [-P PHYSICAL] [-N N] [-C CMAP]")
+			print ("                  [-T TITLE] [-i] [-W FIGWIDTH] [-H FIGHEIGHT] [-U] [-l]")
+			print ("                  [-b MIN,MAX] [-x MIN,MAX] [-y MIN,MAX] [-L FILE,ANGLE]")
+			print ("                  [-R] [-M name1,name2,...]")
+			print ("                  pathname")
+			print ("")
+			print ("most typical use: d3dplot.py -c COORDINATES -w WHAT -p -i pathname")
+			print ("")
+			print ("Plot MAFOT output")
+			print ("")
+			print ("positional arguments:")
+			print ("  pathname              file name or (full or rel.) pathname")
+			print ("")
+			print ("optional arguments:")
+			print ("  -h, --help            show this help message and exit")
+			print ("  -b, --range <Arg>     ColorBar range: Min,Max (no spaces)")
+			print ("  -c, --coord <Arg>     Coordinate sytem for plot. <Arg> = ")
+			print ("                        RZ, psi(default), phi, pest, phitheta, phiZ")
+			print ("  -f, --contourf        Use contourf instead of pcolormesh (default)")
+			print ("  -g, --graphic <Arg>   Graphic extension. <Arg> = ")
+			print ("                        png (default), eps, pdf")
+			print ("  -i, --imshow          Use imshow instead of pcolormesh (default)")
+			print ("  -l, --log             Plot colorbar in log10 scale")
+			print ("  -m, --machine <Arg>   Machine. <Arg> = d3d (default), iter")
+			print ("  -p, --printme         Save to File")
+			print ("  -t, --tag <Arg>       Arbitary string, attached to the file name of")
+			print ("                        the saved figure")
+			print ("  -w, --what <Arg>      Data to plot. <Arg> = ")
+			print ("                        Lc, psimin (default), psimax, psiav")
+			print ("  -x, --xlim <Arg>      X-Axis range: Min,Max (no spaces)")
+			print ("  -y, --ylim <Arg>      Y-Axis range: Min,Max (no spaces)")
+			print ("  -C, --cmap <Arg>      colormap, default = jet")
+			print ("  -F, --pfr             Do not correct for the private flux region (default is yes)")
+			print ("  -H, --figheight <Arg> Force height of figure from default to <Arg>")
+			print ("  -L, --wall <Arg>      Wall info (can be 3D): filename,angle (no spaces)")
+			print ("  -M, --Manifold <Arg>  List of files to plot: name1,name2,... (no spaces)")
+			print ("  -N <Arg>              Number of color levels in plot, default = 60")
+			print ("  -P, --physical <Arg>  Type of y-Axis in fooprint. <Arg> = ")
+			print ("                        0: native, 1: RZ(default), 2: t in cm")
+			print ("  -R, --Reverse         reverse the y-axis")
+			print ("  -T, --Title <Arg>     Figure title, default = None")
+			print ("  -U, --unicode         Use Unicode instead of LaTeX (default) in labels")
+			print ("                        Note: Drop Cluster uses Unicode by default")
+			print ("  -W, --figwidth <Arg>  Force width of figure from default to <Arg>")
+			print ("")
+			print ("Examples: d3dplot.py foot_in_test.dat")
+			print ("          d3dplot.py /path/to/gfile/foot_in_test.dat -p -c RZ")
+			print ("          d3dplot.py -c RZ -w Lc -p -i lam_psi_nopr.dat")
 			sys.exit()
 		elif o in ("-c", "--coordinates"):
 			coordinates = a
