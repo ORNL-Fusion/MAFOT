@@ -423,6 +423,7 @@ case 5:
 	if(FLT.R >= PAR.Rmin && FLT.R <= PAR.Rmax && FLT.Z >= PAR.Zmin && FLT.Z <= PAR.Zmax) return true;
 	else return false;
 }
+return false;
 }
 
 //----------- newton2dim ------------------------------------------------
