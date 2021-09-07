@@ -127,7 +127,8 @@ case -1: case 1: case -10:	// Vacuum equilibrium field from g file
 	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
 
 	// Equilibrium field
-	F = EQD.get_Fpol(psi);
+	if(psi <= 1.0) F = EQD.get_Fpol(psi);
+	else F = EQD.Bt0*EQD.R0;
 	B_R = dpsidz/R;
 	B_phi = F/R;	//B_phi = EQD.Bt0*EQD.R0/R;
 	B_Z = -dpsidr/R;
@@ -142,7 +143,8 @@ case 0: case 2: 	// M3D-C1: equilibrium field or total field
 		if(chk2 == -1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
 
 		// Equilibrium field
-		F = EQD.get_Fpol(psi);
+		if(psi <= 1.0) F = EQD.get_Fpol(psi);
+		else F = EQD.Bt0*EQD.R0;
 		B_R = dpsidz/R;
 		B_phi = F/R;	//B_phi = EQD.Bt0*EQD.R0/R;
 		B_Z = -dpsidr/R;

@@ -88,6 +88,10 @@ double h,b,a;
 klo=1; 
 khi=n;
 
+// constant extrapolation
+if(x > xa(n)) x = xa(n);
+if(x < xa(1)) x = xa(1);
+
 while (khi-klo>1) 
 {
 	k=(khi+klo) >> 1;
