@@ -20,9 +20,9 @@
 #include <splines.hxx>
 using namespace blitz;
 
-// Prototypes  
+// Prototypes
 
-// Golbal Parameters 
+// Golbal Parameters
 #if defined(windows)		// Windows system
 	#if defined(ITER)
 	const LA_STRING gFilePath = "C:\\C++\\ITER\\gfiles\\";	// double backslash causes \ to appear in string
@@ -64,7 +64,7 @@ private:
 // Member Variables
 	int helicity_adjust;	// default = 1; set to -1 if helicity is wrong -> modifies dpsidR und dpsidZ
 
-public: 
+public:
 // Member Variables
 	LA_STRING Shot;		// Shot number
 	LA_STRING Time;		// Time slice in ms
@@ -86,16 +86,16 @@ public:
 	double Bt0;		// toroidal magnetic field at Major Radius in [T]
 	double Ip;		// Plasma current in [A]
 
-	Array<double,1> Fpol;		// Fpol = Fpol(psi_norm) = Btor * R 
+	Array<double,1> Fpol;		// Fpol = Fpol(psi_norm) = Btor * R
 	Array<double,1> Pres;		// Pres = Plasma pressure profile
 	Array<double,1> FFprime;	// FFprime = Fpol * dFpol/dpsi
 	Array<double,1> Pprime;		// Pprime = Pressure derivative dp/dpsi
 	Array<double,1> qpsi;		// q(psi) = Safety Factor
 
-	Array<double,2> psiRZ;	// psi(R,Z) = NOT-normalized poloidal Flux		i=1:Nr rows, j=1:Nz columns  
+	Array<double,2> psiRZ;	// psi(R,Z) = NOT-normalized poloidal Flux		i=1:Nr rows, j=1:Nz columns
 
 	int Nlcfs;	// number of points for the Last Closed Flux Surface (LCFS), Array has twice the size!
-	int Nwall;	// number of points for the Wall, Array has twice the size!	
+	int Nwall;	// number of points for the Wall, Array has twice the size!
 
 	Array<double,1> lcfs;	// Position of the LCFS in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
 	Array<double,1> wall;	// Position of the Wall in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
@@ -162,7 +162,7 @@ public:
 
 	// Interpolates psi and derivatives; flag: 0 = 2D splines, 1 = bicubic interpolation; norm specifies if psi is to be normalized
 	int get_psi(const double x1, const double x2, double& y, double& dy1, double& dy2, int flag=1, bool norm=true);		// 0: ok	-1: Point outside of EFIT grid
-	
+
 	double get_Fpol(const double x);		// Spline interpolates Fpol
 	double get_Pres(const double x);		// Spline interpolates Pres
 	double get_FFprime(const double x);		// Spline interpolates FFprime
@@ -371,7 +371,7 @@ words = split(stdummy);
 NR = atoi(words[words.size()-2].c_str());	// Number of Points in R-direction
 NZ = atoi(words[words.size()-1].c_str());	// Number of Points in Z-direction
 
-// Rezize Arrays (if size = 129 nothing is done!); All Arrays start with index 1 
+// Rezize Arrays (if size = 129 nothing is done!); All Arrays start with index 1
 Fpol.resize(NR);
 Pres.resize(NR);
 FFprime.resize(NR);
@@ -398,8 +398,8 @@ for(i=1;i<=NR;i++) in >> Fpol(i);	// Fpol = Fpol(psi_norm) = Btor * R; Fpol(1) =
 for(i=1;i<=NR;i++) in >> Pres(i);	// Pres = pressure profile
 for(i=1;i<=NR;i++) in >> FFprime(i);	// FFprime = ?
 for(i=1;i<=NR;i++) in >> Pprime(i);	// Pprime = dPres/dpsi
-for(j=1;j<=NZ;j++) 
-	for (i=1;i<=NR;i++) in >> psiRZ(i,j);	// psi(R,Z) = NOT-normalized poloidal Flux		i=1:Nr rows, j=1:Nz columns  
+for(j=1;j<=NZ;j++)
+	for (i=1;i<=NR;i++) in >> psiRZ(i,j);	// psi(R,Z) = NOT-normalized poloidal Flux		i=1:Nr rows, j=1:Nz columns
 for(i=1;i<=NR;i++) in >> qpsi(i);	// q(psi) = Safety Factor
 
 // Read additional stuff
@@ -457,7 +457,7 @@ Z = Zmid + (k-NZ2-1)*dZ;	// Z(NZ2+1) = Zmid
 // Prepare Bicubic Spline interpolation of psiRZ
 d2psi.resize(NR,NZ);
 
-for(i=1;i<=NZ;i++) 
+for(i=1;i<=NZ;i++)
 {
 	d1 = (psiRZ(2,i)-psiRZ(1,i))/dR;
 	dn = (psiRZ(NR,i)-psiRZ(NR-1,i))/dR;
@@ -487,7 +487,7 @@ for(i=1;i<NR;i++)
 		y12_sq(1) = d2psidRdZ(i,j); y12_sq(2) = d2psidRdZ(i+1,j); y12_sq(3) = d2psidRdZ(i+1,j+1); y12_sq(4) = d2psidRdZ(i,j+1);
 
 		slice.reference(Ca(i,j,all,all));
-		bcucof(y_sq,y1_sq,y2_sq,y12_sq,dR,dZ,slice); 
+		bcucof(y_sq,y1_sq,y2_sq,y12_sq,dR,dZ,slice);
 	}
 }
 
@@ -531,7 +531,11 @@ spline(psi,qpsi,NR,d1,dn,d2qpsi);
 // outer midplane. Otherwise B_tor is anti-parallel to Ip <-> "left-handed".
 int chk;
 double psi_hel,dpsidr_hel;
-double R_hel = max(lcfs(Range(1,toEnd,2))) - 10*dR;	// max of R coordinates from lcfs, just inside the separatrix ...
+
+//Commented / Modified by TL for HEAT (small tokamaks need a small multiplier or else R_hel is way inside core)
+//double R_hel = max(lcfs(Range(1,toEnd,2))) - 10*dR;	// max of R coordinates from lcfs, just inside the separatrix ...
+double R_hel = max(lcfs(Range(1,toEnd,2))) - 1*dR;	// max of R coordinates from lcfs, just inside the separatrix ...
+
 chk = get_psi(R_hel,0,psi_hel,dpsidr_hel,dummy);	// ... at midplande
 helicity = sign(dpsidr_hel/get_Fpol(psi_hel));		// = sign(-dZ/dphi)
 helicity_adjust = 1;
@@ -541,12 +545,25 @@ if((Ip*Bt0 > 0 && helicity == -1) || (Ip*Bt0 < 0 && helicity == 1))
 {
 	helicity *= -1;
 	helicity_adjust = -1;
+
+	//Added cout by TL for HEAT troubleshooting
+	cout << "Flipping Helicity!" << endl;
+	//cout << "Ip = " << Ip << endl;
+	//cout << "Bt0 = " << Bt0 << endl;
+	//cout << "helicity = "<< helicity << endl;
+	//cout << "dpsidr_hel = " << dpsidr_hel << endl;
+	//cout << "Fpol(psi_hel) = " << get_Fpol(psi_hel) << endl;
+	//cout << "psi_hel = "<< psi_hel << endl;
+	//cout << "R_hel = " << R_hel << endl;
+	//cout << "Maximum LCFS Point = " << max(lcfs(Range(1,toEnd,2))) << endl;
+	//cout << "dR = " << dR << endl;
+
 }
 
 // Identify the sign of toroidal and poloidal fields for use elsewhere.
-//    btSign  	 of g-file Bt, rel to phi in cylindrical (R,phi,Z) 
+//    btSign  	 of g-file Bt, rel to phi in cylindrical (R,phi,Z)
 //    bpSign 	 of g-file Iplasma, rel to phi in cylindrical (R,phi,Z)
-// Standard EFIT writes flux to g-file with FLUX ALWAYS 
+// Standard EFIT writes flux to g-file with FLUX ALWAYS
 // INCREASING away from the magnetic axis (grad psi > 0)
 // and the bpSign is used to give flux it correct physical sign.
 // NON STANDARD EFITS MAY NOT FOLLOW THIS CONVENTION.

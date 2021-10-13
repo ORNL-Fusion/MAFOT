@@ -32,7 +32,7 @@ int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& 
 bool outofBndy(double phi, double x, double y, EFIT& EQD);
 bool outofBndyInBetween(double phi0, double x0, double y0, double phi1, double x1, double y1, EFIT& EQD);
 
-// Prototypes  
+// Prototypes
 void get_Energy(double psi, double& Enorm, double& dEnorm);
 double get_Lmfp(double Ekin);
 
@@ -41,7 +41,7 @@ const int nvar = 2;				// Number of Variables
 const int ilt = 360;			// Steps till Output
 const double dpinit = 1.0;		// step size of phi in [deg]
 
-// Golbal Parameters 
+// Golbal Parameters
 extern ofstream ofs2;
 #if defined(m3dc1)
 	extern M3DC1 M3D;
@@ -77,7 +77,7 @@ private:
 	double getEfield(double r, double z, double& pot);
 	void sheath(double R, double Z, double& pot, double& Er, double& Ez);
 
-public: 
+public:
 // Member Variables
 	double R;		// cylindrical major radius [m]
 	double Z;		// cylindrical vertical coordinate [m]
@@ -145,8 +145,8 @@ const double c=299792458;			// speed of light in m/s
 const double e=1.602176462*1e-19;	// elementary charge in C
 const double me=9.10938188*1e-31;	// Electron mass in kg
 const double mp=1.67262158*1e-27;	// Proton mass in kg
-const double E0e=me*c*c/e/1000.0;	// Rest energy of Electrons in [keV] 
-const double E0p=mp*c*c/e/1000.0;	// Rest energy of Protons in [keV] 
+const double E0e=me*c*c/e/1000.0;	// Rest energy of Electrons in [keV]
+const double E0p=mp*c*c/e/1000.0;	// Rest energy of Protons in [keV]
 
 // Public Member Variables
 R = 0;				// cylindrical major radius [m]
@@ -222,13 +222,13 @@ eps0e_mc2 = FLT.eps0e_mc2;
 sqeps0 = FLT.sqeps0;
 
 // Public Member Variables
-R = FLT.R;	
-Z = FLT.Z;	
-phi = FLT.phi;	
+R = FLT.R;
+Z = FLT.Z;
+phi = FLT.phi;
 psi = FLT.psi;
 theta = FLT.theta;
 
-Lc = FLT.Lc;	
+Lc = FLT.Lc;
 psimin = FLT.psimin;
 psimax = FLT.psimax;
 psiav = FLT.psiav;
@@ -250,15 +250,15 @@ return(*this);
 ostream& operator <<(ostream& out, PARTICLE& FLT)
 {
 out << "--- Position ---" << endl;
-out << "R = " << FLT.R << endl;	
-out << "phi = " << FLT.phi << endl;	
-out << "Z = " << FLT.Z << endl;	
+out << "R = " << FLT.R << endl;
+out << "phi = " << FLT.phi << endl;
+out << "Z = " << FLT.Z << endl;
 out << "r = " << FLT.get_r() << endl;
 out << "theta = " << FLT.get_theta() << endl;
-out << "psi = " << FLT.psi << endl;	
+out << "psi = " << FLT.psi << endl;
 
 out << "--- Trajectory ---" << endl;
-out << "Lc = " << FLT.Lc << endl;	
+out << "Lc = " << FLT.Lc << endl;
 out << "psimin = " << FLT.psimin << endl;
 out << "psimax = " << FLT.psimax << endl;
 out << "Lcmin = " << FLT.Lcmin << endl;
@@ -397,7 +397,6 @@ Array<double,1> y(nvar); // Array to set initial conditions
 
 y(0) = R;
 y(1) = Z;
-
 // integrate nstep steps of dphi, default: nstep = 360, so one full toroidal turn
 chk = rkint(nvar,nstep,dphi,y,phi_rad,flag,returnLastStep);
 if(chk<0) 	// particle has left system
@@ -414,10 +413,12 @@ if(chk<0) 	// particle has left system
 // check if particle has left system during integration step
 if(flag)
 {
-	if(outofBndyInBetween(phi,R,Z,phi_rad*rTOd,y(0),y(1),EQDr)) return -1;
+	if(outofBndyInBetween(phi,R,Z,phi_rad*rTOd,y(0),y(1),EQDr))
+	{
+		return -1;
+	}
 	else return 0;
 }
-
 R = y(0);
 Z = y(1);
 phi = phi_rad*rTOd;		// phi back in deg
@@ -525,7 +526,7 @@ R = Rstart;
 Z = Zstart;
 phi = phistart;
 psi = psistart;
-Lc = 0;  
+Lc = 0;
 psimin = 10;
 psimax = 0;
 psiav = 0;
@@ -694,7 +695,7 @@ else
 
 if(dR==0) i_Z=i-1;
 if(dZ==0) i_R=i-1;
-if(dZ!=0 && dR!=0) 
+if(dZ!=0 && dR!=0)
 {
 	if(N_Z<=1) N_Z=int(sqrt(double(N))+0.5);
 	N_R=int(double(N)/double(N_Z)+0.5);
@@ -1078,6 +1079,14 @@ double sheathPot = 0;
 double sheathEr,sheathEz;
 
 chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
+//Added 20210901 by TL for testing
+//cout << "===TESTING GFILE BFIELD INTERPOLATION===" << endl;
+//cout << y(0) << endl;
+//cout << y(1) << endl;
+//cout << B_R << endl;
+//cout << B_Z << endl;
+//cout << B_phi << endl;
+
 if (chk == -1) return -1;
 
 dydx(0) = y(0)*B_R/B_phi;
@@ -1128,8 +1137,8 @@ double Lmfp,lcstep,psiold;
 Array<double,1> yout(nvar),dydx(nvar);
 
 //Take nstep steps
-for (k=1;k<=nstep;k++) 
-{ 
+for (k=1;k<=nstep;k++)
+{
 	psiold = psi;
 	chk = dgls(x,y,dydx);
 	if (chk == -1) return -1;
@@ -1210,7 +1219,7 @@ for (k=1;k<=nstep;k++)
 		Lmfp = get_Lmfp(Ekin);
 		Lmfp_total += Lmfp;
 	}
-} 
+}
 return 0;
 }
 
@@ -1230,7 +1239,7 @@ h6=h/6.0;
 xh=x+hh;
 
 //First step
-for (i=0;i<n;i++) yt(i)=y(i)+hh*dydx(i); 
+for (i=0;i<n;i++) yt(i)=y(i)+hh*dydx(i);
 
 //Second step
 chk = dgls(xh,yt,dyt);
@@ -1240,7 +1249,7 @@ for (i=0;i<n;i++) yt(i)=y(i)+hh*dyt(i);
 //Third step
 chk = dgls(xh,yt,dym);
 if (chk == -1) return -1;
-for (i=0;i<n;i++) 
+for (i=0;i<n;i++)
 {
 	yt(i)=y(i)+h*dym(i);
 	dym(i) += dyt(i);

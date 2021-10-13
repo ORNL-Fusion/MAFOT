@@ -1,13 +1,19 @@
 # ---- Folder ----
-MAFOT_DIR = /Users/wingen/Documents/Eclipse/Source/MAFOT
-BIN_DIR = /Users/wingen/c++/bin
-LIB_DIR = /Users/wingen/Documents/Eclipse/Lib
+MAFOT_DIR = /home/tom/source/MAFOT
+#use this for local MAFOT builds:
+BIN_DIR = /usr/bin
+LIB_DIR = /usr/lib
+#Use this for building appImage:
+#BIN_DIR = /home/tom/source/HEAT/MAFOT/bin
+#LIB_DIR = /home/tom/source/HEAT/MAFOT/lib
+
+
 
 # ---- Support codes ----
 # True or False
 M3DC1 = False
-VMEC = True
-SIESTA = True
+VMEC = False
+SIESTA = False
 
 # ---- Compiler ----
 CXX = g++
@@ -23,19 +29,19 @@ ARCH = ar crus
 LDD = g++ --shared
 LDFLAGS =
 
-# ---- external Libraries ---- 
-BLITZLIBS = -L/Users/wingen/Documents/Eclipse/Lib/blitz/lib -lblitz
-FLIBS = -L/usr/local/gfortran/lib -lgfortran
-OMPLIBS = -L/usr/local/openmpi/lib -lmpi -lmpi_cxx
-M3DC1LIBS = 
-HDF5LIBS = 
-NETCDFLIBS = -L/opt/local/lib -lnetcdf
+# ---- external Libraries ----
+BLITZLIBS = -L/home/tom/source/MAFOT/blitz++/blitz-0.9/lib -lblitz
+FLIBS = -L/usr/lib/x86_64-linux-gnu -lgfortran
+OMPLIBS = -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi -lmpi_cxx
+M3DC1LIBS =
+HDF5LIBS =
+NETCDFLIBS = -L/usr/lib/x86_64-linux-gnu -lnetcdf
 
 # ---- external Includes ----
-BLITZINCLUDE = -I/Users/wingen/Documents/Eclipse/Lib/blitz/include
-OMPINCLUDE = -I/usr/local/openmpi/include -I/usr/local/openmpi/include/openmpi
-M3DC1INCLUDE = 
-NETCDFINCLUDE = -I/opt/local/include
+BLITZINCLUDE = -I/home/tom/source/MAFOT/blitz++/blitz-0.9/blitz
+OMPINCLUDE = -I/usr/lib/x86_64-linux-gnu/openmpi/include -I/usr/lib/x86_64-linux-gnu/openmpi/include/openmpi
+M3DC1INCLUDE =
+NETCDFINCLUDE = -I/usr/include
 
 # ---- build GUI with python (optional) ----
-PYINSTALLER = /Library/Frameworks/EPD64.framework/Versions/7.2/bin/pyinstaller
+#PYINSTALLER = /Library/Frameworks/EPD64.framework/Versions/7.2/bin/pyinstaller
