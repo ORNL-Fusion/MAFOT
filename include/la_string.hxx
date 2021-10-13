@@ -140,7 +140,7 @@ public:
 
    LA_STRING_BOOLEAN includes( const LA_STRING &bs) const;
            // Test ob bs als Teilstring vorhanden ist
-   LA_STRING_BOOLEAN includes( char ch) const; // Test, ob Zeichen enthalten
+   LA_STRING_BOOLEAN includes( const char *ch) const; // Test, ob Zeichen "abc" enthalten
 
    LA_STRING &leftJustify ( unsigned n, char padChar = ' ') const;
            //  liefert die ersten n Zeichen gegebenenfalls Auffuellen

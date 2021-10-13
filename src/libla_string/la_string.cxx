@@ -649,6 +649,14 @@ LA_STRING_BOOLEAN LA_STRING::includes( const LA_STRING  &bs) const
    return (b!=0);
 }
 
+LA_STRING_BOOLEAN LA_STRING::includes( const char *ch) const
+{  CHECK(s)
+   LA_STRING bs;
+   bs = LA_STRING(ch);
+   LA_STRING_BOOLEAN b = indexOf( bs);
+   return (b!=0);
+}
+
 
 LA_STRING& LA_STRING::strip(char stripChar)
 {  CHECK(s)

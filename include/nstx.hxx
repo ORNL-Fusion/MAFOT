@@ -16,6 +16,7 @@ int getBfield_general(double R, double Z, double phi, double& B_R, double& B_Z, 
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./");
 void point_along_target(int target, double t, Array<double,1>& p, EFIT& EQD);
+void reorder_coil_currents(int mpi_rank=0);
 
 // ------------ Set Parameters for fortran --------------------------------------------------------------------------------
 const int mxbands = 1;
@@ -140,6 +141,11 @@ if(PAR.useIcoil == 1 || (PAR.response_field > 0 && chk == -1))
 	in >> line;	// Skip line
 	for(i=0;i<mxbands;i++) {for(j=0;j<3;j++) in >> currents_.ECadj[i][j];}		// Read coil adjustments
 
+	in >> line;	// last line, can be '&END'
+	if (line.includes("use_new_coil_order"))
+		if(line.includes("1"))
+			reorder_coil_currents(mpi_rank);
+
 	in.close();	// close file
 	in.clear();	// reset ifstream for next use
 }
@@ -173,6 +179,25 @@ ofs2 << endl;
 
 // Set ECoil geometry
 if(PAR.useIcoil==1) nstxecgeom_(&kuse[0][0],&nbands,&nloops[0],&nsegs[0][0],&xs[0][0][0][0],&dvs[0][0][0][0],&curntw[0][0]);
+}
+
+//---------------- reorder_coil_currents -------------------------------------------------------------------------------------
+// reorder coil currents to NSTX naming comvention: coil 1 is on top and numbering is clockwise
+// otherwise coil oder is: first coil in centered around -30 deg and numbering is mathematical = counter-clockwise
+void reorder_coil_currents(int mpi_rank)
+{
+if(mpi_rank < 1) cout << "Currents are reordered to NSTX naming convention:" << endl;
+ofs2 << "Currents are reordered to NSTX naming convention:" << endl;
+int i,j;
+int order[6] = {2,1,0,5,4,3};
+double temp[mxbands][mxloops];
+for(i=0;i<mxbands;i++)
+	for(j=0;j<mxloops;j++)
+		temp[i][j] = currents_.ECcur[i][j];
+
+for(i=0;i<mxbands;i++)
+	for(j=0;j<mxloops;j++)
+		currents_.ECcur[i][j] = temp[i][order[j]] ;
 }
 
 //---------------- point_along_target ----------------------------------------------------------------------------------------
