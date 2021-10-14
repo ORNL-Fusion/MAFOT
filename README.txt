@@ -46,11 +46,14 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 5.2
+MAFOT 5.3
 GUI 2.2
 
 Version Notes: 
 ----------------
+MAFOT 5.2 -- Oct 2021
+- HEAT inluded in main file structure
+
 MAFOT 5.2 -- Aug 2021
 - TCABR tokamak support added, also to d3dplot.py
 

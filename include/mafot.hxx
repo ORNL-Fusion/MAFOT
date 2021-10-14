@@ -40,6 +40,10 @@
 	#include <mast.hxx>
 #elif defined(CMOD)
 	#include <cmod.hxx>
+#elif defined(TCABR)
+	#include <tcabr.hxx>
+#elif defined(HEAT)
+	#include <heat.hxx>
 #else
 	#include <d3d.hxx>
 #endif
