@@ -81,18 +81,25 @@ LA_STRING siestafile = "siesta.dat";
 LA_STRING islandfile = "fakeIslands.in";
 LA_STRING ErProfileFile = "None";
 bool use_ErProfile = false;
-LA_STRING TprofileFile = "None";
+LA_STRING TprofileFile = "prof_t.dat";
+LA_STRING NprofileFile = "prof_n.dat";
 bool use_Tprofile = false;
 vector<string>  sheath_params;
 double sheath_width = 0.01;		// in m
 double sheath_te = 20;			// in eV
 double sheath_sec = 0.5;
+double f = 0;  // ratio of impurity to hydrogen ions
+double zbar = 2;  // average over impurity ion charge states
 bool use_sheath = false;
+bool use_collision = false;
+vector<string> coeffs;
+double rc = 1;
+double mc = 1;
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hX:V:S:I:E:T:s:")) != -1)
+while ((c = getopt(argc, argv, "hX:V:S:I:E:T:s:c:")) != -1)
 switch (c)
 {
 case 'h':
@@ -107,6 +114,7 @@ case 'h':
 		cout << "  -h            show this help message and exit" << endl;
 		cout << "  -s            use sheath with particle drifts. Provide parameters: width in m, Te in eV, secondary emission." << endl;
 		cout << "  -E            use electric field with particle drifts. Filename of Er(psi) profile." << endl;
+		cout << "  -c			 use collision module. Provide parameters: scaling factor of Larmor radius, scaling factor of mean free path; default, 1,1" << endl;
 		cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
 		cout << "  -S            filename for SIESTA; default, see below" << endl;
 		cout << "  -T            use temperature profile with particle drifts. Filename of T(psi) profile." << endl;
@@ -156,6 +164,12 @@ case 's':
 	if(sheath_params.size() > 2) sheath_sec = atof(sheath_params[2].c_str());
 	use_sheath = true;
 	break;
+case 'c':
+	use_collision = true;
+	coeffs = split(optarg,',');
+	rc = stod(coeffs[0]);
+	mc = stod(coeffs[1]);
+	break;
 case '?':
 	if(mpi_rank < 1)
 	{
@@ -182,7 +196,7 @@ else	// No Input: Abort
 }
 basename = checkparfilename(basename);
 LA_STRING parfilename = "_" + basename + ".dat";
-if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
+//if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
 
 // Read Parameterfile
 if(mpi_rank < 1) cout << "Read Parameterfile " << parfilename << endl;
@@ -326,8 +340,11 @@ if(dt == 0) PAR.tmax = PAR.tmin;
 // Use box as boundary
 simpleBndy = 1;
 
+// Prepare collisions
+COLLISION COL;
+if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mass, rc, mc, mpi_rank);
 // Prepare particles
-PARTICLE FLT(EQD,PAR,mpi_rank);
+PARTICLE FLT(EQD,PAR,COL,mpi_rank);
 
 MPI::COMM_WORLD.Barrier();	// Syncronize all Nodes
 

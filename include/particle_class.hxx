@@ -22,6 +22,7 @@
 #include <blitz/tinyvec-et.h>
 #include <efit_class.hxx>
 #include <io_class.hxx>
+#include <collision_class.hxx>
 #if defined(m3dc1)
 	#include <m3dc1_class.hxx>
 #endif
@@ -61,6 +62,7 @@ private:
 // Member Variables
 	EFIT& EQDr;		// Only a Reference, not a copy
 	IO& PARr;		// Only a Reference, not a copy
+	COLLISION& COLr;  // Only a Reference, not a copy
 
 	double GAMMA;
 	double eps0;
@@ -103,7 +105,7 @@ public:
 	int NstepsInSheath;
 
 // Constructors
-PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
+	PARTICLE(EFIT& EQD, IO& PAR, COLLISION& COL, int mpi_rank=0);		// Default Constructor
 
 // Member-Operators
 	PARTICLE& operator =(const PARTICLE& FLT);								// Operator =
@@ -136,7 +138,7 @@ PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank=0);		// Default Constructor
 
 //--------- Default Constructor -------------------------------------------------------------------------------------------
 // Constructor list necessary to set EQDr and PARr since references cannot be empty
-PARTICLE::PARTICLE(EFIT& EQD, IO& PAR, int mpi_rank): EQDr(EQD), PARr(PAR)
+PARTICLE::PARTICLE(EFIT& EQD, IO& PAR, COLLISION& COL, int mpi_rank): EQDr(EQD), PARr(PAR), COLr(COL)
 {
 // Variables
 double omegac;
@@ -372,6 +374,7 @@ int PARTICLE::mapit(const int itt, int MapDirection)
 {
 int chk = 0;
 const double phistart = phi;
+COLr.reset();	// reset collision module for new orbit trace
 
 // Integrate
 for(int i=1;i<=itt;i++)
@@ -413,10 +416,7 @@ if(chk<0) 	// particle has left system
 // check if particle has left system during integration step
 if(flag)
 {
-	if(outofBndyInBetween(phi,R,Z,phi_rad*rTOd,y(0),y(1),EQDr))
-	{
-		return -1;
-	}
+	if(outofBndyInBetween(phi,R,Z,phi_rad*rTOd,y(0),y(1),EQDr)) return -1;
 	else return 0;
 }
 R = y(0);
@@ -1079,14 +1079,6 @@ double sheathPot = 0;
 double sheathEr,sheathEz;
 
 chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
-//Added 20210901 by TL for testing
-//cout << "===TESTING GFILE BFIELD INTERPOLATION===" << endl;
-//cout << y(0) << endl;
-//cout << y(1) << endl;
-//cout << B_R << endl;
-//cout << B_Z << endl;
-//cout << B_phi << endl;
-
 if (chk == -1) return -1;
 
 dydx(0) = y(0)*B_R/B_phi;
@@ -1131,14 +1123,34 @@ return 0;
 int PARTICLE::rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate, bool returnLastStep)
 {
 int k, chk;
+double B_R, B_Z, B_phi, modB;
 bool old_n0only;
 double x1 = x;	//Store first value (helps reduce Error in x)
 double Lmfp,lcstep,psiold;
 Array<double,1> yout(nvar),dydx(nvar);
+// values for debugging
+double mfp;
+double prob;
 
 //Take nstep steps
-for (k=1;k<=nstep;k++)
-{
+for (k=1;k<=nstep;k++) 
+{ 
+	//if(k=1) std::cout << "First Lc: " << Lc << endl;
+	// check for collision
+	if (COLr.occurs(Lc, psi, mfp, prob)) 
+	{
+		//std::cout << "#collision occured" << endl << "#Old:" << endl << "R = " << y(0) << " Z = " << y(1) << " phi: " << x << endl;
+		//std::cout << "1\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
+		chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
+		if (chk == -1) return -1;
+		modB = sqrt(pow(B_R, 2) + pow(B_Z, 2) + pow(B_phi, 2));
+		COLr.collide(y(0), y(1), modB, psi, Lc);
+		//std::cout << "-1\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
+		//std::cout << "#New:" << endl << "#R = " << y(0) << " Z = " << y(1) << " phi: " << x << endl;
+	} //else 
+	//{
+	//std::cout << "0\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
+	//}
 	psiold = psi;
 	chk = dgls(x,y,dydx);
 	if (chk == -1) return -1;
