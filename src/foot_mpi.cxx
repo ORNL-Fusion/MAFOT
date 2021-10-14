@@ -65,6 +65,7 @@ int chk;
 double t,ntor;
 Range all = Range::all();
 EFIT EQD;
+vector<string> coeffs;
 
 int tag,sender;
 double tmin_slave,tmax_slave,dt;
@@ -81,20 +82,19 @@ LA_STRING siestafile = "siesta.dat";
 LA_STRING islandfile = "fakeIslands.in";
 LA_STRING ErProfileFile = "None";
 bool use_ErProfile = false;
-LA_STRING TprofileFile = "prof_t.dat";
-LA_STRING NprofileFile = "prof_n.dat";
 bool use_Tprofile = false;
 vector<string>  sheath_params;
 double sheath_width = 0.01;		// in m
 double sheath_te = 20;			// in eV
 double sheath_sec = 0.5;
+bool use_sheath = false;
+LA_STRING TprofileFile = "prof_t.dat";
+LA_STRING NprofileFile = "prof_n.dat";
 double f = 0;  // ratio of impurity to hydrogen ions
 double zbar = 2;  // average over impurity ion charge states
-bool use_sheath = false;
-bool use_collision = false;
-vector<string> coeffs;
 double rc = 1;
 double mc = 1;
+bool use_collision = false;
 
 // Command line input parsing
 int c;

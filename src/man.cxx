@@ -74,6 +74,13 @@ LA_STRING woutfile = "wout.nc";
 LA_STRING xpandfile = "xpand.dat";
 LA_STRING siestafile = "siesta.dat";
 LA_STRING islandfile = "fakeIslands.in";
+LA_STRING TprofileFile = "prof_t.dat";
+LA_STRING NprofileFile = "prof_n.dat";
+double f = 0;  // ratio of impurity to hydrogen ions
+double zbar = 2;  // average over impurity ion charge states
+double rc = 1;
+double mc = 1;
+bool use_collision = false;
 
 // Command line input parsing
 int c;
@@ -253,9 +260,12 @@ cout << "Box limits: " << bndy[0] << "\t" << bndy[1] << "\t" << bndy[2] << "\t" 
 prepare_common_perturbations(EQD,PAR,0,siestafile,xpandfile,islandfile);
 prep_perturbation(EQD,PAR);
 
+// Prepare collisions
+COLLISION COL;
+if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mass, rc, mc);
 // Prepare particles
-PARTICLE FLT(EQD,PAR);
-PARTICLE FLTold(EQD,PAR);
+PARTICLE FLT(EQD,PAR,COL);
+PARTICLE FLTold(EQD,PAR,COL);
 
 // loop for all fixed points
 for(i=1;i<=data.rows();i++)

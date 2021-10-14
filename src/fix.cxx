@@ -65,6 +65,13 @@ LA_STRING woutfile = "wout.nc";
 LA_STRING xpandfile = "xpand.dat";
 LA_STRING siestafile = "siesta.dat";
 LA_STRING islandfile = "fakeIslands.in";
+LA_STRING TprofileFile = "prof_t.dat";
+LA_STRING NprofileFile = "prof_n.dat";
+double f = 0;  // ratio of impurity to hydrogen ions
+double zbar = 2;  // average over impurity ion charge states
+double rc = 1;
+double mc = 1;
+bool use_collision = false;
 
 // Command line input parsing
 int c;
@@ -234,8 +241,11 @@ ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
 prepare_common_perturbations(EQD,PAR,0,siestafile,xpandfile,islandfile);
 prep_perturbation(EQD,PAR);
 
+// Prepare collisions
+COLLISION COL;
+if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mass, rc, mc);
 // Prepare particles
-PARTICLE FLT(EQD,PAR);
+PARTICLE FLT(EQD,PAR,COL);
 
 // Use Boundary Box
 simpleBndy = 1;

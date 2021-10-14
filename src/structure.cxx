@@ -71,6 +71,13 @@ LA_STRING islandfile = "fakeIslands.in";
 bool use_3Dwall = false;
 LA_STRING wall_file = "none";
 bool checkFistStep = false;
+LA_STRING TprofileFile = "prof_t.dat";
+LA_STRING NprofileFile = "prof_n.dat";
+double f = 0;  // ratio of impurity to hydrogen ions
+double zbar = 2;  // average over impurity ion charge states
+double rc = 1;
+double mc = 1;
+bool use_collision = false;
 
 // Command line input parsing
 int c;
@@ -269,8 +276,11 @@ else	// or construct initial points from straight line between (Rmin,Zmin) and (
 prepare_common_perturbations(EQD,PAR,0,siestafile,xpandfile,islandfile);
 prep_perturbation(EQD,PAR);
 
+// Prepare collisions
+COLLISION COL;
+if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mass, rc, mc);
 // Prepare particles
-PARTICLE FLT(EQD,PAR);
+PARTICLE FLT(EQD,PAR,COL);
 
 // Output
 LA_STRING filenameout = "struct" + praefix + ".dat";

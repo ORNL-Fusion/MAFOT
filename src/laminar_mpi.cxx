@@ -95,9 +95,15 @@ LA_STRING islandfile = "fakeIslands.in";
 bool checkFistStep = false;
 LA_STRING ErProfileFile = "None";
 bool use_ErProfile = false;
-LA_STRING TprofileFile = "None";
 bool use_Tprofile = false;
 simpleBndy = 0;
+LA_STRING TprofileFile = "prof_t.dat";
+LA_STRING NprofileFile = "prof_n.dat";
+double f = 0;  // ratio of impurity to hydrogen ions
+double zbar = 2;  // average over impurity ion charge states
+double rc = 1;
+double mc = 1;
+bool use_collision = false;
 
 // Command line input parsing
 int c;
@@ -354,8 +360,11 @@ if(PAR.NZ<=1) {dz=0;}
 else dz=(PAR.Zmax-PAR.Zmin)/(PAR.NZ-1);
 if(dz == 0) PAR.Zmax = PAR.Zmin;
 
+// Prepare collisions
+COLLISION COL;
+if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mass, rc, mc, mpi_rank);
 // Prepare particles
-PARTICLE FLT(EQD,PAR,mpi_rank);
+PARTICLE FLT(EQD,PAR,COL,mpi_rank);
 
 MPI::COMM_WORLD.Barrier();	// Syncronize all Nodes
 

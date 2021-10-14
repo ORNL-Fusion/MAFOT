@@ -58,8 +58,14 @@ LA_STRING siestafile = "siesta.dat";
 LA_STRING islandfile = "fakeIslands.in";
 LA_STRING ErProfileFile = "None";
 bool use_ErProfile = false;
-LA_STRING TprofileFile = "None";
 bool use_Tprofile = false;
+LA_STRING TprofileFile = "prof_t.dat";
+LA_STRING NprofileFile = "prof_n.dat";
+double f = 0;  // ratio of impurity to hydrogen ions
+double zbar = 2;  // average over impurity ion charge states
+double rc = 1;
+double mc = 1;
+bool use_collision = false;
 
 // Command line input parsing
 int c;
@@ -204,8 +210,11 @@ if(use_Tprofile)
 	ofs2 << "Ignoring Ekin, read T profile: " << TprofileFile << endl;
 }
 
+// Prepare collisions
+COLLISION COL;
+if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mass, rc, mc);
 // Prepare particles
-PARTICLE FLT(EQD,PAR);
+PARTICLE FLT(EQD,PAR,COL);
 
 // additional parameters for IO
 PAR.pv[0].name = "Max. Iterations";	PAR.pv[0].wert = PAR.itt;
@@ -233,7 +242,6 @@ ofs2 << "Helicity = " << EQD.helicity << endl;
 // Result array:	 Column Number,  Values
 Array<double,2> results(Range(1,6),Range(1,PAR.itt));
 Array<double,2> temp(Range(1,6),Range(1,PAR.itt));
-
 
 // Prepare Perturbation
 prepare_common_perturbations(EQD,PAR,0,siestafile,xpandfile,islandfile);

@@ -77,10 +77,16 @@ LA_STRING siestafile = "siesta.dat";
 LA_STRING islandfile = "fakeIslands.in";
 LA_STRING ErProfileFile = "None";
 bool use_ErProfile = false;
-LA_STRING TprofileFile = "None";
 bool use_Tprofile = false;
 bool use_inputPointsFile = false;
 LA_STRING inputPoints_file = "none";
+LA_STRING TprofileFile = "prof_t.dat";
+LA_STRING NprofileFile = "prof_n.dat";
+double f = 0;  // ratio of impurity to hydrogen ions
+double zbar = 2;  // average over impurity ion charge states
+double rc = 1;
+double mc = 1;
+bool use_collision = false;
 
 // Command line input parsing
 int c;
@@ -284,8 +290,11 @@ if(use_inputPointsFile)
 
 int N_slave_use = N_slave;	// set to private in omp section, so needs to be reinitialized in there.
 
+// Prepare collisions
+COLLISION COL;
+if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mass, rc, mc, mpi_rank);
 // Prepare particles
-PARTICLE FLT(EQD,PAR,mpi_rank);
+PARTICLE FLT(EQD,PAR,COL,mpi_rank);
 
 MPI::COMM_WORLD.Barrier();	// Syncronize all Nodes
 
