@@ -11,7 +11,7 @@
 #ifndef MAFOT_INCLUDED
 #define MAFOT_INCLUDED
 
-#define MAFOT_VERSION "5.3"
+#define MAFOT_VERSION "5.4"
 
 // Include
 //--------

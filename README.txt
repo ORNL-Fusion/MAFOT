@@ -46,12 +46,15 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 5.3
+MAFOT 5.4
 GUI 2.2
 
 Version Notes: 
 ----------------
-MAFOT 5.2 -- Oct 2021
+MAFOT 5.4 -- Oct 2021
+- Collision class (SULI project) merged into main
+
+MAFOT 5.3 -- Oct 2021
 - HEAT inluded in main file structure
 
 MAFOT 5.2 -- Aug 2021
