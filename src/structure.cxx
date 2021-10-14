@@ -288,11 +288,14 @@ ofs2 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << e
 ofs2 << "Start Tracer for " << PAR.N << " points ... " << endl;
 
 // Follow the field lines
+#ifdef HEAT
 //Modified by TL 20191117
 //Using 360 in the line below constrains the minimum field trace to be 360deg
 //Now, we just make the minimum itt
+int size = PAR.itt;
+#else
 int size = PAR.itt*int(360.0/double(dphi));
-//int size = PAR.itt;
+#endif
 Array<double,2> data(Range(1,size),Range(1,6));
 for(i=1;i<=PAR.N;i++)
 {

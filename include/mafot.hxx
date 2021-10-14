@@ -66,6 +66,7 @@ void bcuint_square(Array<double,1>& Ra, Array<double,1>& Za, double dR, double d
 	int simpleBndy = 1;		// 0: real wall boundary 	1: simple boundary box
 #else
 	int simpleBndy = 0;
+#endif
 // log file for errors
 ofstream ofs2;
 
