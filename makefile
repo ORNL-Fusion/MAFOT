@@ -6,7 +6,7 @@ include ./make.inc
 
 # ---- set directories ----
 OBJDIR := $(MAFOT_DIR)/release
-DIRS = $(OBJDIR)/d3d $(OBJDIR)/iter $(OBJDIR)/nstx $(OBJDIR)/mast $(OBJDIR)/cmod $(OBJDIR)/tcabr $(LIB_DIR) $(BIN_DIR)
+DIRS = $(OBJDIR)/d3d $(OBJDIR)/iter $(OBJDIR)/nstx $(OBJDIR)/mast $(OBJDIR)/cmod $(OBJDIR)/tcabr $(OBJDIR)/heat $(LIB_DIR) $(BIN_DIR)
 
 
 # ---- M3DC1 setup ----
@@ -60,12 +60,15 @@ MPIOBJS_NSTX = $(addprefix $(OBJDIR)/nstx/, $(MPIOBJS))
 MPIOBJS_MAST = $(addprefix $(OBJDIR)/mast/, $(MPIOBJS))
 MPIOBJS_CMOD = $(addprefix $(OBJDIR)/cmod/, $(MPIOBJS))
 MPIOBJS_TCABR = $(addprefix $(OBJDIR)/tcabr/, $(MPIOBJS))
+MPIOBJS_HEAT = $(addprefix $(OBJDIR)/heat/, $(MPIOBJS))
+
 MPIDEPS_D3D = $(MPIOBJS_D3D:.o=.d)
 MPIDEPS_ITER = $(MPIOBJS_ITER:.o=.d)
 MPIDEPS_NSTX = $(MPIOBJS_NSTX:.o=.d)
 MPIDEPS_MAST = $(MPIOBJS_MAST:.o=.d)
 MPIDEPS_CMOD = $(MPIOBJS_CMOD:.o=.d)
 MPIDEPS_TCABR = $(MPIOBJS_TCABR:.o=.d)
+MPIDEPS_HEAT = $(MPIOBJS_HEAT:.o=.d)
 
 SERSRCS = fix.cxx man.cxx plot.cxx structure.cxx lcfs.cxx
 SEROBJS = $(SERSRCS:.cxx=.o)
@@ -75,12 +78,15 @@ SEROBJS_NSTX = $(addprefix $(OBJDIR)/nstx/, $(SEROBJS))
 SEROBJS_MAST = $(addprefix $(OBJDIR)/mast/, $(SEROBJS))
 SEROBJS_CMOD = $(addprefix $(OBJDIR)/cmod/, $(SEROBJS))
 SEROBJS_TCABR = $(addprefix $(OBJDIR)/tcabr/, $(SEROBJS))
+SEROBJS_HEAT = $(addprefix $(OBJDIR)/heat/, $(SEROBJS))
+
 SERDEPS_D3D = $(SEROBJS_D3D:.o=.d)
 SERDEPS_ITER = $(SEROBJS_ITER:.o=.d)
 SERDEPS_NSTX = $(SEROBJS_NSTX:.o=.d)
 SERDEPS_MAST = $(SEROBJS_MAST:.o=.d)
 SERDEPS_CMOD = $(SEROBJS_CMOD:.o=.d)
 SERDEPS_TCABR = $(SEROBJS_TCABR:.o=.d)
+SERDEPS_HEAT = $(SEROBJS_HEAT:.o=.d)
 
 FSRCS = biotloop.f circleb.f d3icoils.f nstxecgeom.f polygonb.f d3busgeom.f\
         d3ccoils.f d3pferr.f ellipints.f itericoilsgeom.f masteccoilsgeom.f masticoilsgeom.f\
@@ -90,7 +96,7 @@ FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 
 
 # ---- Common Targets ----
-all : $(DIRS) d3d iter nstx mast cmod tcabr gui xpand d3dplot
+all : $(DIRS) d3d iter nstx mast cmod tcabr gui xpand d3dplot heat
 
 .PHONY : d3d
 d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi dtstructure dtlcfs dttrace
@@ -98,17 +104,20 @@ d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi dtstructure
 .PHONY : iter
 iter : $(DIRS) iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi iterplot_mpi iterstructure
 
-.PHONY : nstx 
+.PHONY : nstx
 nstx : $(DIRS) nstxplot nstxfix nstxman nstxlaminar_mpi nstxfoot_mpi nstxplot_mpi nstxstructure
 
-.PHONY : mast 
+.PHONY : mast
 mast : $(DIRS) mastplot mastfix mastman mastlaminar_mpi mastfoot_mpi mastplot_mpi maststructure
 
-.PHONY : cmod 
+.PHONY : cmod
 cmod : $(DIRS) cmodplot cmodfix cmodman cmodlaminar_mpi cmodfoot_mpi cmodplot_mpi cmodstructure
 
 .PHONY : tcabr 
 tcabr : $(DIRS) tcabrplot tcabrfix tcabrman tcabrlaminar_mpi tcabrfoot_mpi tcabrplot_mpi tcabrstructure
+
+.PHONY : heat
+heat : $(DIRS) heatstructure heatlaminar_mpi
 
 .PHONY : plot
 plot : $(DIRS) dtplot_mpi iterplot_mpi nstxplot_mpi mastplot_mpi cmodplot_mpi tcabrplot_mpi
@@ -120,13 +129,13 @@ fix : $(DIRS) dtfix iterfix nstxfix mastfix cmodfix tcabrfix
 man : $(DIRS) dtman iterman nstxman mastman cmodman tcabrman
 
 .PHONY : laminar
-laminar : $(DIRS) dtlaminar_mpi iterlaminar_mpi nstxlaminar_mpi mastlaminar_mpi cmodlaminar_mpi tcabrlaminar_mpi
+laminar : $(DIRS) dtlaminar_mpi iterlaminar_mpi nstxlaminar_mpi mastlaminar_mpi cmodlaminar_mpi tcabrlaminar_mpi heatlaminar_mpi
 
 .PHONY : foot
 foot : $(DIRS) dtfoot_mpi iterfoot_mpi nstxfoot_mpi mastfoot_mpi cmodfoot_mpi tcabrfoot_mpi
 
 .PHONY : structure
-structure : $(DIRS) dtstructure iterstructure nstxstructure maststructure cmodstructure tcabrstructure
+structure : $(DIRS) dtstructure iterstructure nstxstructure maststructure cmodstructure tcabrstructure heatstructure
 
 .PHONY : gui
 gui : $(MAFOT_DIR)/python/mafot_gui.py
@@ -146,16 +155,16 @@ d3dplot : $(MAFOT_DIR)/python/d3dplot.py
 	ln $(MAFOT_DIR)/python/d3dplot.py $(BIN_DIR)/d3dplot.py
 	chmod +x $(BIN_DIR)/d3dplot.py
 
-libtrip3d.a : $(DIRS) $(FOBJS) 
+libtrip3d.a : $(DIRS) $(FOBJS)
 	$(ARCH) $(LIB_DIR)/$@ $(FOBJS)
 
-libla_string.a : $(DIRS) $(OBJS) 
+libla_string.a : $(DIRS) $(OBJS)
 	$(ARCH) $(LIB_DIR)/$@ $(OBJS)
 
 clean :
 	rm -rf $(OBJDIR)
-	
-$(DIRS) : 
+
+$(DIRS) :
 	mkdir -p $@
 
 
@@ -192,7 +201,7 @@ dtplot_mpi : $(OBJDIR)/d3d/plot_mpi.o libla_string.a libtrip3d.a
 
 dtstructure : $(OBJDIR)/d3d/structure.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/structure.o -o $(BIN_DIR)/$@ $(LIBS)
-	
+
 dtlcfs : $(OBJDIR)/d3d/lcfs.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/lcfs.o -o $(BIN_DIR)/$@ $(LIBS)
 	
@@ -320,6 +329,14 @@ tcabrstructure : $(OBJDIR)/tcabr/structure.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/tcabr/structure.o -o $(BIN_DIR)/$@ $(LIBS)
 
 
+	# ---- HEAT Targets ----
+heatstructure : $(OBJDIR)/heat/structure.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/heat/structure.o -o $(BIN_DIR)/$@ $(LIBS)
+
+heatlaminar_mpi : $(OBJDIR)/heat/laminar_mpi.o libla_string.a libtrip3d.a
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/heat/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
+
 # ---- Include Dependencies ----
 -include $(DEPS)
 -include $(SERDEPS_D3D)
@@ -328,12 +345,15 @@ tcabrstructure : $(OBJDIR)/tcabr/structure.o libla_string.a libtrip3d.a
 -include $(SERDEPS_MAST)
 -include $(SERDEPS_CMOD)
 -include $(SERDEPS_TCABR)
+-include $(SERDEPS_HEAT)
+
 -include $(MPIDEPS_D3D)
 -include $(MPIDEPS_ITER)
 -include $(MPIDEPS_NSTX)
 -include $(MPIDEPS_MAST)
 -include $(MPIDEPS_CMOD)
 -include $(MPIDEPS_TCABR)
+-include $(MPIDEPS_HEAT)
 
 
 # ---- Compile ----
@@ -354,12 +374,16 @@ $(MPIOBJS_MAST) : $(OBJDIR)/mast/%.o : $(MAFOT_DIR)/src/%.cxx
 
 $(MPIOBJS_NSTX) : $(OBJDIR)/nstx/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DNSTX $< -o $@
-	
+
 $(MPIOBJS_CMOD) : $(OBJDIR)/cmod/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DCMOD $< -o $@
 	
 $(MPIOBJS_TCABR) : $(OBJDIR)/tcabr/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DTCABR $< -o $@
+
+$(MPIOBJS_HEAT) : $(OBJDIR)/heat/%.o : $(MAFOT_DIR)/src/%.cxx
+	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DHEAT $< -o $@
+
 
 $(SEROBJS_D3D) : $(OBJDIR)/d3d/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) -DD3D $< -o $@
@@ -378,4 +402,8 @@ $(SEROBJS_CMOD) : $(OBJDIR)/cmod/%.o : $(MAFOT_DIR)/src/%.cxx
 	
 $(SEROBJS_TCABR) : $(OBJDIR)/tcabr/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) -DCTCABR $< -o $@
+
+$(SEROBJS_HEAT) : $(OBJDIR)/heat/%.o : $(MAFOT_DIR)/src/%.cxx
+	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) -DHEAT $< -o $@
+
 

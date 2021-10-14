@@ -15,14 +15,14 @@
 #include <blitz/tinyvec-et.h>
 using namespace blitz;
 
-// Prototypes  
+// Prototypes
 void spline(Array<double,1>& x, Array<double,1>& y, int n, double yp1, double ypn, Array<double,1>& y2);
 void splint(Array<double,1>& xa, Array<double,1>& ya, Array<double,1>& y2a, int n, double x, double& y, double& yx);
 void splint_2D(Array<double,1>& x1a, Array<double,1>& x2a, Array<double,2>& ya, Array<double,2>& d2ydx1, int n1, int n2,
 				double x1, double x2, double& y, double& dydx1, double& dydx2);
 
 void bcuderiv(Array<double,2>& y, double d1, double d2, Array<double,2>& y1, Array<double,2>& y2, Array<double,2>& y12);
-void bcucof(Array<double,1>& y, Array<double,1>& y1, Array<double,1>& y2, Array<double,1>& y12, double d1, double d2, 
+void bcucof(Array<double,1>& y, Array<double,1>& y1, Array<double,1>& y2, Array<double,1>& y12, double d1, double d2,
 			Array<double,2>& c);
 int bcuint(Array<double,1>& Ra, Array<double,1>& Za, Array<double,4>& Ca, double dR, double dZ,
 			double R, double Z, double& y, double& y1, double& y2);
@@ -47,7 +47,7 @@ Array<double,1> u(n);
 
 if (yp1 > 0.99e30) y2(1)=u(1)=0.0;	//The lower boundary condition is set either to be "natural"
 else	//or else to have a specified first derivative.
-{ 
+{
 	y2(1) = -0.5;
 	u(1)=(3.0/(x(2)-x(1)))*((y(2)-y(1))/(x(2)-x(1))-yp1);
 }
@@ -55,7 +55,7 @@ else	//or else to have a specified first derivative.
 //This is the decomposition loop of the tridiagonal algorithm.
 //y2 and u are used for temporary storage of the decomposed factors.
 for (i=2;i<=n-1;i++)
-{ 
+{
 	sig=(x(i)-x(i-1))/(x(i+1)-x(i-1));
 	p=sig*y2(i-1)+2.0;
 	y2(i)=(sig-1.0)/p;
@@ -63,9 +63,9 @@ for (i=2;i<=n-1;i++)
 	u(i)=(6.0*u(i)/(x(i+1)-x(i-1))-sig*u(i-1))/p;
 }
 
-if (ypn > 0.99e30) qn=un=0.0;	//The upper boundary condition is set either to be "natural" 
+if (ypn > 0.99e30) qn=un=0.0;	//The upper boundary condition is set either to be "natural"
 else	//or else to have a specified first derivative.
-{ 
+{
 	qn=0.5;
 	un=(3.0/(x(n)-x(n-1)))*(ypn-(y(n)-y(n-1))/(x(n)-x(n-1)));
 }
@@ -85,14 +85,14 @@ void splint(Array<double,1>& xa, Array<double,1>& ya, Array<double,1>& y2a, int 
 int klo,khi,k;
 double h,b,a;
 
-klo=1; 
+klo=1;
 khi=n;
 
 // constant extrapolation
 if(x > xa(n)) x = xa(n);
 if(x < xa(1)) x = xa(1);
 
-while (khi-klo>1) 
+while (khi-klo>1)
 {
 	k=(khi+klo) >> 1;
 	if (xa(k)>x) khi=k;
@@ -123,7 +123,7 @@ Range all = Range::all();
 Array<double,1> slice_1,slice_2;	//Slice-array
 
 //Perform n1 evaluations of the row splines (r-direction), using the one-dimensional spline evaluator splint.
-for (j=1;j<=n2;j++) 
+for (j=1;j<=n2;j++)
 {
 	slice_1.reference(ya(all,j));
 	slice_2.reference(d2ydx1(all,j));
@@ -134,14 +134,14 @@ for (j=1;j<=n2;j++)
 dx2a=x2a(2)-x2a(1);	// equidistant grid!!!!
 d1=(yytmp(2)-yytmp(1))/dx2a;	// estimate of first derivative at boundary
 dn=(yytmp(n2)-yytmp(n2-1))/dx2a;
-spline(x2a,yytmp,n2,d1,dn,ytmp);  
-splint(x2a,yytmp,ytmp,n2,x2,y,dydx2); 
+spline(x2a,yytmp,n2,d1,dn,ytmp);
+splint(x2a,yytmp,ytmp,n2,x2,y,dydx2);
 
 // Construct the one-dimensional column spline of the derivative dydx1
 d1=(dyytmp(2)-dyytmp(1))/dx2a;	// estimate of first derivative at boundary; does NOT have to be exact
 dn=(dyytmp(n2)-dyytmp(n2-1))/dx2a;
-spline(x2a,dyytmp,n2,d1,dn,dytmp);  
-splint(x2a,dyytmp,dytmp,n2,x2,dydx1,d2ydx1dx2); 
+spline(x2a,dyytmp,n2,d1,dn,dytmp);
+splint(x2a,dyytmp,dytmp,n2,x2,dydx1,d2ydx1dx2);
 }
 
 //------------------ bcuderiv ---------------------------------------------------------------------------------------------
@@ -167,7 +167,7 @@ for(i=2;i<N1;i++)
 }
 
 // Boundaries
-for(i=2;i<N1;i++) 
+for(i=2;i<N1;i++)
 {
 	// lower x2-boundary
 	y1(i,1) = 0.5*(y(i+1,1)-y(i-1,1))/d1;
@@ -217,7 +217,7 @@ y12(N1,N2) = (y(N1,N2)-y(N1-1,N2)-y(N1,N2-1)+y(N1-1,N2-1))/d1d2;
 //from the lower left), and given d1 and d2, the length of the grid cell in the 1- and
 //2-directions, this routine returns the table c[1..4][1..4] that is used by routine bcuint
 //for bicubic interpolation.
-void bcucof(Array<double,1>& y, Array<double,1>& y1, Array<double,1>& y2, Array<double,1>& y12, double d1, double d2, 
+void bcucof(Array<double,1>& y, Array<double,1>& y1, Array<double,1>& y2, Array<double,1>& y12, double d1, double d2,
 			Array<double,2>& c)
 {
 static int wt[16][16]= {
@@ -242,16 +242,16 @@ double xx,d1d2,cl[16],x[16];
 d1d2=d1*d2;
 
 // Pack a temporary vector x.
-for (i=1;i<=4;i++) 
-{ 
+for (i=1;i<=4;i++)
+{
 	x[i-1]=y(i);
 	x[i+3]=y1(i)*d1;
 	x[i+7]=y2(i)*d2;
 	x[i+11]=y12(i)*d1d2;
 }
 // Matrix multiply by the stored table.
-for (i=0;i<=15;i++) 
-{ 
+for (i=0;i<=15;i++)
+{
 	xx=0.0;
 	for (k=0;k<=15;k++) xx += wt[i][k]*x[k];
 	cl[i]=xx;
@@ -259,7 +259,7 @@ for (i=0;i<=15;i++)
 l=0;
 
 // Unpack the result into the output table.
-for (i=1;i<=4;i++) 
+for (i=1;i<=4;i++)
 	for (j=1;j<=4;j++) c(i,j)=cl[l++];
 }
 
@@ -299,8 +299,8 @@ t=(R-Ra(j))/dR;
 u=(Z-Za(k))/dZ;
 
 y = y1 = y2 = 0.0;
-for (i=4;i>=1;i--) 
-{ 
+for (i=4;i>=1;i--)
+{
 	y = t*y + ((c(i,4)*u + c(i,3))*u + c(i,2))*u + c(i,1);
 	y2 = t*y2 + (3.0*c(i,4)*u + 2.0*c(i,3))*u + c(i,2);
 	y1 = u*y1 + (3.0*c(4,i)*t + 2.0*c(3,i))*t + c(2,i);

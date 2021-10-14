@@ -21,13 +21,13 @@
 #include <efit_class.hxx>
 using namespace blitz;
 
-// Prototypes  
+// Prototypes
 void readparfile_new(char* name, vector<double>& vec, int& shot, int& time, LA_STRING& path);
 
 // Typedef
 typedef struct {string name; double wert;} parstruct;
 
-// Golbal Parameters 
+// Golbal Parameters
 extern int simpleBndy;
 extern const double dpinit;
 
@@ -40,7 +40,7 @@ private:
 	LA_STRING filename;	// Name of Parameter file
 	int psize;			// length of parstruct array
 
-public: 
+public:
 // Member Variables
 	int itt;									// toroidal iterations
 	double phistart;							// toroidal start-angle
@@ -103,7 +103,7 @@ IO::IO(EFIT& EQD): EQDr(EQD)										// Default
 	pv = 0;
 	output_step_size = 360;
 	set_sheath();
-}					
+}
 IO::IO(EFIT& EQD, LA_STRING name, int size, int mpi_rank): EQDr(EQD)	// with readiodata
 {
 	psize = size;
@@ -112,7 +112,7 @@ IO::IO(EFIT& EQD, LA_STRING name, int size, int mpi_rank): EQDr(EQD)	// with rea
 	else pv = 0;
 	output_step_size = 360;
 	set_sheath();
-}	
+}
 
 //--------- Operator = ----------------------------------------------------------------------------------------------------
 IO& IO::operator =(const IO& PAR)
@@ -129,35 +129,35 @@ phistart = PAR.phistart;
 MapDirection = PAR.MapDirection;
 
 // t grid (footprints only)
-Nt = PAR.Nt; 
-tmin = PAR.tmin; 
-tmax = PAR.tmax;			
+Nt = PAR.Nt;
+tmin = PAR.tmin;
+tmax = PAR.tmax;
 
 // phi grid (footprints only)
-Nphi = PAR.Nphi; 
-phimin = PAR.phimin; 
-phimax = PAR.phimax;		
+Nphi = PAR.Nphi;
+phimin = PAR.phimin;
+phimax = PAR.phimax;
 
 // R grid (laminar only)
-NR = PAR.NR; 
-Rmin = PAR.Rmin; 
-Rmax = PAR.Rmax;		
+NR = PAR.NR;
+Rmin = PAR.Rmin;
+Rmax = PAR.Rmax;
 
 // Z grid (laminar only)
-NZ = PAR.NZ; 
-Zmin = PAR.Zmin; 
-Zmax = PAR.Zmax;		
+NZ = PAR.NZ;
+Zmin = PAR.Zmin;
+Zmax = PAR.Zmax;
 
 // r grid
-N = PAR.N; 
-Nr = PAR.Nr; 
-rmin = PAR.rmin; 
-rmax = PAR.rmax;		
+N = PAR.N;
+Nr = PAR.Nr;
+rmin = PAR.rmin;
+rmax = PAR.rmax;
 
 // theta grid
-Nth = PAR.Nth; 
-thmin = PAR.thmin; 
-thmax = PAR.thmax;		
+Nth = PAR.Nth;
+thmin = PAR.thmin;
+thmax = PAR.thmax;
 
 // Particle Parameters
 Ekin = PAR.Ekin;
@@ -192,7 +192,7 @@ sheath_sec = PAR.sheath_sec;
 // Parstruct array
 if(pv) delete[] pv;
 pv = new parstruct[psize];
-for(int i=0;i<psize;i++) 
+for(int i=0;i<psize;i++)
 {
 	pv[i].name = PAR.pv[i].name;
 	pv[i].wert = PAR.pv[i].wert;
@@ -212,40 +212,40 @@ out << "MapDirection = " << PAR.MapDirection << endl;
 out << endl;
 
 out << "--- t Grid (footprints only) ---" << endl;
-out << "Nt = " << PAR.Nt << endl; 
-out << "tmin = " << PAR.tmin << endl; 
-out << "tmax = " << PAR.tmax << endl;			
+out << "Nt = " << PAR.Nt << endl;
+out << "tmin = " << PAR.tmin << endl;
+out << "tmax = " << PAR.tmax << endl;
 out << endl;
 
 out << "--- phi Grid (footprints only) ---" << endl;
-out << "Nphi = " << PAR.Nphi << endl; 
-out << "phimin = " << PAR.phimin << endl; 
-out << "phimax = " << PAR.phimax << endl;		
+out << "Nphi = " << PAR.Nphi << endl;
+out << "phimin = " << PAR.phimin << endl;
+out << "phimax = " << PAR.phimax << endl;
 out << endl;
 
 out << "--- R Grid (laminar only) ---" << endl;
-out << "NR = " << PAR.NR << endl; 
-out << "Rmin = " << PAR.Rmin << endl; 
-out << "Rmax = " << PAR.Rmax << endl;		
+out << "NR = " << PAR.NR << endl;
+out << "Rmin = " << PAR.Rmin << endl;
+out << "Rmax = " << PAR.Rmax << endl;
 out << endl;
 
 out << "--- Z Grid (laminar only) ---" << endl;
-out << "NZ = " << PAR.NZ << endl; 
-out << "Zmin = " << PAR.Zmin << endl; 
-out << "Zmax = " << PAR.Zmax << endl;		
+out << "NZ = " << PAR.NZ << endl;
+out << "Zmin = " << PAR.Zmin << endl;
+out << "Zmax = " << PAR.Zmax << endl;
 out << endl;
 
 out << "--- r Grid ---" << endl;
-out << "N = " << PAR.N << endl; 
-out << "Nr = " << PAR.Nr << endl; 
-out << "rmin = " << PAR.rmin << endl; 
-out << "rmax = " << PAR.rmax << endl;		
+out << "N = " << PAR.N << endl;
+out << "Nr = " << PAR.Nr << endl;
+out << "rmin = " << PAR.rmin << endl;
+out << "rmax = " << PAR.rmax << endl;
 out << endl;
 
 out << "--- theta Grid ---" << endl;
-out << "Nth = " << PAR.Nth << endl; 
-out << "thmin = " << PAR.thmin << endl; 
-out << "thmax = " << PAR.thmax << endl;		
+out << "Nth = " << PAR.Nth << endl;
+out << "thmin = " << PAR.thmin << endl;
+out << "thmax = " << PAR.thmax << endl;
 out << endl;
 
 out << "--- Particle Parameters ---" << endl;
@@ -285,7 +285,7 @@ out << endl;
 	out << endl;
 #endif
 
-if(PAR.psize>0) 
+if(PAR.psize>0)
 {
 	out << "--- Parstruct array ---" << endl;
 	for(int i=0;i<PAR.psize;i++) out << PAR.pv[i].name << " = " << PAR.pv[i].wert << endl;
@@ -305,8 +305,9 @@ int shot,time;
 readparfile_new(name,vec,shot,time,EQDr.Path);
 EQDr.Shot = LA_STRING(shot);
 EQDr.Time = LA_STRING(time);
+//time should be 5 long and shot should be 6 long (note time was only 4 long before)
 //while(EQDr.Shot.length() < 6) EQDr.Shot = "0" + EQDr.Shot;
-while(EQDr.Time.length() < 4) EQDr.Time = "0" + EQDr.Time;
+while(EQDr.Time.length() < 5) EQDr.Time = "0" + EQDr.Time;
 //if(vec.size()<22) {if(mpi_rank < 1) cout << "Fail to read all parameters, File incomplete" << endl; EXIT;}
 
 // private Variables
@@ -418,6 +419,16 @@ useErProfile = 0;
 	useBuswork = 0;
 	useBcoil = 0;
 	useFilament = 0;
+#elif defined(HEAT)
+	//Coded as very basic right now for troubleshooting
+	// Set switches
+	useIcoil = int(vec[13]);
+	useFilament = int(vec[14]);
+	// Set unused Parameters to defaults
+	useFcoil = 0;
+	useCcoil = 0;
+	useBuswork = 0;
+	useBcoil = 0;
 #else
 	// Set switches
 	useFcoil = int(vec[13]);

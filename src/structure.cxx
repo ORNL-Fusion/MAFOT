@@ -20,6 +20,8 @@
 	#define program_name "cmodstructure"
 #elif defined(TCABR)
 	#define program_name "tcabrstructure"
+#elif defined(HEAT)
+	#define program_name "heatstructure"
 #else
 	#define program_name "dtstructure"
 #endif
@@ -33,14 +35,14 @@
 //-----------
 using namespace blitz;
 
-// Prototypes 
+// Prototypes
 //-----------
 inline double modulo(double x, double y);
 
 // Switches
 //---------
 
-// Golbal Parameters 
+// Golbal Parameters
 //------------------
 
 // Main Program
@@ -232,7 +234,7 @@ PAR.pv[9].name = "Zmax";			PAR.pv[9].wert = PAR.Zmax;
 
 PAR.output_step_size = nstep;
 
-// Read pointfile 
+// Read pointfile
 Array<double,2> initial;
 double dR,dZ,dN;
 int inputPoints_columns;
@@ -254,7 +256,7 @@ else	// or construct initial points from straight line between (Rmin,Zmin) and (
 	dR = (PAR.Rmax-PAR.Rmin)*dN;
 	dZ = (PAR.Zmax-PAR.Zmin)*dN;
 
-	for(i=1;i<=PAR.N;i++) 
+	for(i=1;i<=PAR.N;i++)
 	{
 		initial(i,1) = PAR.Rmin + (i-1)*(dR - 4*alpha*((i-1)*dN-1)*dZ);
 		initial(i,2) = PAR.phistart;	// phistart is degrees, right-handed
@@ -286,7 +288,11 @@ ofs2 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << e
 ofs2 << "Start Tracer for " << PAR.N << " points ... " << endl;
 
 // Follow the field lines
+//Modified by TL 20191117
+//Using 360 in the line below constrains the minimum field trace to be 360deg
+//Now, we just make the minimum itt
 int size = PAR.itt*int(360.0/double(dphi));
+//int size = PAR.itt;
 Array<double,2> data(Range(1,size),Range(1,6));
 for(i=1;i<=PAR.N;i++)
 {
@@ -372,7 +378,9 @@ for(i=1;i<=PAR.N;i++)
 	}
 
 	// Write field line averaged statistics
-	cout << "psimin = " << FLT.psimin << "\t" << "Lc at psimin = " << FLT.Lcmin << "\t" << "<dpsi/dLc> = " << FLT.get_dpsidLc_average() << "\t" << "Lc = " << FLT.Lc << "\t" << "steps = " << FLT.steps << endl;
+	//commented by TL (prints too much to HEAT)
+	//cout << "psimin = " << FLT.psimin << "\t" << "Lc at psimin = " << FLT.Lcmin << "\t" << "<dpsi/dLc> = " << FLT.get_dpsidLc_average() << "\t" << "Lc = " << FLT.Lc << "\t" << "steps = " << FLT.steps << endl;
+	ofs2 << "psimin = " << FLT.psimin << "\t" << "Lc at psimin = " << FLT.Lcmin << "\t" << "<dpsi/dLc> = " << FLT.get_dpsidLc_average() << "\t" << "Lc = " << FLT.Lc << "\t" << "steps = " << FLT.steps << endl;
 }
 
 // Close previous output file and clear ofstream
@@ -458,7 +466,7 @@ if(PAR.response_field >= 0) M3D.unload();
 
 return 0;
 } //end of main
- 
+
 
 //------------------------ End of Main ------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
@@ -472,5 +480,3 @@ return z;
 
 //----------------------- End of File -------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
-
-
