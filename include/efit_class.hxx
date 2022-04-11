@@ -359,6 +359,8 @@ Time = ShotTime;
 
 // Open File
 for(i=1;i<=5-int(ShotTime.len());i++) ShotTime.insert('0');		//insert zeros until ShotTime has a length of 5
+//added by TL 20220411
+for(i=1;i<=(5+i)-int(ShotNr.len());i++) ShotNr.insert('0');		//insert zeros until ShotNr has a length of 6
 LA_STRING filename = "g" + ShotNr + "." + ShotTime;
 ifstream in;
 in.open(Path + filename);
