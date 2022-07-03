@@ -40,7 +40,9 @@ double get_Lmfp(double Ekin);
 // Integrator Parameters
 const int nvar = 2;				// Number of Variables
 const int ilt = 360;			// Steps till Output
-const double dpinit = 1.0;		// step size of phi in [deg]
+//modified 20220703 by TL.  this is now in input file so can be changed
+//const double dpinit = 1.0;		// step size of phi in [deg]
+double dpinit = 1.0;		// step size of phi in [deg]
 
 // Golbal Parameters
 extern ofstream ofs2;
@@ -1133,11 +1135,11 @@ double mfp;
 double prob;
 
 //Take nstep steps
-for (k=1;k<=nstep;k++) 
-{ 
+for (k=1;k<=nstep;k++)
+{
 	//if(k=1) std::cout << "First Lc: " << Lc << endl;
 	// check for collision
-	if (COLr.occurs(Lc, psi, mfp, prob)) 
+	if (COLr.occurs(Lc, psi, mfp, prob))
 	{
 		//std::cout << "#collision occured" << endl << "#Old:" << endl << "R = " << y(0) << " Z = " << y(1) << " phi: " << x << endl;
 		//std::cout << "1\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
@@ -1147,7 +1149,7 @@ for (k=1;k<=nstep;k++)
 		COLr.collide(y(0), y(1), modB, psi, Lc);
 		//std::cout << "-1\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
 		//std::cout << "#New:" << endl << "#R = " << y(0) << " Z = " << y(1) << " phi: " << x << endl;
-	} //else 
+	} //else
 	//{
 	//std::cout << "0\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
 	//}

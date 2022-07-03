@@ -19,6 +19,13 @@ These are the things I changed for HEAT
   10) changed point_along_target() to be a dummy function in this file
   11) fixed Fpol exterpolation in mafot.hxx getBfield_general()
 
+Note from TL: 20220703:
+Modified source to allow for user defined dpinit (toroidal step size) in HEAT
+	12) changed dpinit from "const double" to "double" in particle_class.hxx
+	13) changed "extern const double dpinit;" to "extern double dpinit" in io_class.hxx
+	14) added dpinit to readiodata() in io_class.hxx for HEAT
+	15) changed "dphi=nsteps*dpinit" to "dphi=nsteps" for HEAT in structure.cxx
+
 for all these edits I have included my initials "TL" in a comment, so you can
 search for TL to find the line I am talking about
 

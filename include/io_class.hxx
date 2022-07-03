@@ -29,7 +29,9 @@ typedef struct {string name; double wert;} parstruct;
 
 // Golbal Parameters
 extern int simpleBndy;
-extern const double dpinit;
+//modified 20220703 by TL
+//extern const double dpinit;
+extern double dpinit;
 
 //--------- Begin Class PARTICLE ----------------------------------------------------------------------------------------------
 class IO
@@ -74,6 +76,7 @@ public:
 	double sheath_sec;							// secondary emission coefficient in the sheath, default is 0.5
 
 	parstruct* pv;								// parstruct array
+
 
 // Constructors
 	IO(EFIT& EQD);												// Default Constructor
@@ -429,6 +432,9 @@ useErProfile = 0;
 	useCcoil = 0;
 	useBuswork = 0;
 	useBcoil = 0;
+	//added 20220703 by TL
+	//user adjustable toroidal step size
+	dpinit = double(vec[23]);
 #else
 	// Set switches
 	useFcoil = int(vec[13]);
@@ -639,7 +645,6 @@ while(getline(file, line))
 }
 file.close();
 }
-
 #endif //  IO_CLASS_INCLUDED
 //----------------------- End of File -------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
