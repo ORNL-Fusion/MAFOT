@@ -528,39 +528,38 @@ dn = (qpsi(NR)-qpsi(NR-1))/dpsi;
 
 spline(psi,qpsi,NR,d1,dn,d2qpsi);
 
-// Get helicity of Equilibrium
-// B_tor is parallel to Ip if line trajectory derivative dZ/dphi < 0 at <-> "right-handed"
-// outer midplane. Otherwise B_tor is anti-parallel to Ip <-> "left-handed".
-int chk;
-double psi_hel,dpsidr_hel;
+#ifdef HEAT
+	//in HEAT user can change Fpol, Bt0, Ip, and psiRZ with ease in the GUI, so
+	// we never adjust, and take helicity based upon Ip and Bt0 sign
+	helicity = -1*sign(Bt0*Ip) ;
+	helicity_adjust = 1;
+	cout << "Helicity: " << helicity << endl;
 
-//Commented / Modified by TL for HEAT (small tokamaks need a small multiplier or else R_hel is way inside core)
-//double R_hel = max(lcfs(Range(1,toEnd,2))) - 10*dR;	// max of R coordinates from lcfs, just inside the separatrix ...
-double R_hel = max(lcfs(Range(1,toEnd,2))) - 1*dR;	// max of R coordinates from lcfs, just inside the separatrix ...
+#else
+	// Get helicity of Equilibrium
+	// B_tor is parallel to Ip if line trajectory derivative dZ/dphi < 0 at <-> "right-handed"
+	// outer midplane. Otherwise B_tor is anti-parallel to Ip <-> "left-handed".
+	int chk;
+	double psi_hel,dpsidr_hel;
 
-chk = get_psi(R_hel,0,psi_hel,dpsidr_hel,dummy);	// ... at midplande
-helicity = sign(dpsidr_hel/get_Fpol(psi_hel));		// = sign(-dZ/dphi)
-helicity_adjust = 1;
+	//Commented / Modified by TL for HEAT (small tokamaks need a small multiplier or else R_hel is way inside core)
+	//double R_hel = max(lcfs(Range(1,toEnd,2))) - 10*dR;	// max of R coordinates from lcfs, just inside the separatrix ...
+	double R_hel = max(lcfs(Range(1,toEnd,2))) - 1*dR;	// max of R coordinates from lcfs, just inside the separatrix ...
 
-// Adjust helicity according to Ip and B_tor
-if((Ip*Bt0 > 0 && helicity == -1) || (Ip*Bt0 < 0 && helicity == 1))
-{
-	helicity *= -1;
-	helicity_adjust = -1;
+	chk = get_psi(R_hel,0,psi_hel,dpsidr_hel,dummy);	// ... at midplande
+	helicity = sign(dpsidr_hel/get_Fpol(psi_hel));		// = sign(-dZ/dphi)
+	helicity_adjust = 1;
 
-	//Added cout by TL for HEAT troubleshooting
-	cout << "Flipping Helicity!" << endl;
-	//cout << "Ip = " << Ip << endl;
-	//cout << "Bt0 = " << Bt0 << endl;
-	//cout << "helicity = "<< helicity << endl;
-	//cout << "dpsidr_hel = " << dpsidr_hel << endl;
-	//cout << "Fpol(psi_hel) = " << get_Fpol(psi_hel) << endl;
-	//cout << "psi_hel = "<< psi_hel << endl;
-	//cout << "R_hel = " << R_hel << endl;
-	//cout << "Maximum LCFS Point = " << max(lcfs(Range(1,toEnd,2))) << endl;
-	//cout << "dR = " << dR << endl;
+	// Adjust helicity according to Ip and B_tor
+	if((Ip*Bt0 > 0 && helicity == -1) || (Ip*Bt0 < 0 && helicity == 1))
+	{
+		helicity *= -1;
+		helicity_adjust = -1;
+		cout << "Flipping Helicity!" << endl;
+	}
 
-}
+#endif
+
 
 // Identify the sign of toroidal and poloidal fields for use elsewhere.
 //    btSign  	 of g-file Bt, rel to phi in cylindrical (R,phi,Z)
@@ -571,6 +570,7 @@ if((Ip*Bt0 > 0 && helicity == -1) || (Ip*Bt0 < 0 && helicity == 1))
 // NON STANDARD EFITS MAY NOT FOLLOW THIS CONVENTION.
 //btSign = sign(Bt0)	// +1.0 or -1.0 (real)
 //bpSign = sign(Ip)	// +1.0 or -1.0 (real)
+
 
 // poloidal angle of LCFS
 lcfs_th.resize(Nlcfs);

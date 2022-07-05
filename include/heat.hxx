@@ -25,6 +25,10 @@ Modified source to allow for user defined dpinit (toroidal step size) in HEAT
 	13) changed "extern const double dpinit;" to "extern double dpinit" in io_class.hxx
 	14) added dpinit to readiodata() in io_class.hxx for HEAT
 	15) changed "dphi=nsteps*dpinit" to "dphi=nsteps" for HEAT in structure.cxx
+	16) in efit_class.hxx changed R_hel to include a smaller step size for
+			small tokamaks
+	17) in efit_class.hxx created conditional so that when running for HEAT we
+			do not adjust for helicity
 
 for all these edits I have included my initials "TL" in a comment, so you can
 search for TL to find the line I am talking about
