@@ -528,37 +528,26 @@ dn = (qpsi(NR)-qpsi(NR-1))/dpsi;
 
 spline(psi,qpsi,NR,d1,dn,d2qpsi);
 
-#ifdef HEAT
-	//in HEAT user can change Fpol, Bt0, Ip, and psiRZ with ease in the GUI, so
-	// we never adjust, and take helicity based upon Ip and Bt0 sign
-	helicity = -1*sign(Bt0*Ip) ;
-	helicity_adjust = 1;
-	cout << "Helicity: " << helicity << endl;
+// Get helicity of Equilibrium
+// B_tor is parallel to Ip if line trajectory derivative dZ/dphi < 0 at <-> "right-handed"
+// outer midplane. Otherwise B_tor is anti-parallel to Ip <-> "left-handed".
+int chk;
+double psi_hel,dpsidr_hel;
 
-#else
-	// Get helicity of Equilibrium
-	// B_tor is parallel to Ip if line trajectory derivative dZ/dphi < 0 at <-> "right-handed"
-	// outer midplane. Otherwise B_tor is anti-parallel to Ip <-> "left-handed".
-	int chk;
-	double psi_hel,dpsidr_hel;
-
-	//Commented / Modified by TL for HEAT (small tokamaks need a small multiplier or else R_hel is way inside core)
-	//double R_hel = max(lcfs(Range(1,toEnd,2))) - 10*dR;	// max of R coordinates from lcfs, just inside the separatrix ...
-	double R_hel = max(lcfs(Range(1,toEnd,2))) - 1*dR;	// max of R coordinates from lcfs, just inside the separatrix ...
-
-	chk = get_psi(R_hel,0,psi_hel,dpsidr_hel,dummy);	// ... at midplande
-	helicity = sign(dpsidr_hel/get_Fpol(psi_hel));		// = sign(-dZ/dphi)
-	helicity_adjust = 1;
-
-	// Adjust helicity according to Ip and B_tor
-	if((Ip*Bt0 > 0 && helicity == -1) || (Ip*Bt0 < 0 && helicity == 1))
-	{
-		helicity *= -1;
-		helicity_adjust = -1;
-		cout << "Flipping Helicity!" << endl;
-	}
-
-#endif
+//Commented / Modified by TL for HEAT (small tokamaks need a small multiplier or else R_hel is way inside core)
+//double R_hel = max(lcfs(Range(1,toEnd,2))) - 10*dR;	// max of R coordinates from lcfs, just inside the separatrix ...
+double R_hel = max(lcfs(Range(1,toEnd,2))) - 1*dR;	// max of R coordinates from lcfs, just inside the separatrix ...
+chk = get_psi(R_hel,0,psi_hel,dpsidr_hel,dummy);	// ... at midplande
+helicity = sign(dpsidr_hel/get_Fpol(psi_hel));		// = sign(-dZ/dphi)
+helicity_adjust = 1;
+// Adjust helicity according to Ip and B_tor
+if((Ip*Bt0 > 0 && helicity == -1) || (Ip*Bt0 < 0 && helicity == 1))
+{
+	helicity *= -1;
+	helicity_adjust = -1;
+	cout << "Flipping Helicity!" << endl;
+}
+cout << "Helicity: " << helicity << endl;
 
 
 // Identify the sign of toroidal and poloidal fields for use elsewhere.
