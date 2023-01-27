@@ -1,7 +1,11 @@
-#!/usr/bin/env python2.7
-import os, re
-import Tkinter as tk
-import ttk
+#!/usr/bin/env python
+import sys, os, re
+if sys.version_info[0] < 3:
+	import Tkinter as tk
+	import ttk
+else:
+	import tkinter as tk
+	import tkinter.ttk as ttk
 import socket
 import numpy as np
 from subprocess import call
@@ -152,13 +156,13 @@ class Common_gui:
 	# returns True if tag is alphanumeric or has _ + - as special chars
 	# else returns False
 	def isOkay(self, tag):
-		tag = tag.translate(None, '_+- ')
+		tag = tag.translate(dict.fromkeys('_+- '))
 		if(len(tag) == 0): return True
 		else: return tag.isalnum()
 		
 	# prints error Message, if isOkay == False
 	def isNotOkay(self):
-		print 'Warning: Invalid Input Character in File Tag. Only alphanumeric and + - _ are allowed'
+		print ('Warning: Invalid Input Character in File Tag. Only alphanumeric and + - _ are allowed')
 		
 	
 	# --- callback, executed whenever Working Dir looses focus --- 
@@ -951,7 +955,7 @@ class common_tab(set_machine):	# inherit set_machine class
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print 'invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1()
+		print ('invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1)
 
 
 	# --- Validate the file entries ---
@@ -960,7 +964,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		if not '/' in file:
 			file = os.path.abspath(self.path.get()) + '/' + file
 		if not os.path.isfile(file):
-			print 'Requested file not found:', file
+			print ('Requested file not found:', file)
 			return False	# file not found
 		else:
 			#self.specialFieldFile1_entry.configure(validate = 'focusout')
@@ -1086,7 +1090,7 @@ class common_tab(set_machine):	# inherit set_machine class
 	# --- Function, executed when Button is pressed ---
 	def run_common_funct(self, name, shellCall, data, shellFlags = ''):
 		if(self.Shot.get() == '') | (self.Time.get() == ''):
-			print 'You must enter a Shot # and a Time'
+			print ('You must enter a Shot # and a Time')
 			return
 
 		# make gPath absolute & check that gPath ends with a /
@@ -1116,7 +1120,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		else:
 			shellCall_slurm = shellCall
 
-		for i in xrange(NE):
+		for i in range(NE):
 			if NE > 1: 
 				name_i = name[0:-4] + '_' + str(i) + '.dat'
 				shellCall_i.append(sc[0] + name_i + sc[1] + '_' + str(i))
@@ -1126,18 +1130,14 @@ class common_tab(set_machine):	# inherit set_machine class
 			self.Ekin_idx = i
 			self.writeControlFile(name_i)
 			
-		#if(HOST == 'head.cluster'):		# Drop Cluster
-		#	self.write_qsub_file(data, self.tag.get(), shellCall + shellFlags)
-		#	call('qsub run_MAFOTjob', shell = True)
-		#	#print 'To run, type: qsub run_MAFOTjob'
-		if('iris' in HOST):			# Iris Cluster
+		if(('iris' in HOST) | ('pppl.gov' in HOST)):			# GA Iris Cluster & PPPL Portal cluster
 			self.write_qsub_file(data, self.tag.get(), shellCall_slurm + shellFlags)
 			#call('sbatch ./mafot.sbatch', shell = True)
-			print 'To run, type: sbatch ./mafot.sbatch'			
+			print ('To run, type: sbatch ./mafot.sbatch')
 		else:
-			#for i in xrange(NE): call(shellCall_i[i] + shellFlags + ' &', shell = True)
+			#for i in range(NE): call(shellCall_i[i] + shellFlags + ' &', shell = True)
 			#print 'running in dir:', os.getcwd()
-			for i in xrange(NE): print 'To run, type: ' + shellCall_i[i] + shellFlags + ' &'
+			for i in range(NE): print ('To run, type: ' + shellCall_i[i] + shellFlags + ' &')
 			
 			
 		if chk: os.chdir(cwd)
@@ -1146,28 +1146,15 @@ class common_tab(set_machine):	# inherit set_machine class
 	# --- Write qsub File on Drop Cluster ---
 	# here: shellFlags already embedded in shellCall
 	def write_common_qsub_file(self, tooltag, nproc, tag, shellCall, mpi = True):
-		#if(HOST == 'head.cluster'):		# Drop Cluster
-		#	with open('run_MAFOTjob', 'w') as f:
-		#		f.write('#$ -N ' + tooltag + tag.translate(None, '_+- ') + '\n')
-		#		f.write('#$ -cwd \n')
-		#		f.write('#$ -o ' + HOME + '/work/batch.out \n')
-		#		f.write('#$ -e ' + HOME + '/work/batch.err \n')
-		#		f.write('#$ -S /bin/bash \n')
-		#		f.write('#$ -V \n')
-		#		f.write('#$ -q all.q \n')
-		#		if mpi:
-		#			f.write('#$ -pe mpi ' + str(nproc) + ' \n')
-		#			f.write('source /etc/profile.d/modules.sh\n')
-		#			f.write('module load openmpi-1.6/gcc \n')
-		#		f.write(shellCall + '\n')
+		import getpass
+		user = getpass.getuser()
 		if('iris' in HOST):			# Iris Cluster
-			import getpass
-			user = getpass.getuser()
 			with open('mafot.sbatch', 'w') as f:
 				f.write('#!/bin/bash' + '\n')
 				if len(self.Ekin_array) > 1:
 					f.write('#SBATCH --array=0-' + str(len(self.Ekin_array)-1) + '\n')
-				f.write('#SBATCH --job-name=mafot' + tooltag + tag.translate(None, '_+- ') + '\n')
+				#f.write('#SBATCH --job-name=mafot' + tooltag + tag.translate(None, '_+- ') + '\n') # python 2.7 syntax
+				f.write('#SBATCH --job-name=mafot' + tooltag + tag.translate(dict.fromkeys('_+- ')) + '\n')
 				f.write('#SBATCH -p preemptable' + '\n')
 				f.write('#SBATCH -o batch_mafot.out' + '\n')
 				if mpi:
@@ -1187,8 +1174,21 @@ class common_tab(set_machine):	# inherit set_machine class
 				f.write('module load mafot' + '\n')
 				f.write('module list' + '\n')
 				f.write(shellCall + '\n')
+		elif('pppl.gov' in HOST):			# PPPL Portal cluster
+			with open('mafot.sbatch', 'w') as f:
+				f.write('#!/bin/bash -vx' + '\n')
+				if len(self.Ekin_array) > 1:
+					f.write('#SBATCH --array=0-' + str(len(self.Ekin_array)-1) + '\n')
+				f.write('#SBATCH --job-name=mafot' + tooltag + tag.translate(dict.fromkeys('_+- ')) + '\n')
+				f.write('#SBATCH -p general' + '\n')
+				#f.write('#SBATCH -o batch_mafot.out' + '\n')
+				if mpi:
+					f.write('#SBATCH -n ' + str(nproc) + ' \n')
+				f.write('#SBATCH -t 02:00:00' + '\n')
+				f.write('#SBATCH --mem-per-cpu=10000' + '\n')
+				f.write(shellCall + '\n')
 		else:
-			print 'Unknown Host. No Queue submission file created'
+			print ('Unknown Host. No Queue submission file created')
 
 
 	# --- write common Control File parts ------------------------------------------------
@@ -2353,7 +2353,7 @@ class set_lam_tab(common_tab):		# inherit common tab class
 			except: spareValue = -1
 			if (spareValue > 0) & (spareValue < 1):
 				shellFlags += ' -s -l ' + str(spareValue)
-			else: print 'invalid entry for psi limit'
+			else: print ('invalid entry for psi limit')
 		self.run_common_funct(name, shellCall, int(self.nproc.get()), shellFlags)
 
 
@@ -2569,8 +2569,8 @@ class info_gui:
 		self.info_text.grid(column = 1, row = row, columnspan = 5, padx=10, pady=10); 
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
-		'MAFOT Version 5.2 \n'
-		'GUI Version 2.2 \n'
+		'MAFOT Version 5.4 \n'
+		'GUI Version 3.0 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'

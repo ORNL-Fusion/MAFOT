@@ -1,0 +1,41 @@
+# ---- Folder ----
+MAFOT_DIR = /p/mafot/src/MAFOT
+BIN_DIR = /p/mafot/bin
+LIB_DIR = /p/mafot/lib
+
+# ---- Support codes ----
+# True or False
+M3DC1 = False
+VMEC = True
+SIESTA = True
+
+# ---- Compiler ----
+CXX = g++
+CFLAGS = -O3 -fPIC -std=c++11
+OMPFLAGS = -fopenmp -w
+
+F90 = gfortran
+F90FLAGS = -O3 -fPIC
+
+# ---- Linker ----
+ARCH = ar crus
+
+LDD = g++ --shared
+LDFLAGS =
+
+# ---- external Libraries ----
+BLITZLIBS = -L/p/mafot/lib -lblitz
+FLIBS = -L/usr/pppl/gcc/11.2.0/lib64 -lgfortran
+OMPLIBS = -L/usr/pppl/gcc/11.2-pkgs/openmpi-4.1.2/lib -lmpi -lmpi_cxx
+M3DC1LIBS =
+HDF5LIBS = - L/usr/pppl/gcc/11.2-pkgs/openmpi-4.1.2-pkgs/hdf5-parallel-1.12.1/lib -lhdf5 -Wl,-rpath,/usr/pppl/gcc/11.2.0/lib64 -lstdc++
+NETCDFLIBS = -L/usr/pppl/gcc/11.2-pkgs/netcdf-c-4.8.1/lib -lnetcdf
+
+# ---- external Includes ----
+BLITZINCLUDE = -I/p/mafot/include
+OMPINCLUDE = -I/usr/pppl/gcc/11.2-pkgs/openmpi-4.1.2/include -I/usr/pppl/gcc/11.2-pkgs/openmpi-4.1.2/include/openmpi
+M3DC1INCLUDE =
+NETCDFINCLUDE = -I/usr/pppl/gcc/11.2-pkgs/netcdf-c-4.8.1/include
+
+# ---- build GUI with python (optional) ----
+#PYINSTALLER = /usr/local/enthought/bin/pyinstaller

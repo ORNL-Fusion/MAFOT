@@ -5,21 +5,20 @@ System requirements:
 
 Dependencies:
 1) blitz++
-2) openmpi 1.6.5
+2) openmpi
+3) HDF5 and netcdf
 3) (optional) m3dc1
 
-Dependecies GUI (optional):
-1) python 2.7
+Dependencies GUI (optional):
+1) python 2.7 or 3
 2) Tk/Tcl 8.5 (Tkinter with ttk)
-3) pyinstaller 2.1
 
 Build:
 1) Edit make.inc and adjust to local platform. Examples are given in the install/ dir
 2) make		 options are: all, d3d, iter, nstx, mast, clean or any of the individual tools
 
 Build GUI (optional):
-1) Edit make.inc and set PYINSTALLER to the full pathname of the pyinstaller binary
-2) make gui
+1) make gui
 
 Set environment
 1) check/add path to mpirun to PATH variable
@@ -29,7 +28,7 @@ Set environment
 How to run a case:
 1) check for g-file
 2) check for diiidsup.in file
-3) launch mafot_gui
+3) launch mafot_gui.py
 
 or
 
@@ -47,10 +46,14 @@ or
 Current Version:
 ----------------
 MAFOT 5.4
-GUI 2.2
+GUI 3.0
 
 Version Notes: 
 ----------------
+GUI 3.0 -- Jan 2023
+- converted to Python3
+- PPPL cluster support added
+
 MAFOT 5.4 -- Oct 2021
 - Collision class (SULI project) merged into main
 
