@@ -23,18 +23,21 @@ ARCH = ar crus
 LDD = g++ --shared
 LDFLAGS =
 
+# ---- Additional Defines ----
+DEFS = -Dm3dc1_newfio
+
 # ---- external Libraries ----
 BLITZLIBS = -L/p/mafot/lib -lblitz
 FLIBS = -L/usr/pppl/gcc/11.2.0/lib64 -lgfortran
 OMPLIBS = -L/usr/pppl/gcc/11.2-pkgs/openmpi-4.1.2/lib -lmpi -lmpi_cxx
-M3DC1LIBS =
-HDF5LIBS = - L/usr/pppl/gcc/11.2-pkgs/openmpi-4.1.2-pkgs/hdf5-parallel-1.12.1/lib -lhdf5 -Wl,-rpath,/usr/pppl/gcc/11.2.0/lib64 -lstdc++
+M3DC1LIBS = -L/p/tsc/fio/fio-pppl_gcc/lib -lfusionio -lm3dc1
+HDF5LIBS = -L/usr/pppl/gcc/11.2-pkgs/openmpi-4.1.2-pkgs/hdf5-parallel-1.12.1/lib -lhdf5 -Wl,-rpath,/usr/pppl/gcc/11.2.0/lib64 -lstdc++
 NETCDFLIBS = -L/usr/pppl/gcc/11.2-pkgs/netcdf-c-4.8.1/lib -lnetcdf
 
 # ---- external Includes ----
 BLITZINCLUDE = -I/p/mafot/include
 OMPINCLUDE = -I/usr/pppl/gcc/11.2-pkgs/openmpi-4.1.2/include -I/usr/pppl/gcc/11.2-pkgs/openmpi-4.1.2/include/openmpi
-M3DC1INCLUDE =
+M3DC1INCLUDE = -I/p/tsc/fio/fio-pppl_gcc/include
 NETCDFINCLUDE = -I/usr/pppl/gcc/11.2-pkgs/netcdf-c-4.8.1/include
 
 # ---- build GUI with python (optional) ----
