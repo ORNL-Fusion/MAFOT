@@ -21,6 +21,8 @@
 	#define program_name "cmodman"
 #elif defined(TCABR)
 	#define program_name "tcabrman"
+#elif defined(ANYM)
+	#define program_name "anyman"
 #else
 	#define program_name "dtman"
 #endif

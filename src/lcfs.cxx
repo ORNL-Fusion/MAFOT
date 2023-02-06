@@ -16,6 +16,8 @@
 	#define program_name "mastlcfs"
 #elif defined(CMOD)
 	#define program_name "cmodlcfs"
+#elif defined(ANYM)
+	#define program_name "anylcfs"
 #else
 	#define program_name "dtlcfs"
 #endif

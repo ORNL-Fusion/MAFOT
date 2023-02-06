@@ -26,6 +26,8 @@
 	#define program_name "cmodfoot_mpi"
 #elif defined(TCABR)
 	#define program_name "tcabrfoot_mpi"
+#elif defined(ANYM)
+	#define program_name "anyfoot_mpi"
 #else
 	#define program_name "dtfoot_mpi"
 #endif

@@ -22,6 +22,8 @@
 	#define program_name "tcabrstructure"
 #elif defined(HEAT)
 	#define program_name "heatstructure"
+#elif defined(ANYM)
+	#define program_name "anystructure"
 #else
 	#define program_name "dtstructure"
 #endif

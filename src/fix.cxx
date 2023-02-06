@@ -21,6 +21,8 @@
 	#define program_name "cmodfix"
 #elif defined(TCABR)
 	#define program_name "tcabrfix"
+#elif defined(ANYM)
+	#define program_name "anyfix"
 #else
 	#define program_name "dtfix"
 #endif

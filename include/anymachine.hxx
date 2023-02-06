@@ -1,13 +1,12 @@
-// DEPRECATED: Use anymachine instead
-// Header-File for the C-Mod Programs
+// Header-File for any unspecified machine (and CMOD)
 // Only Machine specific subroutines
 // uses arrays and multiple-arrays from blitz-Library
-// A.Wingen						21.3.17
+// A.Wingen						61.2.23
 
 // Define
 //--------
-#ifndef CMOD_INCLUDED
-#define CMOD_INCLUDED
+#ifndef ANYM_INCLUDED
+#define ANYM_INCLUDED
 
 // Include
 //--------
@@ -19,7 +18,8 @@ void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank=0, LA_STRING supPath="./
 void point_along_target(int target, double t, Array<double,1>& p, EFIT& EQD);
 
 // -------------- global Parameters ---------------------------------------------------------------------------------------
-double bndy[4] = {0.44, 0.91, -0.45, 0.45};	// Boundary
+//double bndy[4] = {0.44, 0.91, -0.45, 0.45};	// Boundary
+double bndy[4] = {0.001, 13.0, -10.0, 10.0};	// Boundary Box: Rmin, Rmax, Zmin, Zmax for all tokamaks smaller than DEMO
 
 // extern
 #ifdef m3dc1
@@ -42,6 +42,41 @@ return chk;
 //---------- prep_perturbation --------------------------------------------------------------------------------------------
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING supPath)
 {
+int chk;
+
+#ifdef m3dc1
+	// Prepare loading M3D-C1
+	if(PAR.response_field >= 0) chk = M3D.read_m3dc1sup(supPath);
+	else chk = 0;
+#else
+	chk = 0;
+#endif
+
+// Load machine sup file here to get perturbation coil currents
+// None to load here
+
+#ifdef m3dc1
+	// Read C1.h5 file
+	if(PAR.response_field >= 0)
+	{
+		//if(chk == -1) M3D.scale_from_coils(d3icoil_.curntIc, nIloops, nIloops);	// no m3dc1sup.in file found -> scale from diiidsup.in file
+		if(chk == -1)
+		{
+			if(mpi_rank < 1) cout << "m3dc1sup.in not found --> Abort!" << endl;
+			EXIT;
+		}
+		M3D.load(PAR, mpi_rank);
+	}
+	else
+	{
+		if(mpi_rank < 1) cout << "Using g-file!" << endl;
+		ofs2 << "Using g-file!" << endl;
+	}
+#else
+	if(mpi_rank < 1) cout << "Using g-file!" << endl;
+	ofs2 << "Using g-file!" << endl;
+#endif
+
 return;
 }
 
@@ -63,7 +98,7 @@ switch(target)
 //case 2:
 //	break;
 default:
-	ofs2 << "No target specified" << endl;
+	ofs2 << "No target specified" << endl;	// Here this function does nothing, and will abort the run if called
 	EXIT;
 	break;
 }
@@ -76,6 +111,6 @@ d = p2 - p1;
 p = p1 + t*d;
 }
 
-#endif // CMOD_INCLUDED
+#endif // ANYM_INCLUDED
 //----------------------- End of File -------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------

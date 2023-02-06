@@ -24,6 +24,8 @@
 	#define program_name "cmodplot_mpi"
 #elif defined(TCABR)
 	#define program_name "tcabrplot_mpi"
+#elif defined(ANYM)
+	#define program_name "anyplot_mpi"
 #else
 	#define program_name "dtplot_mpi"
 #endif

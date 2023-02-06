@@ -39,11 +39,13 @@
 #elif defined(MAST)
 	#include <mast.hxx>
 #elif defined(CMOD)
-	#include <cmod.hxx>
+	#include <anymachine.hxx>
 #elif defined(TCABR)
 	#include <tcabr.hxx>
 #elif defined(HEAT)
 	#include <heat.hxx>
+#elif defined(ANYM)
+	#include <anymachine.hxx>
 #else
 	#include <d3d.hxx>
 #endif

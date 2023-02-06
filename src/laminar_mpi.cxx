@@ -26,6 +26,8 @@
 	#define program_name "cmodlaminar_mpi"
 #elif defined(TCABR)
 	#define program_name "tcabrlaminar_mpi"
+#elif defined(ANYM)
+	#define program_name "anylaminar_mpi"
 #else
 	#define program_name "dtlaminar_mpi"
 #endif

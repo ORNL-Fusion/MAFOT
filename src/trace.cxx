@@ -22,6 +22,8 @@
 	#define program_name "masttrace"
 #elif defined(CMOD)
 	#define program_name "cmodtrace"
+#elif defined(ANYM)
+	#define program_name "anytrace"
 #else
 	#define program_name "dttrace"
 #endif

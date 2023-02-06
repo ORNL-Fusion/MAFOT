@@ -18,6 +18,8 @@
 	#define program_name "cmodplot"
 #elif defined(TCABR)
 	#define program_name "tcabrplot"
+#elif defined(ANYM)
+	#define program_name "anyplot"
 #else
 	#define program_name "dtplot"
 #endif
