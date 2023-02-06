@@ -29,7 +29,7 @@ class Common_gui:
 		self.path = tk.StringVar()
 		self.previousPath = None
 		self.translateMachFlag = {'dt':'DIII-D', 'iter':'ITER', 'nstx':'NSTX', 
-									'mast':'MAST', 'cmod':'C-Mod', 'anym':'Any'}
+									'mast':'MAST', 'cmod':'C-Mod', 'any':'Any'}
 		self.labelFont = None
 		self.textFont = None
 	
@@ -47,7 +47,7 @@ class Common_gui:
 			command = self.set_Machine).grid(column = 4, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(self.frame, text = 'MAST', variable = self.MachFlag, value = 'mast', 
 			command = self.set_Machine).grid(column = 5, row = row, sticky = tk.W + tk.E )
-		tk.Radiobutton(self.frame, text = 'ANY', variable = self.MachFlag, value = 'anym', 
+		tk.Radiobutton(self.frame, text = 'ANY', variable = self.MachFlag, value = 'any', 
 			command = self.set_Machine).grid(column = 6, row = row, sticky = tk.W + tk.E )
 		tk.Label(self.frame, text = "Machine").grid(column = 1, row = row, sticky = tk.E )
 
@@ -250,7 +250,7 @@ class Common_gui:
 	
 	# --- set Tabs for different Machines ---
 	def set_Machine(self):
-		if(self.MachFlag.get() == 'anym'):
+		if(self.MachFlag.get() == 'any'):
 			if not self.ControlFileFound:
 				self.gPath.set(HOME + '/work/gfiles/')
 			self.nb.tab(0, text='anyplot')
@@ -258,7 +258,7 @@ class Common_gui:
 			self.nb.tab(2, text='anyman')
 			self.nb.tab(3, text='anyfoot')
 			self.nb.tab(4, text='anylaminar')
-		if(self.MachFlag.get() == 'iter'):
+		elif(self.MachFlag.get() == 'iter'):
 			if not self.ControlFileFound:
 				self.gPath.set(HOME + '/c++/iter/gfiles/')
 			self.nb.tab(0, text='iterplot')
@@ -332,8 +332,8 @@ class set_machine():
 	def set_machine_elements(self, MachFlag, row = 10):
 		try: self.forget_elements()
 		except: pass
-		if(MachFlag == 'anym'):
-			self.set_anym_elements(row)
+		if(MachFlag == 'any'):
+			self.set_any_elements(row)
 		elif(MachFlag == 'iter'):
 			self.set_iter_elements(row)
 		elif(MachFlag == 'nstx'):
@@ -362,8 +362,8 @@ class set_machine():
 				'target':int(data[11]),'create':int(data[12]),
 				'sigma':int(data[16]),'charge':int(data[17]),'Ekin':repr(data[18]),'Lambda':repr(data[19]),'Mass':repr(data[20])}
 		
-		if(MachFlag == 'anym'):
-			data_dic = self.set_anym_defaults(data, data_dic)
+		if(MachFlag == 'any'):
+			data_dic = self.set_any_defaults(data, data_dic)
 		elif(MachFlag == 'iter'):
 			data_dic = self.set_iter_defaults(data, data_dic)
 		elif(MachFlag == 'nstx'):
@@ -378,8 +378,8 @@ class set_machine():
 
 
 	def write_coils(self, MachFlag, f):
-		if(MachFlag == 'anym'):
-			self.write_anym_coils(f)
+		if(MachFlag == 'any'):
+			self.write_any_coils(f)
 		elif(MachFlag == 'iter'):
 			self.write_iter_coils(f)
 		elif(MachFlag == 'nstx'):
@@ -448,8 +448,8 @@ class set_machine():
 		f.write('useBcoilError(0=no,1=yes)=\t' + str(self.useBcoil.get()) + '\n')
 		
 
-	# --- ANYM ---------------------------------------------------------------------------
-	def set_anym_elements(self, row):
+	# --- ANY ---------------------------------------------------------------------------
+	def set_any_elements(self, row):
 		self.machine_3D_Label.configure(text = "3-D Fields: ")
 		self.machine_3D_Label.grid(column = 1, row = row, sticky = tk.E, padx=5, pady=5)
 		#self.machine_3D_chk1.configure(text = ' ITER-coils')
@@ -464,6 +464,8 @@ class set_machine():
 
 
 	def write_any_coils(self,f):
+		f.write('useFcoil(0=no,1=yes)=\t0\n')
+		f.write('useCcoil(0=no,1=yes)=\t0\n')
 		f.write('useIcoil(0=no,1=yes)=\t0\n')
 
 
@@ -937,11 +939,15 @@ class common_tab(set_machine):	# inherit set_machine class
 			self.nresp_label.configure(state=tk.NORMAL)
 			
 			path = self.path_to_m3dc1()
+			#print('Searching for M3D-C1 files in ', path)
 			nresp = 1
 			while(os.path.isfile(path + 'time_' + format(nresp,'03d') + '.h5')):
 				nresp += 1
+			nresp -= 1
 				
-			self.nresp.set(str(nresp - 1))
+			if (not os.path.isfile(path + 'time_000.h5')): print('Warning, no time_xxx.h5 file found in', path )
+			#else: print('Highest time_xxx.h5 file available is: time_' + format(nresp,'03d') + '.h5')
+			self.nresp.set(str(nresp))
 			self.response.set(int(self.nresp.get()))
 
 
@@ -960,8 +966,10 @@ class common_tab(set_machine):	# inherit set_machine class
 				idx *= -1
 				c1path = c1[0:idx]	# path with a final '/'
 				if not (c1path[0] == '/'): c1path = path + c1path	# c1path is a relative path, make it absolute using location of m3dc1sup.in
-			return c1path
-		else: return path
+		else: c1path = path
+		c1path = os.path.abspath(c1path)
+		if not (c1path[-1] == '/'): c1path += '/'
+		return c1path
 		
 		
 	# returns True if time_xxx.h5 file exists
@@ -989,7 +997,7 @@ class common_tab(set_machine):	# inherit set_machine class
 
 	# sets response to highest, if okay_response == False
 	def notokay_response(self):
-		print ('invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1)
+		print ('invalid Entry: requested time_xxx.h5 file not found in', self.path_to_m3dc1())
 
 
 	# --- Validate the file entries ---
@@ -1265,7 +1273,7 @@ class common_tab(set_machine):	# inherit set_machine class
 			if self.MachFlag.get() in ['iter', 'nstx']:
 				f.write('useTe_profile(0=no)=	0\n')
 			self.write_Ctrl_particles(f)
-			if self.MachFlag.get() in ['anym']:
+			if self.MachFlag.get() in ['any']:
 				f.write('useFilament(0=no)=\t' + self.useFilament.get() + '\n')
 			if self.MachFlag.get() in ['dt']:
 				f.write('useFilament(0=no)=\t' + self.useFilament.get() + '\n')
@@ -1374,7 +1382,7 @@ class set_plot_tab(common_tab):		# inherit common tab class
 
 	# --- define machine specific default values ---
 	def tool_defaults(self, flag):	
-		if self.MachFlag.get() == 'anym':
+		if self.MachFlag.get() == 'any':
 			data = [0, 300, 0.6, 0.95, 0, 0, 40, 0, 1, 0, -1, 1, 0, 0, 0, 0, 0, 1, 100, 0.1, 2, 0,
 					3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'iter':
@@ -1594,7 +1602,7 @@ class set_fix_tab(common_tab):		# inherit common tab class
 
 	# --- define machine specific default values ---
 	def tool_defaults(self, flag):	
-		if self.MachFlag.get() == 'anym':
+		if self.MachFlag.get() == 'any':
 			data = [1e-4, 0, 0, 0, 0, 0, 900, 0, 1, 0, -1, 1, 0, 0, 0, 0, 0, 1, 100, 0.1, 2, 0,
 					3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'iter':
@@ -1784,7 +1792,7 @@ class set_man_tab(common_tab):		# inherit common tab class
 
 	# --- define machine specific default values ---
 	def tool_defaults(self, flag):	
-		if self.MachFlag.get() == 'anym':
+		if self.MachFlag.get() == 'any':
 			data = [1e-4, 0, 0, 0, 0, 0, 900, 0, 1, 0, -1, 1, 0, 0, 0, 0, 0, 1, 100, 0.1, 2, 0,
 					3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'iter':
@@ -1934,7 +1942,7 @@ class set_foot_tab(common_tab):		# inherit common tab class
 	# --- Change first row (row = 0), depending on Machine ---
 	def set_target_elements(self):
 		row = 0
-		if self.MachFlag.get() == 'anym':
+		if self.MachFlag.get() == 'any':
 			self.target_RB0.configure(text = 'Full Wall')		
 			self.target_RB0.grid(column = 2, row = row, sticky = tk.W + tk.E )
 			self.target_RB1.grid_forget()
@@ -1989,7 +1997,7 @@ class set_foot_tab(common_tab):		# inherit common tab class
 
 	# --- Change Labels on grid variables, depending on TargetFlag ---
 	def refresh_grid_labels(self):
-		if self.MachFlag.get() == 'anym':
+		if self.MachFlag.get() == 'any':
 			self.y_label.configure(text = "Swall [m]")
 			self.Info.configure(text = "s = 0: Centerpost midplane, s > 0: counter clock wise")
 		elif self.MachFlag.get() == 'iter':
@@ -2068,8 +2076,8 @@ class set_foot_tab(common_tab):		# inherit common tab class
 
 	# --- define machine specific default values ---
 	def tool_defaults(self, flag):	
-		if self.MachFlag.get() == 'iter':
-			data = [500, 300, 10, 80, 0, 6.283185307179586, 900, 0, -1, 0, -1, 2, 2, 0, 0, 0, 0, 1, 100, 0.1, 2, 0,
+		if self.MachFlag.get() == 'any':
+			data = [50, 300, 10, 80, 0, 6.283185307179586, 90, 0, -1, 0, -1, 0, 2, 0, 0, 0, 0, 1, 100, 0.1, 2, 0,
 						3.141592653589793, 6.283185307179586]
 		elif self.MachFlag.get() == 'iter':
 			if(flag == 1):
@@ -2141,7 +2149,7 @@ class set_foot_tab(common_tab):		# inherit common tab class
 
 	# --- set default values ---
 	def set_defaults(self):
-		if self.MachFlag.get() == 'anym':
+		if self.MachFlag.get() == 'any':
 			data = self.read_par_file(['_foot.dat'])
 		elif self.MachFlag.get() == 'iter':
 			data = self.read_par_file(['_foot.dat','_inner.dat','_outer.dat'])
@@ -2152,7 +2160,8 @@ class set_foot_tab(common_tab):		# inherit common tab class
 		else:
 			data = self.read_par_file(['_foot.dat','_inner.dat','_outer.dat', '_shelf.dat'])
 		data = self.set_machine_defaults(data, self.MachFlag.get(), flag = 1)
-		self.TargetFlag.set(int(data['target']))
+		if self.MachFlag.get() == 'any': self.TargetFlag.set(0)
+		else: self.TargetFlag.set(int(data['target']))
 		self.UpgradeFlag.set(0)
 		self.refresh_grid_labels()
 
@@ -2346,7 +2355,7 @@ class set_lam_tab(common_tab):		# inherit common tab class
 
 	# --- define machine specific default values ---
 	def tool_defaults(self, flag):	
-		if self.MachFlag.get() == 'anym':
+		if self.MachFlag.get() == 'any':
 			if(flag == 'psi'):
 				data = [1200, 200, 0.88, 1.02, 0, 6.283185307179586, 700, 0, 0, 0, -1, 1, 3, 0, 0, 0, 0, 1, 100, 0.1, 2, 0,
 						3.141592653589793, 6.283185307179586]
