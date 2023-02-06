@@ -50,6 +50,9 @@ GUI 3.0
 
 Version Notes: 
 ----------------
+MAFOT 5.4.1 -- Feb 2023
+- Enable any machine without specific 3D coils
+
 GUI 3.0 -- Jan 2023
 - converted to Python3
 - PPPL cluster support added

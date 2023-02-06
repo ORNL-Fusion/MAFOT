@@ -408,6 +408,16 @@ useErProfile = 0;
 	useIcoil = 0;
 	useBuswork = 0;
 	useBcoil = 0;
+#elif defined(ANYM)
+	// Set switches
+	useFilament = int(vec[21]);
+
+	// Set unused Parameters to defaults
+	useFcoil = 0;
+	useCcoil = 0;
+	useIcoil = 0;
+	useBuswork = 0;
+	useBcoil = 0;
 #elif defined(TCABR)
 	// Set switches
 	useCcoil = int(vec[13]);
@@ -483,6 +493,7 @@ out << "### Switches:" << endl;
 	out << "# ECC-coil active (0=no, 1=yes): " << useCcoil << endl;
 	out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
 #elif defined(CMOD)
+#elif defined(ANYM)
 #elif defined(TCABR)
 	out << "# CP-coil active (0=no, 1=yes): " << useCcoil << endl;
 	out << "# I-coil active (0=no, 1=yes): " << useIcoil << endl;
