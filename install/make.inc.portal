@@ -5,7 +5,7 @@ LIB_DIR = /p/mafot/lib
 
 # ---- Support codes ----
 # True or False
-M3DC1 = False
+M3DC1 = True
 VMEC = True
 SIESTA = True
 
