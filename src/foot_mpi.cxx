@@ -341,6 +341,14 @@ if(dt == 0) PAR.tmax = PAR.tmin;
 
 // Use box as boundary
 simpleBndy = 1;
+#ifdef ANYM
+bndy[0] = min(EQD.wall(Range(1,toEnd,2)))-0.001;
+bndy[1] = max(EQD.wall(Range(1,toEnd,2)))+0.001;
+bndy[2] = min(EQD.wall(Range(2,toEnd,2)))-0.001;
+bndy[3] = max(EQD.wall(Range(2,toEnd,2)))+0.001;
+if(mpi_rank < 1) cout << "New bounding box: Rmin = " << bndy[0] << "  Rmax = " << bndy[1] << "  Zmin = " << bndy[2] << "  Zmax = " << bndy[3] << endl;
+ofs2 << "New bounding box: Rmin = " << bndy[0] << "  Rmax = " << bndy[1] << "  Zmin = " << bndy[2] << "  Zmax = " << bndy[3] << endl;
+#endif
 
 // Prepare collisions
 COLLISION COL;
