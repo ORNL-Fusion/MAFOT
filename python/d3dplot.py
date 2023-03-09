@@ -13,7 +13,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			tag = None, graphic = 'png', physical = 1, b = None, N = 60, Title = None,
 			typeOfPlot = 'pcolormesh', xlimit = None, ylimit = None, figwidth = None, figheight = None, 
 			latex = True, cmap = 'jet', toroidal_angle = 0, wall3Dfile = None, use_z_logscale = False,
-			reverse_y = False,manifolds = None, correctPFR = True):
+			reverse_y = False,manifolds = None, correctPFR = True, Lcmin = None):
 	"""
 	plot MAFOT results
 	--- user input ------------------
@@ -201,6 +201,14 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 					y = -0.24 + y*0.1
 					yLabel = 'Z [m]'
 				elif(target == 'out'): y = 0.435 + y*0.1
+		else:
+			if not latex: xLabel = u'\u03C6' + ' [rad]'
+			else: xLabel = '$\\varphi$ $\\mathrm{[rad]}$'
+			if(forceY == 'Z'): yLabel = 'Z [m]'
+			elif(forceY == 'R'): yLabel = 'R [m]'
+			else:
+				if not latex: yLabel = 'Swall [m]'
+				else: yLabel = 's$_{wall}$ [m]'
 		if (typeOfPlot == 'poincare'): 
 			x,y = data[:,2]%(2*np.pi),data[:,1]; x,y = x[:,np.newaxis],y[:,np.newaxis]
 			yLabel = 'r [m]'
@@ -246,6 +254,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 			if('d3d' in machine): b = np.linspace(0.075,0.4,N)
 			elif(machine == 'iter'): b = np.linspace(0.22,1.8,N)
 			elif('tcabr' in machine): b = np.linspace(0.0,0.2,N)
+			else: b = np.linspace(0.0,1,N)
 		z = Lc
 		if (z[np.isfinite(z)].max() < 0.1) | ((b.max() > 0) & (b.max() < 0.1)):
 			z *= 1000.0
@@ -352,10 +361,12 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	usecolormap = LinearSegmentedColormap.from_list('my_cmap', cdict, len(b))
 	
 	# correct for PFR
-	if('d3d' in machine): Lcmin = 0.075
-	elif(machine == 'iter'): Lcmin = 0.22
-	elif('tcabr' in machine): Lcmin = 0.014
-	
+	if Lcmin is None:
+		if('d3d' in machine): Lcmin = 0.075
+		elif(machine == 'iter'): Lcmin = 0.22
+		elif('tcabr' in machine): Lcmin = 0.014
+		else: Lcmin = 0.0
+
 	if correctPFR:
 		if(coordinates == 'RZ') | (coordinates == 'phi'): 
 			if('psi' in what):
@@ -801,7 +812,8 @@ def get_wall(machine, angle = 0, wall3Dfile = None):
        [ 0.435     , -0.01976471],
        [ 0.435     ,  0.        ]]
 	else:
-		raise AssertionError('unkown machine')
+		#raise AssertionError('unkown machine')
+		wall = [[None,None],[None,None]]
 		
 	if wall3Dfile is not None:
 		wall3D = read_3Dwall(wall3Dfile)
@@ -869,13 +881,14 @@ if __name__ == '__main__':
 	reverse_y = False
 	manifolds = None
 	cPFR = True
+	Lcmin = None
 
-	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:C:T:ifW:H:Ub:x:y:L:lRM:F", ["help", "coord=", "what=", 
+	opts, args = getopt.gnu_getopt(sys.argv[1:], "hc:w:m:pg:t:P:N:C:T:ifW:H:Ub:x:y:L:lRM:F:", ["help", "coord=", "what=", 
 																 "machine=", "printme", "graphic=", 
 																 "tag=", "physical=", "cmap=", "Title=", "imshow", "contourf"	 
 																 "figwidth=", "figheight=", "unicode",
 																 "range=", "xlim=", "ylim=", "wall=", "log",
-																 "Reverse", "Manifold=", "pfr"])
+																 "Reverse", "Manifold=", "pfr="])
 	for o, a in opts:
 		if o in ("-h", "--help"):
 			print ("usage: d3dplot.py [-h] [-c COORDINATES] [-w WHAT] [-m MACHINE] [-p]")
@@ -911,7 +924,8 @@ if __name__ == '__main__':
 			print ("  -x, --xlim <Arg>      X-Axis range: Min,Max (no spaces)")
 			print ("  -y, --ylim <Arg>      Y-Axis range: Min,Max (no spaces)")
 			print ("  -C, --cmap <Arg>      colormap, default = jet")
-			print ("  -F, --pfr             Do not correct for the private flux region (default is yes)")
+			print ("  -F, --pfr <Arg>       Correct for the private flux region using Lcmin = <Arg>")
+			print ("                        <Arg> <= 0 means no correction is applied")
 			print ("  -H, --figheight <Arg> Force height of figure from default to <Arg>")
 			print ("  -L, --wall <Arg>      Wall info (can be 3D): filename,angle (no spaces)")
 			print ("  -M, --Manifold <Arg>  List of files to plot: name1,name2,... (no spaces)")
@@ -959,18 +973,18 @@ if __name__ == '__main__':
 		elif o in ("-U", "--unicode"):
 			latex = False
 		elif o in ("-b", "--range"):
-			range = a.split(',')
-			cmin, cmax = float(range[0]), float(range[1])
+			myrange = a.split(',')
+			cmin, cmax = float(myrange[0]), float(myrange[1])
 			set_color = True
 		elif o in ("-x", "--xlim"):
-			range = a.split(',')
-			xlim = (float(range[0]), float(range[1]))
+			myrange = a.split(',')
+			xlim = (float(myrange[0]), float(myrange[1]))
 		elif o in ("-y", "--ylim"):
-			range = a.split(',')
-			ylim = (float(range[0]), float(range[1]))
+			myrange = a.split(',')
+			ylim = (float(myrange[0]), float(myrange[1]))
 		elif o in ("-L", "--wall"):
-			range = a.split(',')
-			wall3Dfile, angle = range[0], float(range[1])
+			myrange = a.split(',')
+			wall3Dfile, angle = myrange[0], float(myrange[1])
 		elif o in ("-l", "--log"):
 			use_z_logscale = True
 		elif o in ("-R", "--Reverse"):
@@ -978,7 +992,8 @@ if __name__ == '__main__':
 		elif o in ("-M", "--Manifold"):
 			manifolds = a.split(',')
 		elif o in ("-F", "--pfr"):
-			cPFR = False
+			if (float(a) <= 0): cPFR = False
+			else: Lcmin = float(a)
 		else:
 			raise AssertionError("unknown option")
 			
@@ -988,7 +1003,7 @@ if __name__ == '__main__':
 			tag = tag, graphic = graphic, physical = physical, b = b, N = N, Title = Title,
 			typeOfPlot = toP, xlimit = xlim, ylimit = ylim, figwidth = figwidth, figheight = figheight,
 			latex = latex, cmap = cmap, toroidal_angle = angle, wall3Dfile = wall3Dfile, use_z_logscale = use_z_logscale,
-			reverse_y = reverse_y, manifolds = manifolds, correctPFR = cPFR)
+			reverse_y = reverse_y, manifolds = manifolds, correctPFR = cPFR, Lcmin = Lcmin)
 
 	plt.show()
 
