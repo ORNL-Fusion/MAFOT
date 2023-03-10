@@ -522,9 +522,13 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 	if(coordinates == 'RZ'): 
 		plt.gca().set_aspect('equal')
 		if(typeOfPlot in ['poincare','manifold']):
-			extra = 0.05*wall[:,0].min() ##
-			plt.xlim(wall[:,0].min()-extra,wall[:,0].max()+extra)
-			plt.ylim(wall[:,1].min()-extra,wall[:,1].max()+extra)
+			try:
+				extra = 0.05*wall[:,0].min() ##
+				plt.xlim(wall[:,0].min()-extra,wall[:,0].max()+extra)
+				plt.ylim(wall[:,1].min()-extra,wall[:,1].max()+extra)
+			except:
+				plt.xlim(x.min(),x.max())
+				plt.ylim(y.min(),y.max())			
 		else:
 			plt.xlim(x.min(),x.max())
 			plt.ylim(y.min(),y.max())
