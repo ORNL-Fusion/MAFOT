@@ -520,7 +520,7 @@ def d3dplot(pathname, printme = False, coordinates = 'psi', what = 'psimin', mac
 
 	# --- Axes  -----------------------
 	if(coordinates == 'RZ'): 
-		plt.axes().set_aspect('equal')
+		plt.gca().set_aspect('equal')
 		if(typeOfPlot in ['poincare','manifold']):
 			extra = 0.05*wall[:,0].min() ##
 			plt.xlim(wall[:,0].min()-extra,wall[:,0].max()+extra)
