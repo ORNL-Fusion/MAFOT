@@ -5,7 +5,7 @@ LIB_DIR = /home/shared/mafot/lib
 
 # ---- Support codes ----
 # True or False
-M3DC1 = False
+M3DC1 = True
 VMEC = True
 SIESTA = True
 
@@ -23,18 +23,21 @@ ARCH = ar crus
 LDD = g++ --shared
 LDFLAGS =
 
+# ---- Additional Defines ----
+DEFS = -Dm3dc1_newfio
+
 # ---- external Libraries ---- 
 BLITZLIBS = -L/home/shared/mafot/lib -lblitz
 FLIBS = -L/usr/lib64 -lgfortran -lpthread
 OMPLIBS = -L/usr/lib64/openmpi/lib -lmpi -lmpi_cxx
-M3DC1LIBS = 
+M3DC1LIBS = -L/home/shared/m3dc1/fusion-io/lib -lfusionio -lm3dc1
 HDF5LIBS = -L/usr/lib64 -lz -Wl,-rpath,/usr/lib64 -lstdc++
 NETCDFLIBS = -L/usr/lib64/openmpi/lib -lnetcdf -lhdf5
 
 # ---- external Includes ----
 BLITZINCLUDE = -I/home/shared/mafot/include
 OMPINCLUDE = -I/usr/include/openmpi-x86_64 -I/usr/include/openmpi-x86_64/openmpi
-M3DC1INCLUDE = 
+M3DC1INCLUDE = -I/home/shared/m3dc1/fusion-io/include
 NETCDFINCLUDE = -I/usr/include
 
 # ---- build GUI with python (optional) ----
