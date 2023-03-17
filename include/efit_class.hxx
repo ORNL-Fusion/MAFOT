@@ -357,11 +357,21 @@ Array<double,1> slice_1,slice_2;	//Slice-array
 Shot = ShotNr;
 Time = ShotTime;
 
-// Open File
-for(i=1;i<=5-int(ShotTime.len());i++) ShotTime.insert('0');		//insert zeros until ShotTime has a length of 5
-//added by TL 20220411
-for(i=1;i<=(5+i)-int(ShotNr.len());i++) ShotNr.insert('0');		//insert zeros until ShotNr has a length of 6
-LA_STRING filename = "g" + ShotNr + "." + ShotTime;
+#if defined(HEAT)
+	//time and shot numbers are dynamic in HEAT, not fixed 
+	//this enables HEAT to cover 10 orders of magnitude in timescales, whereas
+	//MAFOT is restricted to [ms]->[ks], HEAT needs [us]->[ks]
+	//here we use the string shot and time values rather than zero padding to 
+	//specific assumptions about the time resolution or shot #
+	LA_STRING filename = "g"+Shot+"_"+Time;
+#else
+	// Open File
+	for(i=1;i<=5-int(ShotTime.len());i++) ShotTime.insert('0');		//insert zeros until ShotTime has a length of 5
+	//added by TL 20220411
+	for(i=1;i<=(5+i)-int(ShotNr.len());i++) ShotNr.insert('0');		//insert zeros until ShotNr has a length of 6
+	LA_STRING filename = "g" + ShotNr + "." + ShotTime;
+#endif
+
 ifstream in;
 in.open(Path + filename);
 if(in.fail()==1) {cout << "Unable to open file " << Path + filename << endl; exit(0);}

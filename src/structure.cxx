@@ -223,8 +223,16 @@ if(use_3Dwall)
 }
 else checkFistStep = false;
 
+//Modified by TL 20220702
+//for HEAT we sometimes want smaller resolution than the default dpinit,
+//so dphi is always equal to nsteps
 // Set starting parameters
-double dphi = nstep*dpinit;		// in deg;  dpinit = 1.0 (default)
+#ifdef HEAT
+	double dphi = nstep;		// in deg;
+#else
+	double dphi = nstep*dpinit;		// in deg;  dpinit = 1.0 (default)
+#endif
+
 double alpha = PAR.verschieb;	// Scales parabolic deformation of line between start and end point, alpha = 0: no deformation, alpha = 1: max deformation equals distance between points
 
 // additional parameters for IO
@@ -299,13 +307,14 @@ ofs2 << "Start Tracer for " << PAR.N << " points ... " << endl;
 
 // Follow the field lines
 #ifdef HEAT
-//Modified by TL 20191117
-//Using 360 in the line below constrains the minimum field trace to be 360deg
-//Now, we just make the minimum itt
-int size = PAR.itt;
+	//Modified by TL 20191117
+	//Using 360 in the line below constrains the minimum field trace to be 360deg
+	//Now, we just make the minimum itt
+	int size = PAR.itt;
 #else
-int size = PAR.itt*int(360.0/double(dphi));
+	int size = PAR.itt*int(360.0/double(dphi));
 #endif
+
 Array<double,2> data(Range(1,size),Range(1,6));
 for(i=1;i<=PAR.N;i++)
 {

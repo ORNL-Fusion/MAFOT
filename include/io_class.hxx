@@ -22,7 +22,7 @@
 using namespace blitz;
 
 // Prototypes
-void readparfile_new(char* name, vector<double>& vec, int& shot, int& time, LA_STRING& path);
+void readparfile_new(char* name, vector<double>& vec, LA_STRING& shot, LA_STRING& time, LA_STRING& path);
 
 // Typedef
 typedef struct {string name; double wert;} parstruct;
@@ -304,14 +304,24 @@ void IO::readiodata(char* name, int mpi_rank)
 {
 // Get Parameters
 vector<double> vec;
-int shot,time;
+LA_STRING shot;
+LA_STRING time;
 readparfile_new(name,vec,shot,time,EQDr.Path);
-EQDr.Shot = LA_STRING(shot);
-EQDr.Time = LA_STRING(time);
-//time should be 5 long and shot should be 6 long (note time was only 4 long before)
-//while(EQDr.Shot.length() < 6) EQDr.Shot = "0" + EQDr.Shot;
-while(EQDr.Time.length() < 5) EQDr.Time = "0" + EQDr.Time;
-//if(vec.size()<22) {if(mpi_rank < 1) cout << "Fail to read all parameters, File incomplete" << endl; EXIT;}
+
+EQDr.Shot = shot;
+EQDr.Time = time;
+
+#if defined(HEAT)
+	//time and shot numbers are dynamic in HEAT, not fixed 
+	//this enables HEAT to cover 10 orders of magnitude in timescales, whereas
+	//MAFOT is restricted to [ms]->[ks], HEAT needs [us]->[ks]
+
+#else
+	//time should be 5 long and shot should be 6 long (note time was only 4 long before)
+	//while(EQDr.Shot.length() < 6) EQDr.Shot = "0" + EQDr.Shot;
+	while(EQDr.Time.length() < 5) EQDr.Time = "0" + EQDr.Time;
+	//if(vec.size()<22) {if(mpi_rank < 1) cout << "Fail to read all parameters, File incomplete" << endl; EXIT;}	
+#endif
 
 // private Variables
 filename = name;
@@ -571,7 +581,7 @@ sheath_sec = sec;
 //-------------------------------------------------------------------------------------------------------------------------
 
 // ------------- readparfile ----------------------------------------------------------------------------------------------
-void readparfile_new(char* name, vector<double>& vec, int& shot, int& time, LA_STRING& path)
+void readparfile_new(char* name, vector<double>& vec, LA_STRING& shot, LA_STRING& time, LA_STRING& path)
 {
 // Variables
 int i;
@@ -612,10 +622,13 @@ while(getline(file, line))
 			if (int(words[i].find("Time")) > -1) timefound = i;
 			if ((shotfound > -1) && (timefound > -1))
 			{
-				shot = atoi(words[shotfound + 1].c_str());
+				//shot = atoi(words[shotfound + 1].c_str());
+				shot = words[shotfound + 1].c_str();
 				word = words[timefound + 1];
 				if (int(word.find("ms")) > -1) word.erase(word.find("ms")); // erase all from beginning of 'ms' to end of string
-				time = atoi(word.c_str());
+				if (int(word.find("s")) > -1) word.erase(word.find("s")); // erase all from beginning of 's' to end of string
+				//time = atof(word.c_str());
+				time = word.c_str();
 				break;
 			}
 			if (int(words[i].find("Path")) > -1)
