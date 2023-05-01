@@ -45,11 +45,17 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 5.4
-GUI 3.0
+MAFOT 5.5
+GUI 3.1
 
 Version Notes: 
 ----------------
+MAFOT 5.5 -- May 2023
+- Code can now read arbitrarily named gFiles
+
+GUI 3.1 -- Jan 2023
+- gFile is now a full pathname, selectable from drop down menu, and sets shot & time, if applicable
+
 MAFOT 5.4.1 -- Feb 2023
 - Enable any machine without specific 3D coils
 

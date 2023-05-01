@@ -28,6 +28,7 @@ class Common_gui:
 		self.tag = tk.StringVar()
 		self.path = tk.StringVar()
 		self.previousPath = None
+		self.previousgPath = None
 		self.translateMachFlag = {'dt':'DIII-D', 'iter':'ITER', 'nstx':'NSTX', 
 									'mast':'MAST', 'cmod':'C-Mod', 'any':'Any'}
 		self.labelFont = None
@@ -36,6 +37,7 @@ class Common_gui:
 		okayCommand = self.frame.register(self.isOkay)
 		notOkayCommand = self.frame.register(self.isNotOkay)
 		makecwd = self.frame.register(self.makeCWD)
+		makeshottime = self.frame.register(self.makeShotTime)
 		
 		# --- Machine ---
 		row = 0
@@ -51,6 +53,14 @@ class Common_gui:
 			command = self.set_Machine).grid(column = 6, row = row, sticky = tk.W + tk.E )
 		tk.Label(self.frame, text = "Machine").grid(column = 1, row = row, sticky = tk.E )
 
+		# --- gPath ---
+		row += 1
+		#tk.Entry(self.frame, width = 7, textvariable = self.gPath).grid(column = 2, row = row, columnspan = 4, sticky = tk.W + tk.E)
+		self.gFile_entry = AutocompleteEntry(os.listdir('.'), self.frame, listboxLength = 6, 
+				width = 50, textvariable = self.gPath, font = self.textFont, validate = 'focusout', validatecommand = makeshottime)
+		self.gFile_entry.grid(column = 2, row = row, columnspan = 4, sticky = tk.W + tk.E)
+		tk.Label(self.frame, text = "g-file Pathname").grid(column = 1, row = row, sticky = tk.E)
+
 		# --- Shot number ---
 		row += 1
 		tk.Entry(self.frame, width = 7, textvariable = self.Shot).grid(column = 2, row = row, sticky = tk.W + tk.E)
@@ -60,11 +70,6 @@ class Common_gui:
 		tk.Entry(self.frame, width = 7, textvariable = self.Time).grid(column = 4, row = row, sticky = tk.W + tk.E)
 		tk.Label(self.frame, text = "Time").grid(column = 3, row = row, sticky = tk.E)
 
-		# --- gPath ---
-		row += 1
-		tk.Entry(self.frame, width = 7, textvariable = self.gPath).grid(column = 2, row = row, columnspan = 4, sticky = tk.W + tk.E)
-		tk.Label(self.frame, text = "Path to g-file").grid(column = 1, row = row, sticky = tk.E)
-		
 		# --- Tag ---
 		row += 1; self.row_write = row
 		self.tag_entry = tk.Entry(self.frame, width = 7, textvariable = self.tag, validate = 'all',
@@ -113,7 +118,7 @@ class Common_gui:
 			path = './'
 			
 		# read parameterfile, if it is there
-		default_gpath = HOME + '/c++/' + self.MachFlag.get() + '/gfiles'
+		default_gpath = path
 		self.ControlFileFound = True
 		if os.path.isfile(path + '_plot.dat'):
 			shot, time, gpath, _,_ = readControlFile(path + '_plot.dat',default_gpath)
@@ -140,16 +145,16 @@ class Common_gui:
 		else:
 			shot = ''
 			time = ''
-			if self.MachFlag.get() == 'dt':
-				gpath = HOME + '/c++/d3d/gfiles'
-			else:
-				gpath = HOME + '/c++/' + self.MachFlag.get() + '/gfiles'
+			gpath = path
 			self.ControlFileFound = False
 			
-		if not (gpath[-1] == '/'): gpath += '/'
-		self.Shot.set(str(shot)); 
-		self.Time.set(str(time))
-		self.gPath.set(gpath)
+		#if not (gpath[-1] == '/'): gpath += '/'
+		#self.Shot.set(str(shot))
+		#self.Time.set(str(time))
+		#self.gPath.set(gpath)
+		self.gFile_entry.update_baseSearchPath(gpath)
+		self.makeShotTime(defShot = shot, defTime = time)
+
 
 	
 	# --- validity check of Tag ---
@@ -184,6 +189,44 @@ class Common_gui:
 		self.path_entry.configure(validate = 'focusout')
 		return True
 		
+		
+	# --- callback, executed whenever gPath looses focus --- 
+	def makeShotTime(self, event = None, defShot = None, defTime = None):
+		if self.gPath.get() == self.previousgPath:
+			self.gFile_entry.configure(validate = 'focusout')
+			return True			
+
+		gfileNam = self.gPath.get()
+		idx = gfileNam[::-1].find('/')
+		if(idx == -1):
+			gpath = '.'
+			gfile = gfileNam
+		else:
+			idx *= -1
+			gpath = gfileNam[0:idx - 1]  # path without a final '/'
+			gfile = gfileNam[idx::]
+		
+		try:
+			idx = gfile.find('.')
+			fmtstr = '0' + str(idx - 1) + 'd'
+			shot, time = int(gfile[1:idx]), gfile[idx + 1::]
+			if '.' in time:
+				idx = time.find('.')
+				time = time[0:idx]
+			if '_' in time:
+				idx = time.find('_')
+				time = time[0:idx]
+			time = int(time)
+			self.Shot.set(str(shot))
+			self.Time.set(str(time))
+		except:
+			if defShot is not None: self.Shot.set(str(defShot))
+			if defTime is not None: self.Time.set(str(defTime))
+
+		self.previousgPath = self.gPath.get()		
+		self.gFile_entry.configure(validate = 'focusout')
+		return True
+
 
 	# --- Tabs ---
 	def set_tabs(self):
@@ -251,40 +294,40 @@ class Common_gui:
 	# --- set Tabs for different Machines ---
 	def set_Machine(self):
 		if(self.MachFlag.get() == 'any'):
-			if not self.ControlFileFound:
-				self.gPath.set(HOME + '/work/gfiles/')
+			#if not self.ControlFileFound:
+			#	self.gPath.set(HOME + '/work/gfiles/')
 			self.nb.tab(0, text='anyplot')
 			self.nb.tab(1, text='anyfix')
 			self.nb.tab(2, text='anyman')
 			self.nb.tab(3, text='anyfoot')
 			self.nb.tab(4, text='anylaminar')
 		elif(self.MachFlag.get() == 'iter'):
-			if not self.ControlFileFound:
-				self.gPath.set(HOME + '/c++/iter/gfiles/')
+			#if not self.ControlFileFound:
+			#	self.gPath.set(HOME + '/c++/iter/gfiles/')
 			self.nb.tab(0, text='iterplot')
 			self.nb.tab(1, text='iterfix')
 			self.nb.tab(2, text='iterman')
 			self.nb.tab(3, text='iterfoot')
 			self.nb.tab(4, text='iterlaminar')
 		elif(self.MachFlag.get() == 'nstx'):
-			if not self.ControlFileFound:
-				self.gPath.set(HOME + '/c++/nstx/gfiles/')
+			#if not self.ControlFileFound:
+			#	self.gPath.set(HOME + '/c++/nstx/gfiles/')
 			self.nb.tab(0, text='nstxplot')
 			self.nb.tab(1, text='nstxfix')
 			self.nb.tab(2, text='nstxman')
 			self.nb.tab(3, text='nstxfoot')
 			self.nb.tab(4, text='nstxlaminar')
 		elif(self.MachFlag.get() == 'mast'):
-			if not self.ControlFileFound:
-				self.gPath.set(HOME + '/c++/mast/gfiles/')
+			#if not self.ControlFileFound:
+			#	self.gPath.set(HOME + '/c++/mast/gfiles/')
 			self.nb.tab(0, text='mastplot')
 			self.nb.tab(1, text='mastfix')
 			self.nb.tab(2, text='mastman')
 			self.nb.tab(3, text='mastfoot')
 			self.nb.tab(4, text='mastlaminar')
 		else:	# d3d
-			if not self.ControlFileFound:
-				self.gPath.set(HOME + '/c++/d3d/gfiles/')
+			#if not self.ControlFileFound:
+			#	self.gPath.set(HOME + '/c++/d3d/gfiles/')
 			self.nb.tab(0, text='dtplot')
 			self.nb.tab(1, text='dtfix')
 			self.nb.tab(2, text='dtman')
@@ -551,6 +594,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		self.tag = M.tag
 		self.path = M.path
 		self.translateMachFlag = M.translateMachFlag
+		self.gFile_entry = M.gFile_entry
 		self.labelFont = None
 		self.textFont = None
 
@@ -1127,6 +1171,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		self.specialFieldFile1_entry.update_baseSearchPath(self.path.get())
 		self.specialFieldFile2_entry.update_baseSearchPath(self.path.get())
 		self.specialFieldFile3_entry.update_baseSearchPath(self.path.get())
+		self.ErProfileFile_entry.update_baseSearchPath(self.path.get())
 		
 
 	# --- Function, executed when Button is pressed ---
@@ -1135,9 +1180,10 @@ class common_tab(set_machine):	# inherit set_machine class
 			print ('You must enter a Shot # and a Time')
 			return
 
-		# make gPath absolute & check that gPath ends with a /
+		# make gPath absolute & check if gPath ends with a /  if so, append the conventional gfile name 
 		self.gPath.set(os.path.abspath(self.gPath.get()))
-		if not (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath.get() + '/')
+		self.gFile_entry.selection(None)
+		#if (self.gPath.get()[-1] == '/'): self.gPath.set(self.gPath + 'g' + format(int(self.Shot.get()),'06d') + '.' + format(int(self.Time.get()),'05d'))
 	
 		# convert relative path to absolute
 		cwd = os.getcwd()
@@ -1305,6 +1351,7 @@ class set_plot_tab(common_tab):		# inherit common tab class
 		self.tag = M.tag
 		self.path = M.path
 		self.translateMachFlag = M.translateMachFlag
+		self.gFile_entry = M.gFile_entry
 		self.labelFont = None
 		self.textFont = None
 
@@ -1487,6 +1534,7 @@ class set_fix_tab(common_tab):		# inherit common tab class
 		self.tag = M.tag
 		self.path = M.path
 		self.translateMachFlag = M.translateMachFlag
+		self.gFile_entry = M.gFile_entry
 		self.labelFont = None
 		self.textFont = None
 		
@@ -1698,6 +1746,7 @@ class set_man_tab(common_tab):		# inherit common tab class
 		self.tag = M.tag
 		self.path = M.path
 		self.translateMachFlag = M.translateMachFlag
+		self.gFile_entry = M.gFile_entry
 		self.labelFont = None
 		self.textFont = None
 
@@ -1879,6 +1928,7 @@ class set_foot_tab(common_tab):		# inherit common tab class
 		self.tag = M.tag
 		self.path = M.path
 		self.translateMachFlag = M.translateMachFlag
+		self.gFile_entry = M.gFile_entry
 		self.labelFont = None
 		self.textFont = None
 
@@ -2230,6 +2280,7 @@ class set_lam_tab(common_tab):		# inherit common tab class
 		self.tag = M.tag
 		self.path = M.path
 		self.translateMachFlag = M.translateMachFlag
+		self.gFile_entry = M.gFile_entry
 		self.labelFont = None
 		self.textFont = None
 		
@@ -2577,7 +2628,8 @@ class AutocompleteEntry(tk.Entry):
 		
 	def selection(self, event):
 		if self.listboxUp:
-			if event.type == '4':		# button press event
+			if event is None: pass
+			elif event.type == '4':		# button press event
 				index = self.listbox.index("@%s,%s" % (event.x, event.y))
 				self.listbox.selection_set(first=index)
 				self.listbox.activate(index)
@@ -2646,8 +2698,8 @@ class info_gui:
 		self.info_text.grid(column = 1, row = row, columnspan = 5, padx=10, pady=10); 
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
-		'MAFOT Version 5.4 \n'
-		'GUI Version 3.0 \n'
+		'MAFOT Version 5.5 \n'
+		'GUI Version 3.1 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'

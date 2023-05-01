@@ -626,8 +626,8 @@ while(getline(file, line))
 			if (int(words[i].find("Path")) > -1)
 			{
 				word = words[i+1];
-				found = word.find_last_of("/");
-				if (found < word.length() -1) word += "/";
+				//found = word.find_last_of("/");				// Path is now the full pathname, not just the path, so no tailing / needed
+				//if (found < word.length() -1) word += "/";
 				path = LA_STRING(word.c_str());
 				break;
 			}

@@ -301,8 +301,8 @@ if(PAR.response_field == 0 || PAR.response_field == 2)
 #endif
 
 EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
-if(mpi_rank < 1) cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
-ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
+if(mpi_rank < 1) cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.Path << endl;
+ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.Path << endl;
 
 // Read E-field data
 if(use_ErProfile)

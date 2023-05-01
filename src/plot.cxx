@@ -94,8 +94,8 @@ PAR.pv[9].name = "energy ratio lambda";	PAR.pv[9].wert = PAR.lambda;
 
 // Read EFIT-data
 EQD.ReadData(EQD.Shot,EQD.Time);
-cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
-ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
+cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.Path << endl;
+ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.Path << endl;
 
 // Prepare Perturbation
 prep_perturbation(EQD,PAR);

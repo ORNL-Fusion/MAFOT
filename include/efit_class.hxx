@@ -360,9 +360,10 @@ Time = ShotTime;
 // Open File
 for(i=1;i<=5-int(ShotTime.len());i++) ShotTime.insert('0');		//insert zeros until ShotTime has a length of 5
 LA_STRING filename = "g" + ShotNr + "." + ShotTime;
+if(Path.right(1) == '/') Path = Path + filename;				// Path should be the full pathname of the gfile. If it is only the path (last char is a /), then add the conventional gfile name
 ifstream in;
-in.open(Path + filename);
-if(in.fail()==1) {cout << "Unable to open file " << Path + filename << endl; exit(0);}
+in.open(Path);
+if(in.fail()==1) {cout << "Unable to open file " << Path << endl; exit(0);}
 
 // Read dimensions, last two enties in first line
 getline(in, stdummy);
