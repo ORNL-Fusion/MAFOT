@@ -84,11 +84,11 @@ bool use_collision = false;
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hafd:P:X:V:S:I:W:c")) != -1)
+while ((c = getopt(argc, argv, "habfd:P:X:V:S:I:W:c")) != -1)
 switch (c)
 {
 case 'h':
-	cout << "usage: dtstructure [-h] [-a] [-c] [-d step] [-f] [-I island] [-P points] [-S siesta] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
+	cout << "usage: dtstructure [-h] [-a] [-b] [-c] [-d step] [-f] [-I island] [-P points] [-S siesta] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
 	cout << "Trace field lines in 3D and return the path every step d in toroidal angle." << endl << endl;
 	cout << "positional arguments:" << endl;
 	cout << "  file          Contol file (starts with '_')" << endl;
@@ -96,6 +96,7 @@ case 'h':
 	cout << endl << "optional arguments:" << endl;
 	cout << "  -h            show this help message and exit" << endl;
 	cout << "  -a            output angle in DIII-D angle (left-handed) in degrees, default = radiants and right-handed," << endl;
+	cout << "  -b            use simple boundary instead of g-file wall as limiter" << endl;
 	cout << "  -c            check if field line crosses wall during first step; only with 3D wall, default = No" << endl;
 	cout << "  -d            step size for output, default = 10 degrees" << endl;
 	cout << "  -f            create filament.in file, default = No" << endl;
@@ -127,6 +128,9 @@ case 'h':
 	return 0;
 case 'a':
 	angleInDeg = true;
+	break;
+case 'b':
+	simpleBndy = 1;
 	break;
 case 'c':
 	checkFistStep = true;
@@ -215,6 +219,13 @@ if(PAR.response_field == 0 || PAR.response_field == 2)
 EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
 cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.Path << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.Path << endl;
+#ifdef ANYM
+if(simpleBndy == 1)
+{
+	cout << "Bounding box: Rmin = " << bndy[0] << "  Rmax = " << bndy[1] << "  Zmin = " << bndy[2] << "  Zmax = " << bndy[3] << endl;
+}
+ofs2 << "Bounding box: Rmin = " << bndy[0] << "  Rmax = " << bndy[1] << "  Zmin = " << bndy[2] << "  Zmax = " << bndy[3] << endl;
+#endif
 
 // Read 3D wall file and add to EQD
 if(use_3Dwall)

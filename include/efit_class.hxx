@@ -23,6 +23,8 @@ using namespace blitz;
 // Prototypes
 
 // Golbal Parameters
+extern double bndy[];
+
 #if defined(windows)		// Windows system
 	#if defined(ITER)
 	const LA_STRING gFilePath = "C:\\C++\\ITER\\gfiles\\";	// double backslash causes \ to appear in string
@@ -546,21 +548,11 @@ if((Ip*Bt0 > 0 && helicity == -1) || (Ip*Bt0 < 0 && helicity == 1))
 {
 	helicity *= -1;
 	helicity_adjust = -1;
-
-	//Added cout by TL for HEAT troubleshooting
 	cout << "Flipping Helicity!" << endl;
-	//cout << "Ip = " << Ip << endl;
-	//cout << "Bt0 = " << Bt0 << endl;
-	//cout << "helicity = "<< helicity << endl;
-	//cout << "dpsidr_hel = " << dpsidr_hel << endl;
-	//cout << "Fpol(psi_hel) = " << get_Fpol(psi_hel) << endl;
-	//cout << "psi_hel = "<< psi_hel << endl;
-	//cout << "R_hel = " << R_hel << endl;
-	//cout << "Maximum LCFS Point = " << max(lcfs(Range(1,toEnd,2))) << endl;
-	//cout << "dR = " << dR << endl;
-
 }
-
+#ifdef HEAT
+cout << "Helicity: " << helicity << endl;
+#endif
 // Identify the sign of toroidal and poloidal fields for use elsewhere.
 //    btSign  	 of g-file Bt, rel to phi in cylindrical (R,phi,Z)
 //    bpSign 	 of g-file Iplasma, rel to phi in cylindrical (R,phi,Z)
@@ -607,6 +599,14 @@ for(i=1;i<=Nwall;i++)
 	if (Swall(i) > Swall_max) Swall(i) -= Swall_max;
 	if (fabs(Swall(i)) < 1e-12) Swall(i) = 0;
 }
+
+// reset bounding box to EFIT limit
+#ifdef ANYM
+bndy[0] = min(R);
+bndy[1] = max(R);
+bndy[2] = min(Z);
+bndy[3] = max(Z);
+#endif
 
 return;
 }

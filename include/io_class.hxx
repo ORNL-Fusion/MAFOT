@@ -22,14 +22,14 @@
 using namespace blitz;
 
 // Prototypes
-void readparfile_new(char* name, vector<double>& vec, int& shot, int& time, LA_STRING& path);
+void readparfile_new(char* name, vector<double>& vec, LA_STRING& shot, LA_STRING& time, LA_STRING& path);
 
 // Typedef
 typedef struct {string name; double wert;} parstruct;
 
 // Golbal Parameters
 extern int simpleBndy;
-extern const double dpinit;
+extern double dpinit;
 
 //--------- Begin Class PARTICLE ----------------------------------------------------------------------------------------------
 class IO
@@ -301,14 +301,8 @@ void IO::readiodata(char* name, int mpi_rank)
 {
 // Get Parameters
 vector<double> vec;
-int shot,time;
-readparfile_new(name,vec,shot,time,EQDr.Path);
-EQDr.Shot = LA_STRING(shot);
-EQDr.Time = LA_STRING(time);
-//time should be 5 long and shot should be 6 long (note time was only 4 long before)
-//while(EQDr.Shot.length() < 6) EQDr.Shot = "0" + EQDr.Shot;
-while(EQDr.Time.length() < 5) EQDr.Time = "0" + EQDr.Time;
-//if(vec.size()<22) {if(mpi_rank < 1) cout << "Fail to read all parameters, File incomplete" << endl; EXIT;}
+
+readparfile_new(name,vec,EQDr.Shot,EQDr.Time,EQDr.Path);
 
 // private Variables
 filename = name;
@@ -439,6 +433,7 @@ useErProfile = 0;
 	useCcoil = 0;
 	useBuswork = 0;
 	useBcoil = 0;
+	dpinit = double(vec[23]);
 #else
 	// Set switches
 	useFcoil = int(vec[13]);
@@ -576,7 +571,7 @@ sheath_sec = sec;
 //-------------------------------------------------------------------------------------------------------------------------
 
 // ------------- readparfile ----------------------------------------------------------------------------------------------
-void readparfile_new(char* name, vector<double>& vec, int& shot, int& time, LA_STRING& path)
+void readparfile_new(char* name, vector<double>& vec, LA_STRING& shot, LA_STRING& time, LA_STRING& path)
 {
 // Variables
 int i;
@@ -617,10 +612,11 @@ while(getline(file, line))
 			if (int(words[i].find("Time")) > -1) timefound = i;
 			if ((shotfound > -1) && (timefound > -1))
 			{
-				shot = atoi(words[shotfound + 1].c_str());
+				shot = LA_STRING(words[shotfound + 1].c_str());
 				word = words[timefound + 1];
 				if (int(word.find("ms")) > -1) word.erase(word.find("ms")); // erase all from beginning of 'ms' to end of string
-				time = atoi(word.c_str());
+				if (int(word.find("s")) > -1) word.erase(word.find("s")); // erase all from beginning of 's' to end of string
+				time = LA_STRING(word.c_str());
 				break;
 			}
 			if (int(words[i].find("Path")) > -1)

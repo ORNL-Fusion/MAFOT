@@ -40,7 +40,7 @@ double get_Lmfp(double Ekin);
 // Integrator Parameters
 const int nvar = 2;				// Number of Variables
 const int ilt = 360;			// Steps till Output
-const double dpinit = 1.0;		// step size of phi in [deg]
+double dpinit = 1.0;			// step size of phi in [deg]
 
 // Golbal Parameters
 extern ofstream ofs2;
