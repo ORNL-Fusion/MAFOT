@@ -219,13 +219,16 @@ if(PAR.response_field == 0 || PAR.response_field == 2)
 EQD.ReadData(EQD.gFile,Raxis,Zaxis);
 cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.gFile << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.gFile << endl;
-#ifdef ANYM
-if(simpleBndy == 1)
+
+if(simpleBndy == 1)	// set boundary to the EFIT limit.
 {
+	bndy[0] = min(EQD.R);
+	bndy[1] = max(EQD.R);
+	bndy[2] = min(EQD.Z);
+	bndy[3] = max(EQD.Z);
 	cout << "Bounding box: Rmin = " << bndy[0] << "  Rmax = " << bndy[1] << "  Zmin = " << bndy[2] << "  Zmax = " << bndy[3] << endl;
+	ofs2 << "Bounding box: Rmin = " << bndy[0] << "  Rmax = " << bndy[1] << "  Zmin = " << bndy[2] << "  Zmax = " << bndy[3] << endl;
 }
-ofs2 << "Bounding box: Rmin = " << bndy[0] << "  Rmax = " << bndy[1] << "  Zmin = " << bndy[2] << "  Zmax = " << bndy[3] << endl;
-#endif
 
 // Read 3D wall file and add to EQD
 if(use_3Dwall)
