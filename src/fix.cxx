@@ -235,9 +235,9 @@ if(PAR.response_field == 0 || PAR.response_field == 2)
 }
 #endif
 
-EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
-cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.Path << endl;
-ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.Path << endl;
+EQD.ReadData(EQD.gFile,Raxis,Zaxis);
+cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.gFile << endl;
+ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.gFile << endl;
 
 // Prepare Perturbation
 prepare_common_perturbations(EQD,PAR,0,siestafile,xpandfile,islandfile);

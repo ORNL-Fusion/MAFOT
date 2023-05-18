@@ -25,40 +25,6 @@ using namespace blitz;
 // Golbal Parameters
 extern double bndy[];
 
-#if defined(windows)		// Windows system
-	#if defined(ITER)
-	const LA_STRING gFilePath = "C:\\C++\\ITER\\gfiles\\";	// double backslash causes \ to appear in string
-	#elif defined(NSTX)
-	const LA_STRING gFilePath = "C:\\C++\\NSTX\\gfiles\\";
-	#else
-	const LA_STRING gFilePath = "C:\\C++\\D3D\\d3gfiles\\";
-	#endif
-#elif defined(genatomix)	// GA u-drive
-	#if defined(ITER)
-	const LA_STRING gFilePath = "/u/wingen/d3gfiles/iter/";
-	#elif defined(NSTX)
-	const LA_STRING gFilePath = "/u/wingen/d3gfiles/nstx/";
-	#else
-	const LA_STRING gFilePath = "/u/wingen/d3gfiles/";
-	#endif
-#elif defined(mac)			// Mac Book
-	#if defined(ITER)
-	const LA_STRING gFilePath = "/Users/wingen/c++/iter/gfiles/";
-	#elif defined(NSTX)
-	const LA_STRING gFilePath = "/Users/wingen/c++/nstx/gfiles/";
-	#else
-	const LA_STRING gFilePath = "/Users/wingen/c++/d3d/gfiles/";
-	#endif
-#else						// default linux system
-	#if defined(ITER)
-	const LA_STRING gFilePath = "/home/wingen/c++/iter/gfiles/";
-	#elif defined(NSTX)
-	const LA_STRING gFilePath = "/home/wingen/c++/nstx/gfiles/";
-	#else
-	const LA_STRING gFilePath = "/home/wingen/c++/d3d/gfiles/";
-	#endif
-#endif
-
 //--------- Begin Class EFIT ----------------------------------------------------------------------------------------------
 class EFIT
 {
@@ -71,6 +37,7 @@ public:
 	LA_STRING Shot;		// Shot number
 	LA_STRING Time;		// Time slice in ms
 	LA_STRING Path;		// Path to g-file
+	LA_STRING gFile;	// path and name of g-file
 
 	// To be read from g-file
 	int NR;	// Number of Points in R-direction
@@ -158,7 +125,7 @@ public:
 	EFIT& operator =(const EFIT& EQD);		// Operator =
 
 // Member-Funktionen
-	void ReadData(const LA_STRING ShotNr, const LA_STRING ShotTime, double Raxis = 0, double Zaxis = 0);	// Reads EFIT data from g-file
+	void ReadData(LA_STRING gfile, double Raxis = 0, double Zaxis = 0);	// Reads EFIT data from g-file
 	void ReadEfield(LA_STRING file);	// Read E-field profile from file
 	void ReadTprofile(LA_STRING file);	// Read T profile from file
 
@@ -192,7 +159,8 @@ TinyVector <int,4> index4(1,1,1,1);
 
 Shot = "none";
 Time = "00000";
-Path = gFilePath;
+Path = "none";
+gFile = "none";
 
 NR = 129;
 NZ = 129;
@@ -261,6 +229,7 @@ if (this == &EQD) return(*this);	    // if: x=x
 Shot = EQD.Shot;
 Time = EQD.Time;
 Path = EQD.Path;
+gFile = EQD.gFile;
 
 NR = EQD.NR;
 NZ = EQD.NZ;
@@ -342,7 +311,7 @@ return(*this);
 //-------------------------------------------------------------------------------------------------------------------------
 
 //---------------------- ReadEFITdata -------------------------------------------------------------------------------------
-void EFIT::ReadData(LA_STRING ShotNr, LA_STRING ShotTime, double Raxis, double Zaxis)
+void EFIT::ReadData(LA_STRING gfile, double Raxis, double Zaxis)
 {
 int i,j;
 string stdummy;
@@ -355,17 +324,28 @@ double d1,dn;
 Range all = Range::all();
 Array<double,1> slice_1,slice_2;	//Slice-array
 
-// Set Shot and Time
-Shot = ShotNr;
-Time = ShotTime;
+// Shot and Time are already set by IO::readiodata
+gFile = gfile;
+
+LA_STRING ShotTime = Time;
+for(i=1;i<=5-int(ShotTime.len());i++) ShotTime.insert('0');		//insert zeros until ShotTime has a length of 5
+LA_STRING filename = "g" + Shot + "." + ShotTime;
+if(gFile.right(1) == '/') gFile = gFile + filename;				// gFile should be the full pathname of the gfile. If it is only the path (last char is a /), then add the conventional gfile name
+
+int idx;
+LA_STRING reverseG = "";	// an empty string
+for(i=gfile.len();i>0;i--) reverseG += gfile[i];
+if(reverseG.includes('/'))
+{
+	idx = gfile.len() - reverseG.indexOf('/') + 1;		// index of last '/' in gfile
+	Path = gfile.left(idx);
+}
+else Path = "./";
 
 // Open File
-for(i=1;i<=5-int(ShotTime.len());i++) ShotTime.insert('0');		//insert zeros until ShotTime has a length of 5
-LA_STRING filename = "g" + ShotNr + "." + ShotTime;
-if(Path.right(1) == '/') Path = Path + filename;				// Path should be the full pathname of the gfile. If it is only the path (last char is a /), then add the conventional gfile name
 ifstream in;
-in.open(Path);
-if(in.fail()==1) {cout << "Unable to open file " << Path << endl; exit(0);}
+in.open(gFile);
+if(in.fail()==1) {cout << "Unable to open file " << gFile << endl; exit(0);}
 
 // Read dimensions, last two enties in first line
 getline(in, stdummy);

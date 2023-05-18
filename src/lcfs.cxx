@@ -190,9 +190,9 @@ if(PAR.response_field == 0 || PAR.response_field == 2)
 }
 #endif
 
-EQD.ReadData(EQD.Shot,EQD.Time,Raxis,Zaxis);
-cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
-ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << endl;
+EQD.ReadData(EQD.gFile,Raxis,Zaxis);
+cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.gFile << endl;
+ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.gFile << endl;
 
 // Read E-field data
 if(use_ErProfile)

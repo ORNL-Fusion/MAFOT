@@ -302,7 +302,7 @@ void IO::readiodata(char* name, int mpi_rank)
 // Get Parameters
 vector<double> vec;
 
-readparfile_new(name,vec,EQDr.Shot,EQDr.Time,EQDr.Path);
+readparfile_new(name,vec,EQDr.Shot,EQDr.Time,EQDr.gFile);
 
 // private Variables
 filename = name;
@@ -571,6 +571,7 @@ sheath_sec = sec;
 //-------------------------------------------------------------------------------------------------------------------------
 
 // ------------- readparfile ----------------------------------------------------------------------------------------------
+// path is the full pathname of the gfile
 void readparfile_new(char* name, vector<double>& vec, LA_STRING& shot, LA_STRING& time, LA_STRING& path)
 {
 // Variables
