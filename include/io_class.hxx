@@ -424,16 +424,16 @@ useErProfile = 0;
 	useBcoil = 0;
 	useFilament = 0;
 #elif defined(HEAT)
-	//Coded as very basic right now for troubleshooting
-	// Set switches
-	useIcoil = int(vec[13]);
-	useFilament = int(vec[14]);
+	// integrator step size in deg
+	dpinit = double(vec[23]);
+
 	// Set unused Parameters to defaults
 	useFcoil = 0;
 	useCcoil = 0;
+	useIcoil = 0;
 	useBuswork = 0;
 	useBcoil = 0;
-	dpinit = double(vec[23]);
+	useFilament = 0;
 #else
 	// Set switches
 	useFcoil = int(vec[13]);
