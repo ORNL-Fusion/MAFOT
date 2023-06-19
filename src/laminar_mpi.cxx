@@ -88,6 +88,8 @@ LA_STRING wall_file = "none";
 double Raxis = 0, Zaxis = 0;
 LA_STRING new_axis_loc;
 int new_axis_loc_idx;
+LA_STRING new_bb;
+int new_bb_idx;
 bool use_inputPointsFile = false;
 LA_STRING inputPoints_file = "none";
 LA_STRING woutfile = "wout.nc";
@@ -110,13 +112,13 @@ bool use_collision = false;
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:E:T:cb")) != -1)
+while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:E:T:cbB:")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-b] [-c] [-l limit] [-s] [-A Raxis,Zaxis] [-E ErProfile] [-I island] " << endl;
+		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-b] [-c] [-l limit] [-s] [-A Raxis,Zaxis] [-B Rmin,Rmax,Zmin,Zmax] [-E ErProfile] [-I island] " << endl;
 		cout << "                                       [-P points] [-S siesta] [-T Tprofile] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
 		cout << "Calculate field line connection length and penetration depth in a poloidal cross-section." << endl << endl;
 		cout << "positional arguments:" << endl;
@@ -124,11 +126,12 @@ case 'h':
 		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 		cout << endl << "optional arguments:" << endl;
 		cout << "  -h            show this help message and exit" << endl;
-		cout << "  -b            use simple boundary instead of g-file wall as limiter" << endl;
+		cout << "  -b            use simple boundary with default limits instead of g-file wall as limiter" << endl;
 		cout << "  -c            check if field line crosses wall during first step; only with 3D wall, default = No" << endl;
 		cout << "  -l            flux limit for spare interior, default = 0.85" << endl;
 		cout << "  -s            spare calculation of interior, default = No" << endl;
 		cout << "  -A            force magnetic axis location, use: -A Raxis,Zaxis , default: use g-file" << endl;
+		cout << "  -B            use simple boundary with limits Rmin,Rmax,Zmin,Zmax" << endl;
 		cout << "  -E            use electric field with particle drifts. Filename of Er(psi) profile." << endl;
 		cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
 		cout << "  -P            use separate input file for initial conditions; argument is the file name; default is None" << endl;
@@ -161,6 +164,18 @@ case 'h':
 	return 0;
 case 'b':
 	simpleBndy = 1;
+	break;
+case 'B':
+	simpleBndy = 1;
+	new_bb = LA_STRING(optarg);
+	for(i=0;i<3;i++)
+	{
+		new_bb_idx = new_bb.indexOf(",");
+		bndy[i] = atof(new_bb.left(new_bb_idx-1));
+		new_bb = new_bb.mid(new_bb_idx+1);
+	}
+	bndy[3] = atof(new_bb);
+	if(mpi_rank == 0) cout << "Bounding box: Rmin = " << bndy[0] << "  Rmax = " << bndy[1] << "  Zmin = " << bndy[2] << "  Zmax = " << bndy[3] << endl;
 	break;
 case 'c':
 	checkFistStep = true;
