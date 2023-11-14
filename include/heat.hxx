@@ -145,7 +145,7 @@ return 0;
 //---------- prep_perturbation --------------------------------------------------------------------------------------------
 void prep_perturbation(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING supPath)
 {
-cout << "Preparing HEAT perturbation" << endl;
+//if(mpi_rank < 1) cout << "Preparing HEAT perturbation" << endl;
 int i,j;
 int chk;
 LA_STRING line;	// entire line is read by ifstream
