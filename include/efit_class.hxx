@@ -531,7 +531,7 @@ if((Ip*Bt0 > 0 && helicity == -1) || (Ip*Bt0 < 0 && helicity == 1))
 	cout << "Flipping Helicity!" << endl;
 }
 #ifdef HEAT
-cout << "Helicity: " << helicity << endl;
+if(strcmp(program_name,"heatstructure") == 0) cout << "Helicity: " << helicity << endl;
 #endif
 // Identify the sign of toroidal and poloidal fields for use elsewhere.
 //    btSign  	 of g-file Bt, rel to phi in cylindrical (R,phi,Z)
