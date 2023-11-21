@@ -240,7 +240,7 @@ if(use_3Dwall)
 else checkFistStep = false;
 
 // Set starting parameters
-double dphi = nstep*dpinit;		// in deg;  dpinit = 1.0 (default)
+double dphi = nstep*dpinit;		// in deg;  default dpinit = 1.0
 double alpha = PAR.verschieb;	// Scales parabolic deformation of line between start and end point, alpha = 0: no deformation, alpha = 1: max deformation equals distance between points
 
 // additional parameters for IO
@@ -366,8 +366,8 @@ for(i=1;i<=PAR.N;i++)
 		for(j=1;j<=size;j++)
 		{
 			chk = FLT.mapstep(-1,nstep);
-			if(fabs(FLT.phi + j*dpinit*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi + j*dpinit*dphi - PAR.phistart) << endl;
-			FLT.phi = -j*dpinit*dphi + PAR.phistart;
+			if(fabs(FLT.phi + j*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi + j*dphi - PAR.phistart) << endl;
+			FLT.phi = -j*dphi + PAR.phistart;
 
 			//Store Values
 			data(j,1) = FLT.R;	data(j,2) = FLT.Z;	data(j,3) = FLT.phi;	data(j,4) = FLT.psi;	data(j,5) = FLT.Lc;	data(j,6) = FLT.dpsidLc;
@@ -397,8 +397,8 @@ for(i=1;i<=PAR.N;i++)
 		for(j=1;j<=size;j++)
 		{
 			chk = FLT.mapstep(1,nstep);
-			if(fabs(FLT.phi - j*dpinit*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi - j*dpinit*dphi - PAR.phistart) << endl;
-			FLT.phi = j*dpinit*dphi + PAR.phistart;
+			if(fabs(FLT.phi - j*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi - j*dphi - PAR.phistart) << endl;
+			FLT.phi = j*dphi + PAR.phistart;
 
 			if(angleInDeg) {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << modulo(360.0 - FLT.phi, 360.0) << "\t" << FLT.psi << "\t" << FLT.Lc << "\t" << FLT.dpsidLc << endl;}
 			else {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << "\t" << FLT.psi << "\t" << FLT.Lc << "\t" << FLT.dpsidLc << endl;}
