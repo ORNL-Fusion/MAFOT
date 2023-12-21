@@ -68,6 +68,7 @@ int i,j;
 int chk,skip_connect,chk2;
 double ntor,length,psimin,psimax,psiav;
 double pitch,yaw;
+double B_R,B_Z,B_phi;
 double xtmp,ytmp;
 Range all = Range::all();
 
@@ -425,7 +426,9 @@ if(mpi_rank < 1)
 	ofstream out(filenameout);
 	out.precision(16);
 	vector<LA_STRING> var(N_variables);
-	var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";  var[5] = "psimax";  var[6] = "psiav";  var[7] = "FL pitch angle";  var[8] = "FL yaw angle";
+	var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";
+	//var[5] = "psimax";  var[6] = "psiav";  var[7] = "FL pitch angle";  var[8] = "FL yaw angle";
+	var[5] = "psiav";  var[6] = "B_R";  var[7] = "B_Z";  var[8] = "B_phi";
 	var[9] = "theta";  var[10] = "psi";
 	if(PAR.create_flag == 3) {var[0] = "theta";  var[1] = "psi";  var[9] = "R[m]";  var[10] = "Z[m]";}
 	if(PAR.create_flag == 6) {var[0] = "phi";  var[1] = "theta";  var[9] = "R[m]";  var[10] = "Z[m]";}
@@ -677,8 +680,10 @@ if(mpi_rank < 1)
 						skip_connect = 1;
 					}
 
-					chk = pitch_angles(FLT.R, FLT.Z, FLT.phi/rTOd, pitch, yaw, EQD, PAR);
-					if(chk == -1) {pitch = 0; yaw = 0;}
+					//chk = pitch_angles(FLT.R, FLT.Z, FLT.phi/rTOd, pitch, yaw, EQD, PAR);
+					//if(chk == -1) {pitch = 0; yaw = 0;}
+					chk = getBfield(FLT.R, FLT.Z, FLT.phi/rTOd, B_R, B_Z, B_phi, EQD, PAR);
+					if(chk == -1) {B_R = 0; B_Z = 0; B_phi = 0;}
 
 					// check if particle/field line left the system during the first integration step
 					// this does not update/change any FLT parameters
@@ -706,10 +711,10 @@ if(mpi_rank < 1)
 					results_all(tag,3,i) = ntor;
 					results_all(tag,4,i) = length/1000.0;
 					results_all(tag,5,i) = psimin;
-					results_all(tag,6,i) = psimax;
-					results_all(tag,7,i) = psiav;
-					results_all(tag,8,i) = pitch;
-					results_all(tag,9,i) = yaw;
+					results_all(tag,6,i) = psiav;
+					results_all(tag,7,i) = B_R;
+					results_all(tag,8,i) = B_Z;
+					results_all(tag,9,i) = B_phi;
 					results_all(tag,10,i) = xtmp;
 					results_all(tag,11,i) = ytmp;
 
@@ -867,8 +872,10 @@ if(mpi_rank > 0)
 				skip_connect = 1;
 			}
 
-			chk = pitch_angles(FLT.R, FLT.Z, FLT.phi/rTOd, pitch, yaw, EQD, PAR);
-			if(chk == -1) {pitch = 0; yaw = 0;}
+			//chk = pitch_angles(FLT.R, FLT.Z, FLT.phi/rTOd, pitch, yaw, EQD, PAR);
+			//if(chk == -1) {pitch = 0; yaw = 0;}
+			chk = getBfield(FLT.R, FLT.Z, FLT.phi/rTOd, B_R, B_Z, B_phi, EQD, PAR);
+			if(chk == -1) {B_R = 0; B_Z = 0; B_phi = 0;}
 
 			// check if particle/field line left the system during the first integration step
 			// this does not update/change any FLT parameters
@@ -896,10 +903,10 @@ if(mpi_rank > 0)
 			results(3,i) = ntor;
 			results(4,i) = length/1000.0;
 			results(5,i) = psimin;
-			results(6,i) = psimax;
-			results(7,i) = psiav;
-			results(8,i) = pitch;
-			results(9,i) = yaw;
+			results(6,i) = psiav;
+			results(7,i) = B_R;
+			results(8,i) = B_Z;
+			results(9,i) = B_phi;
 			results(10,i) = xtmp;
 			results(11,i) = ytmp;
 

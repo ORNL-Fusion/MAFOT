@@ -45,13 +45,17 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 5.5
+MAFOT 5.51
 GUI 3.1
 
 Version Notes: 
 ----------------
+MAFOT 5.51 -- Dec 2023
+- laminar now returns B-field components instead of previously obsolete variables (pitch, yaw amd psimax)
+
 MAFOT 5.5 -- May 2023
 - Code can now read arbitrarily named gFiles
+- bug fix in structure, where toroidal angle was wrong for dpinit != 1
 
 GUI 3.1 -- Jan 2023
 - gFile is now a full pathname, selectable from drop down menu, and sets shot & time, if applicable
