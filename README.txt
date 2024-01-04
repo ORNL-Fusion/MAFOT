@@ -45,12 +45,12 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 5.51
+MAFOT 5.5.1
 GUI 3.1
 
 Version Notes: 
 ----------------
-MAFOT 5.51 -- Dec 2023
+MAFOT 5.5.1 -- Dec 2023
 - laminar now returns B-field components instead of previously obsolete variables (pitch, yaw amd psimax)
 
 MAFOT 5.5 -- May 2023
