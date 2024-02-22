@@ -11,7 +11,7 @@
 #ifndef MAFOT_INCLUDED
 #define MAFOT_INCLUDED
 
-#define MAFOT_VERSION "5.5.1"
+#define MAFOT_VERSION "5.5.2"
 
 // Include
 //--------
@@ -123,23 +123,12 @@ case -3:
 	else vmec.get_B(R, phi, Z, B_R, B_phi, B_Z);
 	break;
 #endif
+
 #ifdef USE_SIESTA
 case -2:
 	SIES.get_B(R, phi, Z, B_R, B_phi, B_Z);
 	break;
 #endif
-case -1: case 1: case -10:	// Vacuum equilibrium field from g file
-	// get normalized poloidal Flux psi (should be chi in formulas!)
-	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
-	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
-
-	// Equilibrium field
-	if(psi <= 1.0) F = EQD.get_Fpol(psi);
-	else F = EQD.get_Fpol(1.0);	//EQD.Bt0*EQD.R0;
-	B_R = dpsidz/R;
-	B_phi = F/R;	//B_phi = EQD.Bt0*EQD.R0/R;
-	B_Z = -dpsidr/R;
-	break;
 
 #ifdef m3dc1
 case 0: case 2: 	// M3D-C1: equilibrium field or total field
@@ -164,6 +153,19 @@ case 0: case 2: 	// M3D-C1: equilibrium field or total field
 	}
 	break;
 #endif
+
+default:	//case -1: case 1: case -10:	// Vacuum equilibrium field from g file
+	// get normalized poloidal Flux psi (should be chi in formulas!)
+	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
+	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
+
+	// Equilibrium field
+	if(psi <= 1.0) F = EQD.get_Fpol(psi);
+	else F = EQD.get_Fpol(1.0);	//EQD.Bt0*EQD.R0;
+	B_R = dpsidz/R;
+	B_phi = F/R;	//B_phi = EQD.Bt0*EQD.R0/R;
+	B_Z = -dpsidr/R;
+	break;
 }
 
 #ifdef m3dc1
