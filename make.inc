@@ -1,1 +1,1 @@
-install/make.inc.Tom
+install/make.inc.HEAT
