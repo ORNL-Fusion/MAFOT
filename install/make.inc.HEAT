@@ -24,11 +24,14 @@ ARCH = ar crus
 LDD = g++ --shared
 LDFLAGS =
 
+# ---- Additional Defines ----
+DEFS = -Dm3dc1_newfio
+
 # ---- external Libraries ----
 BLITZLIBS = -L/root/source/MAFOT/blitz++/blitz-0.9/lib -lblitz
 FLIBS = -L/usr/lib/x86_64-linux-gnu -lgfortran
 OMPLIBS = -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi -lmpi_cxx
-M3DC1LIBS = -L/root/opt/m3dc1/build/lib
+M3DC1LIBS = -L/root/opt/m3dc1/build/lib -lfusionio -lm3dc1
 HDF5LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/serial
 NETCDFLIBS = -L/usr/lib/x86_64-linux-gnu -lnetcdf
 

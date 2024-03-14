@@ -1,11 +1,11 @@
 # ---- Folder ----
 MAFOT_DIR = /home/tom/source/MAFOT
 #use this for local MAFOT builds:
-BIN_DIR = /usr/bin
-LIB_DIR = /usr/lib
+#BIN_DIR = /usr/bin
+#LIB_DIR = /usr/lib
 #Use this for building docker container:
-#BIN_DIR = /home/tom/source/HEAT/MAFOT/bin
-#LIB_DIR = /home/tom/source/HEAT/MAFOT/lib
+BIN_DIR = /home/tom/source/HEAT/MAFOT/bin
+LIB_DIR = /home/tom/source/HEAT/MAFOT/lib
 
 
 # ---- Support codes ----
@@ -28,11 +28,14 @@ ARCH = ar crus
 LDD = g++ --shared
 LDFLAGS =
 
+# ---- Additional Defines ----
+DEFS = -Dm3dc1_newfio
+
 # ---- external Libraries ----
 BLITZLIBS = -L/home/tom/source/MAFOT/blitz++/blitz-0.9/lib -lblitz
 FLIBS = -L/usr/lib/x86_64-linux-gnu -lgfortran
 OMPLIBS = -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi -lmpi_cxx
-M3DC1LIBS = -L/opt/m3dc1/build/lib
+M3DC1LIBS = -L/opt/m3dc1/build/lib -lfusionio -lm3dc1
 HDF5LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/serial
 NETCDFLIBS = -L/usr/lib/x86_64-linux-gnu -lnetcdf
 

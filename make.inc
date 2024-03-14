@@ -1,1 +1,1 @@
-install/make.inc.pegasus
+install/make.inc.Tom
