@@ -31,14 +31,14 @@ DEFS = -Dm3dc1_newfio
 BLITZLIBS = -L/root/source/MAFOT/blitz++/blitz-0.9/lib -lblitz
 FLIBS = -L/usr/lib/x86_64-linux-gnu -lgfortran
 OMPLIBS = -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi -lmpi_cxx
-M3DC1LIBS = -L/root/opt/m3dc1/build/lib -lfusionio -lm3dc1
+M3DC1LIBS = -L/root/source/M3DC1/build/lib -lfusionio -lm3dc1
 HDF5LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/serial
 NETCDFLIBS = -L/usr/lib/x86_64-linux-gnu -lnetcdf
 
 # ---- external Includes ----
 BLITZINCLUDE = -I/root/source/MAFOT/blitz++/blitz-0.9/blitz
 OMPINCLUDE = -I/usr/lib/x86_64-linux-gnu/openmpi/include -I/usr/lib/x86_64-linux-gnu/openmpi/include/openmpi
-M3DC1INCLUDE = -I/root/opt/m3dc1/build/include
+M3DC1INCLUDE = -I/root/source/M3DC1/build/include
 NETCDFINCLUDE = -I/usr/include
 
 # ---- build GUI with python (optional) ----
