@@ -32,7 +32,7 @@ BLITZLIBS = -L/root/source/MAFOT/blitz++/blitz-0.9/lib -lblitz
 FLIBS = -L/usr/lib/x86_64-linux-gnu -lgfortran
 OMPLIBS = -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi -lmpi_cxx
 M3DC1LIBS = -L/root/source/M3DC1/build/lib -lfusionio -lm3dc1
-HDF5LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/serial
+HDF5LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/openmpi
 NETCDFLIBS = -L/usr/lib/x86_64-linux-gnu -lnetcdf
 
 # ---- external Includes ----
