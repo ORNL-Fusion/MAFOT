@@ -1,8 +1,8 @@
 #for cloning/building MAFOT inside docker container
 # ---- Folder ----
 MAFOT_DIR = /root/source/MAFOT
-BIN_DIR = /usr/bin
-LIB_DIR = /usr/lib
+BIN_DIR = /root/source/MAFOT/build/bin
+LIB_DIR = /root/source/MAFOT/build/lib
 
 # ---- Support codes ----
 # True or False
