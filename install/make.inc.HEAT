@@ -1,12 +1,8 @@
+#for cloning/building MAFOT inside docker container
 # ---- Folder ----
-MAFOT_DIR = /home/tom/source/MAFOT
-#use this for local MAFOT builds:
-#BIN_DIR = /usr/bin
-#LIB_DIR = /usr/lib
-#Use this for building docker container:
-BIN_DIR = /home/tom/source/HEAT/MAFOT/bin
-LIB_DIR = /home/tom/source/HEAT/MAFOT/lib
-
+MAFOT_DIR = /root/source/MAFOT
+BIN_DIR = /root/source/MAFOT/build/bin
+LIB_DIR = /root/source/MAFOT/build/lib
 
 # ---- Support codes ----
 # True or False
@@ -32,17 +28,17 @@ LDFLAGS =
 DEFS = -Dm3dc1_newfio
 
 # ---- external Libraries ----
-BLITZLIBS = -L/home/tom/source/MAFOT/blitz++/blitz-0.9/lib -lblitz
+BLITZLIBS = -L/root/source/MAFOT/blitz++/blitz-0.9/lib -lblitz
 FLIBS = -L/usr/lib/x86_64-linux-gnu -lgfortran
 OMPLIBS = -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi -lmpi_cxx
-M3DC1LIBS = -L/opt/m3dc1/build/lib -lfusionio -lm3dc1
-HDF5LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/serial
+M3DC1LIBS = -L/root/source/M3DC1/build/lib -lfusionio -lm3dc1
+HDF5LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/openmpi -lhdf5_cpp -lhdf5
 NETCDFLIBS = -L/usr/lib/x86_64-linux-gnu -lnetcdf
 
 # ---- external Includes ----
-BLITZINCLUDE = -I/home/tom/source/MAFOT/blitz++/blitz-0.9/blitz
+BLITZINCLUDE = -I/root/source/MAFOT/blitz++/blitz-0.9/blitz
 OMPINCLUDE = -I/usr/lib/x86_64-linux-gnu/openmpi/include -I/usr/lib/x86_64-linux-gnu/openmpi/include/openmpi
-M3DC1INCLUDE = -I/opt/m3dc1/build/include
+M3DC1INCLUDE = -I/root/source/M3DC1/build/include
 NETCDFINCLUDE = -I/usr/include
 
 # ---- build GUI with python (optional) ----
