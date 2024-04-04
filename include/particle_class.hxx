@@ -32,6 +32,7 @@ using namespace blitz;
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
 bool outofBndy(double phi, double x, double y, EFIT& EQD);
 bool outofBndyInBetween(double phi0, double x0, double y0, double phi1, double x1, double y1, EFIT& EQD);
+bool outofRealBndy(double phi, double x, double y, EFIT& EQD);
 
 // Prototypes
 void get_Energy(double psi, double& Enorm, double& dEnorm);
@@ -1158,7 +1159,7 @@ for (k=1;k<=nstep;k++)
 	if (chk == -1) return -1;
 	x = x1 + k*dx; // Better than x+=dx
 
-	// Integration terminates outside of boundary box
+	// Integration terminates outside of boundary
 	if(outofBndy(x*rTOd,yout(0),yout(1),EQDr) == true)
 	{
 		if(returnLastStep) y = yout;
@@ -1174,7 +1175,9 @@ for (k=1;k<=nstep;k++)
 
 	// Get additional Parameter
 	lcstep = sqrt((yout(0)-y(0))*(yout(0)-y(0)) + (yout(1)-y(1))*(yout(1)-y(1)) + 0.25*(yout(0)+y(0))*(yout(0)+y(0))*dx*dx);
-	Lc += lcstep;
+
+	// Only update connection length inside the wall limiter; field line trace can still go on outside limiter but yet inside boundary box
+	if(outofRealBndy(x*rTOd,yout(0),yout(1),EQDr) == false) Lc += lcstep;
 
 	if(PARr.response_field == -2)
 	{
