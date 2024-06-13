@@ -151,6 +151,7 @@ return chk;
 // Prepare loading M3D-C1
 int M3DC1::read_m3dc1sup(LA_STRING supPath)
 {
+freopen("/dev/null", "w", stderr);	// suppress stderr output
 int i;
 string file, line;
 ifstream in;
@@ -327,7 +328,7 @@ if(ierr3 != 0) {cout << "M3DC1: poloidal flux setup failed" << endl;}
 return ierr+ierr2+ierr3;
 }
 
-
+// ----------------- show_m3dc1sup_data -----------------------------------------------------------------------------------
 void M3DC1::show_m3dc1sup_data(void)
 {
 int i;
