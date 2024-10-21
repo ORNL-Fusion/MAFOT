@@ -2572,7 +2572,12 @@ class AutocompleteEntry(tk.Entry):
 
 
 	def update_baseSearchPath(self, path):
-		self.init_path = os.path.abspath(path) + '/'
+		if os.path.isfile(path):
+			self.init_path = os.path.dirname(os.path.abspath(path)) + '/'	# path is an existing filepath
+		elif os.path.isdir(path):
+			self.init_path = os.path.abspath(path) + '/'	# path is an existing path
+		else:
+			self.init_path = os.path.abspath('./') + '/'	# path does not exist
 		self.path = self.init_path
 		self.update_list()
 		
@@ -2698,8 +2703,8 @@ class info_gui:
 		self.info_text.grid(column = 1, row = row, columnspan = 5, padx=10, pady=10); 
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
-		'MAFOT Version 5.5 \n'
-		'GUI Version 3.1 \n'
+		'MAFOT Version 5.5.2 \n'
+		'GUI Version 3.1.1 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'

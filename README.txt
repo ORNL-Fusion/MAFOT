@@ -46,10 +46,13 @@ or
 Current Version:
 ----------------
 MAFOT 5.5.2
-GUI 3.1
+GUI 3.1.1
 
 Version Notes: 
 ----------------
+GUI 3.1.1 -- Oct 2024
+- Bug fix: GUI would not start if gPath in control file does not exist. This is now fixed.
+
 MAFOT 5.5.2 -- Feb 2024
 - for compile setups without 3rd party code supports, like M3D-C1, MAFOT now defaults back to using the gFile mode even if other (unavailable) Field modes are selected in the control file. Before, this was not captured and a run would fail doing nothing. 
 
