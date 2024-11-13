@@ -198,7 +198,7 @@ return chk;
 // Loads a single n-mode and returns Bn(R,Z)
 //-------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
-class GPEC_Nmode
+class GPEC_mode
 {
 private:
 	// Parameter
@@ -206,28 +206,6 @@ private:
 	int NZ;		// Number of points in Z
 
 	// Member Variables
-	double dR;		// grid distance in R direction
-	double dZ;		// grid distance in Z direction
-
-	Array<double,1> R;		// R grid
-	Array<double,1> Z;		// Z grid
-	Array<double,2> ReBr;	// Real(B_r) (R,Z);  i=1:Nr rows, j=1:Nz columns
-	Array<double,2> ImBr;	// Imag(B_r) (R,Z);  i=1:Nr rows, j=1:Nz columns
-	Array<double,2> ReBp;	// Real(B_phi) (R,Z);  i=1:Nr rows, j=1:Nz columns
-	Array<double,2> ImBp;	// Imag(B_phi) (R,Z);  i=1:Nr rows, j=1:Nz columns
-	Array<double,2> ReBz;	// Real(B_z) (R,Z);  i=1:Nr rows, j=1:Nz columns
-	Array<double,2> ImBz;	// Imag(B_z) (R,Z);  i=1:Nr rows, j=1:Nz columns
-
-	Array<double,2> dReBrdR;		// Derivative in R-direction
-	Array<double,2> dReBrdZ;		// Derivative in Z-direction
-	Array<double,2> d2ReBrdRdZ;		// Cross-derivative
-	Array<double,4> Ca_ReBr;		// Coefficients for bcuint
-
-	Array<double,4> Ca_ImBr;
-	Array<double,4> Ca_ReBp;
-	Array<double,4> Ca_ImBp;
-	Array<double,4> Ca_ReBz;
-	Array<double,4> Ca_ImBz;
 
 	// Member-Functions
 
@@ -235,11 +213,21 @@ public:
 	// Member Variables
 	int n;		// toroidal mode number
 
+	Array<double,1> R;		// R grid
+	Array<double,1> Z;		// Z grid
+
+	GPEC_var ReBr;	// Real(B_r) (R,Z);  i=1:Nr rows, j=1:Nz columns
+	GPEC_var ImBr;	// Imag(B_r) (R,Z);  i=1:Nr rows, j=1:Nz columns
+	GPEC_var ReBp;	// Real(B_phi) (R,Z);  i=1:Nr rows, j=1:Nz columns
+	GPEC_var ImBp;	// Imag(B_phi) (R,Z);  i=1:Nr rows, j=1:Nz columns
+	GPEC_var ReBz;	// Real(B_z) (R,Z);  i=1:Nr rows, j=1:Nz columns
+	GPEC_var ImBz;	// Imag(B_z) (R,Z);  i=1:Nr rows, j=1:Nz columns
+
 	// Constructors
-	GPEC_Nmode();								// Default Constructor
+	GPEC_mode();								// Default Constructor
 
 	// Member-Functions
-	int getBn(double R, double Z, double& Bnr, double& Bnp, double& Bnz)
+	int getBn(double r, double z, double& Bnr, double& Bnp, double& Bnz)
 	void ReadData(LA_STRING file)
 
 }; //end of class
@@ -249,29 +237,15 @@ public:
 
 //--------- Constructors --------------------------------------------------------------------------------------------------
 // Default Constructor
-GPEC_Nmode::GPEC_Nmode()
+GPEC_Nmode::GPEC_mode()
 {
 TinyVector <int,1> index(1);
-TinyVector <int,2> index2(1,1);
-TinyVector <int,2> index2_10(1,0);
-TinyVector <int,4> index4(1,1,1,1);
 
 NR = 129;
 NZ = 129;
 
-ReBr.resize(NR,NZ);	ReBr.reindexSelf(index2);
-ImBr.resize(NR,NZ);	ImBr.reindexSelf(index2);
-ReBp.resize(NR,NZ);	ReBp.reindexSelf(index2);
-ImBp.resize(NR,NZ);	ImBp.reindexSelf(index2);
-ReBz.resize(NR,NZ);	ReBz.reindexSelf(index2);
-ImBz.resize(NR,NZ);	ImBz.reindexSelf(index2);
-
-Ca_ReBr.resize(NR-1,NZ-1,4,4);	Ca_ReBr.reindexSelf(index4);
-Ca_ImBr.resize(NR-1,NZ-1,4,4);	Ca_ImBr.reindexSelf(index4);
-Ca_ReBp.resize(NR-1,NZ-1,4,4);	Ca_ReBp.reindexSelf(index4);
-Ca_ImBp.resize(NR-1,NZ-1,4,4);	Ca_ImBp.reindexSelf(index4);
-Ca_ReBz.resize(NR-1,NZ-1,4,4);	Ca_ReBz.reindexSelf(index4);
-Ca_ImBz.resize(NR-1,NZ-1,4,4);	Ca_ImBz.reindexSelf(index4);
+R.resize(NR);	R.reindexSelf(index);
+Z.resize(NZ);	Z.reindexSelf(index);
 }
 
 //--------------------- Public Member Functions ---------------------------------------------------------------------------
@@ -279,7 +253,7 @@ Ca_ImBz.resize(NR-1,NZ-1,4,4);	Ca_ImBz.reindexSelf(index4);
 
 // ----------------- getB -------------------------------------------------------------------------------------------------
 // returns the magnetic field at location (R,phi,Z)
-int GPEC_Nmode::getBn(double R, double Z, double& Bnr, double& Bnp, double& Bnz)
+int GPEC_mode::getBn(double r, double z, double& Bnr, double& Bnp, double& Bnz)
 {
 int i,chk;
 
@@ -289,42 +263,45 @@ return chk;
 
 
 //---------------------- ReadData -------------------------------------------------------------------------------------
-void GPEC_Nmode::ReadData(LA_STRING file)
+void GPEC_mode::ReadData(LA_STRING filename)
 {
 int i,j;
+string line,word;
+vector<string> words;
 
-// Set R, Z and psi Arrays
+// Open File
+ifstream file;
+file.open(filename);
+if(file.fail()==1) {cout << "Unable to open file " << filename << endl; exit(0);}
+
+// Read dimensions, last two enties in first line
+getline(file, line)
+words = split(line);
+for(i=0;i<words.size();i++)
+{
+	if (int(words[i].find("=")) > -1) n = atoi(words[i + 1].c_str());
+}
+
+
+
+
+NR = atoi(words[words.size()-2].c_str());	// Number of Points in R-direction
+NZ = atoi(words[words.size()-1].c_str());	// Number of Points in Z-direction
+
+
+// Rezize Arrays (if size = 129 nothing is done!); All Arrays start with index 1
+
 R.resize(NR);
 Z.resize(NZ);
 
 
 
+// Read Arrays
 
-// Prepare Bicubic Interpolation of psiRZ -> get gradients and cross-derivative
-dpsidR.resize(NR,NZ);
-dpsidZ.resize(NR,NZ);
-d2psidRdZ.resize(NR,NZ);
 
-bcuderiv(psiRZ,dR,dZ,dpsidR,dpsidZ,d2psidRdZ);
 
-// Get the c's for bcuint, as done by bcucof
-Array<double,1> y_sq(Range(1,4)),y1_sq(Range(1,4)),y2_sq(Range(1,4)),y12_sq(Range(1,4));
-Array<double,2> slice;
-Ca.resize(NR-1,NZ-1,4,4);
-for(i=1;i<NR;i++)
-{
-	for(j=1;j<NZ;j++)
-	{
-		y_sq(1) = psiRZ(i,j); y_sq(2) = psiRZ(i+1,j); y_sq(3) = psiRZ(i+1,j+1); y_sq(4) = psiRZ(i,j+1);
-		y1_sq(1) = dpsidR(i,j); y1_sq(2) = dpsidR(i+1,j); y1_sq(3) = dpsidR(i+1,j+1); y1_sq(4) = dpsidR(i,j+1);
-		y2_sq(1) = dpsidZ(i,j); y2_sq(2) = dpsidZ(i+1,j); y2_sq(3) = dpsidZ(i+1,j+1); y2_sq(4) = dpsidZ(i,j+1);
-		y12_sq(1) = d2psidRdZ(i,j); y12_sq(2) = d2psidRdZ(i+1,j); y12_sq(3) = d2psidRdZ(i+1,j+1); y12_sq(4) = d2psidRdZ(i,j+1);
 
-		slice.reference(Ca(i,j,all,all));
-		bcucof(y_sq,y1_sq,y2_sq,y12_sq,dR,dZ,slice);
-	}
-}
-
+file.close();
 
 }
 
@@ -345,24 +322,31 @@ private:
 	double dR;		// grid distance in R direction
 	double dZ;		// grid distance in Z direction
 
-	Array<double,2> B;		// i=1:Nr rows, j=1:Nz columns
+	Array<double,1> R;		// R grid
+	Array<double,1> Z;		// Z grid
 
 	Array<double,2> dBdR;		// Derivative in R-direction
 	Array<double,2> dBdZ;		// Derivative in Z-direction
 	Array<double,2> d2BdRdZ;	// Cross-derivative
-	Array<double,4> Ca;			// Coefficients for bcuint
 
+	Array<double,4> Ca;			// Coefficients for bcuint
 
 	// Member-Functions
 
 public:
 	// Member Variables
 	int n;		// toroidal mode number
+	Array<double,2> B;		// i=1:Nr rows, j=1:Nz columns
 
-	// Constructors
-	GPEC_var();								// Default Constructor
+	// Constructors & Operator
+	GPEC_var();										// Default Constructor
+	const double &operator[] (int i, int j) const;	// Get element
+	double &operator[](int i, int j);				// Assign element
+	GPEC_var& operator =(const GPEC_var& var);		// Operator =
 
 	// Member-Functions
+	int ev(const double x1, const double x2, double& y, double& dy1, double& dy2)
+	void set(Array<double,1>& Rin, Array<double,1>& Zin)
 
 
 }; //end of class
@@ -374,60 +358,93 @@ public:
 // Default Constructor
 GPEC_var::GPEC_var()
 {
-TinyVector <int,1> index(1);
-TinyVector <int,2> index2(1,1);
-TinyVector <int,2> index2_10(1,0);
-TinyVector <int,4> index4(1,1,1,1);
-
-NR = 129;
-NZ = 129;
-
-ReBr.resize(NR,NZ);	ReBr.reindexSelf(index2);
-ImBr.resize(NR,NZ);	ImBr.reindexSelf(index2);
-ReBp.resize(NR,NZ);	ReBp.reindexSelf(index2);
-ImBp.resize(NR,NZ);	ImBp.reindexSelf(index2);
-ReBz.resize(NR,NZ);	ReBz.reindexSelf(index2);
-ImBz.resize(NR,NZ);	ImBz.reindexSelf(index2);
-
-Ca_ReBr.resize(NR-1,NZ-1,4,4);	Ca_ReBr.reindexSelf(index4);
-Ca_ImBr.resize(NR-1,NZ-1,4,4);	Ca_ImBr.reindexSelf(index4);
-Ca_ReBp.resize(NR-1,NZ-1,4,4);	Ca_ReBp.reindexSelf(index4);
-Ca_ImBp.resize(NR-1,NZ-1,4,4);	Ca_ImBp.reindexSelf(index4);
-Ca_ReBz.resize(NR-1,NZ-1,4,4);	Ca_ReBz.reindexSelf(index4);
-Ca_ImBz.resize(NR-1,NZ-1,4,4);	Ca_ImBz.reindexSelf(index4);
+n = 0;
+NR = 0;
+NZ = 0;
+dR = 0;
+dZ = 0;
 }
+
+//--------- [] Operator --------------------------------------------------------------------------------------------------
+const double &GPEC_var::operator[](int i, int j) const		//  Get element
+{
+	return B(i,j);
+}
+
+double &GPEC_var::operator[](int i, int j)		//  Assign element
+{
+	return B(i,j);
+}
+
+//--------- Operator = ----------------------------------------------------------------------------------------------------
+GPEC_var& GPEC_var::operator =(const GPEC_var& var)
+{
+if (this == &var) return(*this);	    // if: x=x
+
+n = var.n;
+NR = var.NR;
+NZ = var.NZ;
+dR = var.dR;
+dZ = var.dZ;
+B.reference(var.B.copy());
+R.reference(var.R.copy());
+Z.reference(var.Z.copy());
+dBdR.reference(var.dBdR.copy());
+dBdZ.reference(var.dBdZ.copy());
+d2BdRdZ.reference(var.d2BdRdZ.copy());
+Ca.reference(var.Ca.copy());
+return(*this);
+}
+
 
 //--------------------- Public Member Functions ---------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
-// ----------------- getB -------------------------------------------------------------------------------------------------
-// returns the magnetic field at location (R,phi,Z)
-int GPEC_var::eval(double R, double Z, double& val)
+//--------- resize --------------------------------------------------------------------------------------------------
+void GPEC_var::resize(int nr, int nz)
 {
-int i,chk;
+TinyVector <int,1> index(1);
+TinyVector <int,2> index2(1,1);
+TinyVector <int,4> index4(1,1,1,1);
 
+NR = nr;
+NZ = nz;
 
-return chk;
+B.resize(NR,NZ);	B.reindexSelf(index2);
+dBdR.resize(NR,NZ);	dBdR.reindexSelf(index2);
+dBdZ.resize(NR,NZ);	dBdZ.reindexSelf(index2);
+d2BdRdZ.resize(NR,NZ);	d2BdRdZ.reindexSelf(index2);
+Ca.resize(NR-1,
 }
 
+// ----------------- ev -------------------------------------------------------------------------------------------------
+// returns the magnetic field at location (R,phi,Z)
+int GPEC_var::ev(const double x1, const double x2, double& y, double& dy1, double& dy2)
+{
+int chk = 0;
+if(x1>R(NR) || x1<R(1) || x2>Z(NZ) || x2<Z(1))	{return -1;}
+chk = bcuint(R,Z,Ca,dR,dZ,x1,x2,y,dy1,dy2);
+if(chk == -1) {return -1;}
+return 0;
+}
 
-//---------------------- ReadData -------------------------------------------------------------------------------------
-void GPEC_var::set(double& R, double& Z, double& Val)
+//---------------------- set -------------------------------------------------------------------------------------
+void GPEC_var::set(Array<double,1>& Rin, Array<double,1>& Zin)
 {
 int i,j;
+Range all = Range::all();
 
-NR = R.size();
-NZ = Z.size();
-B = Val;
+R = Rin.reference();
+Z = Zin.reference();
+dR = (R(NR) - R(1))/double(NR-1);
+dZ = (Z(NZ) - Z(1))/double(NR-1);
 
+// Prepare Bicubic Interpolation of B -> get gradients and cross-derivative
+dBdR.resize(NR,NZ);
+dBdZ.resize(NR,NZ);
+d2BdRdZ.resize(NR,NZ);
 
-
-// Prepare Bicubic Interpolation of psiRZ -> get gradients and cross-derivative
-dpsidR.resize(NR,NZ);
-dpsidZ.resize(NR,NZ);
-d2psidRdZ.resize(NR,NZ);
-
-bcuderiv(psiRZ,dR,dZ,dpsidR,dpsidZ,d2psidRdZ);
+bcuderiv(B,dR,dZ,dBdR,dBdZ,d2BdRdZ);
 
 // Get the c's for bcuint, as done by bcucof
 Array<double,1> y_sq(Range(1,4)),y1_sq(Range(1,4)),y2_sq(Range(1,4)),y12_sq(Range(1,4));
@@ -437,10 +454,10 @@ for(i=1;i<NR;i++)
 {
 	for(j=1;j<NZ;j++)
 	{
-		y_sq(1) = psiRZ(i,j); y_sq(2) = psiRZ(i+1,j); y_sq(3) = psiRZ(i+1,j+1); y_sq(4) = psiRZ(i,j+1);
-		y1_sq(1) = dpsidR(i,j); y1_sq(2) = dpsidR(i+1,j); y1_sq(3) = dpsidR(i+1,j+1); y1_sq(4) = dpsidR(i,j+1);
-		y2_sq(1) = dpsidZ(i,j); y2_sq(2) = dpsidZ(i+1,j); y2_sq(3) = dpsidZ(i+1,j+1); y2_sq(4) = dpsidZ(i,j+1);
-		y12_sq(1) = d2psidRdZ(i,j); y12_sq(2) = d2psidRdZ(i+1,j); y12_sq(3) = d2psidRdZ(i+1,j+1); y12_sq(4) = d2psidRdZ(i,j+1);
+		y_sq(1) = B(i,j); y_sq(2) = B(i+1,j); y_sq(3) = B(i+1,j+1); y_sq(4) = B(i,j+1);
+		y1_sq(1) = dBdR(i,j); y1_sq(2) = dBdR(i+1,j); y1_sq(3) = dBdR(i+1,j+1); y1_sq(4) = dBdR(i,j+1);
+		y2_sq(1) = dBdZ(i,j); y2_sq(2) = dBdZ(i+1,j); y2_sq(3) = dBdZ(i+1,j+1); y2_sq(4) = dBdZ(i,j+1);
+		y12_sq(1) = d2BdRdZ(i,j); y12_sq(2) = d2BdRdZ(i+1,j); y12_sq(3) = d2BdRdZ(i+1,j+1); y12_sq(4) = d2BdRdZ(i,j+1);
 
 		slice.reference(Ca(i,j,all,all));
 		bcucof(y_sq,y1_sq,y2_sq,y12_sq,dR,dZ,slice);
