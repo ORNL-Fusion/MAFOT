@@ -16,6 +16,7 @@
 #include <blitz/tinyvec-et.h>
 #include <andi.hxx>
 #include <io_class.hxx>
+#include <splines.hxx>
 
 using namespace blitz;
 
@@ -35,21 +36,24 @@ class GPEC
 {
 private:
 	// Parameter
+	int N;		// number of toroidal modes
 
 	// Member Variables
-
-	// Member-Functions
+	vector<LA_STRING> filenames;
+	vector<double> scale;
+	vector<double> phase;
 
 public:
 	// Member Variables
+	vector<GPEC_mode> Modes;
 
 	// Constructors
 	GPEC();								// Default Constructor
 
 	// Member-Functions
-	int getB(double R, double phi, double Z, double& Br, double& Bp, double& Bz)
+	int getB(double R, double phi, double Z, double& Br, double& Bp, double& Bz);
 	int read_gpecsup(LA_STRING supPath="./");
-	void load(IO& PAR, int mpi_rank);
+	void load(IO& PAR, int mpi_rank, LA_STRING supPath="./");
 
 }; //end of class
 
@@ -60,6 +64,7 @@ public:
 // Default Constructor
 GPEC::GPEC()
 {
+N = 0;
 }
 
 //--------------------- Public Member Functions ---------------------------------------------------------------------------
@@ -69,83 +74,86 @@ GPEC::GPEC()
 // returns the magnetic field at location (R,phi,Z)
 int GPEC::getB(double R, double phi, double Z, double& Br, double& Bp, double& Bz)
 {
-int i,chk;
+int n,chk;
+double Bnr, Bnp, Bnz;
 
+Br = 0; Bp = 0; Bz = 0;
+for(n=0;n<N;n++)
+{
+	 chk = Modes[n].getBn(R, phi + phase[n], Z, Bnr, Bnp, Bnz);
+	 if(chk < 0) {return -1;}
+	 Br += scale[n] * Bnr;
+	 Bp += scale[n] * Bnp;
+	 Bz += scale[n] * Bnz;
+}
 
-return chk;
+return 0;
 }
 
 // ----------------- read_gpecsup ----------------------------------------------------------------------------------------
 // Prepare loading M3D-C1
 int GPEC::read_gpecsup(LA_STRING supPath)
 {
-//freopen("/dev/null", "w", stderr);	// suppress stderr output
-int i;
-string file, line;
-ifstream in;
-double ph;
+string name, line;
+double sc,ph;
 
-in.open(supPath + "m3dc1sup.in");
-if(in.fail()==1) // no m3dc1 control file found -> use default: scale by coils and filename = "C1.h5"
+ifstream file;
+file.open(supPath + "gpecsup.in");
+if(file.fail()==1) {cout << "Unable to open gpecsup.in file" << endl; exit(0);}
+
+// m3dc1 control file found
+N = 0;
+while(getline(file, line))
 {
-	nfiles = 1;
-	filenames[0] = "C1.h5";
-	scale[0] = 1;
-	phase[0] = 0;
-	in.close();
-	return -1;
-}
-else	// m3dc1 control file found
-{
-	i = 0;
-	while(getline(in, line))
+	if(line.length() < 1) continue; 	// blank lines anywhere don't matter
+	stringstream ss(line);
+	if( ss >> name >> sc >> ph)	// assigns any one of file, scale and ph if possible
 	{
-		if(line.length() < 1) continue; 	// blank lines anywhere don't matter
-		stringstream ss(line);
-		if( ss >> file >> scale[i] >> ph)	// assigns any one of file, scale and ph if possible
-		{
-			if(fabs(ph) > pi) ph /= rTOd;	// convert phase to radiants
-			phase[i] = ph;
-		}
-		else	// ph assignment was not possible, others are set though
-		{
-			phase[i] = 0;
-		}
-		filenames[i] = file.c_str();
-		i += 1;
+		if(fabs(ph) > pi) ph /= rTOd;	// convert phase to radiants
+		phase.push_back(ph);
 	}
-	nfiles = i;
+	else	// ph assignment was not possible, others are set though
+	{
+		phase.push_back(0);
+	}
+	filenames.push_back(name.c_str());
+	scale.push_back(sc);
+	N += 1;
 }
-in.close();
+
+file.close();
 return 0;
 }
 
 
 // ----------------- load -------------------------------------------------------------------------------------------------
-void GPEC::load(IO& PAR, int mpi_rank)
+void GPEC::load(IO& PAR, int mpi_rank, LA_STRING supPath)
 {
 int j,chk;
 
-if(mpi_rank < 1) cout << "Loading M3D-C1 output file C1.h5" << endl;
-ofs2 << "Loading M3D-C1 output file C1.h5" << endl;
-
-chk = open_source(PAR.response, PAR.response_field);	// load C1.h5
-if(chk != 0) {if(mpi_rank < 1) cout << "Error loding C1.h5 file" << endl; EXIT;}
-if(nonlinear) PAR.response_field = 2;	// nonlinear runs should only use the full field
-
-if(mpi_rank < 1) cout << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
-ofs2 << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
-
-if(PAR.response_field > 0)		// Perturbation already included in M3D-C1 output
+if(PAR.response_field == 5)		// only if GPEC is used
 {
-	for(j=0;j<nfiles;j++)
+	if(mpi_rank < 1) cout << "Loading GPEC output" << endl;
+	ofs2 << "Loading GPEC output" << endl;
+
+	read_gpecsup(supPath);
+
+	//if(mpi_rank < 1) cout << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "GPEC perturbation (0 = off, 1 = on): " << PAR.response_field << endl;
+	//ofs2 << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "GPEC perturbation (0 = off, 1 = on): " << PAR.response_field << endl;
+
+
+
+
+
+	for(j=0;j<N;j++)
 	{
-		if(mpi_rank < 1) cout << "M3D-C1 file: " << filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << "  and phase: " << phase[j]*rTOd << endl;
-		ofs2 << "M3D-C1 file: " << filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << "  and phase: " << phase[j]*rTOd << endl;
+		if(mpi_rank < 1) cout << "GPEC file: " << filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << "  and phase: " << phase[j]*rTOd << endl;
+		ofs2 << "GPEC file: " << filenames[j] <<  " -> perturbation scaling factor: " << scale[j] << "  and phase: " << phase[j]*rTOd << endl;
+		Modes[j] = ??? // Problem of copy and destruction of GPEC_mode class object
 	}
 
-	if(mpi_rank < 1) cout << "Coils turned off: perturbation (only) already included in M3D-C1 output" << endl;
-	ofs2 << "Coils turned off: perturbation (only) already included in M3D-C1 output" << endl;
+	if(mpi_rank < 1) cout << "Coils turned off: perturbation (only) already included in GPEC output" << endl;
+	ofs2 << "Coils turned off: perturbation (only) already included in GPEC output" << endl;
 
 	PAR.useFcoil = 0;
 	PAR.useCcoil = 0;
@@ -157,43 +165,14 @@ if(PAR.response_field > 0)		// Perturbation already included in M3D-C1 output
 
 
 
-//--------------------- Private Member Functions --------------------------------------------------------------------------
+
+
+//----------------------- End of Member Functions -------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+//------------------------ End of Class GPEC ------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 
-
-
-// ----------------- make_psi ---------------------------------------------------------------------------------------------
-int GPEC::make_psi(void)
-{
-int ierr,i;
-
-
-return ierr;
-}
-
-// ----------------- axis0 ------------------------------------------------------------------------------------------------
-int GPEC::axis0(void)
-{
-int ir0, iz0, ierr;
-
-
-return ierr;
-}
-
-// ----------------- axis -------------------------------------------------------------------------------------------------
-int GPEC::axis(void)
-{
-int chk,i;
-
-return chk;
-}
-
-
-
-//------------------------ End of Class GPEC -----------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------------------------------
-
-//--------- Begin Class GPEC_Nmode ---------------------------------------------------------------------------------------------
+//--------- Begin Class GPEC_mode -----------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 // Loads a single n-mode and returns Bn(R,Z)
 //-------------------------------------------------------------------------------------------------------------------------
@@ -205,10 +184,6 @@ private:
 	int NR;		// Number of points in R
 	int NZ;		// Number of points in Z
 
-	// Member Variables
-
-	// Member-Functions
-
 public:
 	// Member Variables
 	int n;		// toroidal mode number
@@ -216,6 +191,7 @@ public:
 	Array<double,1> R;		// R grid
 	Array<double,1> Z;		// Z grid
 
+	GPEC_var L;		// ???;  i=1:Nr rows, j=1:Nz columns
 	GPEC_var ReBr;	// Real(B_r) (R,Z);  i=1:Nr rows, j=1:Nz columns
 	GPEC_var ImBr;	// Imag(B_r) (R,Z);  i=1:Nr rows, j=1:Nz columns
 	GPEC_var ReBp;	// Real(B_phi) (R,Z);  i=1:Nr rows, j=1:Nz columns
@@ -227,8 +203,8 @@ public:
 	GPEC_mode();								// Default Constructor
 
 	// Member-Functions
-	int getBn(double r, double z, double& Bnr, double& Bnp, double& Bnz)
-	void ReadData(LA_STRING file)
+	int getBn(double r, double phi, double z, double& Bnr, double& Bnp, double& Bnz);
+	void ReadData(LA_STRING filename);
 
 }; //end of class
 
@@ -252,11 +228,27 @@ Z.resize(NZ);	Z.reindexSelf(index);
 //-------------------------------------------------------------------------------------------------------------------------
 
 // ----------------- getB -------------------------------------------------------------------------------------------------
-// returns the magnetic field at location (R,phi,Z)
-int GPEC_mode::getBn(double r, double z, double& Bnr, double& Bnp, double& Bnz)
+// returns the magnetic field at location (R,phi,Z) for toroidal mode n
+int GPEC_mode::getBn(double r, double phi, double z, double& Bnr, double& Bnp, double& Bnz)
 {
-int i,chk;
+int i;
+int chk = 0;
+double rebr,imbr,rebp,imbp,rebz,imbz,dummy;
 
+chk += ReBr.ev(r,z,rebr,dummy,dummy);
+chk += ImBr.ev(r,z,imbr,dummy,dummy);
+chk += ReBp.ev(r,z,rebp,dummy,dummy);
+chk += ImBp.ev(r,z,imbp,dummy,dummy);
+chk += ReBz.ev(r,z,rebz,dummy,dummy);
+chk += ImBz.ev(r,z,imbz,dummy,dummy);
+if(chk < 0) {return -1;}
+
+cosnp = cos(n*phi);
+sinnp = sin(n*phi);
+
+Bnr = 2*(rebr * cosnp - imbr * sinnp);
+Bnp = 2*(rebp * cosnp - imbp * sinnp);
+Bnz = 2*(rebz * cosnp - imbz * sinnp);
 
 return chk;
 }
@@ -265,9 +257,12 @@ return chk;
 //---------------------- ReadData -------------------------------------------------------------------------------------
 void GPEC_mode::ReadData(LA_STRING filename)
 {
-int i,j;
+int i;
+int j = 0;
+int HeaderDone = 0;
 string line,word;
 vector<string> words;
+Array<int,1> nums(3);
 
 // Open File
 ifstream file;
@@ -275,38 +270,68 @@ file.open(filename);
 if(file.fail()==1) {cout << "Unable to open file " << filename << endl; exit(0);}
 
 // Read dimensions, last two enties in first line
-getline(file, line)
-words = split(line);
-for(i=0;i<words.size();i++)
+while(HeaderDone == 0)
 {
-	if (int(words[i].find("=")) > -1) n = atoi(words[i + 1].c_str());
+	getline(file, line);
+	if(line.length() < 1) continue; 	// blank lines anywhere don't matter
+	words = split(line);
+	if (words.size() == 0) continue;	// line only has blanks and no words
+	for(i=0;i<words.size();i++)
+	{
+		if (int(words[i].find("real(b_r)")) > -1) HeaderDone = 1;
+		if (int(words[i].find("=")) > -1) {nums(j) = atoi(words[i + 1].c_str()); j++;}
+	}
 }
+n = nums(0);	// toroidal mode number
+NR = nums(1);	// Number of Points in R-direction
+NZ = nums(2);	// Number of Points in Z-direction
 
+// Rezize Arrays; All Arrays start with index 1
+R.resize(NR);	//  if size = 129 nothing is done!
+Z.resize(NZ);	//  if size = 129 nothing is done!
+L.resize(NR,NZ);	// This calls resize in GPEC_var
+ReBr.resize(NR,NZ);
+ImBr.resize(NR,NZ);
+ReBp.resize(NR,NZ);
+ImBp.resize(NR,NZ);
+ReBz.resize(NR,NZ);
+ImBz.resize(NR,NZ);
 
+// Read Data
+int rows = NR*NZ;
+int row;	// row = (i-1)*NZ + j
+for(row=1;row<=rows;row++)
+{
+	i = row/NZ + 1;		// uses integer division
+	j = row - (i-1)*NZ;
 
-
-NR = atoi(words[words.size()-2].c_str());	// Number of Points in R-direction
-NZ = atoi(words[words.size()-1].c_str());	// Number of Points in Z-direction
-
-
-// Rezize Arrays (if size = 129 nothing is done!); All Arrays start with index 1
-
-R.resize(NR);
-Z.resize(NZ);
-
-
-
-// Read Arrays
-
-
-
-
+	file >> L[i,j];
+	file >> R(i);
+	file >> Z(j);
+	file >> ReBr[i,j];
+	file >> ImBr[i,j];
+	file >> ReBz[i,j];
+	file >> ImBz[i,j];
+	file >> ReBp[i,j];
+	file >> ImBp[i,j];
+}
 file.close();
 
+// Set up interpolation
+ReBr.set(R,Z);
+ImBr.set(R,Z);
+ReBp.set(R,Z);
+ImBp.set(R,Z);
+ReBz.set(R,Z);
+ImBz.set(R,Z);
 }
+//----------------------- End of Member Functions -------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+//--------- End Class GPEC_mode -------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
 
 
-//--------- Begin Class GPEC_var ---------------------------------------------------------------------------------------------
+//--------- Begin Class GPEC_var ------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
 // A single field component and its interpolation
 //-------------------------------------------------------------------------------------------------------------------------
@@ -331,11 +356,8 @@ private:
 
 	Array<double,4> Ca;			// Coefficients for bcuint
 
-	// Member-Functions
-
 public:
 	// Member Variables
-	int n;		// toroidal mode number
 	Array<double,2> B;		// i=1:Nr rows, j=1:Nz columns
 
 	// Constructors & Operator
@@ -345,8 +367,8 @@ public:
 	GPEC_var& operator =(const GPEC_var& var);		// Operator =
 
 	// Member-Functions
-	int ev(const double x1, const double x2, double& y, double& dy1, double& dy2)
-	void set(Array<double,1>& Rin, Array<double,1>& Zin)
+	int ev(const double x1, const double x2, double& y, double& dy1, double& dy2);
+	void set(Array<double,1>& Rin, Array<double,1>& Zin);
 
 
 }; //end of class
@@ -358,7 +380,6 @@ public:
 // Default Constructor
 GPEC_var::GPEC_var()
 {
-n = 0;
 NR = 0;
 NZ = 0;
 dR = 0;
@@ -380,8 +401,6 @@ double &GPEC_var::operator[](int i, int j)		//  Assign element
 GPEC_var& GPEC_var::operator =(const GPEC_var& var)
 {
 if (this == &var) return(*this);	    // if: x=x
-
-n = var.n;
 NR = var.NR;
 NZ = var.NZ;
 dR = var.dR;
@@ -414,7 +433,7 @@ B.resize(NR,NZ);	B.reindexSelf(index2);
 dBdR.resize(NR,NZ);	dBdR.reindexSelf(index2);
 dBdZ.resize(NR,NZ);	dBdZ.reindexSelf(index2);
 d2BdRdZ.resize(NR,NZ);	d2BdRdZ.reindexSelf(index2);
-Ca.resize(NR-1,
+Ca.resize(NR-1,NZ-1,4,4);	Ca.reindexSelf(index4);
 }
 
 // ----------------- ev -------------------------------------------------------------------------------------------------
@@ -463,9 +482,12 @@ for(i=1;i<NR;i++)
 		bcucof(y_sq,y1_sq,y2_sq,y12_sq,dR,dZ,slice);
 	}
 }
-
-
 }
+
+//----------------------- End of Member Functions -------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+//--------- End Class GPEC_var --------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
 
 #endif //  GPEC_CLASS_INCLUDED
 //----------------------- End of File -------------------------------------------------------------------------------------
