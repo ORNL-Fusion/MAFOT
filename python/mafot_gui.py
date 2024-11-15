@@ -967,6 +967,10 @@ class common_tab(set_machine):	# inherit set_machine class
 				data = input[0].strip().split()
 				self.specialFieldFile4.set(data[0])
 				self.GPECscale.set(data[1])
+				if self.specialFieldFile4_entry.listboxUp:
+					self.specialFieldFile4_entry.listbox.destroy()
+					self.specialFieldFile4_entry.tw.destroy()
+					self.specialFieldFile4_entry.listboxUp = False
 
 		else:
 			self.specialFieldFile4_label.grid_forget()
@@ -974,7 +978,7 @@ class common_tab(set_machine):	# inherit set_machine class
 			self.GPECscale_label.grid_forget()
 			self.GPECscale_entry.grid_forget()
 			self.specialFieldFile4.set('')
-			self.GPECscale.set('1')
+			self.GPECscale.set('1.0')
 
 
 	def activate_SIESTA_response(self):
@@ -1021,7 +1025,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		if not (path[-1] == '/'): path += '/'
 		if(self.selectField.get() == -4):
 			with open(path + 'gpecsup.in', 'w') as f:
-				f.write(self.specialFieldFile4.get() + '\t' + self.GPECscale.get())
+				f.write(self.specialFieldFile4.get() + '\t' + self.GPECscale.get() + '\n')
 				
 			
 	# --- set response variable ---
