@@ -11,7 +11,7 @@
 #ifndef MAFOT_INCLUDED
 #define MAFOT_INCLUDED
 
-#define MAFOT_VERSION "5.5.2"
+#define MAFOT_VERSION "5.6"
 
 // Include
 //--------
@@ -32,6 +32,7 @@
 #ifdef m3dc1
 	#include <m3dc1_class.hxx>
 #endif
+#include <gpec_class.hxx>
 #if defined(ITER)
 	#include <iter.hxx>
 #elif defined(NSTX)
@@ -90,6 +91,7 @@ ofstream ofs2;
 
 Array<double,4> field;	// for current filaments
 fakeIsland FISLD;
+GPEC gpec;
 
 //-------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
@@ -154,7 +156,7 @@ case 0: case 2: 	// M3D-C1: equilibrium field or total field
 	break;
 #endif
 
-default:	//case -1: case 1: case -10:	// Vacuum equilibrium field from g file
+default:	//case -1: case 1: case -10: case -4:	// Vacuum equilibrium field from g file
 	// get normalized poloidal Flux psi (should be chi in formulas!)
 	chk = EQD.get_psi(R,Z,psi,dpsidr,dpsidz);
 	if(chk==-1) {ofs2 << "Point is outside of EFIT grid" << endl; B_R=0; B_Z=0; B_phi=1; return -1;}	// integration of this point terminates
@@ -202,6 +204,17 @@ if(PAR.response_field == -10)
 	B_Z += bz;
 }
 
+// GPEC perturbation fields. Vacuum equilibrium field from g file
+if(PAR.response_field == -4)
+{
+	br = 0;	bp = 0;	bz = 0;
+	chk = gpec.getB(R, phi, Z, br, bp, bz);
+	if(chk != 0) {br = 0; bp = 0; bz = 0;}
+	B_R += br;
+	B_phi += bp;
+	B_Z += bz;
+}
+
 return 0;
 }
 
@@ -213,6 +226,22 @@ int i,j;
 int chk;
 LA_STRING line;	// entire line is read by ifstream
 ifstream in;
+
+// Prepare GPEC
+if(PAR.response_field == -4)
+{
+	gpec.load(mpi_rank);
+	gpec.listData(true);	// writes a summary of the GPEC data to the Node log files
+
+	if(mpi_rank < 1) cout << "Coils turned off: perturbation included via GPEC data" << endl;
+	ofs2 << "Coils turned off: perturbation included via GPEC data" << endl;
+
+	PAR.useFcoil = 0;
+	PAR.useCcoil = 0;
+	PAR.useIcoil = 0;
+	PAR.useBuswork = 0;
+	PAR.useBcoil = 0;
+}
 
 // Prepare SIESTA
 #ifdef USE_SIESTA

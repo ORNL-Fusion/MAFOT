@@ -1,3 +1,6 @@
+Code Author and primary developer: Andreas Wingen
+Email: wingen@fusion.gat.com
+
 System requirements:
 1) gnu c++ compiler 4.1.2 or newer
 2) intel or gnu fortran compiler
@@ -45,11 +48,17 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 5.5.2
-GUI 3.1.1
+MAFOT 5.6
+GUI 3.2
 
 Version Notes: 
 ----------------
+MAFOT 5.6 -- Nov 2024
+- Added GPEC support
+
+GUI 3.2 -- Nov 2024
+- Added GPEC support
+
 GUI 3.1.1 -- Oct 2024
 - Bug fix: GUI would not start if gPath in control file does not exist. This is now fixed.
 

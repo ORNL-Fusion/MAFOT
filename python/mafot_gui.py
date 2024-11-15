@@ -687,6 +687,8 @@ class common_tab(set_machine):	# inherit set_machine class
 		self.specialFieldFile1 = tk.StringVar()
 		self.specialFieldFile2 = tk.StringVar()
 		self.specialFieldFile3 = tk.StringVar()
+		self.specialFieldFile4 = tk.StringVar()
+		self.GPECscale = tk.StringVar()
 
 		# --- separator ---
 		separator2 = tk.Label(self.frame, text = "---------------------------------------------------------------------------------------", font = self.labelFont)
@@ -700,11 +702,13 @@ class common_tab(set_machine):	# inherit set_machine class
 			command = self.activate_response, font = self.labelFont).grid(column = 3, row = row, sticky = tk.W + tk.E )
 		tk.Radiobutton(self.frame, text = 'VMEC', variable = self.selectField, value = -3,
 			command = self.activate_response, font = self.labelFont).grid(column = 4, row = row, sticky = tk.W + tk.E )
-		rb = tk.Radiobutton(self.frame, width = 9, text = 'SIESTA', variable = self.selectField, value = -2,
-			command = self.activate_response, font = self.labelFont)
-		rb.grid(column = 5, row = row, sticky = tk.W + tk.E )
+		tk.Radiobutton(self.frame, width = 9, text = 'GPEC', variable = self.selectField, value = -4,
+			command = self.activate_response, font = self.labelFont).grid(column = 5, row = row, sticky = tk.W + tk.E )
+		#rb = tk.Radiobutton(self.frame, width = 9, text = 'SIESTA', variable = self.selectField, value = -2,
+		#	command = self.activate_response, font = self.labelFont)
+		#rb.grid(column = 5, row = row, sticky = tk.W + tk.E )	# SIESTA button removed and replaced by GPEC
 		tk.Label(self.frame, text = "Field", font = self.labelFont).grid(column = 1, row = row, sticky = tk.E )
-		if not self.SIESTA: rb.configure(state = tk.DISABLED)
+		#if not self.SIESTA: rb.configure(state = tk.DISABLED)
 
 		# --- M3DC1 ---
 		row += 1; self.row_M3DC1 = row
@@ -755,15 +759,30 @@ class common_tab(set_machine):	# inherit set_machine class
 		#self.specialFieldFile2_entry.bind('<Return>', lambda event: self.file_Found(event,self.specialFieldFile2.get()))
 
 		# --- SIESTA ---
+		# This code is basically dead and will probably never be used again
 		row = self.row_M3DC1
 		#self.specialFieldFile3_entry = tk.Entry(self.frame, width = 10, textvariable = self.specialFieldFile3, 
 		#	validate = 'focusout', validatecommand = (fileFound, '%d','%P'))
-		self.specialFieldFile3_entry = AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
-				width = 50, textvariable = self.specialFieldFile3, font = self.textFont)
-		self.specialFieldFile3_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W)
-		self.specialFieldFile3_label = tk.Label(self.frame, text = "SIESTA data: ", font = self.labelFont)
-		self.specialFieldFile3_label.grid(column = 1, row = row, sticky = tk.E )
+		#self.specialFieldFile3_entry = AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
+		#		width = 50, textvariable = self.specialFieldFile3, font = self.textFont)
+		#self.specialFieldFile3_entry.grid(column = 2, row = row, columnspan = 4,sticky = tk.E+tk.W)
+		#self.specialFieldFile3_label = tk.Label(self.frame, text = "SIESTA data: ", font = self.labelFont)
+		#self.specialFieldFile3_label.grid(column = 1, row = row, sticky = tk.E )
 		#self.specialFieldFile3_entry.bind('<Return>', lambda event: self.file_Found(event,self.specialFieldFile3.get()))
+
+		# --- GPEC ---
+		# This replaces the old SIESTA selection
+		row = self.row_M3DC1
+		self.GPECscale.set('1');
+		self.specialFieldFile4_entry = AutocompleteEntry(os.listdir(self.path.get()), self.frame, listboxLength = 6, 
+				width = 50, textvariable = self.specialFieldFile4, font = self.textFont)
+		self.specialFieldFile4_entry.grid(column = 2, row = row, columnspan = 3,sticky = tk.E+tk.W)
+		self.specialFieldFile4_label = tk.Label(self.frame, text = "GPEC data: ", font = self.labelFont)
+		self.specialFieldFile4_label.grid(column = 1, row = row, sticky = tk.E )
+		self.GPECscale_entry = tk.Entry(self.frame, width = 4, textvariable = self.GPECscale, font = self.textFont)
+		self.GPECscale_entry.grid(column = 5, row = row, sticky = tk.E, padx=15)
+		self.GPECscale_label = tk.Label(self.frame, text = "  Scale", font = self.labelFont)
+		self.GPECscale_label.grid(column = 5, row = row, sticky = tk.W)
 
 		return self.row_M3DC1 + 2
 
@@ -889,7 +908,7 @@ class common_tab(set_machine):	# inherit set_machine class
 	def activate_response(self):
 		self.activate_M3DC1_response()
 		self.activate_VMEC_response()
-		self.activate_SIESTA_response()
+		self.activate_GPEC_response()
 
 
 	def activate_M3DC1_response(self):
@@ -933,26 +952,52 @@ class common_tab(set_machine):	# inherit set_machine class
 			self.specialFieldFile2.set('')
 
 
-	def activate_SIESTA_response(self):
-		if(self.selectField.get() == -2):
-			self.specialFieldFile3_label.grid(column = 1, row = self.row_M3DC1, sticky = tk.E, padx=5, pady=5)
-			self.specialFieldFile3_entry.grid(column = 2, row = self.row_M3DC1, columnspan = 4, sticky = tk.E+tk.W, padx=5, pady=5)
-			self.createFlag.set('psi')
-			self.refresh_grid_labels()
-			self.create_R1.configure(state=tk.DISABLED)
-			self.create_R2.configure(text = 's,u')
-			try: self.create_R3.configure(state=tk.DISABLED)
-			except: pass
+	def activate_GPEC_response(self):
+		if(self.selectField.get() == -4):
+			self.specialFieldFile4_label.grid(column = 1, row = self.row_M3DC1, sticky = tk.E, padx=5, pady=5)
+			self.specialFieldFile4_entry.grid(column = 2, row = self.row_M3DC1, columnspan = 3, sticky = tk.E+tk.W, padx=5, pady=5)
+			self.GPECscale_entry.grid(column = 5, row = self.row_M3DC1, sticky = tk.E, padx=15)
+			self.GPECscale_label.grid(column = 5, row = self.row_M3DC1, sticky = tk.W )
+			
+			path = os.path.abspath(self.path.get())
+			if not (path[-1] == '/'): path += '/'
+			if os.path.isfile(path + 'gpecsup.in'):
+				with open(path + 'gpecsup.in') as f:
+					input = f.readlines()
+				data = input[0].strip().split()
+				self.specialFieldFile4.set(data[0])
+				self.GPECscale.set(data[1])
+
 		else:
-			self.specialFieldFile3_label.grid_forget()
-			self.specialFieldFile3_entry.grid_forget()
-			self.specialFieldFile3.set('')
-			if self.SIESTA:
-				self.refresh_grid_labels()
-				self.create_R1.configure(state=tk.NORMAL)
-				self.create_R2.configure(text = 'psi_n')
-				try: self.create_R3.configure(state=tk.NORMAL)
-				except: pass
+			self.specialFieldFile4_label.grid_forget()
+			self.specialFieldFile4_entry.grid_forget()
+			self.GPECscale_label.grid_forget()
+			self.GPECscale_entry.grid_forget()
+			self.specialFieldFile4.set('')
+			self.GPECscale.set('1')
+
+
+	def activate_SIESTA_response(self):
+		pass
+# 		if(self.selectField.get() == -2):
+# 			self.specialFieldFile3_label.grid(column = 1, row = self.row_M3DC1, sticky = tk.E, padx=5, pady=5)
+# 			self.specialFieldFile3_entry.grid(column = 2, row = self.row_M3DC1, columnspan = 4, sticky = tk.E+tk.W, padx=5, pady=5)
+# 			self.createFlag.set('psi')
+# 			self.refresh_grid_labels()
+# 			self.create_R1.configure(state=tk.DISABLED)
+# 			self.create_R2.configure(text = 's,u')
+# 			try: self.create_R3.configure(state=tk.DISABLED)
+# 			except: pass
+# 		else:
+# 			self.specialFieldFile3_label.grid_forget()
+# 			self.specialFieldFile3_entry.grid_forget()
+# 			self.specialFieldFile3.set('')
+# 			if self.SIESTA:
+# 				self.refresh_grid_labels()
+# 				self.create_R1.configure(state=tk.NORMAL)
+# 				self.create_R2.configure(text = 'psi_n')
+# 				try: self.create_R3.configure(state=tk.NORMAL)
+# 				except: pass
 
 
 	def make_VMEC_SIESTA_shell_flags(self):
@@ -969,7 +1014,15 @@ class common_tab(set_machine):	# inherit set_machine class
 			if self.file_Found(file = siestafile):
 				flag += ' -S ' + siestafile	
 		return flag
-			
+		
+	
+	def write_sup_dot_in_file(self):
+		path = os.path.abspath(self.path.get())
+		if not (path[-1] == '/'): path += '/'
+		if(self.selectField.get() == -4):
+			with open(path + 'gpecsup.in', 'w') as f:
+				f.write(self.specialFieldFile4.get() + '\t' + self.GPECscale.get())
+				
 			
 	# --- set response variable ---
 	def make_response(self):
@@ -1170,7 +1223,8 @@ class common_tab(set_machine):	# inherit set_machine class
 		
 		self.specialFieldFile1_entry.update_baseSearchPath(self.path.get())
 		self.specialFieldFile2_entry.update_baseSearchPath(self.path.get())
-		self.specialFieldFile3_entry.update_baseSearchPath(self.path.get())
+		#self.specialFieldFile3_entry.update_baseSearchPath(self.path.get())
+		self.specialFieldFile4_entry.update_baseSearchPath(self.path.get())
 		self.ErProfileFile_entry.update_baseSearchPath(self.path.get())
 		
 
@@ -1217,7 +1271,9 @@ class common_tab(set_machine):	# inherit set_machine class
 				shellCall_i = [shellCall]
 			self.Ekin_idx = i
 			self.writeControlFile(name_i)
-			
+		
+		self.write_sup_dot_in_file()
+		
 		if(('iris' in HOST) | ('pppl.gov' in HOST)):			# GA Iris Cluster & PPPL Portal cluster
 			self.write_qsub_file(data, self.tag.get(), shellCall_slurm + shellFlags)
 			#call('sbatch ./mafot.sbatch', shell = True)
@@ -1295,7 +1351,7 @@ class common_tab(set_machine):	# inherit set_machine class
 
 	def write_Ctrl_resonse(self, f):
 		f.write('PlasmaResponse(0=no,>1=yes)=\t' + str(self.response.get()) + '\n')
-		f.write('Field(-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
+		f.write('Field(-4=GPEC,-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=\t' + str(self.selectField.get() + self.useM3DC1.get()) + '\n')
 
 
 	def write_Ctrl_particles(self, f):
@@ -2703,8 +2759,8 @@ class info_gui:
 		self.info_text.grid(column = 1, row = row, columnspan = 5, padx=10, pady=10); 
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
-		'MAFOT Version 5.5.2 \n'
-		'GUI Version 3.1.1 \n'
+		'MAFOT Version 5.6 \n'
+		'GUI Version 3.2 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'
