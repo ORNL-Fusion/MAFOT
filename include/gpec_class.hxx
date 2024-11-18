@@ -326,9 +326,10 @@ if(chk < 0) {return -1;}
 cosnp = cos(n*phi);
 sinnp = sin(n*phi);
 
-Bnr = 2*(rebr * cosnp - imbr * sinnp);
-Bnp = 2*(rebp * cosnp - imbp * sinnp);
-Bnz = 2*(rebz * cosnp - imbz * sinnp);
+// GPEC Fourier has no factor of 2 here; The negative sign for imaginary part is correct!
+Bnr = rebr * cosnp - imbr * sinnp;
+Bnp = rebp * cosnp - imbp * sinnp;
+Bnz = rebz * cosnp - imbz * sinnp;
 
 return chk;
 }
