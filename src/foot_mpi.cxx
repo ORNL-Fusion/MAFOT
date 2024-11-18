@@ -101,22 +101,23 @@ bool use_collision = false;
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hX:V:S:I:E:T:s:c:")) != -1)
+while ((c = getopt(argc, argv, "hX:V:S:I:E:T:s:c:i:")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> dtfoot_mpi [-h] [-s width,Te,gamma] [-E ErProfile] [-I island] [-S siesta] [-T Tprofile] [-V wout] [-X xpand] file [tag]" << endl << endl;
+		cout << "usage: mpirun -n <cores> dtfoot_mpi [-h] [-c lr,mfp][-i dpinit] [-s width,Te,gamma] [-E ErProfile] [-I island] [-S siesta] [-T Tprofile] [-V wout] [-X xpand] file [tag]" << endl << endl;
 		cout << "Calculate field line connection length and penetration depth on the vessel wall." << endl << endl;
 		cout << "positional arguments:" << endl;
 		cout << "  file          Control file (starts with '_')" << endl;
 		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 		cout << endl << "optional arguments:" << endl;
 		cout << "  -h            show this help message and exit" << endl;
+		cout << "  -c			 use collision module. Provide parameters: scaling factor of Larmor radius, scaling factor of mean free path; default, 1,1" << endl;
+		cout << "  -i            change integrator step size; default is 1.0" << endl;
 		cout << "  -s            use sheath with particle drifts. Provide parameters: width in m, Te in eV, secondary emission." << endl;
 		cout << "  -E            use electric field with particle drifts. Filename of Er(psi) profile." << endl;
-		cout << "  -c			 use collision module. Provide parameters: scaling factor of Larmor radius, scaling factor of mean free path; default, 1,1" << endl;
 		cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
 		cout << "  -S            filename for SIESTA; default, see below" << endl;
 		cout << "  -T            use temperature profile with particle drifts. Filename of T(psi) profile." << endl;
@@ -158,6 +159,10 @@ case 'E':
 case 'T':
 	TprofileFile = optarg;
 	use_Tprofile = true;
+	break;
+case 'i':
+	dpinit = atof(optarg);
+	ilt = int(360.0/dpinit + 0.5);
 	break;
 case 's':
 	sheath_params = split(optarg,',');

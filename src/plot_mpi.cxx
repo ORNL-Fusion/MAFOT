@@ -93,19 +93,20 @@ bool use_collision = false;
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hX:V:S:I:E:T:s")) != -1)
+while ((c = getopt(argc, argv, "hX:V:S:I:E:T:i:s")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> dtplot_mpi [-h] [-s] [-E ErProfile] [-I island] [-S siesta] [-T Tprofile] [-V wout] [-X xpand] file [tag]" << endl << endl;
+		cout << "usage: mpirun -n <cores> dtplot_mpi [-h] [-i dpinit] [-s] [-E ErProfile] [-I island] [-S siesta] [-T Tprofile] [-V wout] [-X xpand] file [tag]" << endl << endl;
 		cout << "Calculate a Poincare plot." << endl << endl;
 		cout << "positional arguments:" << endl;
-		cout << "  file          Contol file (starts with '_')" << endl;
+		cout << "  file          Control file (starts with '_')" << endl;
 		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 		cout << endl << "optional arguments:" << endl;
 		cout << "  -h            show this help message and exit" << endl;
+		cout << "  -i            change integrator step size; default is 1.0" << endl;
 		cout << "  -s            use a simple boundary box instead of real wall for field line termination" << endl;
 		cout << "  -E            use electric field with particle drifts. Filename of Er(psi) profile." << endl;
 		cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
@@ -154,6 +155,10 @@ case 'T':
 	break;
 case 's':
 	simpleBndy = 1;
+	break;
+case 'i':
+	dpinit = atof(optarg);
+	ilt = int(360.0/dpinit + 0.5);
 	break;
 case '?':
 	if(mpi_rank < 1)

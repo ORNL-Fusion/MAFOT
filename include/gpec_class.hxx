@@ -49,6 +49,7 @@ private:
 	Array<double,2> dBdR;		// Derivative in R-direction
 	Array<double,2> dBdZ;		// Derivative in Z-direction
 	Array<double,2> d2BdRdZ;	// Cross-derivative
+	Array<double,2> d2B;		// 2nd derivative in R-direction
 
 	Array<double,4> Ca;			// Coefficients for bcuint
 
@@ -64,7 +65,7 @@ public:
 
 	// Member-Functions
 	void resize(int nr, int nz);
-	int ev(const double x1, const double x2, double& y, double& dy1, double& dy2);
+	int ev(const double x1, const double x2, double& y, double& dy1, double& dy2, int flag = 1);
 	void set(Array<double,1>& Rin, Array<double,1>& Zin);
 	void listData(bool logOnly=false);
 
@@ -108,6 +109,7 @@ Z.reference(var.Z.copy());
 dBdR.reference(var.dBdR.copy());
 dBdZ.reference(var.dBdZ.copy());
 d2BdRdZ.reference(var.d2BdRdZ.copy());
+d2B.reference(var.d2B.copy());
 Ca.reference(var.Ca.copy());
 return(*this);
 }
@@ -132,16 +134,18 @@ B.resize(NR,NZ);	B.reindexSelf(index2);
 dBdR.resize(NR,NZ);	dBdR.reindexSelf(index2);
 dBdZ.resize(NR,NZ);	dBdZ.reindexSelf(index2);
 d2BdRdZ.resize(NR,NZ);	d2BdRdZ.reindexSelf(index2);
+d2B.resize(NR,NZ);	d2B.reindexSelf(index2);
 Ca.resize(NR-1,NZ-1,4,4);	Ca.reindexSelf(index4);
 }
 
 // ----------------- ev -------------------------------------------------------------------------------------------------
 // returns the magnetic field at location (R,phi,Z)
-int GPEC_var::ev(const double x1, const double x2, double& y, double& dy1, double& dy2)
+int GPEC_var::ev(const double x1, const double x2, double& y, double& dy1, double& dy2, int flag)
 {
 int chk = 0;
 if(x1>R(NR) || x1<R(1) || x2>Z(NZ) || x2<Z(1))	{return -1;}
-chk = bcuint(R,Z,Ca,dR,dZ,x1,x2,y,dy1,dy2);
+if(flag==0) splint_2D(R,Z,B,d2B,NR,NZ,x1,x2,y,dy1,dy2);
+else chk = bcuint(R,Z,Ca,dR,dZ,x1,x2,y,dy1,dy2);
 if(chk == -1) {return -1;}
 return 0;
 }
@@ -157,8 +161,20 @@ Z = Zin.copy();
 dR = (R(NR) - R(1))/double(NR-1);
 dZ = (Z(NZ) - Z(1))/double(NR-1);
 
+// Prepare Bicubic Spline interpolation of B -> get 2nd derivative in R
+double d1,dn;
+Array<double,1> slice_1,slice_2;
+for(i=1;i<=NZ;i++)
+{
+	d1 = (B(2,i)-B(1,i))/dR;
+	dn = (B(NR,i)-B(NR-1,i))/dR;
+	slice_1.reference(B(all,i));
+	slice_2.reference(d2B(all,i));
+	spline(R,slice_1,NR,d1,dn,slice_2);
+}
+
 // Prepare Bicubic Interpolation of B -> get gradients and cross-derivative
-bcuderiv(B,dR,dZ,dBdR,dBdZ,d2BdRdZ);
+bcuderiv_high(B,dR,dZ,dBdR,dBdZ,d2BdRdZ);
 
 // Get the c's for bcuint, as done by bcucof
 Array<double,1> y_sq(Range(1,4)),y1_sq(Range(1,4)),y2_sq(Range(1,4)),y12_sq(Range(1,4));

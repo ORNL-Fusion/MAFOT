@@ -113,22 +113,23 @@ bool use_collision = false;
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:E:T:cbB:")) != -1)
+while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:E:T:i:cbB:")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-b] [-c] [-l limit] [-s] [-A Raxis,Zaxis] [-B Rmin,Rmax,Zmin,Zmax] [-E ErProfile] [-I island] " << endl;
+		cout << "usage: mpirun -n <cores> dtlaminar_mpi [-h] [-b] [-c] [-i dpinit] [-l limit] [-s] [-A Raxis,Zaxis] [-B Rmin,Rmax,Zmin,Zmax] [-E ErProfile] [-I island] " << endl;
 		cout << "                                       [-P points] [-S siesta] [-T Tprofile] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
 		cout << "Calculate field line connection length and penetration depth in a poloidal cross-section." << endl << endl;
 		cout << "positional arguments:" << endl;
-		cout << "  file          Contol file (starts with '_')" << endl;
+		cout << "  file          Control file (starts with '_')" << endl;
 		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 		cout << endl << "optional arguments:" << endl;
 		cout << "  -h            show this help message and exit" << endl;
 		cout << "  -b            use simple boundary with default limits instead of g-file wall as limiter" << endl;
 		cout << "  -c            check if field line crosses wall during first step; only with 3D wall, default = No" << endl;
+		cout << "  -i            change integrator step size; default is 1.0" << endl;
 		cout << "  -l            flux limit for spare interior, default = 0.85" << endl;
 		cout << "  -s            spare calculation of interior, default = No" << endl;
 		cout << "  -A            force magnetic axis location, use: -A Raxis,Zaxis , default: use g-file" << endl;
@@ -180,6 +181,10 @@ case 'B':
 	break;
 case 'c':
 	checkFistStep = true;
+	break;
+case 'i':
+	dpinit = atof(optarg);
+	ilt = int(360.0/dpinit + 0.5);
 	break;
 case 's':
 	spare_interior = 1;

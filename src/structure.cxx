@@ -84,14 +84,14 @@ bool use_collision = false;
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "habfd:P:X:V:S:I:W:c")) != -1)
+while ((c = getopt(argc, argv, "habfd:P:X:V:S:I:W:i:c")) != -1)
 switch (c)
 {
 case 'h':
-	cout << "usage: dtstructure [-h] [-a] [-b] [-c] [-d step] [-f] [-I island] [-P points] [-S siesta] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
+	cout << "usage: dtstructure [-h] [-a] [-b] [-c] [-d step] [-f] [-i dpinit] [-I island] [-P points] [-S siesta] [-V wout] [-W wall] [-X xpand] file [tag]" << endl << endl;
 	cout << "Trace field lines in 3D and return the path every step d in toroidal angle." << endl << endl;
 	cout << "positional arguments:" << endl;
-	cout << "  file          Contol file (starts with '_')" << endl;
+	cout << "  file          Control file (starts with '_')" << endl;
 	cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 	cout << endl << "optional arguments:" << endl;
 	cout << "  -h            show this help message and exit" << endl;
@@ -100,6 +100,7 @@ case 'h':
 	cout << "  -c            check if field line crosses wall during first step; only with 3D wall, default = No" << endl;
 	cout << "  -d            step size for output, default = 10 degrees" << endl;
 	cout << "  -f            create filament.in file, default = No" << endl;
+	cout << "  -i            change integrator step size; default is 1.0" << endl;
 	cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
 	cout << "  -P            use separate input file for initial conditions; argument is the file name; default is None" << endl;
 	cout << "                File format of columns: R [m], phi [deg, right-handed coord.], Z [m]" << endl;
@@ -140,6 +141,10 @@ case 'd':
 	break;
 case 'f':
 	filaments = true;
+	break;
+case 'i':
+	dpinit = atof(optarg);
+	ilt = int(360.0/dpinit + 0.5);
 	break;
 case 'P':
 	usePointfile = true;
