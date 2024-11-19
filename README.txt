@@ -55,6 +55,8 @@ Version Notes:
 ----------------
 MAFOT 5.6 -- Nov 2024
 - Added GPEC support
+- Added higher order derivatives to bicubic interpolation. Note that interpolation itself is still cubic, so accuracy is only slightly improved. 
+- Enable variable integrator step size via command line flag in plot, laminar, foot and structure.
 
 GUI 3.2 -- Nov 2024
 - Added GPEC support
