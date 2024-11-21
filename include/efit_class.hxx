@@ -377,13 +377,13 @@ in >> Ip;		// Plasma current in [A]
 for (i=1;i<=9;i++) in >> dummy;		// Unused parameters
 
 // Read Arrays
-for(i=1;i<=NR;i++) in >> Fpol(i);	// Fpol = Fpol(psi_norm) = Btor * R; Fpol(1) = Fpol(psi=0), Fpol(NR) = Fpol(psi=1), same for the others
-for(i=1;i<=NR;i++) in >> Pres(i);	// Pres = pressure profile
-for(i=1;i<=NR;i++) in >> FFprime(i);	// FFprime = ?
-for(i=1;i<=NR;i++) in >> Pprime(i);	// Pprime = dPres/dpsi
+for(i=1;i<=NR;i++) in >> Fpol(i);		// Fpol = Fpol(psi_norm) = Btor * R; Fpol(1) = Fpol(psi=0), Fpol(NR) = Fpol(psi=1), same for the others
+for(i=1;i<=NR;i++) in >> Pres(i);		// Pres = pressure profile
+for(i=1;i<=NR;i++) in >> FFprime(i);	// FFprime = Fpol * dFpol/dpsi
+for(i=1;i<=NR;i++) in >> Pprime(i);		// Pprime = dPres/dpsi
 for(j=1;j<=NZ;j++)
 	for (i=1;i<=NR;i++) in >> psiRZ(i,j);	// psi(R,Z) = NOT-normalized poloidal Flux		i=1:Nr rows, j=1:Nz columns
-for(i=1;i<=NR;i++) in >> qpsi(i);	// q(psi) = Safety Factor
+for(i=1;i<=NR;i++) in >> qpsi(i);		// q(psi) = Safety Factor
 
 // Read additional stuff
 in >> Nlcfs;	// twice the number of points for the Last Closed Flux Surface (LCFS)
