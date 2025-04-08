@@ -1,6 +1,23 @@
 // Class loads and sets M3DC1 input
 // A.Wingen						2.7.15
 
+/* Details on how to scale the perturbation
+The field at any point is the sum of the equilibrium part (from the “equilibrium” time slice) and the perturbed part (from the “time_###” time slice).  
+In linear calculations the perturbed part is usually calculated assuming 1 kA in the I-coils, so that part needs to be scaled to the experimental 
+value to compare with the experimental data.  You just need to multiply the perturbed part by the appropriate factor. 
+The appropriate factor will just be the experimental amplitude of the current in the I-coils, times a geometric factor.  
+The factor is different from 1 and different for each toroidal mode number, because of the toroidal discreteness of the coils.
+
+n = 3: the geometric factor is 4/pi 
+
+To match inner footprints in practice:
+n = 3	scale factor: 1.116	phase: -39 deg
+n = 1	scale factor: 4		phase: -72 deg	(C-coils + F-coil error)
+
+Furthermore, if the M3D-C1 run was done using ProbeG data, then the perturbation needs to be multiplied by a factor 2.
+The reason is that for ProbeG, only positive toroidal modes are calculated, to account for the negative n modes, multiply by 2. 
+Unfortunatelky, there is no way to tell from an M3D-C1 output file, if ProbeG was used.
+*/
 
 // Define
 //--------
