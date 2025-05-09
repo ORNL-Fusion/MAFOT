@@ -54,7 +54,7 @@ class M3DC1
 {
 private:
 	// Parameter
-	static const int nfiles_max = 10;	// max number of files = 10
+	static const int nfiles_max = 50;	// max number of files = 50
 	static const int Nphi = 12;			// number of toroidal angles to evaluate
 
 	// Member Variables
