@@ -11,7 +11,7 @@
 #ifndef MAFOT_INCLUDED
 #define MAFOT_INCLUDED
 
-#define MAFOT_VERSION "5.6"
+#define MAFOT_VERSION "5.7"
 
 // Include
 //--------
@@ -69,11 +69,8 @@ void bcuint_square(Array<double,1>& Ra, Array<double,1>& Za, double dR, double d
 
 // -------------- global Parameters ---------------------------------------------------------------------------------------
 // Boundary Box
-#ifdef HEAT
-	int simpleBndy = 1;		// 0: real wall boundary 	1: simple boundary box
-#else
-	int simpleBndy = 0;
-#endif
+int simpleBndy = 0;		// 0: real wall boundary 	1: simple boundary box
+
 // log file for errors
 ofstream ofs2;
 
