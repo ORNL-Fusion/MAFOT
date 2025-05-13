@@ -48,11 +48,14 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 5.6
+MAFOT 5.7
 GUI 3.2
 
 Version Notes: 
 ----------------
+MAFOT 5.7 -- May 2025
+- Removed the simpleBndy exception for HEAT. Use the -b command line option instead.
+
 MAFOT 5.6 -- Nov 2024
 - Added GPEC support
 - Added higher order derivatives to bicubic interpolation. Note that interpolation itself is still cubic, so accuracy is only slightly improved. 
