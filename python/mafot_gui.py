@@ -1278,7 +1278,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		
 		self.write_sup_dot_in_file()
 		
-		if(('iris' in HOST) | ('pppl.gov' in HOST)):			# GA Iris Cluster & PPPL Portal cluster
+		if(('iris' in HOST) | ('pppl.gov' in HOST) | ('omega' in HOST)):			# GA Iris or Omega Cluster & PPPL Portal cluster
 			self.write_qsub_file(data, self.tag.get(), shellCall_slurm + shellFlags)
 			#call('sbatch ./mafot.sbatch', shell = True)
 			print ('To run, type: sbatch ./mafot.sbatch')
@@ -1319,6 +1319,31 @@ class common_tab(set_machine):	# inherit set_machine class
 				f.write('#SBATCH --export=ALL' + '\n')
 				f.write('##module purge' + '\n')
 				f.write('module load default-paths' + '\n')
+				f.write('module load mafot' + '\n')
+				f.write('module list' + '\n')
+				f.write(shellCall + '\n')
+		if('omega' in HOST):			# Omega Cluster
+			with open('mafot.sbatch', 'w') as f:
+				f.write('#!/bin/bash' + '\n')
+				if len(self.Ekin_array) > 1:
+					f.write('#SBATCH --array=0-' + str(len(self.Ekin_array)-1) + '\n')
+				#f.write('#SBATCH --job-name=mafot' + tooltag + tag.translate(None, '_+- ') + '\n') # python 2.7 syntax
+				f.write('#SBATCH --job-name=mafot' + tooltag + tag.translate(dict.fromkeys('_+- ')) + '\n')
+				f.write('#SBATCH -p preemptable' + '\n')
+				f.write('#SBATCH -o batch_mafot.out' + '\n')
+				if mpi:
+					f.write('#SBATCH -n ' + str(nproc) + ' \n')
+				f.write('#SBATCH -t 120' + '\n')
+				#f.write('#SBATCH --mem-per-cpu=1G' + '\n')
+				if (user == 'wingen') & (len(self.Ekin_array) > 1): f.write('##SBATCH --mail-user=' + user + '@fusion.gat.com' + '\n')
+				else: f.write('#SBATCH --mail-user=' + user + '@fusion.gat.com' + '\n')
+				if len(self.Ekin_array) > 1:
+					if user == 'wingen': f.write('##SBATCH --mail-type=FAIL,ARRAY_TASKS  ## or BEGIN,END,FAIL,ALL,ARRAY_TASKS ' + '\n')
+					else: f.write('#SBATCH --mail-type=FAIL,ARRAY_TASKS  ## or BEGIN,END,FAIL,ALL,ARRAY_TASKS ' + '\n')
+				else:
+					f.write('#SBATCH --mail-type=FAIL  ## or BEGIN,END,FAIL,ALL ' + '\n')
+				f.write('#SBATCH --export=ALL' + '\n')
+				f.write('module purge' + '\n')
 				f.write('module load mafot' + '\n')
 				f.write('module list' + '\n')
 				f.write(shellCall + '\n')
@@ -2763,8 +2788,8 @@ class info_gui:
 		self.info_text.grid(column = 1, row = row, columnspan = 5, padx=10, pady=10); 
 		self.info_text.insert(1.0, 
 		'MAFOT Control GUI for DIII-D, ITER, NSTX & MAST \n\n'
-		'MAFOT Version 5.6 \n'
-		'GUI Version 3.2 \n'
+		'MAFOT Version 5.7 \n'
+		'GUI Version 3.21 \n'
 		'Author: Andreas Wingen \n\n'
 		'The GUI creates/reads/modifies the respective MAFOT control files in the working '
 		'directory and launches the respective MAFOT tool binary. \n'

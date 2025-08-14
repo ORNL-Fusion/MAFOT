@@ -49,10 +49,13 @@ or
 Current Version:
 ----------------
 MAFOT 5.7
-GUI 3.2
+GUI 3.21
 
 Version Notes: 
 ----------------
+GUI 3.21 -- Aug 2025
+- Added Omega cluster Slurm Queue batch file support
+
 MAFOT 5.7 -- May 2025
 - Removed the simpleBndy exception for HEAT. Use the -b command line option instead.
 
