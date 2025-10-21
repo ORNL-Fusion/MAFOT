@@ -230,7 +230,7 @@ if(mpi_rank < 1) cout << "Loading M3D-C1 output file C1.h5" << endl;
 ofs2 << "Loading M3D-C1 output file C1.h5" << endl;
 
 chk = open_source(PAR.response, PAR.response_field);	// load C1.h5
-if(chk != 0) {if(mpi_rank < 1) cout << "Error loding C1.h5 file" << endl; EXIT;}
+if(chk != 0) {if(mpi_rank < 1) cout << "Error loading C1.h5 file. Check your m3dc1sup.in file and verify the path to the C1.h5." << endl; EXIT;}
 if(nonlinear) PAR.response_field = 2;	// nonlinear runs should only use the full field
 
 if(mpi_rank < 1) cout << "Plasma response (0 = off, 1 = on): " << PAR.response << "\t" << "Field (0 = Eq, 1 = I-coil, 2 = total): " << PAR.response_field << endl;
