@@ -1,6 +1,6 @@
 # Parameterfile for DIII-D Programs
 # Shot: 126006	Time: 3600ms
-# Path: /home/wingen/work/d3d/gfiles/kinetic
+# Path: /home/wingen/work/d3d/gfiles/kinetic/g126006.03600
 free_Parameter=	0
 itt=	300
 psimin=	0.4
@@ -11,7 +11,7 @@ N=	40
 phistart(deg)=	0
 MapDirection=	1
 PlasmaResponse(0=no,1=yes)=     0
-Field(-1=M3D-C1_off,0=Eq,1=I-coil,2=both)=      -1
+Field(-4=GPEC,-3=VMEC,-2=SIESTA,-1=gfile,M3DC1:0=Eq,1=I-coil,2=both)=      -1
 target(0=fullWall,1=inner,2=outer,3=shelf)=	1
 createPoints(0=r-grid,1=r-random,2=target,3=psi-grid,4=psi-random,5=R-grid)=	3
 useFcoil(0=no,1=yes)= 0

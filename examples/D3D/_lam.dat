@@ -1,6 +1,6 @@
 # Parameterfile for DIII-D Programs
 # Shot: 126006	Time: 3600ms
-# Path: /home/wingen/work/d3d/gfiles/
+# Path: /home/wingen/work/d3d/gfiles/g126006.03600
 free_Parameter(NZ)=	930
 itt=	40
 Rmin=	1.0
