@@ -1,3 +1,26 @@
 blitz++/blitz-0.9
 *.d
+*.o# macOS
+.DS_Store
+
+# python / editors
+.venv/
+.vscode/
+
+# build artifacts
+build/
 *.o
+*.a
+*.so
+*.dylib
+*.mod
+
+# logs & data outputs
+*.dat
+*_Test*.dat
+log_*.dat
+plot*.dat
+_plot.dat
+
+# backups
+*.back

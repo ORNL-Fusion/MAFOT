@@ -15,6 +15,50 @@ from subprocess import call
 HOME = os.getenv('HOME')
 HOST = socket.gethostname()
 MPIRUN = 'mpirun'
+# --------------------------------------------------------------------------------------------
+# --- make window scrollable ----------------------------------------------------------------
+import tkinter as tk
+from tkinter import ttk
+
+class ScrollableFrame(ttk.Frame):
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+
+        self.canvas = tk.Canvas(self, highlightthickness=0)
+        self.vsb = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.vsb.set)
+
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+        self.vsb.grid(row=0, column=1, sticky="ns")
+
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+
+        self.inner = ttk.Frame(self.canvas)
+        self.inner_id = self.canvas.create_window((0, 0), window=self.inner, anchor="nw")
+
+        self.inner.bind("<Configure>", self._on_inner_configure)
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
+
+        # Mousewheel (mac/windows) + Linux fallback
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.canvas.bind_all("<Button-4>", lambda e: self.canvas.yview_scroll(-1, "units"))
+        self.canvas.bind_all("<Button-5>", lambda e: self.canvas.yview_scroll( 1, "units"))
+
+    def _on_inner_configure(self, event=None):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def _on_canvas_configure(self, event):
+        self.canvas.itemconfigure(self.inner_id, width=event.width)
+
+    def _on_mousewheel(self, event):
+        d = event.delta
+        if d == 0:
+            return
+        step = -1 if d > 0 else 1
+        if abs(d) >= 120:
+            step *= int(abs(d) / 120)
+        self.canvas.yview_scroll(step, "units")
 
 # -------------------------------------------------------------------------------------------------------------
 # --- common input --------------------------------------------------------------------------------------------
@@ -2856,15 +2900,26 @@ def main():
 	# --- set main window ---
 	root = tk.Tk()
 	root.title("MAFOT Control")
-	
+
 	# --- set main frame ---
 	mainframe = tk.Frame(root)
-	mainframe.grid(column=0, row=0, sticky = tk.N + tk.W + tk.E + tk.S)
+	mainframe.grid(column=0, row=0, sticky=tk.N + tk.W + tk.E + tk.S)
+
+	# allow root to expand
+	root.columnconfigure(0, weight=1)
+	root.rowconfigure(0, weight=1)
+
+	# allow mainframe's contents to expand
 	mainframe.columnconfigure(0, weight=1)
 	mainframe.rowconfigure(0, weight=1)
 
+	# --- set scrollable frame ---
+	scroll = ScrollableFrame(mainframe)
+	scroll.grid(row=0, column=0, sticky="nsew")
+	content = scroll.inner
+
 	# --- make gui ---
-	Common_gui(mainframe)
+	Common_gui(content)
 	
 	# --- run gui ---
 	root.mainloop()

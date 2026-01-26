@@ -1,3 +1,4 @@
+#include <openmpi/ompi/mpi/cxx/mpicxx.h>
 // Program calculates connection length and penetration depth inside the plasma volume
 // with particle-drift and time dependent perturbations
 // Fortran subroutines are used for perturbations
@@ -37,7 +38,7 @@
 #ifdef USE_MPICH
 	#include <mpi.h>
 #else
-	#include <openmpi/ompi/mpi/cxx/mpicxx.h>
+	
 #endif
 #include <mafot.hxx>
 #include <omp.h>
@@ -59,8 +60,8 @@ int main(int argc, char *argv[])
 {
 // MPI initialize
 MPI::Init(argc, argv);
-int mpi_rank = MPI::COMM_WORLD.Get_rank();
-int mpi_size = MPI::COMM_WORLD.Get_size();
+int mpi_rank = 0; MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+int mpi_size = 0; MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
 // Variables
 EFIT EQD;
@@ -75,7 +76,7 @@ Range all = Range::all();
 int tag,sender;
 double Zmin_slave,Zmax_slave,dz;
 Array<double,1> send_Z_limits(Range(1,2));
-MPI::Status status;
+MPI_Status status;
 
 // Use system time as seed(=idum) for random numbers
 double now = zeit();
@@ -162,7 +163,7 @@ case 'h':
 		cout << "                       use option -I to specify other filename" << endl;
 		cout << endl << "Current MAFOT version is: " << MAFOT_VERSION << endl;
 	}
-	MPI::Finalize();
+	MPI_Finalize();
 	return 0;
 case 'b':
 	simpleBndy = 1;
@@ -504,8 +505,8 @@ if(mpi_rank < 1)
 			{
 				// Recieve Result
 				MPI::COMM_WORLD.Recv(recieve.dataFirst(),N_variables*N_slave,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
-				sender = status.Get_source();
-				tag = status.Get_tag();
+				sender = status.MPI_SOURCE;
+				tag = status.MPI_TAG;
 				ofs3 << "Recieve from Node: " << sender << " Package: " << tag << endl;
 
 				#pragma omp critical
@@ -775,7 +776,7 @@ if(mpi_rank > 0)
 		// Recieve initial conditions to calculate
 		MPI::COMM_WORLD.Recv(send_Z_limits.dataFirst(),2,MPI::DOUBLE,0,MPI_ANY_TAG,status);
 
-		tag = status.Get_tag();
+		tag = status.MPI_TAG;
 		ofs2 << endl;
 		ofs2 << "Node: " << mpi_rank << " works on Package: " << tag << endl;
 		if(tag == 0) break;	// Still work to do?  ->  tag = 0: NO, stop working
@@ -938,7 +939,7 @@ if(PAR.response_field >= 0) M3D.unload();
 #endif
 
 // MPI finalize
-MPI::Finalize();
+MPI_Finalize();
 
 return 0; 
 } //end of main

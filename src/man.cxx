@@ -38,8 +38,9 @@ using namespace blitz;
 
 // Prototypes
 //-----------
-void find_start_values(Array<double,1>& xs, Array<double,1>& d, int periode, double& verschieb, 
-					   double phistart, int MapDirection, PARTICLE& FLT);
+void find_start_values(Array<double,1>& xs, Array<double,1>& d, int periode, double& verschieb,
+                       double phistart, int MapDirection, PARTICLE& FLT,
+                       int side /* +1 or -1 */);
 inline double abstand(PARTICLE& FLT1, PARTICLE& FLT2);
 inline double abstand(Array<double,1>& x1, Array<double,1>& x2);
 
@@ -59,6 +60,9 @@ int skipattempt,outside;
 double xfix,yfix;
 double t,dt,talt,dist;
 EFIT EQD;
+int compute_opposite = 0;  // flag to compute opposite direction as well
+double opp_minutes = 3.0;             // default
+double opp_time_limit_sec = 180.0;    // default 3 minutes
 
 // Arrays
 Array<double,1> xa(Range(1,2));
@@ -87,11 +91,11 @@ bool use_collision = false;
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsm:b:n:x:X:V:S:I:")) != -1)
+while ((c = getopt(argc, argv, "hsm:b:n:x:X:V:S:t:I:4")) != -1)
 switch (c)
 {
 case 'h':
-	cout << "usage: dtman [-h] [-s] [-m max] [-b bndy] [-N MIN] [-X MAX] [-I island] [-S siesta] [-V wout] [-X xpand] file fix_file [tag]" << endl << endl;
+	cout << "usage: dtman [-h] [-s] [-m max] [-b bndy] [-N MIN] [-X MAX] [-4] [-I island] [-S siesta] [-V wout] [-X xpand] file fix_file [tag]" << endl << endl;
 	cout << "Calculate stable and unstable manifolds of the given x-point." << endl << endl;
 	cout << "positional arguments:" << endl;
 	cout << "  file          Contol file (starts with '_')" << endl;
@@ -107,6 +111,8 @@ case 'h':
 	cout << "                    efit = limit of EFIT grid, forces -s option" << endl;
 	cout << "  -n            Step-Size-Control: min step size, default = 0.001" << endl;
 	cout << "  -x            Step-Size-Control: max step size, default = 0.005" << endl;
+	cout << "  -4            compute all 4 manifold directions (opposite direction with -da)" << endl;
+	cout << "  -t            Set time limit for computation (in minutes)" << endl;
 	cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
 	cout << "  -S            filename for SIESTA; default, see below" << endl;
 	cout << "  -V            filename for VMEC; default, see below" << endl;
@@ -127,6 +133,7 @@ case 'h':
 	cout << "                       use option -I to specify other filename" << endl;
 	cout << endl << "Current MAFOT version is: " << MAFOT_VERSION << endl;
 	return 0;
+
 case 's':
 	trytoskip = 0;
 	break;
@@ -155,6 +162,14 @@ case 'V':
 case 'X':
 	xpandfile = optarg;
 	break;
+case '4':
+	compute_opposite = 1;
+	break;
+case 't':
+    opp_minutes = atof(optarg);
+    if (opp_minutes <= 0) opp_minutes = 3.0;
+    opp_time_limit_sec = 60.0 * opp_minutes;
+    break;
 case '?':
 	if (optopt == 'c')
 		fprintf (stderr, "Option -%c requires an argument.\n", optopt);
@@ -166,6 +181,7 @@ case '?':
 default:
 	exit(0);
 }
+
 // Input file names
 LA_STRING basename,startname;
 LA_STRING praefix = "";
@@ -273,10 +289,17 @@ PARTICLE FLTold(EQD,PAR,COL);
 for(i=1;i<=data.rows();i++)
 {
 	xfix = data(i,1);	 yfix = data(i,2);	periode = int(fabs(data(i,3)));
-	xsa(1) = xfix;	 xsa(2) = yfix;	
+	// xsa(1) = xfix;	 xsa(2) = yfix;	
 
-	find_start_values(xsa,da,periode,PAR.verschieb,PAR.phistart,PAR.MapDirection,FLT); 
-	
+	Array<double,1> xfixa(Range(1,2));
+	xfixa(1) = xfix;
+	xfixa(2) = yfix;
+
+	xsa = xfixa;
+	double versch0 = PAR.verschieb;
+	find_start_values(xsa,da,periode,PAR.verschieb,PAR.phistart,PAR.MapDirection,FLT,1); 
+	PAR.verschieb = versch0;
+
 	ofs2 << "Period: " << periode << "\t" << "Shift: " << PAR.verschieb << endl;
 	ofs2 << "fixed point: R = " << xfix << "\t" << "Z = " << yfix << endl;
 	ofs2 << "k goes from k = " << kstart << " to k= " << kend << endl;
@@ -310,14 +333,69 @@ for(i=1;i<=data.rows();i++)
 	FLTold.Z = xa(2);
 	dt = 0.1;
 
+	// Main manifold calculation loop (also used for opposite direction)
+	int opposite_direction = 0;  // counter for doing opposite direction
+	for(int opp_count=0; opp_count<=(compute_opposite ? 1 : 0); opp_count++)
+	{
+		double t_start = zeit();
+		if (compute_opposite) {
+			ofs2 << "Branch " << opp_count
+				<< " time limit: " << opp_time_limit_sec << " s\n";
+		}
+
+		if (opp_count == 1) {
+			out.close();
+
+			// Recompute da for the opposite branch (do NOT just da *= -1)
+			Array<double,1> xsa2(Range(1,2));
+			Array<double,1> da2(Range(1,2));
+			xsa2 = xfixa;  // fixed point location
+
+			// IMPORTANT: pass side = -1 for opposite
+			find_start_values(xsa2, da2, periode, PAR.verschieb, PAR.phistart, PAR.MapDirection, FLT, -1);
+			PAR.verschieb = versch0;
+
+			// overwrite only what the branch uses
+			xsa = xsa2;
+			da  = da2;
+
+			filenameout = "man" + type + dir + LA_STRING(periode) + "_" + LA_STRING(i) + "_opp" + praefix + ".dat";
+			outputtest(filenameout);
+			out.open(filenameout);
+			PAR.writeiodata(out,bndy,var);
+
+			xa = xsa + da;
+			FLTold.R = xa(1);
+			FLTold.Z = xa(2);
+
+			dt = 0.1;
+			end = 0; skipattempt = 0; outside = 0;
+			plotchk = 0; variate = 0;
+		}
+
+
 	for(k=kstart;k<=kend;k++)
 	{
+		if (compute_opposite) {
+			double elapsed = zeit() - t_start;
+			if (elapsed >= opp_time_limit_sec) { end = 1; break; }
+		}
+
 		t = 0;
 		talt = t;
 		//dt = 0.1;
 
 		while(t<1)
 		{
+			if (compute_opposite) {
+				double elapsed = zeit() - t_start;
+				if (elapsed >= opp_time_limit_sec) {
+					ofs2 << "Time limit reached for this branch: " << elapsed << " s\n";
+					end = 1;
+					break;
+				}
+			}
+
 			t += dt;
 			if(t>1) 
 			{
@@ -371,6 +449,7 @@ for(i=1;i<=data.rows();i++)
 		ofs2 << "k= " << k << "\t" << flush; 
 	} // end for k
 	ofs2 << endl;
+	}  // end opposite direction loop
 	out.close();
 } // end for i
 ofs2 << "Program terminates normally" << endl;
@@ -388,7 +467,8 @@ return 0;
 
 //---------- find_start_values ----------------
 void find_start_values(Array<double,1>& xsa, Array<double,1>& da, int periode, double& verschieb, 
-					   double phistart, int MapDirection, PARTICLE& FLT)
+					   double phistart, int MapDirection, PARTICLE& FLT,
+					   int side /* +1 or -1 */)
 {
 int chk;
 double laenge = 0,scalar;
@@ -400,8 +480,11 @@ Array<double,1> xsitta(Range(1,2));
 fixa = xsa;
 xsitta = xsa;
 
-da(2) = fabs(verschieb)/sqrt(2); da(1)= verschieb/sqrt(2);	// shift in R and Z, Z always positive
+double s = (side >= 0) ? 1.0 : -1.0;
+da(2) = s*fabs(verschieb)/sqrt(2); da(1)= s*verschieb/sqrt(2);	// shift in R and Z, Z always positive
 //da(2) = 0; da(1) = verschieb;	// shift in R
+Array<double,1> dref(Range(1,2));
+dref = da;  // remembers which "side" we want
 
 // adjust shift that way, that xsa and xsitta are between 0.0005 and 0.001
 int end = 0;
@@ -434,6 +517,9 @@ while(1-scalar > 1e-5)
 {
 	// set d
 	da = xsitta - fixa;
+	// Enforce branch orientation: keep da aligned with dref
+	double orient = da(1)*dref(1) + da(2)*dref(2);
+	if (orient < 0.0) da = -da;
 	//if(fabs(da(1)) > 4) {da(1) -= sign(da(1))*pi2;}	// possible 2pi jump between xsitt and fix.
 	da *= fabs(verschieb) / sqrt(da(1)*da(1)+da(2)*da(2));		// set length of d to shift
 
@@ -461,6 +547,8 @@ ofs2 << "Effort of direction adjustment: " << end << endl;
 
 // set d to be vector from xs to xsitt
 da = xsitta - xsa;
+double orient2 = da(1)*dref(1) + da(2)*dref(2);
+if (orient2 < 0.0) da = -da;
 //if(fabs(da(1)) > 4) {da(1) -= sign(da(1))*pi2;}	// possible 2pi jump between xsitt and fix.
 ofs2 << "Length of d: " << sqrt(da(1)*da(1)+da(2)*da(2)) << endl;
 

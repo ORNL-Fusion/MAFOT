@@ -6,10 +6,13 @@
 
 // Define
 //--------
+//--------
 #ifdef USE_MPI
-#define EXIT {MPI::COMM_WORLD.Barrier(); MPI::COMM_WORLD.Abort(0);}
+  #include <mpi.h>
+  #define EXIT do { MPI_Barrier(MPI_COMM_WORLD); MPI_Abort(MPI_COMM_WORLD, 0); } while(0)
 #else
-#define EXIT exit(0)
+  #include <cstdlib>
+  #define EXIT do { exit(0); } while(0)
 #endif
 
 #ifndef program_name		// checks if program_name is defined
@@ -39,6 +42,36 @@ using namespace blitz;
 // Include the rest only if not done yet
 #ifndef ANDI_INCLUDED
 #define ANDI_INCLUDED
+
+// ---- macOS shim for _timeb / _ftime (Windows-only API) ----
+#ifdef __APPLE__
+  #include <sys/time.h>
+  #ifndef _TIMEB_DEFINED
+  #define _TIMEB_DEFINED
+  struct _timeb {
+    time_t          time;
+    unsigned short  millitm;
+    short           timezone;
+    short           dstflag;
+  };
+  static inline void _ftime(struct _timeb* tb) {
+    struct timeval tv;
+    gettimeofday(&tv, nullptr);
+    tb->time     = tv.tv_sec;
+    tb->millitm  = static_cast<unsigned short>(tv.tv_usec / 1000);
+    tb->timezone = 0;
+    tb->dstflag  = 0;
+  }
+  #endif
+
+  // --- Add this alias so code using _ftime64_s compiles on macOS ---
+  static inline int _ftime64_s(struct _timeb* tb) {
+    _ftime(tb);
+    return 0;   // _ftime64_s returns an int on Windows
+  }
+#endif
+
+
 
 // Global const parameters
 //------------------------

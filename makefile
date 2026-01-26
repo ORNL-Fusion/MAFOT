@@ -10,15 +10,32 @@ DIRS = $(OBJDIR)/d3d $(OBJDIR)/iter $(OBJDIR)/nstx $(OBJDIR)/mast $(OBJDIR)/cmod
 
 
 # ---- M3DC1 setup ----
-ifeq ($(M3DC1),True)
-   LIBS = -L$(LIB_DIR) -ltrip3d -lla_string $(BLITZLIBS) $(FLIBS) $(M3DC1LIBS) $(HDF5LIBS)
-   INCLUDE = -I$(MAFOT_DIR)/include $(BLITZINCLUDE) $(M3DC1INCLUDE)
-   DEFINES = -Dlinux -Dm3dc1
+
+# Detect host OS once
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+  OSDEFS :=
 else
-   LIBS = -L$(LIB_DIR) -ltrip3d -lla_string $(BLITZLIBS) $(FLIBS)
-   INCLUDE = -I$(MAFOT_DIR)/include $(BLITZINCLUDE)
-   DEFINES = -Dlinux
+  OSDEFS := -Dlinux
 endif
+
+ifeq ($(M3DC1),True)
+  LIBS    = -L$(LIB_DIR) -ltrip3d -lla_string \
+            $(BLITZLIBS) $(FLIBS) $(M3DC1LIBS) \
+            $(HDF5LIBS) $(NETCDFLIBS) $(OMPLIBS)
+  INCLUDE = -I$(MAFOT_DIR)/include $(BLITZINCLUDE) $(M3DC1INCLUDE) $(NETCDFINCLUDE) $(OMPINCLUDE)
+  DEFINES = $(OSDEFS) -Dm3dc1
+else
+  LIBS    = -L$(LIB_DIR) -ltrip3d -lla_string \
+            $(BLITZLIBS) $(FLIBS) \
+            $(HDF5LIBS) $(NETCDFLIBS) $(OMPLIBS)
+  INCLUDE = -I$(MAFOT_DIR)/include $(BLITZINCLUDE) $(NETCDFINCLUDE) $(OMPINCLUDE)
+  DEFINES = $(OSDEFS)
+endif
+
+# If your make rules also use $(DEFS) from make.inc, ensure it’s appended:
+DEFINES += $(DEFS)
+
 
 
 # ---- Other Defines ----
@@ -52,7 +69,7 @@ OBJS = $(SRCS:.cxx=.o)
 OBJS := $(addprefix $(OBJDIR)/, $(OBJS))
 DEPS = $(OBJS:.o=.d)
 
-MPISRCS = laminar_mpi.cxx foot_mpi.cxx plot_mpi.cxx trace.cxx
+MPISRCS = laminar_mpi.cxx foot_mpi.cxx plot_mpi.cxx plot_mpi_SDVW.cxx trace.cxx
 MPIOBJS = $(MPISRCS:.cxx=.o)
 MPIOBJS_D3D = $(addprefix $(OBJDIR)/d3d/, $(MPIOBJS))
 MPIOBJS_ITER = $(addprefix $(OBJDIR)/iter/, $(MPIOBJS))
@@ -72,7 +89,7 @@ MPIDEPS_ANYM = $(MPIOBJS_ANYM:.o=.d)
 MPIDEPS_TCABR = $(MPIOBJS_TCABR:.o=.d)
 MPIDEPS_HEAT = $(MPIOBJS_HEAT:.o=.d)
 
-SERSRCS = fix.cxx man.cxx plot.cxx structure.cxx lcfs.cxx
+SERSRCS = fix.cxx man.cxx plot.cxx structure.cxx lcfs.cxx iter.cxx
 SEROBJS = $(SERSRCS:.cxx=.o)
 SEROBJS_D3D = $(addprefix $(OBJDIR)/d3d/, $(SEROBJS))
 SEROBJS_ITER = $(addprefix $(OBJDIR)/iter/, $(SEROBJS))
@@ -103,7 +120,7 @@ FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 all : $(DIRS) d3d iter nstx mast any tcabr heat gui xpand d3dplot 
 
 .PHONY : d3d
-d3d : $(DIRS) dtplot dtfix dtman dtlaminar_mpi dtfoot_mpi dtplot_mpi dtstructure dtlcfs dttrace
+d3d : $(DIRS) dtplot dtfix dtman dtiter dtlaminar_mpi dtfoot_mpi dtplot_mpi SDVW_dtplot_mpi  dtstructure dtlcfs dttrace
 
 .PHONY : iter
 iter : $(DIRS) iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi iterplot_mpi iterstructure
@@ -197,6 +214,9 @@ dtfix : $(OBJDIR)/d3d/fix.o libla_string.a libtrip3d.a
 dtman : $(OBJDIR)/d3d/man.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/man.o -o $(BIN_DIR)/$@ $(LIBS)
 
+dtiter : $(OBJDIR)/d3d/iter.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/iter.o -o $(BIN_DIR)/$@ $(LIBS)
+
 dtlaminar_mpi : $(OBJDIR)/d3d/laminar_mpi.o libla_string.a libtrip3d.a
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/d3d/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
@@ -205,6 +225,9 @@ dtfoot_mpi : $(OBJDIR)/d3d/foot_mpi.o libla_string.a libtrip3d.a
 
 dtplot_mpi : $(OBJDIR)/d3d/plot_mpi.o libla_string.a libtrip3d.a
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/d3d/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
+SDVW_dtplot_mpi : $(OBJDIR)/d3d/plot_mpi_SDVW.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/plot_mpi_SDVW.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 dtstructure : $(OBJDIR)/d3d/structure.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/structure.o -o $(BIN_DIR)/$@ $(LIBS)
