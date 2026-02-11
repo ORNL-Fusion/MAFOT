@@ -1291,7 +1291,7 @@ class common_tab(set_machine):	# inherit set_machine class
 		if chk: os.chdir(cwd)
 
 
-	# --- Write qsub File on Drop Cluster ---
+	# --- Write qsub File on Clusters ---
 	# here: shellFlags already embedded in shellCall
 	def write_common_qsub_file(self, tooltag, nproc, tag, shellCall, mpi = True):
 		import getpass
@@ -1343,10 +1343,13 @@ class common_tab(set_machine):	# inherit set_machine class
 				else:
 					f.write('#SBATCH --mail-type=FAIL  ## or BEGIN,END,FAIL,ALL ' + '\n')
 				f.write('#SBATCH --export=ALL' + '\n')
+				f.write('export FI_PROVIDER=tcp' + '\n')
 				f.write('module purge' + '\n')
 				f.write('module load mafot' + '\n')
 				f.write('module list' + '\n')
-				f.write(shellCall + '\n')
+				sc = shellCall.split()
+				shellCallSrun = 'srun -n ' + str(nproc) + ' --mpi=pmi2 --label ' + ' '.join(sc[3::]) # replace mpirun with srun
+				f.write(shellCallSrun + '\n')
 		elif('pppl.gov' in HOST):			# PPPL Portal cluster
 			with open('mafot.sbatch', 'w') as f:
 				f.write('#!/bin/bash -vx' + '\n')
