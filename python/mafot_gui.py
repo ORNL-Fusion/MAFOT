@@ -1343,13 +1343,14 @@ class common_tab(set_machine):	# inherit set_machine class
 				else:
 					f.write('#SBATCH --mail-type=FAIL  ## or BEGIN,END,FAIL,ALL ' + '\n')
 				f.write('#SBATCH --export=ALL' + '\n')
-				f.write('export FI_PROVIDER=tcp' + '\n')
+				#f.write('export FI_PROVIDER=tcp' + '\n')
 				f.write('module purge' + '\n')
 				f.write('module load mafot' + '\n')
 				f.write('module list' + '\n')
-				sc = shellCall.split()
-				shellCallSrun = 'srun -n ' + str(nproc) + ' --mpi=pmi2 --label ' + ' '.join(sc[3::]) # replace mpirun with srun
-				f.write(shellCallSrun + '\n')
+				#sc = shellCall.split()
+				#shellCallSrun = 'srun -n ' + str(nproc) + ' --mpi=pmi2 --label ' + ' '.join(sc[3::]) # replace mpirun with srun
+				#f.write(shellCallSrun + '\n')  # Work around due to bug in slurm with gcc11 on Omega that fails mpirun command
+				f.write(shellCall + '\n')  # This works now again using gcc8 on Omega
 		elif('pppl.gov' in HOST):			# PPPL Portal cluster
 			with open('mafot.sbatch', 'w') as f:
 				f.write('#!/bin/bash -vx' + '\n')
