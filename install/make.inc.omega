@@ -1,0 +1,44 @@
+# ---- Folder ----
+MAFOT_DIR = /fusion/projects/codes/mafot/src
+BIN_DIR = /fusion/projects/codes/mafot/bin
+LIB_DIR = /fusion/projects/codes/mafot/lib
+
+# ---- Support codes ----
+# True or False
+M3DC1 = True
+VMEC = True
+SIESTA = True
+
+# ---- Compiler ----
+CXX = g++
+CFLAGS = -O3 -fPIC -std=c++11
+OMPFLAGS = -fopenmp -w
+
+F90 = gfortran
+F90FLAGS = -O3 -fPIC 
+
+# ---- Linker ----
+ARCH = ar crus
+
+LDD = g++ --shared 
+LDFLAGS = 
+
+# ---- Additional Defines ----
+DEFS = -Dm3dc1_newfio -DUSE_MPICH
+
+# ---- external Libraries ---- 
+BLITZLIBS = -L/fusion/projects/codes/mafot/lib/blitz/lib -lblitz
+FLIBS = -lgfortran 
+OMPLIBS = -L${MPICH_DIR}/lib -lmpi -lmpicxx
+M3DC1LIBS = -L/fusion/projects/codes/mafot/fusionio/lib -lfusionio -lm3dc1
+HDF5LIBS = -L${HDF5_DIR}/lib -lhdf5 -lz -Wl,-rpath,${HDF5_DIR}/lib -lstdc++
+NETCDFLIBS = -L${NETCDF_DIR}/lib -lnetcdf
+
+# ---- external Includes ----
+BLITZINCLUDE = -I/fusion/projects/codes/mafot/lib/blitz/include
+OMPINCLUDE = -I${MPICH_DIR}/include
+M3DC1INCLUDE = -I/fusion/projects/codes/mafot/fusionio/include
+NETCDFINCLUDE = -I${NETCDF_DIR}/include
+
+# ---- build GUI with python (optional) ----
+#PYINSTALLER = 
