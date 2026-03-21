@@ -340,6 +340,7 @@ if(PAR.response_field == -10)
 bool outofBndy(double phi, double x, double y, EFIT& EQD)
 {
 if(std::isnan(x) || std::isnan(y) || std::isinf(x) || std::isinf(y)) return false;
+
 switch(simpleBndy)
 {
 case 0:
@@ -360,6 +361,7 @@ return false;
 //------------ outofBndyInBetween -----------------------------------------------------------------------------------------
 // Check if line between (x0,y0) at phi0 and (x1,y1) at phi1 is out of the torus.
 // toroidal angles phi0 and phi1 are continuous (no modulo), in degrees and right-handed
+// CUSTOM BOUNDARIES: Also checks crossing of custom boundaries 1 and 2
 bool outofBndyInBetween(double phi0, double x0, double y0, double phi1, double x1, double y1, EFIT& EQD)
 {
 int i;
@@ -370,6 +372,22 @@ double dphi = 360.0/double(Nangle);
 double delta = phi1 - phi0;
 int N = int(fabs(delta)/dphi);	// number of dphi steps in between
 int dir = sign(delta);
+
+if(EQD.use_custom_bndy1)
+{
+	int Nangle_bndy1 = EQD.Nbndy1.rows();
+	if(Nangle_bndy1 == 1) return false; // Stiched Manifolds only define a boundary at one angle, only want to check at that angle
+	double dphi = 360.0/double(Nangle_bndy1);
+	int N = int(fabs(delta)/dphi);	// number of dphi steps in between
+}
+
+if(EQD.use_custom_bndy2)
+{
+	int Nangle_bndy2 = EQD.Nbndy2.rows();
+	if(Nangle_bndy2 == 1) return false; // Stiched Manifolds only define a boundary at one angle, only want to check at that angle
+	double dphi = 360.0/double(Nangle_bndy2);
+	int N = int(fabs(delta)/dphi);	// number of dphi steps in between
+}
 
 for(i=1;i<=N;i++)
 {
@@ -393,10 +411,11 @@ return false;
 // toroidal angle phi is in degrees and right-handed
 bool outofRealBndy(double phi, double x, double y, EFIT& EQD)
 {
-int wn = 0;
-int Nwall,p,Nangle;
+int wn = 0, wn_in = 0;
+int Nwall,p,Nangle,Nwall_in,Nangle_in;
 double pd,dphi,phimod;
 Array<double,1> wall;
+Array<double,1> wall_in;
 Range all = Range::all();
 
 if(EQD.use_3Dwall) 	// use 3D wall
@@ -415,6 +434,41 @@ if(EQD.use_3Dwall) 	// use 3D wall
 
 	Nwall = EQD.Nwall3D(p);
 	wall.reference(EQD.wall3D(all,p));
+}
+else if(EQD.use_custom_bndy1) //use custom outer boundary
+{
+	Nangle = EQD.Nbndy1.rows();
+	dphi = 360.0/double(Nangle);
+	pd = phi/dphi;
+	p = int(pd + sign(pd)*0.5);		// round pd to nearest integer -> nearest neighbor approximation of 3D wall
+	p = p % Nangle;					// p now between -Nangle+1 and +Nangle-1
+	if(p < 0) p += Nangle;			// p is now between 0 and +Nangle-1
+
+	phimod = fmod(phi,double(360));
+	if(phimod < 0) phimod += 360;
+	if((p == 0) && (phimod > 360-dphi)) phimod -= 360;
+	if(fabs(p*dphi - phimod) > dphi) cout << "Warning, wrong 3D wall plane: " << p << "\t" << phi << endl;
+
+	Nwall = EQD.Nbndy1(p);
+	wall.reference(EQD.custom_bndy1(all,p));
+
+	if(EQD.use_custom_bndy2)
+	{
+		Nangle_in = EQD.Nbndy2.rows();
+		dphi = 360.0/double(Nangle_in);
+		pd = phi/dphi;
+		p = int(pd + sign(pd)*0.5);		// round pd to nearest integer -> nearest neighbor approximation of 3D wall
+		p = p % Nangle_in;				// p now between -Nangle+1 and +Nangle-1
+		if(p < 0) p += Nangle_in;		// p is now between 0 and +Nangle-1
+
+		phimod = fmod(phi,double(360));
+		if(phimod < 0) phimod += 360;
+		if((p == 0) && (phimod > 360-dphi)) phimod -= 360;
+		if(fabs(p*dphi - phimod) > dphi) cout << "Warning, wrong 3D wall plane: " << p << "\t" << phi << endl;
+
+		Nwall_in = EQD.Nbndy2(p);
+		wall_in.reference(EQD.custom_bndy2(all,p));
+	}
 }
 else				// use 2D wall from EFIT for every phi
 {
@@ -461,6 +515,53 @@ for(int i=3; i<(2*Nwall); i=i+2)
       }
     }
     startUeber = endUeber;
+}
+
+if(EQD.use_custom_bndy2)
+{
+	// Check inner custom boundary as well, but only if it is defined and used
+	x2 = wall_in(1);	//R1
+	y2 = wall_in(2);	//Z1
+
+	startUeber = (y2 >= y) ? 1 : 0;
+	for(int i=3; i<(2*Nwall_in); i=i+2)
+	{
+		// Continue if two wall point are identical
+		if(x2 == wall_in(i) && y2 == wall_in(i+1)) continue;
+
+		x1 = x2;
+		y1 = y2;
+		x2 = wall_in(i);
+		y2 = wall_in(i+1);
+
+		if((y1==y2) && (y==y1))
+		{
+		  if(((x1<=x)&&(x<=x2)) || ((x2<=x)&&(x<=x1))) return 0;
+		}
+		else if((x1==x2) && (x==x1))
+		{
+		  if(((y1<=y)&&(y<=y2)) || ((y2<=y)&&(y<=y1))) return 0;
+		} else {
+		  a = (x-x1)*(y2-y1)-(y-y1)*(x2-x1);
+		  if((a <= 1e-15) && (a >= -1e-15)) return 0;	//necessary for use in dtfoot
+		}
+		bool endUeber = (y2 >= y) ? 1 : 0;
+		if(startUeber != endUeber)
+		{
+		  if((y2 - y)*(x2 - x1) <= (y2 - y1)*(x2 - x))
+		  {
+			if(endUeber) { wn_in++; }
+		  } else {
+			if(!endUeber) { wn_in--; }
+		  }
+		}
+		startUeber = endUeber;
+	}
+}
+if(EQD.use_custom_bndy2)
+{
+	// If both boundaries are defined, point is inside if it is inside boundary 1 and outside boundary 2
+	return (wn == 0) || (wn_in != 0);
 }
 return wn == 0;
 }

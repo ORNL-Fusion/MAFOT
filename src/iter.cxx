@@ -65,11 +65,16 @@ double zbar = 2;  // average over impurity ion charge states
 double rc = 1;
 double mc = 1;
 bool use_collision = false;
+bool map_all_points = false;
+bool use_custom_bndy1 = false;
+LA_STRING custom_bndy_file1 = "none";
+bool use_custom_bndy2 = false;
+LA_STRING custom_bndy_file2 = "none";
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hX:V:S:I:")) != -1)
+while ((c = getopt(argc, argv, "hC:D:X:V:S:I:a")) != -1)
 switch (c)
 {
 case 'h':
@@ -82,6 +87,9 @@ case 'h':
 	cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 	cout << endl << "optional arguments:" << endl;
 	cout << "  -h            show this help message and exit" << endl;
+	cout << "  -a            map all points in a file forward <iterations> return only the final points in a single file" << endl;
+	cout << "  -C            use separate custom outer boundary file; default is 2D wall from EFIT file" << endl;
+	cout << "  -D            use separate custom inner boundary file; requires -C option" << endl;
 	cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
 	cout << "  -S            filename for SIESTA; default, see below" << endl;
 	cout << "  -V            filename for VMEC; default, see below" << endl;
@@ -101,6 +109,17 @@ case 'h':
 	cout << "                       use option -I to specify other filename" << endl;
 	cout << endl << "Current MAFOT version is: " << MAFOT_VERSION << endl;
 	return 0;
+case 'a':
+	map_all_points = true;
+	break;
+case 'C':
+	use_custom_bndy1 = true;
+	custom_bndy_file1 = optarg;
+	break;
+case 'D':
+	use_custom_bndy2 = true;
+	custom_bndy_file2 = optarg;
+	break;
 case 'I':
 	islandfile = optarg;
 	break;
@@ -160,11 +179,6 @@ if(data.rows() < 1)
 	exit(0);
 }
 
-// Use only the first fixed point
-Rstart = data(1,1);
-Zstart = data(1,2);
-periode = int(fabs(data(1,3)));
-
 // Output
 ofstream ofs2,out;
 ofs2.precision(16);
@@ -203,6 +217,20 @@ EQD.ReadData(EQD.gFile,Raxis,Zaxis);
 cout << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.gFile << endl;
 ofs2 << "Shot: " << EQD.Shot << "\t" << "Time: " << EQD.Time << "ms" << "\t" << "gFile: " << EQD.gFile << endl;
 
+// Read custom boundary files and add to EQD
+if(use_custom_bndy1)
+{
+	cout << "Using custom outer boundary from file: " << custom_bndy_file1 << endl;
+	ofs2 << "Using custom outer boundary from file: " << custom_bndy_file1 << endl;
+	EQD.setCustomBndy1(custom_bndy_file1);
+}
+if(use_custom_bndy2)
+{
+	cout << "Using custom inner boundary from file: " << custom_bndy_file2 << endl;
+	ofs2 << "Using custom inner boundary from file: " << custom_bndy_file2 << endl;
+	EQD.setCustomBndy2(custom_bndy_file2);
+}
+
 // Prepare Perturbation
 prepare_common_perturbations(EQD,PAR,0,siestafile,xpandfile,islandfile);
 prep_perturbation(EQD,PAR);
@@ -219,48 +247,92 @@ LA_STRING filenameout = "iter_" + LA_STRING(iterations) + "_" + LA_STRING(period
 outputtest(filenameout);
 out.open(filenameout);
 
-// Write header
-out << "# Iteration of fixed point from file " << name << endl;
-out << "# Starting point: R = " << Rstart << ", Z = " << Zstart << ", phi = " << PAR.phistart << endl;
-out << "# Period = " << periode << ", MapDirection = " << PAR.MapDirection << endl;
-out << "# Iterations = " << iterations << endl;
-out << "# Columns: iteration, R[m], Z[m], psi, theta[rad], r[m], phi[deg]" << endl;
-
-ofs2 << "Starting point: R = " << Rstart << ", Z = " << Zstart << endl;
-ofs2 << "Period = " << periode << ", Iterations = " << iterations << endl;
-
-// Initialize particle at fixed point
-FLT.R = Rstart;
-FLT.Z = Zstart;
-FLT.phi = PAR.phistart;
-
-// Output initial point
-out << 0 << "\t" << FLT.R << "\t" << FLT.Z << "\t" << FLT.psi << "\t" 
-	<< FLT.get_theta() << "\t" << FLT.get_r() << "\t" << FLT.phi*rTOd << endl;
-
-// Iterate forward
-for(i=1; i<=iterations; i++)
+if(map_all_points)
 {
-	// Apply the map
-	chk = FLT.mapit(1, PAR.MapDirection);
-	
-	if(chk < 0)
-	{
-		ofs2 << "Error during iteration " << i << ": chk = " << chk << endl;
-		cout << "Error during iteration " << i << ": chk = " << chk << endl;
-		break;
-	}
-	
-	// Output iterated point
-	out << i << "\t" << FLT.R << "\t" << FLT.Z << "\t" << FLT.psi << "\t" 
-		<< FLT.get_theta() << "\t" << FLT.get_r() << "\t" << FLT.phi*rTOd << endl;
-	
-	ofs2 << "Iteration " << i << ": R = " << FLT.R << ", Z = " << FLT.Z << ", psi = " << FLT.psi << endl;
-}
+	// Write header
+	out << "# Iteration of fixed point from file " << name << endl;
+	out << "# Period = " << periode << ", MapDirection = " << PAR.MapDirection << endl;
+	out << "# Iterations = " << iterations << endl;
+	out << "# Columns: R[m], Z[m], psi, theta[rad], r[m], phi[deg], iteration" << endl;
+	ofs2 << ", Iterations = " << iterations << endl;
 
-out.close();
-ofs2 << "Program terminates normally" << endl;
-cout << "Program terminates normally" << endl;
+    // Loop through all points in data
+    for(int row=1; row<=data.rows(); row++)
+    {
+        Rstart = data(row,1);
+        Zstart = data(row,2);
+        periode = int(fabs(data(row,3)));
+        
+        FLT.R = Rstart;
+        FLT.Z = Zstart;
+        FLT.phi = PAR.phistart;
+        
+        // Iterate forward
+        for(i=1; i<=iterations; i++)
+        {
+            chk = FLT.mapit(1, PAR.MapDirection, true);
+            if(chk < 0) break;
+        }
+        
+        // Output only the final position
+        out << FLT.R << "\t" << FLT.Z << "\t" << FLT.psi << "\t" 
+            << FLT.get_theta() << "\t" << FLT.get_r() << "\t" << FLT.phi*rTOd << "\t" << iterations << endl;
+    }
+
+	out.close();
+	ofs2 << "Program terminates normally" << endl;
+	cout << "Program terminates normally" << endl;
+}
+else
+{
+    // Use only the first fixed point
+	Rstart = data(1,1);
+	Zstart = data(1,2);
+	periode = int(fabs(data(1,3)));
+
+	// Write header
+	out << "# Iteration of fixed point from file " << name << endl;
+	out << "# Starting point: R = " << Rstart << ", Z = " << Zstart << ", phi = " << PAR.phistart << endl;
+	out << "# Period = " << periode << ", MapDirection = " << PAR.MapDirection << endl;
+	out << "# Iterations = " << iterations << endl;
+	out << "# Columns: R[m], Z[m], psi, theta[rad], r[m], phi[deg], iteration" << endl;
+
+	ofs2 << "Starting point: R = " << Rstart << ", Z = " << Zstart << endl;
+	ofs2 << "Period = " << periode << ", Iterations = " << iterations << endl;
+
+	// Initialize particle at fixed point
+	FLT.R = Rstart;
+	FLT.Z = Zstart;
+	FLT.phi = PAR.phistart;
+
+	// Output initial point
+	out << FLT.R << "\t" << FLT.Z << "\t" << FLT.psi << "\t" 
+		<< FLT.get_theta() << "\t" << FLT.get_r() << "\t" << FLT.phi*rTOd << "\t" << 0 << endl;
+
+	// Iterate forward
+	for(i=1; i<=iterations; i++)
+	{
+		// Apply the map
+		chk = FLT.mapit(1, PAR.MapDirection, true);
+		
+		if(chk < 0)
+		{
+			ofs2 << "Error during iteration " << i << ": chk = " << chk << endl;
+			cout << "Error during iteration " << i << ": chk = " << chk << endl;
+			break;
+		}
+		
+		// Output iterated point
+		out << FLT.R << "\t" << FLT.Z << "\t" << FLT.psi << "\t" 
+			<< FLT.get_theta() << "\t" << FLT.get_r() << "\t" << FLT.phi*rTOd << "\t" << i << endl;
+		
+		ofs2 << "Iteration " << i << ": R = " << FLT.R << ", Z = " << FLT.Z << ", psi = " << FLT.psi << endl;
+	}
+
+	out.close();
+	ofs2 << "Program terminates normally" << endl;
+	cout << "Program terminates normally" << endl;
+}
 
 #ifdef m3dc1
 if(PAR.response_field >= 0) M3D.unload();

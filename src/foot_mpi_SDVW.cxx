@@ -370,7 +370,7 @@ ofs2 << "New bounding box: Rmin = " << bndy[0] << "  Rmax = " << bndy[1] << "  Z
 
 // Prepare collisions
 COLLISION COL;
-if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mass, rc, mc, mpi_rank);
+if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mass, 0.0, rc, mc, mpi_rank);
 // If user provided CLI override for collision PDF, apply it programmatically
 if(use_collision && collision_pdf != "") {
 	if(strcasecmp((const char*)collision_pdf, "poisson") == 0) COL.setPDFModel(COLLISION::PDF_POISSON);

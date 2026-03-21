@@ -69,7 +69,7 @@ OBJS = $(SRCS:.cxx=.o)
 OBJS := $(addprefix $(OBJDIR)/, $(OBJS))
 DEPS = $(OBJS:.o=.d)
 
-MPISRCS = laminar_mpi.cxx foot_mpi.cxx plot_mpi.cxx plot_mpi_SDVW.cxx trace.cxx
+MPISRCS = laminar_mpi.cxx foot_mpi.cxx foot_mpi_SDVW.cxx plot_mpi.cxx plot_mpi_SDVW.cxx trace.cxx
 MPIOBJS = $(MPISRCS:.cxx=.o)
 MPIOBJS_D3D = $(addprefix $(OBJDIR)/d3d/, $(MPIOBJS))
 MPIOBJS_ITER = $(addprefix $(OBJDIR)/iter/, $(MPIOBJS))
@@ -117,7 +117,7 @@ FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 
 
 # ---- Common Targets ----
-all : $(DIRS) d3d iter nstx mast any tcabr heat gui xpand d3dplot 
+all : $(DIRS) d3d iter nstx mast any tcabr gui xpand d3dplot 
 
 .PHONY : d3d
 d3d : $(DIRS) dtplot dtfix dtman dtiter dtlaminar_mpi dtfoot_mpi dtplot_mpi SDVW_dtplot_mpi  dtstructure dtlcfs dttrace
@@ -196,7 +196,7 @@ $(DIRS) :
 xpand_mpi : $(MAFOT_DIR)/src/xpand_mpi.cxx
 ifeq ($(VMEC),True)
 	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) $< -o $(OBJDIR)/xpand_mpi.o
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/xpand_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/xpand_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 else
 	@echo "-----------------------------------"
 	@echo "VMEC not supported"
@@ -218,16 +218,19 @@ dtiter : $(OBJDIR)/d3d/iter.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/iter.o -o $(BIN_DIR)/$@ $(LIBS)
 
 dtlaminar_mpi : $(OBJDIR)/d3d/laminar_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/d3d/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 dtfoot_mpi : $(OBJDIR)/d3d/foot_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/d3d/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 dtplot_mpi : $(OBJDIR)/d3d/plot_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/d3d/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 SDVW_dtplot_mpi : $(OBJDIR)/d3d/plot_mpi_SDVW.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/plot_mpi_SDVW.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+
+SDVW_dtfoot_mpi : $(OBJDIR)/d3d/foot_mpi_SDVW.o libla_string.a libtrip3d.a
+	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/foot_mpi_SDVW.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 dtstructure : $(OBJDIR)/d3d/structure.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/structure.o -o $(BIN_DIR)/$@ $(LIBS)
@@ -236,7 +239,7 @@ dtlcfs : $(OBJDIR)/d3d/lcfs.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/lcfs.o -o $(BIN_DIR)/$@ $(LIBS)
 	
 dttrace : $(OBJDIR)/d3d/trace.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/d3d/trace.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/trace.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 fi_prepare : $(OBJDIR)/d3d/fi_prepare.o libla_string.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/d3d/fi_prepare.o -o $(BIN_DIR)/$@ $(LIBS)
@@ -255,13 +258,13 @@ iterman : $(OBJDIR)/iter/man.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/iter/man.o -o $(BIN_DIR)/$@ $(LIBS)
 
 iterlaminar_mpi : $(OBJDIR)/iter/laminar_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/iter/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/iter/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 iterfoot_mpi : $(OBJDIR)/iter/foot_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/iter/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/iter/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 iterplot_mpi : $(OBJDIR)/iter/plot_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/iter/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/iter/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 iterstructure : $(OBJDIR)/iter/structure.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/iter/structure.o -o $(BIN_DIR)/$@ $(LIBS)
@@ -278,13 +281,13 @@ nstxman : $(OBJDIR)/nstx/man.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/nstx/man.o -o $(BIN_DIR)/$@ $(LIBS)
 
 nstxlaminar_mpi : $(OBJDIR)/nstx/laminar_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/nstx/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/nstx/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 nstxfoot_mpi : $(OBJDIR)/nstx/foot_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/nstx/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/nstx/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 nstxplot_mpi : $(OBJDIR)/nstx/plot_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/nstx/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/nstx/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 nstxstructure : $(OBJDIR)/nstx/structure.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/nstx/structure.o -o $(BIN_DIR)/$@ $(LIBS)
@@ -301,13 +304,13 @@ mastman : $(OBJDIR)/mast/man.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/mast/man.o -o $(BIN_DIR)/$@ $(LIBS)
 
 mastlaminar_mpi : $(OBJDIR)/mast/laminar_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/mast/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/mast/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 mastfoot_mpi : $(OBJDIR)/mast/foot_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/mast/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/mast/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 mastplot_mpi : $(OBJDIR)/mast/plot_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/mast/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/mast/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 maststructure : $(OBJDIR)/mast/structure.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/mast/structure.o -o $(BIN_DIR)/$@ $(LIBS)
@@ -324,13 +327,13 @@ cmodman : $(OBJDIR)/cmod/man.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/cmod/man.o -o $(BIN_DIR)/$@ $(LIBS)
 
 cmodlaminar_mpi : $(OBJDIR)/cmod/laminar_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/cmod/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/cmod/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 cmodfoot_mpi : $(OBJDIR)/cmod/foot_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/cmod/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/cmod/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 cmodplot_mpi : $(OBJDIR)/cmod/plot_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/cmod/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/cmod/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 cmodstructure : $(OBJDIR)/cmod/structure.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/cmod/structure.o -o $(BIN_DIR)/$@ $(LIBS)
@@ -347,13 +350,13 @@ anyman : $(OBJDIR)/anym/man.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/anym/man.o -o $(BIN_DIR)/$@ $(LIBS)
 
 anylaminar_mpi : $(OBJDIR)/anym/laminar_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/anym/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/anym/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 anyfoot_mpi : $(OBJDIR)/anym/foot_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/anym/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/anym/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 anyplot_mpi : $(OBJDIR)/anym/plot_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/anym/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/anym/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 anystructure : $(OBJDIR)/anym/structure.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/anym/structure.o -o $(BIN_DIR)/$@ $(LIBS)
@@ -370,13 +373,13 @@ tcabrman : $(OBJDIR)/tcabr/man.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/tcabr/man.o -o $(BIN_DIR)/$@ $(LIBS)
 
 tcabrlaminar_mpi : $(OBJDIR)/tcabr/laminar_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/tcabr/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/tcabr/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 tcabrfoot_mpi : $(OBJDIR)/tcabr/foot_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/tcabr/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/tcabr/foot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 tcabrplot_mpi : $(OBJDIR)/tcabr/plot_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/tcabr/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/tcabr/plot_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 tcabrstructure : $(OBJDIR)/tcabr/structure.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/tcabr/structure.o -o $(BIN_DIR)/$@ $(LIBS)
@@ -387,7 +390,7 @@ heatstructure : $(OBJDIR)/heat/structure.o libla_string.a libtrip3d.a
 	$(CXX) $(LDFLAGS) $(OBJDIR)/heat/structure.o -o $(BIN_DIR)/$@ $(LIBS)
 
 heatlaminar_mpi : $(OBJDIR)/heat/laminar_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/heat/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/heat/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
 
 
 # ---- Include Dependencies ----

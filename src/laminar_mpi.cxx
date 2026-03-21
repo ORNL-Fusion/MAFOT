@@ -87,6 +87,12 @@ int spare_interior = 0;					// 0: all points are calculated		1: inside psi = psi
 double psi_interior_limit = 0.85;		// psi limit for spare_interior == 1
 bool use_3Dwall = false;
 LA_STRING wall_file = "none";
+bool use_custom_bndy1 = false;
+LA_STRING custom_bndy_file1 = "none";
+bool use_custom_bndy2 = false;
+LA_STRING custom_bndy_file2 = "none";
+bool use_turnmap = false;
+int turnmap_max_steps = 100;
 double Raxis = 0, Zaxis = 0;
 LA_STRING new_axis_loc;
 int new_axis_loc_idx;
@@ -114,7 +120,7 @@ bool use_collision = false;
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:E:T:i:cbB:")) != -1)
+while ((c = getopt(argc, argv, "hsl:W:C:D:M:N:A:P:X:V:S:I:E:T:i:cbB:")) != -1)
 switch (c)
 {
 case 'h':
@@ -135,6 +141,10 @@ case 'h':
 		cout << "  -s            spare calculation of interior, default = No" << endl;
 		cout << "  -A            force magnetic axis location, use: -A Raxis,Zaxis , default: use g-file" << endl;
 		cout << "  -B            use simple boundary with limits Rmin,Rmax,Zmin,Zmax" << endl;
+		cout << "  -C            use separate custom outer boundary file; default is 2D wall from EFIT file" << endl;
+		cout << "  -D            use separate custom inner boundary file; requires -C option" << endl;
+		cout << "  -M            enable discrete turn-map mode (instead of continuous laminar); see -N for steps. This is the only mode which works with 2D custom boundaries" << endl;
+		cout << "  -N            max number of 360° turns before escape (default=100); used with -M" << endl;
 		cout << "  -E            use electric field with particle drifts. Filename of Er(psi) profile." << endl;
 		cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
 		cout << "  -P            use separate input file for initial conditions; argument is the file name; default is None" << endl;
@@ -196,6 +206,20 @@ case 'l':
 case 'W':
 	use_3Dwall = true;
 	wall_file = optarg;
+	break;
+case 'C':
+	use_custom_bndy1 = true;
+	custom_bndy_file1 = optarg;
+	break;
+case 'D':
+	use_custom_bndy2 = true;
+	custom_bndy_file2 = optarg;
+	break;
+case 'M':
+	use_turnmap = true;
+	break;
+case 'N':
+	turnmap_max_steps = atoi(optarg);
 	break;
 case 'A':
 	new_axis_loc = LA_STRING(optarg);
@@ -265,6 +289,7 @@ if(mpi_rank < 1) // Master log file
 
 // Output
 LA_STRING filenameout = "lam" + praefix + ".dat";
+if(use_turnmap) filenameout = "lam" + praefix + ".dat";
 
 // Read parameter file
 if(mpi_rank < 1) cout << "Read Parameterfile " << parfilename << endl;
@@ -347,8 +372,29 @@ if(use_3Dwall)
 }
 else checkFistStep = false;
 
+// Read custom boundary files and add to EQD
+if(use_custom_bndy1)
+{
+	if(mpi_rank < 1) cout << "Using custom outer boundary from file: " << custom_bndy_file1 << endl;
+	ofs2 << "Using custom outer boundary from file: " << custom_bndy_file1 << endl;
+	EQD.setCustomBndy1(custom_bndy_file1);
+}
+if(use_custom_bndy2)
+{
+	if(mpi_rank < 1) cout << "Using custom inner boundary from file: " << custom_bndy_file2 << endl;
+	ofs2 << "Using custom inner boundary from file: " << custom_bndy_file2 << endl;
+	EQD.setCustomBndy2(custom_bndy_file2);
+}
+
 // Set starting parameters
 int N_variables = 11;
+if(use_turnmap)
+{
+	if(mpi_rank < 1) cout << "Using discrete turn-map mode with max steps = " << turnmap_max_steps << endl;
+	ofs2 << "Using discrete turn-map mode with max steps = " << turnmap_max_steps << endl;
+	// Turnmap output: R_init, Z_init, psi_init, n_steps, R_final, Z_final, psi_final, dR, dZ, dpsi, escaped
+	N_variables = 11;  // same number as laminar but different meaning
+}
 int NZ_slave = 1;
 int N = PAR.NR*PAR.NZ;
 int N_slave = PAR.NR*NZ_slave;
@@ -432,14 +478,31 @@ if(mpi_rank < 1)
 	ofstream out(filenameout);
 	out.precision(16);
 	vector<LA_STRING> var(N_variables);
-	var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";
-	//var[5] = "psimax";  var[6] = "psiav";  var[7] = "FL pitch angle";  var[8] = "FL yaw angle";
-	var[5] = "psiav";  var[6] = "B_R";  var[7] = "B_Z";  var[8] = "B_phi";
-	var[9] = "theta";  var[10] = "psi";
-	if(PAR.create_flag == 3) {var[0] = "theta";  var[1] = "psi";  var[9] = "R[m]";  var[10] = "Z[m]";}
-	if(PAR.create_flag == 6) {var[0] = "phi";  var[1] = "theta";  var[9] = "R[m]";  var[10] = "Z[m]";}
-	if(PAR.response_field == -2) {var[0] = "u"; var[3] = "s";}
-	if(use_inputPointsFile) var[9] = "phi";
+	
+	if(use_turnmap)
+	{
+		// Turnmap output column meanings: reuses laminar structure but different semantics
+		// n_steps stored in ntor, R/Z/psi stored in psimin/psimax/psiav
+		var[0] = "R_init[m]";  var[1] = "Z_init[m]";  var[2] = "n_steps";  var[3] = "R_final[m]";  var[4] = "Z_final[m]";
+		var[5] = "psi_final";  var[6] = "dR[m]";  var[7] = "dZ[m]";  var[8] = "dpsi";  var[9] = "escaped";  var[10] = "phi_start";
+	}
+	else
+	{
+		// Laminar output: traditional continuous tracing
+		var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";
+		//var[5] = "psimax";  var[6] = "psiav";  var[7] = "FL pitch angle";  var[8] = "FL yaw angle";
+		var[5] = "psiav";  var[6] = "B_R";  var[7] = "B_Z";  var[8] = "B_phi";
+		var[9] = "theta";  var[10] = "psi";
+	}
+	
+	if(!use_turnmap)  // only apply create_flag variants for laminar mode
+	{
+		if(PAR.create_flag == 3) {var[0] = "theta";  var[1] = "psi";  var[9] = "R[m]";  var[10] = "Z[m]";}
+		if(PAR.create_flag == 6) {var[0] = "phi";  var[1] = "theta";  var[9] = "R[m]";  var[10] = "Z[m]";}
+		if(PAR.response_field == -2) {var[0] = "u"; var[3] = "s";}
+		if(use_inputPointsFile) var[9] = "phi";
+	}
+	
 	PAR.writeiodata(out,bndy,var);
 
 	// restart run, if necessary
@@ -710,19 +773,77 @@ if(mpi_rank < 1)
 							cout << mpi_rank << "\t" << results_all(tag,1,i) - FLT.R << "\t" << results_all(tag,2,i) - FLT.Z << "\t" << xtmp - FLT.phi << "\t" << psimin << endl;
 					}
 
-					// Follow fieldline to walls
-					if(skip_connect == 0) chk = FLT.connect(ntor,length,psimin,psimax,psiav,PAR.itt,PAR.MapDirection);
+					// Follow fieldline to walls - either continuous (laminar) or discrete turns (turnmap)
+					if(skip_connect == 0)
+					{
+						if(use_turnmap)
+						{
+							// Discrete turn-map mode: loop using mapstep with escape detection
+							int n_steps = 0;
+							double phistart = FLT.phi;
+							double R_init = FLT.R;
+							double Z_init = FLT.Z;
+							double psi_init = FLT.psi;
+							
+							for(int i_turn = 1; i_turn <= turnmap_max_steps; i_turn++)
+							{
+								int chk_mapit = FLT.mapit(1, PAR.MapDirection, (use_custom_bndy1 || use_custom_bndy2));  // one 360° turn
+								
+								if(chk_mapit < 0)
+								{
+									// Particle escaped during this turn
+									n_steps = i_turn - 1;
+									break;
+								}
+								n_steps = i_turn;
+							}
+							
+							// Store turn-map results: n_steps, positions, displacements
+							ntor = n_steps;  // reuse ntor to store step count
+							length = n_steps;  // also store in length for consistency
+							psimin = R_init;  // reuse psimin for R_init
+							psimax = Z_init;  // reuse psimax for Z_init
+							psiav = psi_init;  // reuse psiav for psi_init
+						}
+						else
+						{
+							// Continuous laminar mode: traditional field line tracing
+							chk = FLT.connect(ntor,length,psimin,psimax,psiav,PAR.itt,PAR.MapDirection);
+						}
+					}
 
-					// Store results
-					results_all(tag,3,i) = ntor;
-					results_all(tag,4,i) = length/1000.0;
-					results_all(tag,5,i) = psimin;
-					results_all(tag,6,i) = psiav;
-					results_all(tag,7,i) = B_R;
-					results_all(tag,8,i) = B_Z;
-					results_all(tag,9,i) = B_phi;
-					results_all(tag,10,i) = xtmp;
-					results_all(tag,11,i) = ytmp;
+					// Store results - format depends on laminar vs turnmap mode
+					if(use_turnmap)
+					{
+						// Turnmap: store step count, final positions, and displacements
+						double dR = FLT.R - psimin;      // FLT.R is final, psimin holds R_init
+						double dZ = FLT.Z - psimax;      // FLT.Z is final, psimax holds Z_init
+						double dpsi = FLT.psi - psiav;   // FLT.psi is final, psiav holds psi_init
+						int escaped = (ntor < turnmap_max_steps) ? 1 : 0;  // ntor holds n_steps
+						
+						results_all(tag,3,i) = ntor;              // n_steps
+						results_all(tag,4,i) = FLT.R;             // R_final
+						results_all(tag,5,i) = FLT.Z;             // Z_final
+						results_all(tag,6,i) = FLT.psi;           // psi_final
+						results_all(tag,7,i) = dR;                // dR
+						results_all(tag,8,i) = dZ;                // dZ
+						results_all(tag,9,i) = dpsi;              // dpsi
+						results_all(tag,10,i) = escaped;          // escaped flag
+						results_all(tag,11,i) = PAR.phistart;     // phi_start
+					}
+					else
+					{
+						// Laminar: store accumulated diagnostics
+						results_all(tag,3,i) = ntor;
+						results_all(tag,4,i) = length/1000.0;
+						results_all(tag,5,i) = psimin;
+						results_all(tag,6,i) = psiav;
+						results_all(tag,7,i) = B_R;
+						results_all(tag,8,i) = B_Z;
+						results_all(tag,9,i) = B_phi;
+						results_all(tag,10,i) = xtmp;
+						results_all(tag,11,i) = ytmp;
+					}
 
 					if(i%100==0) ofs2 << "Trax: " << i << endl;
 				} // end for

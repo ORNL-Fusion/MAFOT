@@ -101,6 +101,15 @@ public:
 	Array<int,1> Nwall3D;	// number of points for the Wall at each full integer toroidal angle phi = 0,...,359; each respective Array has twice the size!
 	Array<double,2> wall3D;	// for each toroidal angle: Position of the Wall in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,R3,Z3,...
 
+	// Custom boundaries (primary and secondary - crossing either counts as escape)
+	bool use_custom_bndy1;			// default = false; enable primary custom boundary
+	Array<int,1> Nbndy1;						// number of points for the primary custom boundary, Array has twice the size!
+	Array<double,2> custom_bndy1;   // Position of the primary custom boundary in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,...
+
+	bool use_custom_bndy2;			// default = false; enable secondary custom boundary
+	Array<int,1> Nbndy2;						// number of points for the secondary custom boundary, Array has twice the size!
+	Array<double,2> custom_bndy2;   // Position of the secondary custom boundary in R,Z plane; R,Z coordinates are alternating: R1,Z1,R2,Z2,...
+
 	// radial electric field
 	bool hasEfield;				// E-field is available, default: False
 	bool addScalPot;			// add scalar potential to GAMMA, default: False
@@ -139,6 +148,8 @@ public:
 	double get_q(const double x);			// Spline interpolates qpsi
 	int lcfs_RZ_nn(const double th, double& r, double& z);
 	void set3Dwall(LA_STRING wall_file);	// read 3D wall and set arrays
+	void setCustomBndy1(LA_STRING custom_bndy_file);	// read primary custom boundary from file and set arrays
+	void setCustomBndy2(LA_STRING custom_bndy_file);	// read secondary custom boundary from file and set arrays
 	double getEfield(const double x); 		// Spline interpolates Eradial
 	double getscalPot(const double x); 		// Spline interpolates scalar Potential
 	double getTprofile(const double x); 	// Spline interpolates Tprofile
@@ -203,6 +214,15 @@ helicity_adjust = 1;
 use_3Dwall = false;
 Nwall3D.resize(360);	// Nwall3D starts at index 0, which corresponds to angle phi = 0
 wall3D.resize(500,360);		wall3D.reindexSelf(index2_10);	// second index (= angle) starts with 0 again
+
+// Initialize custom boundaries (disabled by default)
+use_custom_bndy1 = false;
+Nbndy1.resize(1);	// Single angle by default
+custom_bndy1.resize(100,1);	custom_bndy1.reindexSelf(index2_10);	// placeholder size, 2D array
+
+use_custom_bndy2 = false;
+Nbndy2.resize(1);	// Single angle by default
+custom_bndy2.resize(100,1);	custom_bndy2.reindexSelf(index2_10);	// placeholder size, 2D array
 
 hasEfield = false;
 addScalPot = false;
@@ -289,6 +309,16 @@ helicity_adjust = EQD.helicity_adjust;
 use_3Dwall = EQD.use_3Dwall;
 Nwall3D.reference(EQD.Nwall3D.copy());
 wall3D.reference(EQD.wall3D.copy());
+
+// Copy custom boundary 1
+use_custom_bndy1 = EQD.use_custom_bndy1;
+Nbndy1 = EQD.Nbndy1;
+custom_bndy1.reference(EQD.custom_bndy1.copy());
+
+// Copy custom boundary 2
+use_custom_bndy2 = EQD.use_custom_bndy2;
+Nbndy2 = EQD.Nbndy2;
+custom_bndy2.reference(EQD.custom_bndy2.copy());
 
 hasEfield = EQD.hasEfield;
 addScalPot = EQD.addScalPot;
@@ -727,6 +757,138 @@ in.close();
 
 // use the 3D wall now
 use_3Dwall = true;
+}
+
+//-------------- setCustomBndy1 --------------------------------------------------------------------------------------------
+// PRIMARY BOUNDARY: particle must cross custom_bndy1 to escape; custom_bndy2 is independent (if used)
+void EFIT::setCustomBndy1(LA_STRING custom_bndy_file)
+{
+	// Variables
+	int i,k;
+	LA_STRING line;
+	int count = 0;
+	int N,Nmax,Nangles;
+	vector<string> words;
+	double dummy;
+
+	// Input
+	ifstream in;
+	in.open(custom_bndy_file);
+	if(in.fail()==1) {cout << "Unable to open file " << custom_bndy_file << endl; exit(0);}
+
+	// Count the number of rows starting with #
+	while(1)
+	{
+		in >> line;
+		if(line[1]=='#') {count+=1; continue;}
+		else break;
+	}
+
+	in.close();	// Important to start reading from the beginning of the file
+	in.clear(); // Important to clear EOF flag
+
+	in.open(custom_bndy_file);	// Open file again
+	for(i=1;i<=count;i++)	// Skip IO data rows
+	{
+		in >> line;
+	}
+
+	// Read data
+	in >> line;
+	words = split(string(line));
+	Nmax = atoi(words[0].c_str());
+	if(words.size() > 1) Nangles = atoi(words[1].c_str());
+	else Nangles = 1;
+
+	// allocate once
+	Nbndy1.resize(Nangles);
+	custom_bndy1.resize(2*(Nmax+1),Nangles); // +1 to allow for closure
+
+	for(k=0;k<Nangles;k++)
+	{
+		in >> N;
+		Nbndy1(k) = N;
+		for(i=1;i<=2*N;i++) in >> custom_bndy1(i,k);
+
+		// check if boundary closes back into itself. If not, fix it
+		if((custom_bndy1(2*Nbndy1(k)-1,k) == custom_bndy1(1,k)) && (custom_bndy1(2*Nbndy1(k),k) == custom_bndy1(2,k))) dummy = 0;	// just a dummy statement here. Only the else clause is relevant
+		else
+		{
+			Nbndy1(k) += 1;
+			custom_bndy1(2*Nbndy1(k)-1,k) = custom_bndy1(1,k);
+			custom_bndy1(2*Nbndy1(k),k) = custom_bndy1(2,k);
+		}
+	}
+	
+	in.close();
+
+	// use the Custom Boundary now
+	use_custom_bndy1 = true;
+}
+
+//-------------- setCustomBndy2 --------------------------------------------------------------------------------------------
+// DUAL BOUNDARY: Both custom_bndy1 and custom_bndy2 are independent; particle crosses either = escape
+void EFIT::setCustomBndy2(LA_STRING custom_bndy_file)
+{
+	// Variables
+	int i,k;
+	LA_STRING line;
+	int count = 0;
+	int N,Nmax,Nangles;
+	vector<string> words;
+	double dummy;
+	// Input
+	ifstream in;
+	in.open(custom_bndy_file);
+	if(in.fail()==1) {cout << "Unable to open file " << custom_bndy_file << endl; exit(0);}
+
+	// Count the number of rows starting with #
+	while(1)
+	{
+		in >> line;
+		if(line[1]=='#') {count+=1; continue;}
+		else break;
+	}
+
+	in.close();	// Important to start reading from the beginning of the file
+	in.clear(); // Important to clear EOF flag
+
+	in.open(custom_bndy_file);	// Open file again
+	for(i=1;i<=count;i++)	// Skip IO data rows
+	{
+		in >> line;
+	}
+
+	// Read data
+	in >> line;
+	words = split(string(line));
+	Nmax = atoi(words[0].c_str());
+	if(words.size() > 1) Nangles = atoi(words[1].c_str());
+	else Nangles = 1;
+	// allocate once
+	Nbndy2.resize(Nangles);
+	custom_bndy2.resize(2*(Nmax+1),Nangles); // +1 to allow for closure
+
+	for(k=0;k<Nangles;k++)
+	{
+		in >> N;
+		Nbndy2(k) = N;
+		for(i=1;i<=2*N;i++) in >> custom_bndy2(i,k);
+
+		// check if boundary closes back into itself. If not, fix it
+		if((custom_bndy2(2*Nbndy2(k)-1,k) == custom_bndy2(1,k)) && (custom_bndy2(2*Nbndy2(k),k) == custom_bndy2(2,k))) dummy = 0;	// just a dummy statement here. Only the else clause is relevant
+		else
+		{
+			Nbndy2(k) += 1;
+			custom_bndy2(2*Nbndy2(k)-1,k) = custom_bndy2(1,k);
+			custom_bndy2(2*Nbndy2(k),k) = custom_bndy2(2,k);
+		}
+	}
+
+	in.close();
+
+	// use the Custom Boundary now
+	use_custom_bndy2 = true;
 }
 
 //---------------------- ReadEfield ---------------------------------------------------------------------------------------

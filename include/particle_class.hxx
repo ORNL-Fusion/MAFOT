@@ -74,7 +74,7 @@ private:
 
 // Member-Functions
 	int dgls(double x, Array<double,1> y, Array<double,1>& dydx);
-	int rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate = false, bool returnLastStep = false);
+	int rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate = false, bool returnLastStep = false, bool checkOnlyAtEnd = false);
 	int rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout);
 	double bisec(double p, double th, double a, double b, int flag);
 	double getEfield(double r, double z, double& pot);
@@ -118,8 +118,8 @@ public:
 	double get_theta(double Rin, double Zin);
 	int get_psi(const double x1, const double x2, double& y, double p = 0);
 	void set_Energy();
-	int mapit(const int itt,int MapDirection=1);
-	int mapstep(int MapDirection=1, int nstep=ilt, bool checkBndyInBetween = false, bool returnLastStep = false);
+	int mapit(const int itt,int MapDirection=1, bool checkOnlyAtEnd = false);
+	int mapstep(int MapDirection=1, int nstep=ilt, bool checkBndyInBetween = false, bool returnLastStep = false, bool checkOnlyAtEnd = false);
 	int connect(double& ntor, double& length, double& psimintotal, double& psimaxtotal, double& psiavtotal, const int itt, int MapDirection=0);	// --- OBSOLETE --- with psimax
 	int connect(double& ntor, double& length, double& psimintotal, const int itt, int MapDirection=0);						// --- OBSOLETE --- without psimax (old version, kept for compatibility reasons)
 	int connect(double& ntor, const int itt, int MapDirection);			// this version combines the old versions and adds the new variables Lcmin, dpsidLcav.
@@ -371,7 +371,7 @@ Ix = -0.5/double(Zq)*eps0*((PARr.lambda*(GAMMA-1)+1)*(PARr.lambda*(GAMMA-1)+1)-1
 }
 
 //---------------- mapit --------------------------------------------------------------------------------------------------
-int PARTICLE::mapit(const int itt, int MapDirection)
+int PARTICLE::mapit(const int itt, int MapDirection, bool checkOnlyAtEnd)
 {
 int chk = 0;
 const double phistart = phi;
@@ -380,7 +380,7 @@ COLr.reset();	// reset collision module for new orbit trace
 // Integrate
 for(int i=1;i<=itt;i++)
 {
-	chk = mapstep(MapDirection);
+	chk = mapstep(MapDirection, ilt, false, false, checkOnlyAtEnd);
 	if(chk<0) {break;}	// particle has left system
 
 	if(fabs(phi-MapDirection*i*dpinit*ilt-phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(phi-MapDirection*i*dpinit*ilt-phistart) << endl;
@@ -390,7 +390,7 @@ return chk;
 }
 
 //---------------- mapstep ------------------------------------------------------------------------------------------------
-int PARTICLE::mapstep(int MapDirection, int nstep, bool flag, bool returnLastStep)
+int PARTICLE::mapstep(int MapDirection, int nstep, bool flag, bool returnLastStep, bool checkOnlyAtEnd)
 {
 int chk;
 double phi_rad = phi/rTOd;	// phi in rad
@@ -402,7 +402,7 @@ Array<double,1> y(nvar); // Array to set initial conditions
 y(0) = R;
 y(1) = Z;
 // integrate nstep steps of dphi, default: nstep = 360, so one full toroidal turn
-chk = rkint(nvar,nstep,dphi,y,phi_rad,flag,returnLastStep);
+chk = rkint(nvar,nstep,dphi,y,phi_rad,flag,returnLastStep,checkOnlyAtEnd);
 if(chk<0) 	// particle has left system
 {
 	if(returnLastStep)
@@ -1121,7 +1121,7 @@ return 0;
 //Starting from initial values y[0..nvar-1] known at x=x1 use Runge-Kutta
 //to advance nstep equal increments to x2=x1+nstep*dx. The user-supplied routine dgls(x,v,dvdx)
 //evaluates derivatives. Results after nstep Steps are stored in y[0..nvar-1]
-int PARTICLE::rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate, bool returnLastStep)
+int PARTICLE::rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate, bool returnLastStep, bool checkOnlyAtEnd)
 {
 int k, chk;
 double B_R, B_Z, B_phi, modB;
@@ -1145,7 +1145,7 @@ for (k=1;k<=nstep;k++)
 		chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
 		if (chk == -1) return -1;
 		modB = sqrt(pow(B_R, 2) + pow(B_Z, 2) + pow(B_phi, 2));
-		COLr.collide(y(0), y(1), modB, psi, Lc);
+		COLr.collide(y(0), y(1), modB, psi, Lc, Ekin);
 		//std::cout << "-1\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
 		//std::cout << "#New:" << endl << "#R = " << y(0) << " Z = " << y(1) << " phi: " << x << endl;
 	} //else 
@@ -1159,11 +1159,53 @@ for (k=1;k<=nstep;k++)
 	if (chk == -1) return -1;
 	x = x1 + k*dx; // Better than x+=dx
 
-	// Integration terminates outside of boundary
-	if(outofBndy(x*rTOd,yout(0),yout(1),EQDr) == true)
+	if(checkOnlyAtEnd)
 	{
-		if(returnLastStep) y = yout;
-		return -1;
+		if(k < nstep)
+		{
+			// Check only against default 2D wall (skip custom boundaries)
+			// Temporarily disable custom boundary flags to use only default wall
+			bool save_custom_bndy1 = EQDr.use_custom_bndy1;
+			bool save_custom_bndy2 = EQDr.use_custom_bndy2;
+			bool save_3Dwall = EQDr.use_3Dwall;
+			EQDr.use_custom_bndy1 = false;
+			EQDr.use_custom_bndy2 = false;
+			EQDr.use_3Dwall = false;
+			
+			bool out_default_wall = outofBndy(x*rTOd, yout(0), yout(1), EQDr);
+			
+			// Restore boundary flags
+			EQDr.use_custom_bndy1 = save_custom_bndy1;
+			EQDr.use_custom_bndy2 = save_custom_bndy2;
+			EQDr.use_3Dwall = save_3Dwall;
+			
+			if(out_default_wall == true)
+			{
+				if(returnLastStep) y = yout;
+				return -1;
+			}
+			
+			y = yout;
+			continue;
+		}
+		else if(k == nstep)
+		{
+			// Check with full boundary including custom boundaries
+			if(outofBndy(x*rTOd, yout(0), yout(1), EQDr) == true)
+			{
+				if(returnLastStep) y = yout;
+				return -1;
+			}
+		}
+	}
+	else
+	{
+		// Integration terminates outside of boundary
+		if(outofBndy(x*rTOd,yout(0),yout(1),EQDr) == true)
+		{
+			if(returnLastStep) y = yout;
+			return -1;
+		}
 	}
 
 	// set additional Parameter or not

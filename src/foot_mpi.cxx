@@ -328,7 +328,7 @@ if(use_Tprofile)
 }
 
 // Set starting parameters
-int N_variables = 8;
+int N_variables = 9;
 int Nt_slave = 1;
 int N = PAR.Nt*PAR.Nphi;
 int N_slave = PAR.Nphi*Nt_slave;
@@ -566,8 +566,7 @@ if(mpi_rank < 1)
 					results_all(tag,3,i) = ntor; //FLT.NstepsInSheath/4.0;
 					results_all(tag,4,i) = FLT.Lc/1000.0;
 					results_all(tag,5,i) = FLT.psimin;
-					results_all(tag,8,i) = FLT.Lcmin;
-
+					results_all(tag,8,i) = FLT.Lcmin;				results_all(tag,9,i) = FLT.Ekin;
 					if(i%100==0) ofs2 << "Trax: " << i << endl;
 				} // end for
 
@@ -644,8 +643,7 @@ if(mpi_rank > 0)
 			results(3,i) = ntor; //FLT.NstepsInSheath/4.0;
 			results(4,i) = FLT.Lc/1000.0;
 			results(5,i) = FLT.psimin;
-			results(8,i) = FLT.Lcmin;
-
+			results(8,i) = FLT.Lcmin;		results(9,i) = FLT.Ekin;
 			if(i%100==0) ofs2 << "Trax: " << i << endl;
 		}
 

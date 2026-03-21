@@ -49,7 +49,7 @@ F90FLAGS = -O3 -fPIC -isysroot $(SYSROOT)
 # ---- Linker ----
 ARCH     = ar crus
 LDD      = $(CXX) -dynamiclib
-LDFLAGS  = -isysroot $(SYSROOT)
+LDFLAGS  = -isysroot $(SYSROOT) -L/opt/homebrew/opt/libomp/lib -lomp
 
 # ---- Additional Defines ----
 DEFS     =

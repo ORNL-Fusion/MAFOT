@@ -221,8 +221,8 @@ if(PAR.verschieb>0) dir = "r";
 else dir = "l";
 ofstream out;
 out.precision(16);
-vector<LA_STRING> var(5);
-var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "psi";  var[3] = "theta[rad]";  var[4] = "r[m]";
+vector<LA_STRING> var(8);
+var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "psi";  var[3] = "theta[rad]";  var[4] = "r[m]";  var[5] = "xaR";  var[6] = "xaZ";  var[7] = "k";
 
 // log file
 ofs2.open("log_" + LA_STRING(program_name) + type + dir + praefix + ".dat");
@@ -432,7 +432,7 @@ for(i=1;i<=data.rows();i++)
 
 			// Output 
 			if(plotchk==0) {ofs2 << "Start plotting..." << endl; plotchk = 1;}
-			out << FLT.R << "\t" << FLT.Z << "\t" << FLT.psi << "\t" << FLT.get_theta() << "\t" << FLT.get_r() << endl;
+			out << FLT.R << "\t" << FLT.Z << "\t" << FLT.psi << "\t" << FLT.get_theta() << "\t" << FLT.get_r() << "\t" << xa(1) << "\t" << xa(2) << "\t" << k << endl;
 		
 			// step size management part 2
 			if(dist<minabs)
