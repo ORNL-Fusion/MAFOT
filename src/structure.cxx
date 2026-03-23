@@ -370,9 +370,10 @@ for(i=1;i<=PAR.N;i++)
 	{
 		for(j=1;j<=size;j++)
 		{
-			chk = FLT.mapstep(-1,nstep);
-			if(fabs(FLT.phi + j*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi + j*dphi - PAR.phistart) << endl;
-			FLT.phi = -j*dphi + PAR.phistart;
+			chk = FLT.mapstep(-1,nstep,false,true);
+			//if(fabs(FLT.phi + j*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi + j*dphi - PAR.phistart) << endl;
+			if((fabs(FLT.phi + j*dphi - PAR.phistart) > 1e-10) && (chk == 0)) ofs2 << "wrong toroidal angle: " << "j = " << j << "\t difference = " << fabs(FLT.phi + j*dphi - PAR.phistart) << "\t chk = " << chk << endl;
+			if(chk==0) FLT.phi = -j*dphi + PAR.phistart;
 
 			//Store Values
 			data(j,1) = FLT.R;	data(j,2) = FLT.Z;	data(j,3) = FLT.phi;	data(j,4) = FLT.psi;	data(j,5) = FLT.Lc;	data(j,6) = FLT.dpsidLc;
@@ -401,9 +402,9 @@ for(i=1;i<=PAR.N;i++)
 	{
 		for(j=1;j<=size;j++)
 		{
-			chk = FLT.mapstep(1,nstep);
-			if(fabs(FLT.phi - j*dphi - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi - j*dphi - PAR.phistart) << endl;
-			FLT.phi = j*dphi + PAR.phistart;
+			chk = FLT.mapstep(1,nstep,false,true);
+			if((fabs(FLT.phi - j*dphi - PAR.phistart) > 1e-10) && (chk == 0)) ofs2 << "wrong toroidal angle: " << "j = " << j << "\t difference = " << fabs(FLT.phi - j*dphi - PAR.phistart) << "\t chk = " << chk << endl;
+			if(chk==0) FLT.phi = j*dphi + PAR.phistart;
 
 			if(angleInDeg) {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << modulo(360.0 - FLT.phi, 360.0) << "\t" << FLT.psi << "\t" << FLT.Lc << "\t" << FLT.dpsidLc << endl;}
 			else {out << FLT.R*cos(FLT.phi/rTOd) << "\t" << FLT.R*sin(FLT.phi/rTOd) << "\t" << FLT.Z << "\t" << FLT.R << "\t" << FLT.phi/rTOd << "\t" << FLT.psi << "\t" << FLT.Lc << "\t" << FLT.dpsidLc << endl;}
