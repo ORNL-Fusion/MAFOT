@@ -120,7 +120,7 @@ bool use_collision = false;
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsl:W:C:D:M:N:A:P:X:V:S:I:E:T:i:cbB:")) != -1)
+while ((c = getopt(argc, argv, "hsl:W:C:D:MN:A:P:X:V:S:I:E:T:i:cbB:")) != -1)
 switch (c)
 {
 case 'h':
