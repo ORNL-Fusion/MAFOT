@@ -39,7 +39,7 @@ void get_Energy(double psi, double& Enorm, double& dEnorm);
 double get_Lmfp(double Ekin);
 
 // Integrator Parameters
-const int nvar = 2;				// Number of Variables
+const int nvar = 3;				// Number of Variables
 double dpinit = 1.0;			// step size of phi in [deg]
 int ilt = 360;					// Steps till Output
 
@@ -64,6 +64,7 @@ private:
 	EFIT& EQDr;		// Only a Reference, not a copy
 	IO& PARr;		// Only a Reference, not a copy
 	COLLISION& COLr;  // Only a Reference, not a copy
+	default_random_engine generator;
 
 	double GAMMA;
 	double eps0;
@@ -102,6 +103,7 @@ public:
 	int Zq;			// Charge number: 1: ions are calculated	-1: electrons are calculated
 	int Mass;		// effective partice mass number; electrons Mass = 1, Hydrogen Mass = 1, Deuterium Mass = 2, Helium Mass = 4
 
+	double mu;		// pitch angle for particle (initialized when collision module is active)
 	double Lmfp_total;	// Sum of all mean free paths along the trajectory (PARr.useTprofile == 1 only)
 	int NstepsInSheath;
 
@@ -172,6 +174,16 @@ sigma = PAR.sigma;	// 1: co-passing particles		-1: count-passing particles		0: f
 Zq = PAR.Zq;		// Charge number: 1: ions are calculated	-1: electrons are calculated
 Mass = PAR.Mass;	// effective partice mass number; electrons Mass = 1, Hydrogen Mass = 1, Deuterium Mass = 2, Helium Mass = 4
 
+// Initialize pitch angle if collision module is active
+if (sigma != 0) {
+	// Seed generator and generate random pitch angle uniformly distributed in [0, 1]
+	generator.seed((long) time(NULL) + mpi_rank);
+	uniform_real_distribution<double> uniform_dist(0.0, 1.0);
+	mu = sigma * uniform_dist(generator);  // uniform in [0, 1] passing direction according to sigma
+} else {
+	mu = 0;  // no pitch angle for field lines
+}
+
 Lmfp_total = 0;
 NstepsInSheath = 0;
 
@@ -223,6 +235,7 @@ mc2 = FLT.mc2;
 steps = FLT.steps;
 eps0e_mc2 = FLT.eps0e_mc2;
 sqeps0 = FLT.sqeps0;
+mu = FLT.mu;
 
 // Public Member Variables
 R = FLT.R;
@@ -243,6 +256,7 @@ Ekin = FLT.Ekin;
 sigma = FLT.sigma;
 Zq = FLT.Zq;
 Mass = FLT.Mass;
+mu = FLT.mu;
 
 Lmfp_total = FLT.Lmfp_total;
 NstepsInSheath = FLT.NstepsInSheath;
@@ -375,7 +389,7 @@ int PARTICLE::mapit(const int itt, int MapDirection)
 {
 int chk = 0;
 const double phistart = phi;
-COLr.reset();	// reset collision module for new orbit trace
+COLr.reset(psi);	// reset collision module for new orbit trace
 
 // Integrate
 for(int i=1;i<=itt;i++)
@@ -759,6 +773,7 @@ steps = 0;
 dpsidLcav = 0;
 
 if(sigma != 0 && PARr.useTprofile == 1) {set_Energy(); Lmfp_total = get_Lmfp(Ekin);}
+if(sigma != 0) {COLr.initializeMFP(psi);}  // initialize drawn_mfp when particle is positioned
 }
 
 //-------------- create ---------------------------------------------------------------------------------------------------
@@ -830,6 +845,7 @@ steps = 0;
 dpsidLcav = 0;
 
 if(sigma != 0 && PARr.useTprofile == 1) {set_Energy(); Lmfp_total = get_Lmfp(Ekin);}
+if(sigma != 0) {COLr.initializeMFP(psi);}  // initialize drawn_mfp when particle is positioned
 }
 
 //-------------- set_surface ------------------------------------------------------------------------------------------------------
@@ -1084,6 +1100,7 @@ if (chk == -1) return -1;
 
 dydx(0) = y(0)*B_R/B_phi;
 dydx(1) = y(0)*B_Z/B_phi;
+dydx(2) = 0; // Time only evolves with particle dynamics
 
 if(sigma != 0)
 {
@@ -1113,6 +1130,7 @@ if(sigma != 0)
 		dydx(1) -= a*sheathEr;
 	}
 	dydx(1) += -sigma/double(Zq)*(y(0)*S + EQDr.R0*Ix/S);	// sign corrected: sigma = +1 is indeed co-passing
+	dydx(2) += -sigma*y(0)*gamma*S / EQDr.R0;	// Time ODE. sign corrected: sigma = +1 is indeed co-passing
 }
 return 0;
 }
@@ -1145,7 +1163,7 @@ for (k=1;k<=nstep;k++)
 		chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
 		if (chk == -1) return -1;
 		modB = sqrt(pow(B_R, 2) + pow(B_Z, 2) + pow(B_phi, 2));
-		COLr.collide(y(0), y(1), modB, psi, Lc);
+		COLr.collide(y(0), y(1), B_R, B_phi, B_Z, Ekin, psi, Lc, mu, sigma);
 		//std::cout << "-1\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
 		//std::cout << "#New:" << endl << "#R = " << y(0) << " Z = " << y(1) << " phi: " << x << endl;
 	} //else 

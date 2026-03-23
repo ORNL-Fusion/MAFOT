@@ -89,11 +89,15 @@ double zbar = 2;  // average over impurity ion charge states
 double rc = 1;
 double mc = 1;
 bool use_collision = false;
+bool use_custom_bndy1 = false;
+LA_STRING custom_bndy_file1 = "none";
+bool use_custom_bndy2 = false;
+LA_STRING custom_bndy_file2 = "none";
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hX:V:S:I:E:T:i:s")) != -1)
+while ((c = getopt(argc, argv, "hC:D:X:V:S:I:E:T:i:s")) != -1)
 switch (c)
 {
 case 'h':
@@ -108,6 +112,8 @@ case 'h':
 		cout << "  -h            show this help message and exit" << endl;
 		cout << "  -i            change integrator step size; default is 1.0" << endl;
 		cout << "  -s            use a simple boundary box instead of real wall for field line termination" << endl;
+		cout << "  -C            use separate custom outer boundary file; default is 2D wall from EFIT file" << endl;
+		cout << "  -D            use separate custom inner boundary file; requires -C option" << endl;		
 		cout << "  -E            use electric field with particle drifts. Filename of Er(psi) profile." << endl;
 		cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
 		cout << "  -S            filename for SIESTA; default, see below" << endl;
@@ -133,6 +139,14 @@ case 'h':
 	}
 	MPI::Finalize();
 	return 0;
+case 'C':
+	use_custom_bndy1 = true;
+	custom_bndy_file1 = optarg;
+	break;
+case 'D':
+	use_custom_bndy2 = true;
+	custom_bndy_file2 = optarg;
+	break;
 case 'I':
 	islandfile = optarg;
 	break;
@@ -253,6 +267,20 @@ if(use_Tprofile)
 	ofs2 << "Ignoring Ekin, read T profile: " << TprofileFile << endl;
 }
 
+// Read custom boundary files and add to EQD
+if(use_custom_bndy1)
+{
+	if(mpi_rank < 1) cout << "Using custom outer boundary from file: " << custom_bndy_file1 << endl;
+	ofs2 << "Using custom outer boundary from file: " << custom_bndy_file1 << endl;
+	EQD.setCustomBndy1(custom_bndy_file1);
+}
+if(use_custom_bndy2)
+{
+	if(mpi_rank < 1) cout << "Using custom inner boundary from file: " << custom_bndy_file2 << endl;
+	ofs2 << "Using custom inner boundary from file: " << custom_bndy_file2 << endl;
+	EQD.setCustomBndy2(custom_bndy_file2);
+}
+
 // Set starting parameters
 int N = PAR.N;
 int N_slave = 1;	// Number of field lines per package
@@ -330,8 +358,8 @@ if(mpi_rank < 1)
 	ofs3 << "Helicity = " << EQD.helicity << endl;
 
 	// Result array:	 Column Number,  Values
-	Array<double,2> results(Range(1,6),Range(1,N_slave*PAR.itt));
-	Array<double,2> recieve(Range(1,6),Range(1,N_slave*PAR.itt));
+	Array<double,2> results(Range(1,7),Range(1,N_slave*PAR.itt));
+	Array<double,2> recieve(Range(1,7),Range(1,N_slave*PAR.itt));
 	Array<double,2> slice;
 	tag = 1;	// first Package
 
@@ -489,7 +517,7 @@ if(mpi_rank < 1)
 					// Integrate
 					for(i=1;i<=PAR.itt;i++)
 					{
-						chk = FLT.mapstep(PAR.MapDirection);
+						chk = FLT.mapstep(PAR.MapDirection, ilt, false, false, (use_custom_bndy1 || use_custom_bndy2));
 						if(chk<0) {ofs2 << "mapit: wall hit" << endl; break;}	// particle has left system
 
 						if(fabs(FLT.phi - PAR.MapDirection*i*dpinit*ilt - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi - PAR.MapDirection*i*dpinit*ilt - PAR.phistart) << endl;
@@ -515,14 +543,15 @@ if(mpi_rank < 1)
 						results(2,(n-Nmin_slave)*PAR.itt + i) = FLT.get_r();
 						results(3,(n-Nmin_slave)*PAR.itt + i) = FLT.phi;
 						results(5,(n-Nmin_slave)*PAR.itt + i) = FLT.R;
-						results(6,(n-Nmin_slave)*PAR.itt + i) = FLT.Z;
-					} // end for i
-					ofs2 << "Trax: " << n << "\t" << "Steps: " << i-1 << endl;
+					results(6,(n-Nmin_slave)*PAR.itt + i) = FLT.Z;
+					results(7,(n-Nmin_slave)*PAR.itt + i) = FLT.Ekin;
+				} // end for i
+				ofs2 << "Trax: " << n << "\t" << "Steps: " << i-1 << endl;
 				} // end for n
 
 				#pragma omp critical
 				{
-					for(j=1;j<=N_slave*PAR.itt;j++)	if(results(4,j) > 0) out << results(1,j) << "\t" << results(2,j) << "\t" << results(3,j) << "\t" << results(4,j) << "\t" << results(5,j) << "\t" << results(6,j) << endl;
+					for(j=1;j<=N_slave*PAR.itt;j++)	if(results(4,j) > 0) out << results(1,j) << "\t" << results(2,j) << "\t" << results(3,j) << "\t" << results(4,j) << "\t" << results(5,j) << "\t" << results(6,j) << "\t" << results(7,j) << endl;
 					recieve_packages += 1;
 					ofs3 << "------------------------------------ Progress: " << recieve_packages << " of " << NoOfPackages << " completed" <<  endl;
 				}
@@ -531,8 +560,8 @@ if(mpi_rank < 1)
 		} // end omp sections
 	} // end omp parallel
 } // end Master
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Slaves only (Exeption: only one Node is used <=> no MPI or mpi_size = 1)
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 if(mpi_rank > 0)
@@ -549,7 +578,7 @@ if(mpi_rank > 0)
 	ofs2 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
 
 	// Result array for Slave
-	Array<double,2> results(Range(1,6),Range(1,N_slave*PAR.itt));
+	Array<double,2> results(Range(1,7),Range(1,N_slave*PAR.itt));
 
 	// Start working...
 	while(1)
@@ -599,7 +628,7 @@ if(mpi_rank > 0)
 			// Integrate
 			for(i=1;i<=PAR.itt;i++)
 			{
-				chk = FLT.mapstep(PAR.MapDirection);
+				chk = FLT.mapstep(PAR.MapDirection, ilt, false, false, (use_custom_bndy1 || use_custom_bndy2));
 				if(chk<0) {ofs2 << "mapit: wall hit" << endl; break;}	// particle has left system
 
 				if(fabs(FLT.phi - PAR.MapDirection*i*dpinit*ilt - PAR.phistart) > 1e-10) ofs2 << "wrong toroidal angle: " << fabs(FLT.phi - PAR.MapDirection*i*dpinit*ilt - PAR.phistart) << endl;
@@ -627,23 +656,22 @@ if(mpi_rank > 0)
 				results(3,(n-Nmin_slave)*PAR.itt + i) = FLT.phi;
 				results(5,(n-Nmin_slave)*PAR.itt + i) = FLT.R;
 				results(6,(n-Nmin_slave)*PAR.itt + i) = FLT.Z;
-			} // end for i
-			ofs2 << "Trax: " << n << "\t" << "Steps: " << i-1 << endl;
-		} // end for n
-		
-		// Send results to Master
-		MPI::COMM_WORLD.Send(results.dataFirst(),6*N_slave*PAR.itt,MPI::DOUBLE,0,tag);
-
-	}// end while
-} // end Slaves
-//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+			results(7,(n-Nmin_slave)*PAR.itt + i) = FLT.Ekin;
+		} // end for i
+		ofs2 << "Trax: " << n << "\t" << "Steps: " << i-1 << endl;
+	} // end for n
+	
+	// Send results to Master
+	MPI::COMM_WORLD.Send(results.dataFirst(),7*N_slave*PAR.itt,MPI::DOUBLE,0,tag);
+	} // end while(1)
+} // end if(mpi_rank > 0)
 
 double now2=zeit();
 if(mpi_rank < 1)
-{
+	{
 	cout << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 	ofs3 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
-}
+	}
 ofs2 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 
 #ifdef m3dc1

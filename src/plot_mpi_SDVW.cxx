@@ -441,8 +441,8 @@ if(mpi_rank < 1)
 	ofs3 << "Helicity = " << EQD.helicity << endl;
 
 	// Result array:	 Column Number,  Values
-	Array<double,2> results(Range(1,6),Range(1,N_slave*PAR.itt));
-	Array<double,2> recieve(Range(1,6),Range(1,N_slave*PAR.itt));
+	Array<double,2> results(Range(1,7),Range(1,N_slave*PAR.itt));
+	Array<double,2> recieve(Range(1,7),Range(1,N_slave*PAR.itt));
 	Array<double,2> slice;
 	tag = 1;	// first Package
 
@@ -704,13 +704,14 @@ if(mpi_rank < 1)
 						results(3,(n-Nmin_slave)*PAR.itt + i) = FLT.phi;
 						results(5,(n-Nmin_slave)*PAR.itt + i) = FLT.R;
 						results(6,(n-Nmin_slave)*PAR.itt + i) = FLT.Z;
-					} // end for i
-					ofs2 << "Trax: " << n << "\t" << "Steps: " << i-1 << endl;
-				} // end for n
+					results(7,(n-Nmin_slave)*PAR.itt + i) = FLT.Ekin;
+				} // end for i
+				ofs2 << "Trax: " << n << "\t" << "Steps: " << i-1 << endl;
+			} // end for n
 
-				#pragma omp critical
-				{
-					for(j=1;j<=N_slave*PAR.itt;j++)	if(results(4,j) > 0) out << results(1,j) << "\t" << results(2,j) << "\t" << results(3,j) << "\t" << results(4,j) << "\t" << results(5,j) << "\t" << results(6,j) << endl;
+			#pragma omp critical
+			{
+				for(j=1;j<=N_slave*PAR.itt;j++)	if(results(4,j) > 0) out << results(1,j) << "\t" << results(2,j) << "\t" << results(3,j) << "\t" << results(4,j) << "\t" << results(5,j) << "\t" << results(6,j) << "\t" << results(7,j) << endl;
 					recieve_packages += 1;
 					ofs3 << "------------------------------------ Progress: " << recieve_packages << " of " << NoOfPackages << " completed" <<  endl;
 				}
@@ -738,7 +739,7 @@ if(mpi_rank > 0)
 	ofs2 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
 
 	// Result array for Slave
-	Array<double,2> results(Range(1,6),Range(1,N_slave*PAR.itt));
+	Array<double,2> results(Range(1,7),Range(1,N_slave*PAR.itt));
 
 	// Start working...
 	while(1)
@@ -860,13 +861,12 @@ if(mpi_rank > 0)
 				results(2,(n-Nmin_slave)*PAR.itt + i) = FLT.get_r();
 				results(3,(n-Nmin_slave)*PAR.itt + i) = FLT.phi;
 				results(5,(n-Nmin_slave)*PAR.itt + i) = FLT.R;
-				results(6,(n-Nmin_slave)*PAR.itt + i) = FLT.Z;
-			} // end for i
+				results(6,(n-Nmin_slave)*PAR.itt + i) = FLT.Z;			results(7,(n-Nmin_slave)*PAR.itt + i) = FLT.Ekin;			} // end for i
 			ofs2 << "Trax: " << n << "\t" << "Steps: " << i-1 << endl;
 		} // end for n
 		
 		// Send results to Master
-		MPI::COMM_WORLD.Send(results.dataFirst(),6*N_slave*PAR.itt,MPI::DOUBLE,0,tag);
+		MPI::COMM_WORLD.Send(results.dataFirst(),7*N_slave*PAR.itt,MPI::DOUBLE,0,tag);
 
 	}// end while
 } // end Slaves

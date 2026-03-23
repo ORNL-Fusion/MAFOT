@@ -14,7 +14,7 @@ class COLLISION
 public:
 	double last_coll;  // connection length at last collision
 	bool occurs(double Lc, const double x, double & meanfreepath, double & probability);  // determines probability of collision occurring, checks to see if it does
-	void collide(double& R, double& Z, double modB, double x, double Lc);  // displaces particle to model collision
+	void collide(double& R, double& Z, double modB, double x, double Lc, double& Ekin);  // displaces particle to model collision and can modify kinetic energy
 	void reset();  // gets module ready for next package
 	
 // initializer	
@@ -182,8 +182,8 @@ bool COLLISION::occurs(double Lc, const double x, double & meanfreepath, double 
 
 //----------- collide
 // params: R - particle R value, Z - particle Z value, modB - magnitude of B field at location of particle, 
-// x - particle flux, Lc - connection length
-void COLLISION::collide(double& R, double& Z, double modB, double x, double Lc)
+// x - particle flux, Lc - connection length, Ekin - particle kinetic energy (can be modified)
+void COLLISION::collide(double& R, double& Z, double modB, double x, double Lc, double& Ekin)
 {
 	last_coll = Lc;
 	rnum = ran0(seed);	
@@ -194,6 +194,10 @@ void COLLISION::collide(double& R, double& Z, double modB, double x, double Lc)
 	// move particle by one Larmor radius at a random angle
 	R += rho * cos(theta);
 	Z += rho * sin(theta);
+	
+	// Ekin is available here for energy modification if needed
+	// Currently, particle displaces in real space but retains energy
+	// Future implementations can modify Ekin based on collision physics
 }
 
 //----------- readProfile

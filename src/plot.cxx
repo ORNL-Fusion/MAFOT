@@ -160,7 +160,7 @@ for(n=1;n<=PAR.N;n++)
 		FLT.phi=PAR.MapDirection*i*dpinit*ilt + PAR.phistart;
 
 		// Output
-		out << FLT.get_theta() << "\t" << FLT.get_r() << "\t" << FLT.phi << "\t" << FLT.psi << "\t" << FLT.R << "\t" << FLT.Z << endl;
+		out << FLT.get_theta() << "\t" << FLT.get_r() << "\t" << FLT.phi << "\t" << FLT.psi << "\t" << FLT.R << "\t" << FLT.Z << "\t" << FLT.Ekin << endl;
 	} // end for i
 	ofs2 << "Trax: " << n << "\t" << "Steps: " << i-1 << endl;
 } // end for n
