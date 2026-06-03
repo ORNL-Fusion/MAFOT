@@ -171,6 +171,11 @@ void COLLISION::init(LA_STRING filename_te, LA_STRING filename_ne, LA_STRING fil
 
 	rho_coeff = rc;
 	mfp_coeff = mc;
+	if(mfp_coeff <= 0.0)
+	{
+		if(mpi_rank == 0) cout << "Collision mfp_coeff must be positive." << endl;
+		EXIT;
+	}
 
 	// determine whether particle is electron or ion
 	if (Zq < 0)
@@ -488,7 +493,7 @@ void COLLISION::collide(double& R, double& Z, double B_R, double B_phi, double B
 		Vec3 p_par_vec = blitz::dot(pf, b_hat) * b_hat;
 		Vec3 p_perp_vec = pf - p_par_vec;
 		Vec3 p_perp_old_vec = p_vec - blitz::dot(p_vec, b_hat) * b_hat;
-		Vec3 drho = c*particle_mass/(Zq*e) * mafot::cross(p_perp_vec - p_perp_old_vec, b_hat) / modB;
+		Vec3 drho = sqrt(rho_coeff) * c*particle_mass/(Zq*e) * mafot::cross(p_perp_vec - p_perp_old_vec, b_hat) / modB;
 		R += drho[0];
 		Z += drho[2];
 
@@ -505,7 +510,7 @@ void COLLISION::collide(double& R, double& Z, double B_R, double B_phi, double B
 		int sign = (mu > 0) - (mu < 0);  // sign of mu for direction of scattering
 		sigma = sign;  // update particle direction based on new pitch angle
 		double theta = U(generator) * M_PI;  // get random angle
-		double rho = rho_coeff * getRho(sqrt(B_R*B_R + B_phi*B_phi + B_Z*B_Z), mu, Ekin);
+		double rho = sqrt(rho_coeff) * getRho(sqrt(B_R*B_R + B_phi*B_phi + B_Z*B_Z), mu, Ekin);
 		R += rho * cos(theta);
 		Z += rho * sin(theta);
 
@@ -652,6 +657,7 @@ double COLLISION::PerezScatteringAngle(const double x, double p1, double p2,
 	} else {
 		stb = stb * lnA_i;
 	}
+	stb /= mfp_coeff;
 	double cchi = cos_chi(stb);
 	cchi = max(-1.0, min(1.0, cchi));
 	return acos(cchi);
