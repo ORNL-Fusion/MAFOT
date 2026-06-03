@@ -43,3 +43,12 @@ NETCDFINCLUDE = -I/usr/include
 
 # ---- build GUI with python (optional) ----
 #PYINSTALLER = /Library/Frameworks/EPD64.framework/Versions/7.2/bin/pyinstaller
+
+# ---- GPU / CUDA support (optional) ----
+# Set GPU=True to build heatstructure_gpu and heatlaminar_gpu.
+# Requires nvcc from the CUDA Toolkit at CUDA_PATH.
+# NVCCFLAGS: -arch=sm_80 = Ampere (A100); sm_70 = Volta (V100); sm_86 = RTX 30xx; sm_90 = Hopper (H100).
+GPU = False
+CUDA_PATH = /usr/local/cuda
+NVCC = $(CUDA_PATH)/bin/nvcc
+NVCCFLAGS = -O3 -std=c++14 -arch=sm_80

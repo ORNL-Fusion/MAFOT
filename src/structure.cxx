@@ -32,6 +32,12 @@
 //--------
 #include <mafot.hxx>
 #include <unistd.h>
+#ifdef USE_GPU
+#include <gpu_fields.hxx>
+#include <bfield_sampler.hxx>
+#include <fieldline_kernel.cuh>
+#include <string>
+#endif
 
 // namespaces
 //-----------
@@ -66,6 +72,8 @@ bool filaments = false;
 int nstep = 10;					// Number of dpinit steps
 bool angleInDeg = false;			// phi angle in output file is in degrees (left-handed machine angle), else in radiants (right-handed angle)
 bool usePointfile = false;
+bool gpu_flag = false;
+std::string gpu_nc_file = "";
 LA_STRING woutfile = "wout.nc";
 LA_STRING xpandfile = "None";
 LA_STRING siestafile = "siesta.dat";
@@ -84,7 +92,7 @@ bool use_collision = false;
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "habfd:P:X:V:S:I:W:i:c")) != -1)
+while ((c = getopt(argc, argv, "habfd:gN:P:X:V:S:I:W:i:c")) != -1)
 switch (c)
 {
 case 'h':
@@ -97,6 +105,8 @@ case 'h':
 	cout << "  -h            show this help message and exit" << endl;
 	cout << "  -a            output angle in DIII-D angle (left-handed) in degrees, default = radiants and right-handed," << endl;
 	cout << "  -b            use simple boundary instead of g-file wall as limiter" << endl;
+	cout << "  -g            use GPU acceleration (requires GPU=True at compile time)" << endl;
+	cout << "  -N file.nc    use 3-D B-field from netCDF file instead of sampling; only with -g" << endl;
 	cout << "  -c            check if field line crosses wall during first step; only with 3D wall, default = No" << endl;
 	cout << "  -d            step size for output, default = 10 degrees" << endl;
 	cout << "  -f            create filament.in file, default = No" << endl;
@@ -132,6 +142,17 @@ case 'a':
 	break;
 case 'b':
 	simpleBndy = 1;
+	break;
+case 'g':
+#ifdef USE_GPU
+	gpu_flag = true;
+#else
+	cout << "ERROR: GPU support not compiled in. Rebuild with GPU=True in make.inc." << endl;
+	EXIT;
+#endif
+	break;
+case 'N':
+	gpu_nc_file = optarg;
 	break;
 case 'c':
 	checkFistStep = true;
@@ -317,6 +338,115 @@ cout << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << e
 cout << "Start Tracer for " << PAR.N << " points ... " << endl;
 ofs2 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
 ofs2 << "Start Tracer for " << PAR.N << " points ... " << endl;
+
+#ifdef USE_GPU
+if(gpu_flag)
+{
+	if(PAR.sigma != 0) {
+		cout << "WARNING: GPU path supports field lines only (sigma=0). Falling back to CPU." << endl;
+		gpu_flag = false;
+		goto cpu_structure;
+	}
+	// --- Build or read B-field grid ---
+	FieldGrid3D* fgrid = nullptr;
+	if(!gpu_nc_file.empty()) {
+		fgrid = read_bfield_netcdf(gpu_nc_file);
+	} else {
+		bool is_3D = (PAR.response_field >= 0);
+		int gpu_NR = 300, gpu_NZ = 300;
+		int gpu_Nphi = is_3D ? 64 : 1;
+		double gpu_Rmin = EQD.R(1), gpu_Rmax = EQD.R(EQD.NR);
+		double gpu_Zmin = EQD.Z(1), gpu_Zmax = EQD.Z(EQD.NZ);
+		double gpu_phimin = is_3D ? 0.0 : PAR.phistart;
+		double gpu_phimax = is_3D ? 360.0 : PAR.phistart;
+		fgrid = sample_bfield(EQD, PAR,
+		                      gpu_NR, gpu_Rmin, gpu_Rmax,
+		                      gpu_Nphi, gpu_phimin, gpu_phimax,
+		                      gpu_NZ, gpu_Zmin, gpu_Zmax);
+	}
+	if(!fgrid) { cout << "ERROR: failed to build GPU field grid." << endl; EXIT; }
+	fill_psi_grid(EQD, fgrid);
+	extract_wall(EQD, fgrid);
+	for(int k=0;k<4;k++) fgrid->bndy[k] = bndy[k];
+	fgrid->simpleBndy = simpleBndy;
+
+	// --- Build initial conditions array ---
+	int Npts = PAR.N;
+	FieldlineInit* finit = new FieldlineInit[Npts];
+	for(int ii=0; ii<Npts; ii++) {
+		finit[ii].R   = initial(ii+1,1);
+		finit[ii].phi = initial(ii+1,2);
+		finit[ii].Z   = initial(ii+1,3);
+	}
+
+	// --- Allocate output buffers ---
+	int max_steps = PAR.itt;
+	StructureStep* res_bwd = new StructureStep[(long)Npts * max_steps];
+	StructureStep* res_fwd = new StructureStep[(long)Npts * max_steps];
+	int* nsteps_bwd = new int[Npts]();
+	int* nsteps_fwd = new int[Npts]();
+
+	GPUTraceParams gparams;
+	gparams.dpinit       = dpinit;
+	gparams.nstep        = nstep;
+	gparams.MapDirection = PAR.MapDirection;
+	gparams.itt          = PAR.itt;
+	gparams.phistart     = PAR.phistart;
+
+	int gpu_err = gpu_trace_structure(finit, Npts, max_steps,
+	                                  res_bwd, res_fwd,
+	                                  nsteps_bwd, nsteps_fwd,
+	                                  fgrid, gparams);
+	if(gpu_err != 0) { cout << "ERROR: GPU kernel failed." << endl; EXIT; }
+
+	// --- Write output (mirrors CPU ordering) ---
+	const double rTOd_local = 57.2957795130823;
+	for(int ii=0; ii<Npts; ii++) {
+		// Backward path written in reverse
+		if(PAR.MapDirection <= 0) {
+			int nb = nsteps_bwd[ii];
+			double Lc_bwd_total = (nb > 0) ? res_bwd[(long)ii*max_steps + nb-1].Lc : 0.0;
+			for(int jj=nb-1; jj>=0; jj--) {
+				StructureStep& s = res_bwd[(long)ii*max_steps + jj];
+				double phi_out = angleInDeg ? fmod(360.0-s.phi,360.0) : s.phi/rTOd_local;
+				out << s.R*cos(s.phi/rTOd_local) << "\t" << s.R*sin(s.phi/rTOd_local) << "\t"
+				    << s.Z << "\t" << s.R << "\t" << phi_out << "\t"
+				    << s.psi << "\t" << Lc_bwd_total-s.Lc << "\t" << s.dpsidLc << "\n";
+			}
+		}
+		// Start point
+		double R0=finit[ii].R, Z0=finit[ii].Z, phi0=finit[ii].phi;
+		double psi0, d1, d2; EQD.get_psi(R0,Z0,psi0,d1,d2);
+		double phi0_out = angleInDeg ? fmod(360.0-phi0,360.0) : phi0/rTOd_local;
+		out << R0*cos(phi0/rTOd_local) << "\t" << R0*sin(phi0/rTOd_local) << "\t"
+		    << Z0 << "\t" << R0 << "\t" << phi0_out << "\t" << psi0 << "\t" << 0.0 << "\t" << 0.0 << "\n";
+		// Forward path
+		if(PAR.MapDirection >= 0) {
+			int nf = nsteps_fwd[ii];
+			for(int jj=0; jj<nf; jj++) {
+				StructureStep& s = res_fwd[(long)ii*max_steps + jj];
+				double phi_out = angleInDeg ? fmod(360.0-s.phi,360.0) : s.phi/rTOd_local;
+				out << s.R*cos(s.phi/rTOd_local) << "\t" << s.R*sin(s.phi/rTOd_local) << "\t"
+				    << s.Z << "\t" << s.R << "\t" << phi_out << "\t"
+				    << s.psi << "\t" << s.Lc << "\t" << s.dpsidLc << "\n";
+			}
+		}
+	}
+	out.close();
+	delete[] finit; delete[] res_bwd; delete[] res_fwd;
+	delete[] nsteps_bwd; delete[] nsteps_fwd;
+	free_field_grid(fgrid);
+
+	double now2_gpu = zeit();
+	cout << "GPU run complete. Time: " << now2_gpu-now << " s" << endl;
+	ofs2 << "GPU run complete. Time: " << now2_gpu-now << " s" << endl;
+	#ifdef m3dc1
+	if(PAR.response_field >= 0) M3D.unload();
+	#endif
+	return 0;
+}
+cpu_structure: ;
+#endif // USE_GPU
 
 // Follow the field lines
 #ifdef HEAT
