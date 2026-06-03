@@ -1163,23 +1163,9 @@ for (k=1;k<=nstep;k++)
 	{
 		if(k < nstep)
 		{
-			// Check only against default 2D wall (skip custom boundaries)
-			// Temporarily disable custom boundary flags to use only default wall
-			bool save_custom_bndy1 = EQDr.use_custom_bndy1;
-			bool save_custom_bndy2 = EQDr.use_custom_bndy2;
-			bool save_3Dwall = EQDr.use_3Dwall;
-			EQDr.use_custom_bndy1 = false;
-			EQDr.use_custom_bndy2 = false;
-			EQDr.use_3Dwall = false;
-			
-			bool out_default_wall = outofBndy(x*rTOd, yout(0), yout(1), EQDr);
-			
-			// Restore boundary flags
-			EQDr.use_custom_bndy1 = save_custom_bndy1;
-			EQDr.use_custom_bndy2 = save_custom_bndy2;
-			EQDr.use_3Dwall = save_3Dwall;
-			
-			if(out_default_wall == true)
+			// Mid-Step is only checked again EFIT box, prevents incomputability
+			if(yout(0) < min(EQDr.R) || yout(0) > max(EQDr.R) || 
+			yout(1) < min(EQDr.Z) || yout(1) > max(EQDr.Z))
 			{
 				if(returnLastStep) y = yout;
 				return -1;
@@ -1188,7 +1174,7 @@ for (k=1;k<=nstep;k++)
 			y = yout;
 			continue;
 		}
-		else if(k == nstep)
+		else if(k == int(nstep))
 		{
 			// Check with full boundary including custom boundaries
 			if(outofBndy(x*rTOd, yout(0), yout(1), EQDr) == true)

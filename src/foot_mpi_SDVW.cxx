@@ -92,31 +92,40 @@ double sheath_sec = 0.5;
 bool use_sheath = false;
 LA_STRING TprofileFile = "prof_t.dat";
 LA_STRING NprofileFile = "prof_n.dat";
+LA_STRING VprofileFile = "";
+LA_STRING JprofileFile = "";
 double f = 0;  // ratio of impurity to hydrogen ions
 double zbar = 2;  // average over impurity ion charge states
 double rc = 1;
 double mc = 1;
 bool use_collision = false;
-LA_STRING collision_pdf = ""; // optional runtime override for collision PDF: "gaussian" or "poisson"
+LA_STRING collision_pdf = ""; // optional runtime override for collision PDF: "nanbu", "gaussian", or "poisson"
+vector<vector<string>> pending_bath_species; // deferred -b args: {mass_amu, charge_e, te_file, ne_file}
+double center_bath_mass_amu = 5.4858e-4;  // -B: Strang-center bath species mass (default: electron)
+double center_bath_charge_e = -1.0;       // -B: Strang-center bath species charge (default: electron)
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hX:V:S:I:E:T:s:c:i:C:")) != -1)
+while ((c = getopt(argc, argv, "hX:V:S:I:E:T:s:c:i:C:b:B:J:D:")) != -1)
 switch (c)
 {
 case 'h':
 	if(mpi_rank < 1)
 	{
-		cout << "usage: mpirun -n <cores> dtfoot_mpi [-h] [-c lr,mfp][-i dpinit] [-s width,Te,gamma] [-E ErProfile] [-I island] [-S siesta] [-T Tprofile] [-V wout] [-X xpand] file [tag]" << endl << endl;
+		cout << "usage: mpirun -n <cores> dtfoot_mpi [-h] [-c lr,mfp[,T,N,Vbulk]] [-D Vbulk] [-J JR,Jphi,JZ] [-i dpinit] [-s width,Te,gamma] [-E ErProfile] [-I island] [-S siesta] [-T Tprofile] [-V wout] [-X xpand] file [tag]" << endl << endl;
 		cout << "Calculate field line connection length and penetration depth on the vessel wall." << endl << endl;
 		cout << "positional arguments:" << endl;
 		cout << "  file          Control file (starts with '_')" << endl;
 		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
 		cout << endl << "optional arguments:" << endl;
 		cout << "  -h            show this help message and exit" << endl;
-		cout << "  -c			 use collision module. Provide parameters: scaling factor of Larmor radius, scaling factor of mean free path; default, 1,1" << endl;
-		cout << "  -C            collision PDF selection: 'gaussian' or 'poisson' (overrides COLLISION_PDF env var)" << endl;
+		cout << "  -c			 use collision module. Provide parameters: scaling factor of Larmor radius, scaling factor of mean free path, optional T/N/Vbulk profiles; default, 1,1" << endl;
+		cout << "  -C            collision PDF selection: 'nanbu', 'gaussian', or 'poisson' (overrides COLLISION_PDF env var)" << endl;
+		cout << "  -b            add bath species for nanbu collisions. Provide parameters: mass_amu, charge_e, Tfile, Nfile" << endl;
+		cout << "  -B            override Strang-center bath species mass/charge. Provide parameters: mass_amu, charge_e" << endl;
+		cout << "  -D            bulk velocity profile in m/s for nanbu collisions" << endl;
+		cout << "  -J            current density override: JR,Jphi,JZ constants or profile files in A/m^2" << endl;
 		cout << "  -i            change integrator step size; default is 1.0" << endl;
 		cout << "  -s            use sheath with particle drifts. Provide parameters: width in m, Te in eV, secondary emission." << endl;
 		cout << "  -E            use electric field with particle drifts. Filename of Er(psi) profile." << endl;
@@ -185,10 +194,34 @@ case 'c':
 		{
 			NprofileFile = LA_STRING(coeffs[3].c_str());
 		}
+		if(coeffs.size() > 4)
+		{
+			VprofileFile = LA_STRING(coeffs[4].c_str());
+		}
 	}
 	break;
 case 'C':
 	collision_pdf = optarg;
+	break;
+case 'b':
+	{
+		vector<string> bath_params = split(optarg,',');
+		for (size_t sp = 0; sp + 3 < bath_params.size(); sp += 4)
+			pending_bath_species.push_back({bath_params[sp], bath_params[sp+1], bath_params[sp+2], bath_params[sp+3]});
+	}
+	break;
+case 'B':
+	{
+		vector<string> bath_params = split(optarg,',');
+		center_bath_mass_amu = stod(bath_params[0]);
+		center_bath_charge_e = stod(bath_params[1]);
+	}
+	break;
+case 'D':
+	VprofileFile = optarg;
+	break;
+case 'J':
+	JprofileFile = optarg;
 	break;
 case '?':
 	if(mpi_rank < 1)
@@ -340,6 +373,8 @@ if(use_Tprofile)
 	ofs2 << "Ignoring Ekin, read T profile: " << TprofileFile << endl;
 }
 
+setCustomCurrentDensity(JprofileFile, mpi_rank);
+
 // Set starting parameters
 int N_variables = 11; // number of output variables per point
 int Nt_slave = 1;
@@ -370,10 +405,16 @@ ofs2 << "New bounding box: Rmin = " << bndy[0] << "  Rmax = " << bndy[1] << "  Z
 
 // Prepare collisions
 COLLISION COL;
-if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mass, 0.0, rc, mc, mpi_rank);
+if (use_collision)
+{
+	COL.init(TprofileFile, NprofileFile, VprofileFile, f, zbar, PAR.Zq, PAR.Mass, rc, mc, mpi_rank, center_bath_mass_amu, center_bath_charge_e);
+	for (auto& sp : pending_bath_species)
+		COL.addBathSpecies(stod(sp[0]), stod(sp[1]), LA_STRING(sp[2].c_str()), LA_STRING(sp[3].c_str()), mpi_rank);
+}
 // If user provided CLI override for collision PDF, apply it programmatically
 if(use_collision && collision_pdf != "") {
 	if(strcasecmp((const char*)collision_pdf, "poisson") == 0) COL.setPDFModel(COLLISION::PDF_POISSON);
+	else if(strcasecmp((const char*)collision_pdf, "nanbu") == 0) COL.setPDFModel(COLLISION::PDF_NANBU);
 	else COL.setPDFModel(COLLISION::PDF_GAUSSIAN);
 }
 // Prepare particles
@@ -665,11 +706,18 @@ if(mpi_rank > 0)
 
 			chk = FLT.connect(ntor,PAR.itt,PAR.MapDirection);
 
-			//Store results
 			results(3,i) = ntor; //FLT.NstepsInSheath/4.0;
 			results(4,i) = FLT.Lc/1000.0;
 			results(5,i) = FLT.psimin;
 			results(8,i) = FLT.Lcmin;
+
+			// Get B-field at target
+			double B_R, B_Z, B_phi;
+			getBfield(FLT.R, FLT.Z, FLT.phi/rTOd, B_R, B_Z, B_phi, EQD, PAR);
+
+			results(9, i) = B_R;
+			results(10, i) = B_Z;
+			results(11, i) = B_phi;
 
 			if(i%100==0) ofs2 << "Trax: " << i << endl;
 		}

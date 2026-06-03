@@ -120,7 +120,7 @@ FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 all : $(DIRS) d3d iter nstx mast any tcabr gui xpand d3dplot 
 
 .PHONY : d3d
-d3d : $(DIRS) dtplot dtfix dtman dtiter dtlaminar_mpi dtfoot_mpi dtplot_mpi SDVW_dtplot_mpi  dtstructure dtlcfs dttrace
+d3d : $(DIRS) dtplot dtfix dtman dtiter dtlaminar_mpi dtfoot_mpi dtplot_mpi SDVW_dtplot_mpi SDVW_dtfoot_mpi dtstructure dtlcfs dttrace
 
 .PHONY : iter
 iter : $(DIRS) iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi iterplot_mpi iterstructure
@@ -156,7 +156,7 @@ man : $(DIRS) dtman iterman nstxman mastman anyman tcabrman
 laminar : $(DIRS) dtlaminar_mpi iterlaminar_mpi nstxlaminar_mpi mastlaminar_mpi anylaminar_mpi tcabrlaminar_mpi heatlaminar_mpi
 
 .PHONY : foot
-foot : $(DIRS) dtfoot_mpi iterfoot_mpi nstxfoot_mpi mastfoot_mpi anyfoot_mpi tcabrfoot_mpi
+foot : $(DIRS) dtfoot_mpi SDVW_dtfoot_mpi iterfoot_mpi nstxfoot_mpi mastfoot_mpi anyfoot_mpi tcabrfoot_mpi
 
 .PHONY : structure
 structure : $(DIRS) dtstructure iterstructure nstxstructure maststructure anystructure tcabrstructure heatstructure
@@ -469,5 +469,3 @@ $(SEROBJS_TCABR) : $(OBJDIR)/tcabr/%.o : $(MAFOT_DIR)/src/%.cxx
 
 $(SEROBJS_HEAT) : $(OBJDIR)/heat/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) -DHEAT $< -o $@
-
-

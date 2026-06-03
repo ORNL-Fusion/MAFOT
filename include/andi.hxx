@@ -37,6 +37,7 @@
 #include <string>
 
 #include <blitz/array.h>
+#include <blitz/tinyvec.h>
 using namespace blitz;
 
 // Include the rest only if not done yet
@@ -608,6 +609,25 @@ if(x > 0) return 1;
 else return -1;
 }
 
+namespace mafot
+{
+	using Vec3 = blitz::TinyVector<double,3>;
+
+	static inline Vec3 cross(const Vec3& a, const Vec3& b)
+	{
+		return Vec3(
+			a[1]*b[2] - a[2]*b[1],
+			a[2]*b[0] - a[0]*b[2],
+			a[0]*b[1] - a[1]*b[0]
+		);
+	}
+
+	static inline double norm(const Vec3& a)
+	{
+		return sqrt(blitz::dot(a, a));
+	}
+}
+
 //------------ zeit ------------------------------------------------------------------------------------------------------------
 // returns system time in seconds, including milliseconds
 #ifdef linux
@@ -686,5 +706,4 @@ return ans;
 }
 
 #endif // ANDI_INCLUDED
-
 

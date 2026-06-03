@@ -30,6 +30,7 @@ using namespace blitz;
 
 // extern Prototypes, defined in mafot header
 int getBfield(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR);
+int getCurrentDensity(double R, double Z, double phi, double& J_R, double& J_phi, double& J_Z, EFIT& EQD, IO& PAR);
 bool outofBndy(double phi, double x, double y, EFIT& EQD);
 bool outofBndyInBetween(double phi0, double x0, double y0, double phi1, double x1, double y1, EFIT& EQD);
 bool outofRealBndy(double phi, double x, double y, EFIT& EQD);
@@ -39,7 +40,7 @@ void get_Energy(double psi, double& Enorm, double& dEnorm);
 double get_Lmfp(double Ekin);
 
 // Integrator Parameters
-const int nvar = 3;				// Number of Variables
+const int nvar = 4;				// Number of Variables
 double dpinit = 1.0;			// step size of phi in [deg]
 int ilt = 360;					// Steps till Output
 
@@ -74,17 +75,20 @@ private:
 	double sqeps0;
 
 // Member-Functions
-	int dgls(double x, Array<double,1> y, Array<double,1>& dydx);
+	int dgls(double x, Array<double,1> y, Array<double,1>& dydx, int sign_dx);
 	int rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate = false, bool returnLastStep = false);
 	int rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout);
 	double bisec(double p, double th, double a, double b, int flag);
 	double getEfield(double r, double z, double& pot);
 	void sheath(double R, double Z, double& pot, double& Er, double& Ez);
+	void set_Invariants(double Ekin);
 
 public:
 // Member Variables
 	double R;		// cylindrical major radius [m]
 	double Z;		// cylindrical vertical coordinate [m]
+	double t;		// accumulated transit time [s]
+	double tphi;	// transit time as a function of phi [s] (counter passing particles go in negative phi direction)
 	double phi;		// toroidal angle [deg]
 	double psi;		// normalized flux
 	double theta;	// poloidal angle (not always used!)
@@ -120,6 +124,7 @@ public:
 	double get_theta(double Rin, double Zin);
 	int get_psi(const double x1, const double x2, double& y, double p = 0);
 	void set_Energy();
+	void reset_DynamicState();
 	int mapit(const int itt,int MapDirection=1);
 	int mapstep(int MapDirection=1, int nstep=ilt, bool checkBndyInBetween = false, bool returnLastStep = false);
 	int connect(double& ntor, double& length, double& psimintotal, double& psimaxtotal, double& psiavtotal, const int itt, int MapDirection=0);	// --- OBSOLETE --- with psimax
@@ -156,6 +161,8 @@ const double E0p=mp*c*c/e/1000.0;	// Rest energy of Protons in [keV]
 // Public Member Variables
 R = 0;				// cylindrical major radius [m]
 Z = 0;				// cylindrical vertical coordinate [m]
+t = 0;				// accumulated transit time [s]
+tphi = 0;			// transit time as a function of phi [s] (counter passing particles go in negative phi direction)
 phi = 0;			// toroidal angle [deg]
 psi = 0;			// normalized flux
 theta = 0;			// poloidal angle
@@ -240,6 +247,8 @@ mu = FLT.mu;
 // Public Member Variables
 R = FLT.R;
 Z = FLT.Z;
+t = FLT.t;
+tphi = FLT.tphi;
 phi = FLT.phi;
 psi = FLT.psi;
 theta = FLT.theta;
@@ -256,7 +265,6 @@ Ekin = FLT.Ekin;
 sigma = FLT.sigma;
 Zq = FLT.Zq;
 Mass = FLT.Mass;
-mu = FLT.mu;
 
 Lmfp_total = FLT.Lmfp_total;
 NstepsInSheath = FLT.NstepsInSheath;
@@ -270,6 +278,8 @@ out << "--- Position ---" << endl;
 out << "R = " << FLT.R << endl;
 out << "phi = " << FLT.phi << endl;
 out << "Z = " << FLT.Z << endl;
+out << "t = " << FLT.t << endl;
+out << "tphi = " << FLT.tphi << endl;
 out << "r = " << FLT.get_r() << endl;
 out << "theta = " << FLT.get_theta() << endl;
 out << "psi = " << FLT.psi << endl;
@@ -372,6 +382,12 @@ return dpsidLcav;
 }
 
 //---------------- set_Energy ---------------------------------------------------------------------------------------------
+void PARTICLE::set_Invariants(double Ekin)
+{
+	GAMMA = 1 + Ekin/mc2;
+	Ix = -0.5/double(Zq)*eps0*((PARr.lambda*(GAMMA-1)+1)*(PARr.lambda*(GAMMA-1)+1)-1);
+}
+
 void PARTICLE::set_Energy()
 {
 double T;
@@ -380,8 +396,22 @@ double T;
 //Ekin = Enorm*PARr.Ekin;
 T = EQDr.getTprofile(psi);	// in keV
 Ekin = 1.5*T;				// E = 3/2 kT, in keV
-GAMMA = 1 + Ekin/mc2;
-Ix = -0.5/double(Zq)*eps0*((PARr.lambda*(GAMMA-1)+1)*(PARr.lambda*(GAMMA-1)+1)-1);
+set_Invariants(Ekin);
+}
+
+void PARTICLE::reset_DynamicState()
+{
+Ekin = PARr.Ekin;
+sigma = PARr.sigma;
+Lmfp_total = 0;
+
+if(sigma != 0)
+{
+	uniform_real_distribution<double> uniform_dist(0.0, 1.0);
+	mu = sigma * uniform_dist(generator);
+	set_Invariants(Ekin);
+}
+else mu = 0;
 }
 
 //---------------- mapit --------------------------------------------------------------------------------------------------
@@ -389,7 +419,7 @@ int PARTICLE::mapit(const int itt, int MapDirection)
 {
 int chk = 0;
 const double phistart = phi;
-COLr.reset(psi);	// reset collision module for new orbit trace
+if(sigma != 0 && COLr.pdf_model != COLLISION::NONE) {COLr.reset(psi, Ekin);}	// reset collision module for new orbit trace
 
 // Integrate
 for(int i=1;i<=itt;i++)
@@ -415,6 +445,8 @@ Array<double,1> y(nvar); // Array to set initial conditions
 
 y(0) = R;
 y(1) = Z;
+y(2) = t;
+y(3) = tphi;
 // integrate nstep steps of dphi, default: nstep = 360, so one full toroidal turn
 chk = rkint(nvar,nstep,dphi,y,phi_rad,flag,returnLastStep);
 if(chk<0) 	// particle has left system
@@ -423,6 +455,8 @@ if(chk<0) 	// particle has left system
 	{
 		R = y(0);
 		Z = y(1);
+		t = y(2);
+		tphi = y(3);
 		phi = phi_rad*rTOd;		// phi back in deg
 	}
 	return -1;
@@ -436,6 +470,8 @@ if(flag)
 }
 R = y(0);
 Z = y(1);
+t = y(2);
+tphi = y(3);
 phi = phi_rad*rTOd;		// phi back in deg
 
 return 0;
@@ -452,7 +488,7 @@ int chk = 0;
 const double phistart = phi;
 double Rold,Zold,phiold,dphi;
 double Rt,Zt,phit;
-double a,b,t;
+double a,b,t_interp;
 int ntor = 0;
 
 // Integrate
@@ -473,18 +509,18 @@ for(int i=1;i<=(itt*ilt)/nstep;i++)
 	a = 0; b = 1;
 	for(int k=0;k<20;k++)	// 1e-6 precision
 	{
-		t = 0.5*(a+b);
-		Rt = Rold + t*(R-Rold);
-		Zt = Zold + t*(Z-Zold);
-		phit = phiold + t*(phi-phiold);
+		t_interp = 0.5*(a+b);
+		Rt = Rold + t_interp*(R-Rold);
+		Zt = Zold + t_interp*(Z-Zold);
+		phit = phiold + t_interp*(phi-phiold);
 
 		if(outofBndy(phit,Rt,Zt,EQDr))
 		{
-			b = t;
+			b = t_interp;
 		}
 		else
 		{
-			a = t;
+			a = t_interp;
 		}
 	}
 	R = Rt; Z = Zt; phi = phit;
@@ -505,6 +541,8 @@ int PARTICLE::connect(double& ntor, double& length, double& psimintotal, double&
 int chk;
 const double Rstart = R;
 const double Zstart = Z;
+const double tstart = t;
+const double tphi_start = tphi;
 const double phistart = phi;
 const double psistart = psi;
 
@@ -512,6 +550,8 @@ const double Estart = Ekin;
 const double GAMMAstart = GAMMA;
 const double Ixstart = Ix;
 const double Lmfpstart = Lmfp_total;
+const int sigmastart = sigma;
+const double mustart = mu;
 
 steps = 0;
 psiav = 0;
@@ -539,6 +579,8 @@ else
 // negative phi direction
 R = Rstart;
 Z = Zstart;
+t = tstart;
+tphi = tphi_start;
 phi = phistart;
 psi = psistart;
 Lc = 0;
@@ -550,6 +592,8 @@ Ekin = Estart;
 GAMMA = GAMMAstart;
 Ix = Ixstart;
 Lmfp_total = Lmfpstart;
+sigma = sigmastart;
+mu = mustart;
 
 if(MapDirection <= 0)
 {
@@ -576,6 +620,8 @@ int PARTICLE::connect(double& ntor, double& length, double& psimintotal, const i
 int chk;
 const double Rstart = R;
 const double Zstart = Z;
+double tstart = t;
+double tphi_start = tphi;
 const double phistart = phi;
 const double psistart = psi;
 
@@ -583,6 +629,8 @@ const double Estart = Ekin;
 const double GAMMAstart = GAMMA;
 const double Ixstart = Ix;
 const double Lmfpstart = Lmfp_total;
+const int sigmastart = sigma;
+const double mustart = mu;
 
 steps = 0;
 psiav = 0;
@@ -606,7 +654,9 @@ else
 // negative phi direction
 R = Rstart;
 Z = Zstart;
+t = tstart;
 phi = phistart;
+tphi = tphi_start;
 psi = psistart;
 Lc = 0;
 psimin = 10;
@@ -615,6 +665,8 @@ Ekin = Estart;
 GAMMA = GAMMAstart;
 Ix = Ixstart;
 Lmfp_total = Lmfpstart;
+sigma = sigmastart;
+mu = mustart;
 
 if(MapDirection <= 0)
 {
@@ -639,6 +691,8 @@ int PARTICLE::connect(double& ntor, const int itt, int MapDirection)
 int chk;
 const double Rstart = R;
 const double Zstart = Z;
+const double tstart = t;
+const double tphi_start = tphi;
 const double phistart = phi;
 const double psistart = psi;
 
@@ -646,6 +700,8 @@ const double Estart = Ekin;
 const double GAMMAstart = GAMMA;
 const double Ixstart = Ix;
 const double Lmfpstart = Lmfp_total;
+const int sigmastart = sigma;
+const double mustart = mu;
 
 steps = 0;
 psiav = 0;
@@ -667,6 +723,8 @@ else
 // positive phi direction
 R = Rstart;
 Z = Zstart;
+t = tstart;
+tphi = tphi_start;
 phi = phistart;
 psi = psistart;
 
@@ -674,6 +732,8 @@ Ekin = Estart;
 GAMMA = GAMMAstart;
 Ix = Ixstart;
 Lmfp_total = Lmfpstart;
+sigma = sigmastart;
+mu = mustart;
 
 if(MapDirection >= 0)
 {
@@ -764,6 +824,8 @@ default:
 	theta = polar_phi(R-EQDr.RmAxis, Z-EQDr.ZmAxis);
 	break;
 }
+t = 0;
+tphi = 0;
 
 Lc = 0;
 psimin = 10;
@@ -772,8 +834,9 @@ psiav = 0;
 steps = 0;
 dpsidLcav = 0;
 
+reset_DynamicState();
 if(sigma != 0 && PARr.useTprofile == 1) {set_Energy(); Lmfp_total = get_Lmfp(Ekin);}
-if(sigma != 0) {COLr.initializeMFP(psi);}  // initialize drawn_mfp when particle is positioned
+if(sigma != 0 && (COLr.pdf_model == COLLISION::PDF_GAUSSIAN || COLr.pdf_model == COLLISION::PDF_POISSON)) {COLr.initializeMFP(psi, Ekin);}  // initialize drawn_mfp when particle is positioned
 }
 
 //-------------- create ---------------------------------------------------------------------------------------------------
@@ -836,6 +899,8 @@ default:
 	theta = polar_phi(R-EQDr.RmAxis, Z-EQDr.ZmAxis);
 	break;
 }
+t = 0;
+tphi = 0;
 
 Lc = 0;
 psimin = 10;
@@ -844,8 +909,9 @@ psiav = 0;
 steps = 0;
 dpsidLcav = 0;
 
+reset_DynamicState();
 if(sigma != 0 && PARr.useTprofile == 1) {set_Energy(); Lmfp_total = get_Lmfp(Ekin);}
-if(sigma != 0) {COLr.initializeMFP(psi);}  // initialize drawn_mfp when particle is positioned
+if(sigma != 0 && (COLr.pdf_model == COLLISION::PDF_GAUSSIAN || COLr.pdf_model == COLLISION::PDF_POISSON)) {COLr.initializeMFP(psi, Ekin);}  // initialize drawn_mfp when particle is positioned
 }
 
 //-------------- set_surface ------------------------------------------------------------------------------------------------------
@@ -885,6 +951,8 @@ y = thmin + i_th*dth;
 
 psi = PARr.phistart;
 getRZ(psi, y, R, Z);
+t = 0;
+tphi = 0;
 phi = x;
 theta = y;
 
@@ -895,7 +963,9 @@ psiav = 0;
 steps = 0;
 dpsidLcav = 0;
 
+reset_DynamicState();
 if(sigma != 0 && PARr.useTprofile == 1) {set_Energy(); Lmfp_total = get_Lmfp(Ekin);}
+if(sigma != 0 && (COLr.pdf_model == COLLISION::PDF_GAUSSIAN || COLr.pdf_model == COLLISION::PDF_POISSON)) {COLr.initializeMFP(psi, Ekin);}  // initialize drawn_mfp when particle is positioned
 }
 
 //-------------- convertRZ ---------------------------------------------------------------------------------------------------
@@ -1084,7 +1154,7 @@ else
 //---------------- dgls ---------------------------------------------------------------------------------------------------
 // Type the differential equations (dgls) as they are written, while x is the independent variable
 // Here: x = phi, y(0) = R, y(1) = Z, dydx(0) = dR/dphi, dydx(1) = dZ/dphi
-int PARTICLE::dgls(double x, Array<double,1> y, Array<double,1>& dydx)
+int PARTICLE::dgls(double x, Array<double,1> y, Array<double,1>& dydx, int sign_dx)
 {
 int chk;
 double B_R,B_Z,B_phi;
@@ -1100,7 +1170,8 @@ if (chk == -1) return -1;
 
 dydx(0) = y(0)*B_R/B_phi;
 dydx(1) = y(0)*B_Z/B_phi;
-dydx(2) = 0; // Time only evolves with particle dynamics
+dydx(2) = 0; // Clock time only evolves with particle dynamics
+dydx(3) = 0; // Time only evolves with particle dynamics, but with opposite sign for backward tracing
 
 if(sigma != 0)
 {
@@ -1130,7 +1201,8 @@ if(sigma != 0)
 		dydx(1) -= a*sheathEr;
 	}
 	dydx(1) += -sigma/double(Zq)*(y(0)*S + EQDr.R0*Ix/S);	// sign corrected: sigma = +1 is indeed co-passing
-	dydx(2) += -sigma*y(0)*gamma*S / EQDr.R0;	// Time ODE. sign corrected: sigma = +1 is indeed co-passing
+	dydx(2) += y(0)*gamma*S / EQDr.R0 * sign_dx; // Physical time, related to t(phi) equation by -sigma
+	dydx(3) += -sigma*y(0)*gamma*S / EQDr.R0;	// Time ODE. sign corrected: sigma = +1 is indeed co-passing
 }
 return 0;
 }
@@ -1142,6 +1214,7 @@ return 0;
 int PARTICLE::rkint(int nvar, int nstep, double dx, Array<double,1>& y, double& x, bool doNotUpdate, bool returnLastStep)
 {
 int k, chk;
+int sign_dx = sign(dx);
 double B_R, B_Z, B_phi, modB;
 bool old_n0only;
 double x1 = x;	//Store first value (helps reduce Error in x)
@@ -1154,24 +1227,30 @@ double prob;
 //Take nstep steps
 for (k=1;k<=nstep;k++) 
 { 
-	//if(k=1) std::cout << "First Lc: " << Lc << endl;
-	// check for collision
-	if (COLr.occurs(Lc, psi, mfp, prob)) 
+	if (sigma != 0 && COLr.pdf_model != COLLISION::NONE)
 	{
-		//std::cout << "#collision occured" << endl << "#Old:" << endl << "R = " << y(0) << " Z = " << y(1) << " phi: " << x << endl;
-		//std::cout << "1\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
 		chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
 		if (chk == -1) return -1;
-		modB = sqrt(pow(B_R, 2) + pow(B_Z, 2) + pow(B_phi, 2));
-		COLr.collide(y(0), y(1), B_R, B_phi, B_Z, Ekin, psi, Lc, mu, sigma);
-		//std::cout << "-1\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
-		//std::cout << "#New:" << endl << "#R = " << y(0) << " Z = " << y(1) << " phi: " << x << endl;
-	} //else 
-	//{
-	//std::cout << "0\t" << COLr.last_coll << "\t" << mfp << "\t" << prob << "\t" << y(0) << "\t" << y(1) << "\t" << x << "\t" << psi << "\t" << Lc << endl;
-	//}
+
+		double J_R = 0.0, J_phi = 0.0, J_Z = 0.0;
+		int chkJ = getCurrentDensity(y(0), y(1), x, J_R, J_phi, J_Z, EQDr, PARr);
+		if (chkJ == -1) { J_R = 0.0; J_phi = 0.0; J_Z = 0.0; }
+
+		if (COLr.pdf_model == COLLISION::NANBU)
+		{
+			COLr.collide(y(0), y(1), B_R, B_phi, B_Z, Ekin, psi, Lc, y(2), mu, sigma,
+			             J_R, J_phi, J_Z);  // y(2) = current transit time [s]
+			set_Invariants(Ekin);
+		} else if (COLr.occurs(Lc, psi, mfp, prob, Ekin))
+		{
+			COLr.collide(y(0), y(1), B_R, B_phi, B_Z, Ekin, psi, Lc, y(2), mu, sigma,
+			             J_R, J_phi, J_Z);  // y(2) = current transit time [s]
+			set_Invariants(Ekin);
+		}
+	}
+
 	psiold = psi;
-	chk = dgls(x,y,dydx);
+	chk = dgls(x,y,dydx,sign_dx);
 	if (chk == -1) return -1;
 	chk = rungekutta4(y,dydx,nvar,x,dx,yout);
 	if (chk == -1) return -1;
@@ -1264,6 +1343,7 @@ return 0;
 int PARTICLE::rungekutta4(Array<double,1> y, Array<double,1> dydx, int n, double x, double h, Array<double,1>& yout)
 {
 int i, chk;
+int sign_dx = sign(h);
 double xh,hh,h6;
 Array<double,1> dym(n),dyt(n),yt(n);
 
@@ -1275,12 +1355,12 @@ xh=x+hh;
 for (i=0;i<n;i++) yt(i)=y(i)+hh*dydx(i);
 
 //Second step
-chk = dgls(xh,yt,dyt);
+chk = dgls(xh,yt,dyt,sign_dx);
 if (chk == -1) return -1;
 for (i=0;i<n;i++) yt(i)=y(i)+hh*dyt(i);
 
 //Third step
-chk = dgls(xh,yt,dym);
+chk = dgls(xh,yt,dym,sign_dx);
 if (chk == -1) return -1;
 for (i=0;i<n;i++)
 {
@@ -1289,7 +1369,7 @@ for (i=0;i<n;i++)
 }
 
 //Fourth step
-chk = dgls(x+h,yt,dyt);
+chk = dgls(x+h,yt,dyt,sign_dx);
 if (chk == -1) return -1;
 for (i=0;i<n;i++) yout(i)=y(i)+h6*(dydx(i)+dyt(i)+2.0*dym(i)); //Accumulate increments with proper weights
 

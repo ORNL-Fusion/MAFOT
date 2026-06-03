@@ -1023,19 +1023,77 @@ if(mpi_rank > 0)
 					cout << mpi_rank << "\t" << results(1,i) - FLT.R << "\t" << results(2,i) - FLT.Z << "\t" << xtmp - FLT.phi << "\t" << psimin << endl;
 			}
 
-			// Follow field line to wall
-			if(skip_connect == 0) chk = FLT.connect(ntor,length,psimin,psimax,psiav,PAR.itt,PAR.MapDirection);
+			// Follow fieldline to walls - either continuous (laminar) or discrete turns (turnmap)
+			if(skip_connect == 0)
+			{
+				if(use_turnmap)
+				{
+					// Discrete turn-map mode: loop using mapstep with escape detection
+					int n_steps = 0;
+					double phistart = FLT.phi;
+					double R_init = FLT.R;
+					double Z_init = FLT.Z;
+					double psi_init = FLT.psi;
+					
+					for(int i_turn = 1; i_turn <= turnmap_max_steps; i_turn++)
+					{
+						int chk_mapit = FLT.mapit(1, PAR.MapDirection, (use_custom_bndy1 || use_custom_bndy2));  // one 360° turn
+						
+						if(chk_mapit < 0)
+						{
+							// Particle escaped during this turn
+							n_steps = i_turn - 1;
+							break;
+						}
+						n_steps = i_turn;
+					}
+					
+					// Store turn-map results: n_steps, positions, displacements
+					ntor = n_steps;  // reuse ntor to store step count
+					length = n_steps;  // also store in length for consistency
+					psimin = R_init;  // reuse psimin for R_init
+					psimax = Z_init;  // reuse psimax for Z_init
+					psiav = psi_init;  // reuse psiav for psi_init
+				}
+				else
+				{
+					// Continuous laminar mode: traditional field line tracing
+					chk = FLT.connect(ntor,length,psimin,psimax,psiav,PAR.itt,PAR.MapDirection);
+				}
+			}
 
-			// Store results
-			results(3,i) = ntor;
-			results(4,i) = length/1000.0;
-			results(5,i) = psimin;
-			results(6,i) = psiav;
-			results(7,i) = B_R;
-			results(8,i) = B_Z;
-			results(9,i) = B_phi;
-			results(10,i) = xtmp;
-			results(11,i) = ytmp;
+			// Store results - format depends on laminar vs turnmap mode
+			if(use_turnmap)
+			{
+				// Turnmap: store step count, final positions, and displacements
+				double dR = FLT.R - psimin;      // FLT.R is final, psimin holds R_init
+				double dZ = FLT.Z - psimax;      // FLT.Z is final, psimax holds Z_init
+				double dpsi = FLT.psi - psiav;   // FLT.psi is final, psiav holds psi_init
+				int escaped = (ntor < turnmap_max_steps) ? 1 : 0;  // ntor holds n_steps
+				
+				results(3,i) = ntor;              // n_steps
+				results(4,i) = FLT.R;             // R_final
+				results(5,i) = FLT.Z;             // Z_final
+				results(6,i) = FLT.psi;           // psi_final
+				results(7,i) = dR;                // dR
+				results(8,i) = dZ;                // dZ
+				results(9,i) = dpsi;              // dpsi
+				results(10,i) = escaped;          // escaped flag
+				results(11,i) = PAR.phistart;     // phi_start
+			}
+			else
+			{
+				// Laminar: store accumulated diagnostics
+				results(3,i) = ntor;
+				results(4,i) = length/1000.0;
+				results(5,i) = psimin;
+				results(6,i) = psiav;
+				results(7,i) = B_R;
+				results(8,i) = B_Z;
+				results(9,i) = B_phi;
+				results(10,i) = xtmp;
+				results(11,i) = ytmp;
+			}
 
 			if(i%100==0) ofs2 << "Trax: " << i << endl;
 		} // end for

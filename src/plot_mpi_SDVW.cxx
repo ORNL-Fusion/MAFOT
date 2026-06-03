@@ -37,7 +37,7 @@
 #else
 	#include <openmpi/ompi/mpi/cxx/mpicxx.h>
 #endif
-#include <mafot.hxx>
+#include <mafot_SDVW.hxx>
 #include <omp.h>
 #include <unistd.h>
 #include <vector>
@@ -86,61 +86,74 @@ bool use_ErProfile = false;
 bool use_Tprofile = false;
 LA_STRING TprofileFile = "prof_t.dat";
 LA_STRING NprofileFile = "prof_n.dat";
+LA_STRING VprofileFile = "";
+LA_STRING JprofileFile = "";
 double f = 0;  // ratio of impurity to hydrogen ions
 double zbar = 2;  // average over impurity ion charge states
 double rc = 1;
 double mc = 1;
+vector<string> coeffs;
 bool use_collision = false;
+LA_STRING collision_pdf = ""; // optional runtime override for collision PDF: "nanbu", "gaussian", or "poisson"
+vector<vector<string>> pending_bath_species; // deferred -b args: {mass_amu, charge_e, te_file, ne_file}
+double center_bath_mass_amu = 5.4858e-4;  // -B: Strang-center bath species mass (default: electron)
+double center_bath_charge_e = -1.0;       // -B: Strang-center bath species charge (default: electron)
 // start positions from file
 LA_STRING startposfile = "None";
 bool use_startpos = false;
-std::vector<double> startR, startZ, startPhi;
+std::vector<double> startR, startZ, startPhi, startT, startTphi;
 
 // Command line input parsing
 int c;
 opterr = 0;
 bool force_overwrite = false;
 bool print_points = false;
-while ((c = getopt(argc, argv, "hX:V:S:I:E:T:i:sP:yp")) != -1)
+while ((c = getopt(argc, argv, "hX:V:S:I:E:T:i:sP:ypc:C:b:B:J:D:")) != -1)
 switch (c)
 {
-case 'h':
-	if(mpi_rank < 1)
-	{
-		cout << "usage: mpirun -n <cores> dtplot_mpi [-h] [-i dpinit] [-s] [-E ErProfile] [-I island] [-S siesta] [-T Tprofile] [-V wout] [-X xpand] file [tag]" << endl << endl;
-		cout << "Calculate a Poincare plot." << endl << endl;
-		cout << "positional arguments:" << endl;
-		cout << "  file          Control file (starts with '_')" << endl;
-		cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
-		cout << endl << "optional arguments:" << endl;
-		cout << "  -h            show this help message and exit" << endl;
-		cout << "  -i            change integrator step size; default is 1.0" << endl;
-		cout << "  -s            use a simple boundary box instead of real wall for field line termination" << endl;
-		cout << "  -E            use electric field with particle drifts. Filename of Er(psi) profile." << endl;
-		cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
-		cout << "  -S            filename for SIESTA; default, see below" << endl;
-		cout << "  -T            use temperature profile with particle drifts. Filename of T(psi) profile." << endl;
-		cout << "  -V            filename for VMEC; default, see below" << endl;
-		 cout << "  -X            filename for XPAND; default is None" << endl;
-		 cout << "  -p            print points passed to solver (from runtime arrays)" << endl;
-		 cout << "  -y            force overwrite of output file without prompting" << endl;
-		cout << endl << "Examples:" << endl;
-		cout << "  mpirun -n 4 dtplot_mpi _plot.dat blabla" << endl;
-		cout << endl << "Infos:" << endl;
-		cout << "  To use B-field from M3DC1, set response_field >= 0, and provide file in cwd:" << endl;
-		cout << "    m3dc1sup.in    ->  location and scale factor for M3DC1 output C1.h5" << endl;
-		cout << "  To use B-field from XPAND, set response_field = -3, and provide files in cwd:" << endl;
-		cout << "    xpand.dat      ->  B-field on 3D grid from XPAND; use option -X to specify a filename (default is None -> inside VMEC only)" << endl;
-		cout << "    wout.nc        ->  VMEC output; use option -V to specify other filename" << endl;
-		cout << "  To use B-field from VMEC, inside only (no xpand file given), set response_field = -3, and provide file in cwd:" << endl;
-		cout << "    wout.nc        ->  VMEC output; use option -V to specify other filename" << endl;
-		cout << "  To use B-field from SIESTA, set response_field = -2, and provide file in cwd:" << endl;
-		cout << "    siesta.dat     ->  B-field on 3D grid; use option -S to specify other filename" << endl;
-		cout << "  To use B-field for mock-up islands, set response_field = -10, and provide file in cwd:" << endl;
-		cout << "    fakeIslands.in ->  each line gives: Amplitude, pol. mode m, tor. mode n, phase [rad]" << endl;
-		cout << "                       use option -I to specify other filename" << endl;
-		cout << endl << "Current MAFOT version is: " << MAFOT_VERSION << endl;
-	}
+	case 'h':
+		if(mpi_rank < 1)
+		{
+			cout << "usage: mpirun -n <cores> dtplot_mpi [-h] [-i dpinit] [-s] [-c lr,mfp[,T,N,Vbulk]] [-D Vbulk] [-J JR,Jphi,JZ] [-E ErProfile] [-I island] [-S siesta] [-T Tprofile] [-V wout] [-X xpand] file [tag]" << endl << endl;
+			cout << "Calculate a Poincare plot." << endl << endl;
+			cout << "positional arguments:" << endl;
+			cout << "  file          Control file (starts with '_')" << endl;
+			cout << "  tag           optional; arbitrary tag, appended to output-file name" << endl;
+			cout << endl << "optional arguments:" << endl;
+			cout << "  -c			 use collision module. Provide parameters: scaling factor of Larmor radius, scaling factor of mean free path, optional T/N/Vbulk profiles; default, 1,1" << endl;
+			cout << "  -C            collision PDF selection: 'nanbu', 'gaussian', or 'poisson' (overrides COLLISION_PDF env var)" << endl;
+			cout << "  -b            add bath species for nanbu collisions. Provide parameters: mass_amu, charge_e, Tfile, Nfile" << endl;
+			cout << "  -B            override Strang-center bath species mass/charge. Provide parameters: mass_amu, charge_e" << endl;
+			cout << "  -D            bulk velocity profile in m/s for nanbu collisions" << endl;
+			cout << "  -J            current density override: JR,Jphi,JZ constants or profile files in A/m^2" << endl;
+			cout << "  -h            show this help message and exit" << endl;
+			cout << "  -i            change integrator step size; default is 1.0" << endl;
+			cout << "  -s            use a simple boundary box instead of real wall for field line termination" << endl;
+			cout << "  -E            use electric field with particle drifts. Filename of Er(psi) profile." << endl;
+			cout << "  -I            filename for mock-up island perturbations; default, see below" << endl;
+			cout << "  -S            filename for SIESTA; default, see below" << endl;
+			cout << "  -T            use temperature profile with particle drifts. Filename of T(psi) profile." << endl;
+			cout << "  -V            filename for VMEC; default, see below" << endl;
+			cout << "  -X            filename for XPAND; default is None" << endl;
+			cout << "  -p            print points passed to solver (from runtime arrays)" << endl;
+			cout << "  -y            force overwrite of output file without prompting" << endl;
+			cout << endl << "Examples:" << endl;
+			cout << "  mpirun -n 4 dtplot_mpi _plot.dat blabla" << endl;
+			cout << endl << "Infos:" << endl;
+			cout << "  To use B-field from M3DC1, set response_field >= 0, and provide file in cwd:" << endl;
+			cout << "    m3dc1sup.in    ->  location and scale factor for M3DC1 output C1.h5" << endl;
+			cout << "  To use B-field from XPAND, set response_field = -3, and provide files in cwd:" << endl;
+			cout << "    xpand.dat      ->  B-field on 3D grid from XPAND; use option -X to specify a filename (default is None -> inside VMEC only)" << endl;
+			cout << "    wout.nc        ->  VMEC output; use option -V to specify other filename" << endl;
+			cout << "  To use B-field from VMEC, inside only (no xpand file given), set response_field = -3, and provide file in cwd:" << endl;
+			cout << "    wout.nc        ->  VMEC output; use option -V to specify other filename" << endl;
+			cout << "  To use B-field from SIESTA, set response_field = -2, and provide file in cwd:" << endl;
+			cout << "    siesta.dat     ->  B-field on 3D grid; use option -S to specify other filename" << endl;
+			cout << "  To use B-field for mock-up islands, set response_field = -10, and provide file in cwd:" << endl;
+			cout << "    fakeIslands.in ->  each line gives: Amplitude, pol. mode m, tor. mode n, phase [rad]" << endl;
+			cout << "                       use option -I to specify other filename" << endl;
+			cout << endl << "Current MAFOT version is: " << MAFOT_VERSION << endl;
+		}
 	MPI::Finalize();
 	return 0;
 case 'I':
@@ -179,6 +192,41 @@ case 'y':
 	break;
 case 'p':
 	print_points = true;
+	break;
+case 'c':
+	use_collision = true;
+	coeffs = split(optarg,',');
+	rc = stod(coeffs[0]);
+	mc = stod(coeffs[1]);
+	if(coeffs.size() > 2)
+		TprofileFile = LA_STRING(coeffs[2].c_str());
+	if(coeffs.size() > 3)
+		NprofileFile = LA_STRING(coeffs[3].c_str());
+	if(coeffs.size() > 4)
+		VprofileFile = LA_STRING(coeffs[4].c_str());
+	break;
+case 'C':
+	collision_pdf = optarg;
+	break;
+case 'b':
+	{
+		vector<string> bath_params = split(optarg,',');
+		for (size_t sp = 0; sp + 3 < bath_params.size(); sp += 4)
+			pending_bath_species.push_back({bath_params[sp], bath_params[sp+1], bath_params[sp+2], bath_params[sp+3]});
+	}
+	break;
+case 'B':
+	{
+		vector<string> bath_params = split(optarg,',');
+		center_bath_mass_amu = stod(bath_params[0]);
+		center_bath_charge_e = stod(bath_params[1]);
+	}
+	break;
+case 'D':
+	VprofileFile = optarg;
+	break;
+case 'J':
+	JprofileFile = optarg;
 	break;
 case '?':
 	if(mpi_rank < 1)
@@ -272,8 +320,11 @@ if(use_startpos)
 				std::cerr << "Warning: could not parse R Z on line " << lineno << " of " << startposfile << " -> skipped\n";
 				continue;
 			}
+
 			startR.push_back(a);
 			startZ.push_back(b);
+			startT.push_back(0);
+			startTphi.push_back(0); // particle restart should set to non-zero values
 			startPhi.push_back(PAR.phistart);
 		}
 		npos = static_cast<int>(startR.size());
@@ -358,6 +409,8 @@ if(use_Tprofile)
 	ofs2 << "Ignoring Ekin, read T profile: " << TprofileFile << endl;
 }
 
+setCustomCurrentDensity(JprofileFile, mpi_rank);
+
 // Set starting parameters
 int N = PAR.N;
 int N_slave = 1;    // Number of field lines per package (manual control)
@@ -371,7 +424,19 @@ if(N_slave * NoOfPackages < N) {
 
 // Prepare collisions
 COLLISION COL;
-if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mass, rc, mc, mpi_rank);
+if (use_collision)
+{
+	COL.init(TprofileFile, NprofileFile, VprofileFile, f, zbar, PAR.Zq, PAR.Mass, rc, mc, mpi_rank, center_bath_mass_amu, center_bath_charge_e);
+	for (auto& sp : pending_bath_species)
+		COL.addBathSpecies(stod(sp[0]), stod(sp[1]), LA_STRING(sp[2].c_str()), LA_STRING(sp[3].c_str()), mpi_rank);
+}
+// If user provided CLI override for collision PDF, apply it programmatically
+if(use_collision && collision_pdf != "") {
+	if(strcasecmp((const char*)collision_pdf, "poisson") == 0) COL.setPDFModel(COLLISION::PDF_POISSON);
+	else if(strcasecmp((const char*)collision_pdf, "nanbu") == 0) COL.setPDFModel(COLLISION::PDF_NANBU);
+	else COL.setPDFModel(COLLISION::PDF_GAUSSIAN);
+}
+
 // Prepare particles
 PARTICLE FLT(EQD,PAR,COL,mpi_rank);
 
@@ -427,8 +492,8 @@ if(mpi_rank < 1)
 	// Output
 	ofstream out(filenameout);
 	out.precision(16);
-	vector<LA_STRING> var(6);
-	var[0] = "theta[rad]"; var[1] = "r[m]"; var[2] = "phi[deg]"; var[3] = "psi"; var[4] = "R[m]"; var[5] = "Z[m]";
+	vector<LA_STRING> var(7);
+	var[0] = "theta[rad]"; var[1] = "r[m]"; var[2] = "phi[deg]"; var[3] = "psi"; var[4] = "R[m]"; var[5] = "Z[m]"; var[6] = "Ekin[keV]";
 	if(PAR.response_field == -2) {var[0] = "u"; var[3] = "s";}
 	PAR.writeiodata(out,bndy,var);
 
@@ -522,7 +587,7 @@ if(mpi_rank < 1)
 			while(workingNodes > 0)	// workingNodes > 0: Slave still working -> MPI:Revc needed		workingNodes == 0: all Slaves recieved termination signal
 			{
 				// Recieve Result
-				MPI::COMM_WORLD.Recv(recieve.dataFirst(),6*N_slave*PAR.itt,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
+				MPI::COMM_WORLD.Recv(recieve.dataFirst(),7*N_slave*PAR.itt,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
 				sender = status.Get_source();
 				tag = status.Get_tag();
 				ofs3 << "Recieve from Node: " << sender << " Package: " << tag << endl;
@@ -530,7 +595,7 @@ if(mpi_rank < 1)
 				// write results to file
 				#pragma omp critical
 				{
-					for(j=1;j<=N_slave*PAR.itt;j++)	if(recieve(4,j) > 0) out << recieve(1,j) << "\t" << recieve(2,j) << "\t" << recieve(3,j) << "\t" << recieve(4,j) << "\t" << recieve(5,j) << "\t" << recieve(6,j) << endl;
+					for(j=1;j<=N_slave*PAR.itt;j++)	if(recieve(4,j) > 0) out << recieve(1,j) << "\t" << recieve(2,j) << "\t" << recieve(3,j) << "\t" << recieve(4,j) << "\t" << recieve(5,j) << "\t" << recieve(6,j) << "\t" << recieve(7,j) << endl;
 					recieve_packages += 1;
 					ofs3 << "------------------------------------ Progress: " << recieve_packages << " of " << NoOfPackages << " completed" <<  endl;
 				}
@@ -640,15 +705,19 @@ if(mpi_rank < 1)
 						FLT.Z = startZ[idx];
 						// phi is set from parameters, not the input file
 						FLT.phi = PAR.phistart;
+						FLT.t = startT[idx];
+						FLT.tphi = startTphi[idx];
+
 						FLT.get_psi(FLT.R, FLT.Z, FLT.psi, FLT.phi/rTOd);
 						FLT.theta = FLT.get_theta();
 						// reset trajectory counters
 						FLT.Lc = 0; FLT.psimin = 10; FLT.psimax = 0; FLT.psiav = 0; FLT.steps = 0; FLT.dpsidLcav = 0;
-						if(FLT.sigma != 0 && PAR.useTprofile == 1) { FLT.set_Energy(); }
+						FLT.reset_DynamicState();
+						if(FLT.sigma != 0 && PAR.useTprofile == 1) { FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin); }
 					}
-					else
-					{
-						switch(PAR.create_flag)
+				else
+				{
+					switch(PAR.create_flag)
 						{
 							case 5: 		// grid from R, Z
 								FLT.set(n,PAR.N,PAR.Rmin,PAR.Rmax,PAR.Zmin,PAR.Zmax,PAR.NZ,0);
@@ -669,14 +738,14 @@ if(mpi_rank < 1)
 								FLT.set(n,PAR.N,PAR.rmin,PAR.rmax,PAR.thmin,PAR.thmax,1,1);
 								break;
 						}
-					}
+						}
 
-					// use psi as control parameter and set to -1
-					results(4,all) = -1;
+						// use psi as control parameter and set to -1
+						results(4,all) = -1;
 
-					// Integrate
-					for(i=1;i<=PAR.itt;i++)
-					{
+						if(FLT.sigma != 0 && COL.pdf_model != COLLISION::NONE) {COL.reset(FLT.psi, FLT.Ekin);}	// reset collision module for new orbit trace
+						for(i=1;i<=PAR.itt;i++)
+						{
 						chk = FLT.mapstep(PAR.MapDirection);
 						if(chk<0) {ofs2 << "mapit: wall hit" << endl; break;}	// particle has left system
 
@@ -785,27 +854,17 @@ if(mpi_rank > 0)
 				FLT.Z = pkgZ[pkgIdx];
 				// phi is set from parameters, not the input file
 				FLT.phi = PAR.phistart;
+				FLT.t = 0;
+				FLT.tphi = 0;
+
 				FLT.get_psi(FLT.R, FLT.Z, FLT.psi, FLT.phi/rTOd);
 				FLT.theta = FLT.get_theta();
 				// reset trajectory counters
 				FLT.Lc = 0; FLT.psimin = 10; FLT.psimax = 0; FLT.psiav = 0; FLT.steps = 0; FLT.dpsidLcav = 0;
-				if(FLT.sigma != 0 && PAR.useTprofile == 1) { FLT.set_Energy(); }
-			}
-			// Print actual package contents once (concise)
-			if(print_points && use_startpos && n==Nmin_slave) {
-				int cnt = Nmax_slave - Nmin_slave + 1;
-				cout << "Node " << mpi_rank << " will pass to solver package " << tag << " indices [" << Nmin_slave << "," << Nmax_slave << "] count=" << cnt;
-				if(cnt <= 10) {
-					cout << " points:";
-					for(int pi = 0; pi < cnt; ++pi) cout << " idx=" << (Nmin_slave + pi) << ":R=" << pkgR[pi] << ",Z=" << pkgZ[pi] << ";";
-				} else {
-					cout << " sample: idx=" << Nmin_slave << ":R=" << pkgR.front() << " ... idx=" << Nmax_slave << ":R=" << pkgR.back();
-				}
-				cout << endl;
-			}
-			else
-			{
-				switch(PAR.create_flag)
+				FLT.reset_DynamicState();
+				if(FLT.sigma != 0 && PAR.useTprofile == 1) { FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin); }
+			}else{
+					switch(PAR.create_flag)
 				{
 					case 5: 		// grid from R, Z
 						FLT.set(n,PAR.N,PAR.Rmin,PAR.Rmax,PAR.Zmin,PAR.Zmax,PAR.NZ,0);
@@ -828,9 +887,23 @@ if(mpi_rank > 0)
 				}
 			}
 
+			// Print actual package contents once (concise)
+			if(print_points && use_startpos && n==Nmin_slave) {
+				int cnt = Nmax_slave - Nmin_slave + 1;
+				cout << "Node " << mpi_rank << " will pass to solver package " << tag << " indices [" << Nmin_slave << "," << Nmax_slave << "] count=" << cnt;
+				if(cnt <= 10) {
+					cout << " points:";
+					for(int pi = 0; pi < cnt; ++pi) cout << " idx=" << (Nmin_slave + pi) << ":R=" << pkgR[pi] << ",Z=" << pkgZ[pi] << ";";
+				} else {
+					cout << " sample: idx=" << Nmin_slave << ":R=" << pkgR.front() << " ... idx=" << Nmax_slave << ":R=" << pkgR.back();
+				}
+				cout << endl;
+			}
+
 			// use psi as control parameter and set to -1
 			results(4,all) = -1;
 
+			if(FLT.sigma != 0 && COL.pdf_model != COLLISION::NONE) {COL.reset(FLT.psi, FLT.Ekin);}	// reset collision module for new orbit trace
 			// Integrate
 			for(i=1;i<=PAR.itt;i++)
 			{

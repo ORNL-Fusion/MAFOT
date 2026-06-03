@@ -15,8 +15,11 @@
 
 // Include
 //--------
+#include <cstdlib>
+#include <cctype>
 #include <andi.hxx>				// includes many usefull tools and defines
 #include <efit_class.hxx>			// includes all EFIT data and interpolation routines
+#include <splines.hxx>
 #include <io_class.hxx>				// includes Control file data
 #include <restart.hxx>
 #ifdef USE_SIESTA
@@ -55,6 +58,8 @@
 // int getBfield_general(double R, double Z, double phi, double& B_R, double& B_Z, double& B_phi, EFIT& EQD, IO& PAR); // declared in machine header, defined here
 void prepare_common_perturbations(EFIT& EQD, IO& PAR, int mpi_rank, LA_STRING siestafile = "siesta.dat", LA_STRING xpandfile = "xpand.dat",
 								  LA_STRING islandfile = "fakeIslands.in", LA_STRING filamentfile = "filament_all.in");
+void setCustomCurrentDensity(LA_STRING spec, int mpi_rank = 0);
+int getCurrentDensity(double R, double Z, double phi, double& J_R, double& J_phi, double& J_Z, EFIT& EQD, IO& PAR);
 bool outofBndy(double phi, double x, double y, EFIT& EQD);
 bool outofBndyInBetween(double phi0, double x0, double y0, double phi1, double x1, double y1, EFIT& EQD);
 bool outofRealBndy(double phi, double x, double y, EFIT& EQD);
@@ -90,8 +95,52 @@ Array<double,4> field;	// for current filaments
 fakeIsland FISLD;
 GPEC gpec;
 
+// Optional direct current-density override: J_R,J_phi,J_Z.
+int use_Jprofile = 0;
+int JN[3] = {0,0,0};
+double Jconst[3] = {0,0,0};
+Array<double,2> Jdata[3];
+Array<double,1> d2Jprofile[3];
+
 //-------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------
+
+void setCustomCurrentDensity(LA_STRING spec, int mpi_rank)
+{
+	use_Jprofile = 0;
+	for(int i=0; i<3; i++) { JN[i] = 0; Jconst[i] = 0.0; }
+	if(spec == "") return;
+
+	vector<string> Jfile = split(string((const char*)spec), ',');
+	if(Jfile.size() != 3)
+	{
+		if(mpi_rank == 0) cout << "-J expects J_R,J_phi,J_Z as constants or profile files." << endl;
+		EXIT;
+	}
+
+	use_Jprofile = 1;
+	for(int i=0; i<3; i++)
+	{
+		char* end = nullptr;
+		const char* text = Jfile[i].c_str();
+		Jconst[i] = strtod(text, &end);
+		while(end != nullptr && *end != '\0' && isspace((unsigned char)*end)) end++;
+		if(text != end && end != nullptr && *end == '\0') continue;
+
+		LA_STRING file = Jfile[i].c_str();
+		Array<double,1> Psi, J;
+		readfile(file, 2, Jdata[i]);
+		JN[i] = Jdata[i].rows();
+		Psi.reference(Jdata[i](Range::all(), 1));
+		J.reference(Jdata[i](Range::all(), 2));
+		d2Jprofile[i].resize(Range(1, JN[i]));
+		double dpsi = Psi(2) - Psi(1);
+		double d1 = (J(2) - J(1))/dpsi;
+		double dn = (J(JN[i]) - J(JN[i]-1))/dpsi;
+		spline(Psi, J, JN[i], d1, dn, d2Jprofile[i]);
+	}
+	if(mpi_rank == 0) cout << "#Custom current density: " << spec << endl;
+}
 
 //---------------- getBfield_general --------------------------------------------------------------------------------------
 // part of getBfield that is common to all machines
@@ -210,6 +259,127 @@ if(PAR.response_field == -4)
 	B_R += br;
 	B_phi += bp;
 	B_Z += bz;
+}
+
+return 0;
+}
+
+//---------------- getCurrentDensity -------------------------------------------------------------------------------------
+// Axisymmetric EFIT current plus numerical curl corrections from active response fields.
+int getCurrentDensity(double R, double Z, double phi, double& J_R, double& J_phi, double& J_Z, EFIT& EQD, IO& PAR)
+{
+if(use_Jprofile)
+{
+	double psi=0,dpsidR=0,dpsidZ=0;
+	if(JN[0] > 0 || JN[1] > 0 || JN[2] > 0)
+	{
+		int chk = EQD.get_psi(R,Z,psi,dpsidR,dpsidZ);
+		if(chk == -1) return -1;
+	}
+
+	double J[3];
+	for(int i=0; i<3; i++)
+	{
+		J[i] = Jconst[i];
+		if(JN[i] > 0)
+		{
+			Array<double,1> Psi, Jp;
+			Psi.reference(Jdata[i](Range::all(), 1));
+			Jp.reference(Jdata[i](Range::all(), 2));
+			if(psi < Psi(1)) J[i] = Jp(1);
+			else if(psi > Psi(JN[i])) J[i] = Jp(JN[i]);
+			else
+			{
+				double dy;
+				splint(Psi, Jp, d2Jprofile[i], JN[i], psi, J[i], dy);
+			}
+		}
+	}
+	J_R = J[0]; J_phi = J[1]; J_Z = J[2];
+	return 0;
+}
+
+int chk = EQD.get_current_density(R,Z,J_R,J_phi,J_Z);
+if(chk == -1) return -1;
+
+if(PAR.response_field != -1)
+{
+
+const double mu0 = 1.2566370614359173e-6;
+double hR = 0.25*EQD.dR;
+double hZ = 0.25*EQD.dZ;
+const double hphi = 1.0e-4;
+if(hR < 1.0e-5) hR = 1.0e-5;
+if(hZ < 1.0e-5) hZ = 1.0e-5;
+if(R - hR <= 0.0) hR = 0.5*R;
+
+auto responseB = [&](double r, double z, double p, double& B_R, double& B_phi, double& B_Z) -> int
+{
+	double Bt_R,Bt_phi,Bt_Z;
+	double Be_R,Be_phi,Be_Z;
+	int chkB = getBfield(r,z,p,Bt_R,Bt_Z,Bt_phi,EQD,PAR);
+	if(chkB == -1) return -1;
+	chkB = EQD.get_EFIT_Bfield(r,z,Be_R,Be_phi,Be_Z);
+	if(chkB == -1) return -1;
+
+	B_R = Bt_R - Be_R;
+	B_phi = Bt_phi - Be_phi;
+	B_Z = Bt_Z - Be_Z;
+	return 0;
+};
+
+double B0_R,B0_phi,B0_Z;
+int chk0 = responseB(R,Z,phi,B0_R,B0_phi,B0_Z);
+if(chk0 != -1)
+{
+
+auto component = [](double Br, double Bphi, double Bz, int comp) -> double
+{
+	if(comp == 0) return Br;
+	if(comp == 1) return Bphi;
+	return Bz;
+};
+
+auto deriv = [&](double Rp, double Zp, double phip,
+                 double Rm, double Zm, double phim,
+                 int comp, double h) -> double
+{
+	double Bp_R,Bp_phi,Bp_Z;
+	double Bm_R,Bm_phi,Bm_Z;
+	int chkp = responseB(Rp,Zp,phip,Bp_R,Bp_phi,Bp_Z);
+	int chkm = responseB(Rm,Zm,phim,Bm_R,Bm_phi,Bm_Z);
+	if(chkp != -1 && chkm != -1)
+		return (component(Bp_R,Bp_phi,Bp_Z,comp) - component(Bm_R,Bm_phi,Bm_Z,comp))/(2.0*h);
+	if(chkp != -1)
+		return (component(Bp_R,Bp_phi,Bp_Z,comp) - component(B0_R,B0_phi,B0_Z,comp))/h;
+	if(chkm != -1)
+		return (component(B0_R,B0_phi,B0_Z,comp) - component(Bm_R,Bm_phi,Bm_Z,comp))/h;
+	return 0.0;
+};
+
+auto deriv_RBphi_R = [&]() -> double
+{
+	double Bp_R,Bp_phi,Bp_Z;
+	double Bm_R,Bm_phi,Bm_Z;
+	int chkp = responseB(R+hR,Z,phi,Bp_R,Bp_phi,Bp_Z);
+	int chkm = responseB(R-hR,Z,phi,Bm_R,Bm_phi,Bm_Z);
+	if(chkp != -1 && chkm != -1) return ((R+hR)*Bp_phi - (R-hR)*Bm_phi)/(2.0*hR);
+	if(chkp != -1) return ((R+hR)*Bp_phi - R*B0_phi)/hR;
+	if(chkm != -1) return (R*B0_phi - (R-hR)*Bm_phi)/hR;
+	return 0.0;
+};
+
+const double dBz_dphi = deriv(R,Z,phi+hphi, R,Z,phi-hphi, 2, hphi);
+const double dBr_dphi = deriv(R,Z,phi+hphi, R,Z,phi-hphi, 0, hphi);
+const double dBphi_dZ = deriv(R,Z+hZ,phi, R,Z-hZ,phi, 1, hZ);
+const double dBr_dZ = deriv(R,Z+hZ,phi, R,Z-hZ,phi, 0, hZ);
+const double dBz_dR = deriv(R+hR,Z,phi, R-hR,Z,phi, 2, hR);
+const double dRBphi_dR = deriv_RBphi_R();
+
+J_R += (dBz_dphi - R*dBphi_dZ)/(mu0*R);
+J_phi += (dBr_dZ - dBz_dR)/mu0;
+J_Z += (dRBphi_dR - dBr_dphi)/(mu0*R);
+}
 }
 
 return 0;
@@ -583,6 +753,8 @@ else point_along_target(PAR.which_target_plate, t, p, EQD);
 FLT.R = p(1);
 FLT.Z = p(2);
 FLT.phi = (phimin + dphi*i_phi)*rTOd;	// phi in deg
+FLT.t = 0;
+FLT.tphi = 0;
 FLT.get_psi(p(1),p(2),FLT.psi);
 
 FLT.Lc = 0;
@@ -592,6 +764,7 @@ FLT.psiav = 0;
 FLT.steps = 0;
 FLT.dpsidLcav = 0;
 
+FLT.reset_DynamicState();
 if(FLT.sigma != 0 && PAR.useTprofile == 1) {FLT.set_Energy(); FLT.Lmfp_total = get_Lmfp(FLT.Ekin);}
 return t;
 }

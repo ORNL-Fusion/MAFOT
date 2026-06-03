@@ -141,10 +141,13 @@ public:
 	// Interpolates psi and derivatives; flag: 0 = 2D splines, 1 = bicubic interpolation; norm specifies if psi is to be normalized
 	int get_psi(const double x1, const double x2, double& y, double& dy1, double& dy2, int flag=1, bool norm=true);		// 0: ok	-1: Point outside of EFIT grid
 
+	int get_EFIT_Bfield(const double Rpos, const double Zpos, double& B_R, double& B_phi, double& B_Z);	// Bare axisymmetric EFIT B in cylindrical components
 	double get_Fpol(const double x);		// Spline interpolates Fpol
 	double get_Pres(const double x);		// Spline interpolates Pres
 	double get_FFprime(const double x);		// Spline interpolates FFprime
 	double get_Pprime(const double x);		// Spline interpolates Pprime
+	double get_Jphi(const double x, const double Rpos);	// Toroidal current density J_phi(psi_norm,R) in A/m^2
+	int get_current_density(const double Rpos, const double Zpos, double& J_R, double& J_phi, double& J_Z);	// Cylindrical current density in A/m^2
 	double get_q(const double x);			// Spline interpolates qpsi
 	int lcfs_RZ_nn(const double th, double& r, double& z);
 	void set3Dwall(LA_STRING wall_file);	// read 3D wall and set arrays
@@ -645,6 +648,29 @@ if(helicity_adjust == -1)
 return 0;
 }
 
+//-------------- get_EFIT_Bfield -----------------------------------------------------------------------------------------
+int EFIT::get_EFIT_Bfield(const double Rpos, const double Zpos, double& B_R, double& B_phi, double& B_Z)
+{
+double psi_norm,dpsidR,dpsidZ;
+
+B_R = 0.0;
+B_phi = 0.0;
+B_Z = 0.0;
+
+int chk = get_psi(Rpos,Zpos,psi_norm,dpsidR,dpsidZ);
+if(chk == -1) return -1;
+if(Rpos <= 0.0) return -1;
+
+double F;
+if(psi_norm <= 1.0) F = get_Fpol(psi_norm);
+else F = get_Fpol(1.0);
+
+B_R = dpsidZ/Rpos;
+B_phi = F/Rpos;
+B_Z = -dpsidR/Rpos;
+return 0;
+}
+
 //-------------- get_Fpol -------------------------------------------------------------------------------------------------
 double EFIT::get_Fpol(const double x)
 {
@@ -675,6 +701,44 @@ double EFIT::get_Pprime(const double x)
 double y,dy;
 splint(psi,Pprime,d2Pprime,NR,x,y,dy);
 return y;
+}
+
+//-------------- get_Jphi --------------------------------------------------------------------------------------------------
+double EFIT::get_Jphi(const double x, const double Rpos)
+{
+if(x < 0.0 || x > 1.0 || Rpos <= 0.0) return 0.0;
+
+const double mu0 = 1.2566370614359173e-6; // vacuum permeability [H/m]
+const double pprime = get_Pprime(x);
+const double ffprime = get_FFprime(x);
+
+return Rpos*pprime + ffprime/(mu0*Rpos);
+}
+
+//-------------- get_current_density ---------------------------------------------------------------------------------------
+int EFIT::get_current_density(const double Rpos, const double Zpos, double& J_R, double& J_phi, double& J_Z)
+{
+double psi_norm,dpsidR,dpsidZ;
+
+J_R = 0.0;
+J_phi = 0.0;
+J_Z = 0.0;
+
+int chk = get_psi(Rpos,Zpos,psi_norm,dpsidR,dpsidZ);
+if(chk == -1) return -1;
+if(psi_norm < 0.0 || psi_norm > 1.0 || Rpos <= 0.0) return 0;
+
+// Axisymmetric EFIT current density from B = grad(psi) x grad(phi) + F(psi) grad(phi).
+// Non-axisymmetric response fields need d/dphi curl corrections outside this bare-EFIT helper.
+const double mu0 = 1.2566370614359173e-6; // vacuum permeability [H/m]
+const double F = get_Fpol(psi_norm);
+double Fprime = 0.0;
+if(fabs(F) > 1e-30) Fprime = get_FFprime(psi_norm)/F;
+
+J_R = -Fprime*dpsidZ/(mu0*Rpos);
+J_phi = get_Jphi(psi_norm,Rpos);
+J_Z = Fprime*dpsidR/(mu0*Rpos);
+return 0;
 }
 
 //-------------- get_q ----------------------------------------------------------------------------------------------------
