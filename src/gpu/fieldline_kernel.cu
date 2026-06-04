@@ -352,41 +352,42 @@ void k_structure(const double* __restrict__ init_R,
         results[(long)i*max_steps + j].valid = 0;
 
     double Lc     = 0.0;
-    double psi_prev = interp2D_psi(R, Z);
     int    nout   = 0;
-
-    // Number of toroidal integration steps before each output
-    int n_integration_steps = (int)((double)nstep_out * 360.0 / 360.0);
-    // nstep_out is in units of (nstep * dpinit) degrees; we integrate nstep_out
-    // sub-steps of dpinit_deg each per output
-    // → actually nstep_out sub-steps, each of size dpinit_deg
 
     for(int j = 0; j < itt && nout < max_steps; j++)
     {
-        // Advance nstep_out integration steps
-        bool hit = false;
+        // Advance nstep_out integration sub-steps (each dpinit_deg)
+        bool   hit         = false;
+        double lcstep_last = 0.0;        // arc length of the final sub-step
+        double R_pre = R, Z_pre = Z;     // position just before the final sub-step
         for(int k = 0; k < nstep_out; k++)
         {
             double R_old = R, Z_old = Z, phi_old = phi;
             if(!rk4_step(R, Z, phi, step)) { hit = true; break; }
             if(outofBndy(R, Z))            { hit = true; break; }
 
-            // Arc length
+            // Arc length of this sub-step
+            double dR = R - R_old, dZ = Z - Z_old;
+            double dphi_rad = (phi - phi_old)*0.017453292519943;
+            double Ravg = 0.5*(R + R_old);
+            double lcstep = sqrt(dR*dR + dZ*dZ + Ravg*Ravg*dphi_rad*dphi_rad);
+
             bool inside_wall = (c_grid.simpleBndy == 1) ? true : !outsideWall(R, Z);
-            if(inside_wall) {
-                double dR = R - R_old, dZ = Z - Z_old;
-                double dphi_rad = (phi - phi_old)*0.017453292519943;
-                double Ravg = 0.5*(R + R_old);
-                Lc += sqrt(dR*dR + dZ*dZ + Ravg*Ravg*dphi_rad*dphi_rad);
-            }
+            if(inside_wall) Lc += lcstep;
+
+            lcstep_last = lcstep;        // remember the last sub-step
+            R_pre = R_old; Z_pre = Z_old;
         }
 
         // Record output step
         double psi_v = interp2D_psi(R, Z);
-        double dpsi  = psi_v - psi_prev;
-        // dpsidLc: signed with direction; avoid /0 if Lc hasn't grown
-        double dpsidLc_v = 0.0;
-        if(Lc > 0.0) dpsidLc_v = (double)direction * dpsi / (Lc + 1e-30);
+        // dpsidLc = local gradient over the final sub-step, matching the CPU
+        // (particle_class.hxx: dpsidLc = sign(dx)*(psi-psiold)/lcstep) — NOT
+        // divided by the cumulative connection length.
+        double psi_pre   = interp2D_psi(R_pre, Z_pre);
+        double dpsidLc_v = (lcstep_last > 1e-30)
+                         ? (double)direction * (psi_v - psi_pre) / lcstep_last
+                         : 0.0;
 
         StructureStep& s = results[(long)i*max_steps + nout];
         s.R       = R;
@@ -398,7 +399,6 @@ void k_structure(const double* __restrict__ init_R,
         s.valid   = 1;
         nout++;
 
-        psi_prev = psi_v;
         if(hit) break;
     }
 
