@@ -34,10 +34,15 @@
 
 // Include
 //--------
-#ifdef USE_MPICH
-	#include <mpi.h>
+// MPI header: try modern path (OpenMPI 5.0+, MPICH) first, fall back to old OpenMPI 4.x
+#ifdef __has_include
+	#if __has_include(<mpi.h>)
+		#include <mpi.h>
+	#elif __has_include(<openmpi/ompi/mpi/cxx/mpicxx.h>)
+		#include <openmpi/ompi/mpi/cxx/mpicxx.h>
+	#endif
 #else
-	#include <openmpi/ompi/mpi/cxx/mpicxx.h>
+	#include <mpi.h>
 #endif
 #include <mafot.hxx>
 #include <omp.h>
@@ -432,6 +437,8 @@ if(gpu_flag)
 		prepare_common_perturbations(EQD,PAR,mpi_rank,siestafile,xpandfile,islandfile);
 		prep_perturbation(EQD,PAR,mpi_rank);
 
+		cout << "Using GPU mode (CUDA kernels)" << endl;
+		ofs2 << "Using GPU mode (CUDA kernels)" << endl;
 		cout << "GPU Laminar: tracing " << N << " field lines..." << endl;
 		ofs2 << "GPU Laminar: tracing " << N << " field lines..." << endl;
 
@@ -563,6 +570,17 @@ if(gpu_flag)
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 if(mpi_rank < 1)
 {
+	// Print execution mode (CPU path for non-GPU runs)
+	#ifdef USE_GPU
+	if(!gpu_flag) {
+		cout << "Using CPU mode (RK4 integration)" << endl;
+		ofs3 << "Using CPU mode (RK4 integration)" << endl;
+	}
+	#else
+	cout << "Using CPU mode (RK4 integration)" << endl;
+	ofs3 << "Using CPU mode (RK4 integration)" << endl;
+	#endif
+
 	// check for possible restart
 	vector<LA_STRING> mafotHead;
 	Array<double,2> mafotData;

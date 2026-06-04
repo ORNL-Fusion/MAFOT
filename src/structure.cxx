@@ -437,6 +437,9 @@ if(gpu_flag)
 	delete[] nsteps_bwd; delete[] nsteps_fwd;
 	free_field_grid(fgrid);
 
+	cout << "Using GPU mode (CUDA kernels)" << endl;
+	ofs2 << "Using GPU mode (CUDA kernels)" << endl;
+
 	double now2_gpu = zeit();
 	cout << "GPU run complete. Time: " << now2_gpu-now << " s" << endl;
 	ofs2 << "GPU run complete. Time: " << now2_gpu-now << " s" << endl;
@@ -447,6 +450,10 @@ if(gpu_flag)
 }
 cpu_structure: ;
 #endif // USE_GPU
+
+// CPU mode message
+cout << "Using CPU mode (RK4 integration)" << endl;
+ofs2 << "Using CPU mode (RK4 integration)" << endl;
 
 // Follow the field lines
 #ifdef HEAT
