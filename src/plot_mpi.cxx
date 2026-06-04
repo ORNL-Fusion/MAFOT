@@ -32,6 +32,8 @@
 
 // Include
 //--------
+#define OMPI_SKIP_MPICXX 1   // C API only: skip OpenMPI 4.x / MPICH C++ bindings (need libmpi_cxx)
+#define MPICH_SKIP_MPICXX 1
 #include <mpi.h>
 #include <mafot.hxx>
 #include <omp.h>

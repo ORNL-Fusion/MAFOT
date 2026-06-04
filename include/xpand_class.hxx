@@ -10,6 +10,8 @@
 // Include
 //--------
 #ifdef USE_MPI
+#define OMPI_SKIP_MPICXX 1   // C API only: skip OpenMPI 4.x / MPICH C++ bindings (need libmpi_cxx)
+#define MPICH_SKIP_MPICXX 1
 #include <mpi.h>
 #endif
 #include <la_string.hxx>
