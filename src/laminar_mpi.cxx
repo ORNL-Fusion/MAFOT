@@ -34,15 +34,20 @@
 
 // Include
 //--------
-// MPI header: try modern path (OpenMPI 5.0+, MPICH) first, fall back to old OpenMPI 4.x
-#ifdef __has_include
-	#if __has_include(<mpi.h>)
-		#include <mpi.h>
-	#elif __has_include(<openmpi/ompi/mpi/cxx/mpicxx.h>)
+// MPI header: use C++ bindings for OpenMPI (from libopenmpi-cxx-dev), C bindings for MPICH
+#ifdef USE_MPICH
+	#include <mpi.h>
+#else
+	// OpenMPI: try C++ bindings (libopenmpi-cxx-dev), fallback to C bindings if needed
+	#ifdef __has_include
+		#if __has_include(<openmpi/ompi/mpi/cxx/mpicxx.h>)
+			#include <openmpi/ompi/mpi/cxx/mpicxx.h>
+		#else
+			#include <mpi.h>
+		#endif
+	#else
 		#include <openmpi/ompi/mpi/cxx/mpicxx.h>
 	#endif
-#else
-	#include <mpi.h>
 #endif
 #include <mafot.hxx>
 #include <omp.h>
