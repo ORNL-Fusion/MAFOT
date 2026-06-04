@@ -73,7 +73,6 @@ int nstep = 10;					// Number of dpinit steps
 bool angleInDeg = false;			// phi angle in output file is in degrees (left-handed machine angle), else in radiants (right-handed angle)
 bool usePointfile = false;
 bool gpu_flag = false;
-std::string gpu_nc_file = "";
 LA_STRING woutfile = "wout.nc";
 LA_STRING xpandfile = "None";
 LA_STRING siestafile = "siesta.dat";
@@ -92,7 +91,7 @@ bool use_collision = false;
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "habfd:gN:P:X:V:S:I:W:i:c")) != -1)
+while ((c = getopt(argc, argv, "habfd:gP:X:V:S:I:W:i:c")) != -1)
 switch (c)
 {
 case 'h':
@@ -105,8 +104,8 @@ case 'h':
 	cout << "  -h            show this help message and exit" << endl;
 	cout << "  -a            output angle in DIII-D angle (left-handed) in degrees, default = radiants and right-handed," << endl;
 	cout << "  -b            use simple boundary instead of g-file wall as limiter" << endl;
-	cout << "  -g            use GPU acceleration (requires GPU=True at compile time)" << endl;
-	cout << "  -N file.nc    use 3-D B-field from netCDF file instead of sampling; only with -g" << endl;
+	cout << "  -g            use GPU acceleration (requires GPU=True at compile time);" << endl;
+	cout << "                samples the active field (EFIT / M3D-C1 / XFIELD / SIESTA / GPEC) set by response_field" << endl;
 	cout << "  -c            check if field line crosses wall during first step; only with 3D wall, default = No" << endl;
 	cout << "  -d            step size for output, default = 10 degrees" << endl;
 	cout << "  -f            create filament.in file, default = No" << endl;
@@ -150,9 +149,6 @@ case 'g':
 	cout << "ERROR: GPU support not compiled in. Rebuild with GPU=True in make.inc." << endl;
 	EXIT;
 #endif
-	break;
-case 'N':
-	gpu_nc_file = optarg;
 	break;
 case 'c':
 	checkFistStep = true;
@@ -348,11 +344,12 @@ if(gpu_flag)
 		goto cpu_structure;
 	}
 	// --- Build or read B-field grid ---
+	// Sample getBfield() onto the grid; this honors response_field
+	// (EFIT / M3D-C1 / XFIELD-XPAND / SIESTA / GPEC). Only -1 (axisymmetric EFIT)
+	// is a single phi plane; every other source is 3D.
 	FieldGrid3D* fgrid = nullptr;
-	if(!gpu_nc_file.empty()) {
-		fgrid = read_bfield_netcdf(gpu_nc_file);
-	} else {
-		bool is_3D = (PAR.response_field >= 0);
+	{
+		bool is_3D = (PAR.response_field >= 0) || (PAR.response_field <= -2);
 		int gpu_NR = 300, gpu_NZ = 300;
 		int gpu_Nphi = is_3D ? 64 : 1;
 		double gpu_Rmin = EQD.R(1), gpu_Rmax = EQD.R(EQD.NR);

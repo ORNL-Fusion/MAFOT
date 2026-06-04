@@ -28,25 +28,6 @@ FieldGrid3D* sample_bfield(EFIT& EQD, IO& PAR,
                             int NZ,   double Zmin,   double Zmax);
 
 // ---------------------------------------------------------------------------
-// Read a user-supplied 3-D B-field from a netCDF file.
-//
-// Expected netCDF layout:
-//   dimensions: nr, nphi, nz
-//   variables (double):
-//     R(nr)           – R grid [m]
-//     phi(nphi)       – phi grid [degrees, right-handed]
-//     Z(nz)           – Z grid [m]
-//     BR(nr,nphi,nz)  – B_R [T]
-//     Bphi(nr,nphi,nz)– B_phi [T]
-//     BZ(nr,nphi,nz)  – B_Z [T]
-//   optional variable:
-//     psi(nr,nz)      – normalised poloidal flux (set to -1 everywhere if absent)
-//
-// Returns a heap-allocated FieldGrid3D.  Caller must call free_field_grid().
-// ---------------------------------------------------------------------------
-FieldGrid3D* read_bfield_netcdf(const std::string& filename);
-
-// ---------------------------------------------------------------------------
 // Fill grid->wall_R / wall_Z / Nwall from EQD.wall (2-D wall polygon).
 // grid must already be allocated; its wall pointers are replaced.
 // ---------------------------------------------------------------------------
@@ -54,8 +35,7 @@ void extract_wall(EFIT& EQD, FieldGrid3D* grid);
 
 // ---------------------------------------------------------------------------
 // Fill grid->psi_norm (NR × NZ) by calling EQD.get_psi() on the same
-// (R, Z) grid used for the B-field.  Call after sample_bfield() or
-// read_bfield_netcdf().
+// (R, Z) grid used for the B-field.  Call after sample_bfield().
 // ---------------------------------------------------------------------------
 void fill_psi_grid(EFIT& EQD, FieldGrid3D* grid);
 

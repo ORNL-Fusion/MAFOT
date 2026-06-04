@@ -117,13 +117,12 @@ double mc = 1;
 bool use_collision = false;
 #ifdef USE_GPU
 bool gpu_flag = false;
-std::string gpu_nc_file = "";
 #endif
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hgsl:W:A:N:P:X:V:S:I:E:T:i:cbB:")) != -1)
+while ((c = getopt(argc, argv, "hgsl:W:A:P:X:V:S:I:E:T:i:cbB:")) != -1)
 switch (c)
 {
 case 'h':
@@ -154,8 +153,8 @@ case 'h':
 		cout << "  -V            filename for VMEC; default, see below" << endl;
 		cout << "  -W            use separate 3D Wall-File; default is 2D wall from EFIT file" << endl;
 		cout << "  -X            filename for XPAND; default is None" << endl;
-		cout << "  -g            use GPU for field-line tracing (requires build with GPU=True)" << endl;
-		cout << "  -N            netCDF file with pre-computed 3D B-field grid for GPU tracing" << endl;
+		cout << "  -g            use GPU for field-line tracing (requires build with GPU=True);" << endl;
+		cout << "                samples the active field (EFIT / M3D-C1 / XFIELD / SIESTA / GPEC) set by response_field" << endl;
 		cout << endl << "Examples:" << endl;
 		cout << "  mpirun -n 4 dtlaminar_mpi _lam.dat blabla" << endl;
 		cout << "  mpirun -n 12 dtlaminar_mpi -s -l 0.7 _lam.dat skip_inside0.7" << endl;
@@ -241,14 +240,6 @@ case 'T':
 case 'g':
 #ifdef USE_GPU
 	gpu_flag = true;
-#else
-	if(mpi_rank < 1) cout << "ERROR: GPU support not compiled in. Rebuild with GPU=True in make.inc." << endl;
-	EXIT;
-#endif
-	break;
-case 'N':
-#ifdef USE_GPU
-	gpu_nc_file = optarg;
 #else
 	if(mpi_rank < 1) cout << "ERROR: GPU support not compiled in. Rebuild with GPU=True in make.inc." << endl;
 	EXIT;
@@ -472,15 +463,12 @@ if(gpu_flag)
 			if(bchk == -1) { B_R_start[ii] = 0; B_Z_start[ii] = 0; B_phi_start[ii] = 0; }
 		}
 
-		// Build or read B-field grid for GPU
+		// Build the B-field grid by sampling getBfield() (honors response_field:
+		// EFIT / M3D-C1 / XFIELD-XPAND / SIESTA / GPEC). Only -1 (axisymmetric EFIT)
+		// is a single phi plane.
 		FieldGrid3D* grid = nullptr;
-		if(!gpu_nc_file.empty())
 		{
-			grid = read_bfield_netcdf(gpu_nc_file);
-		}
-		else
-		{
-			int use_Nphi = (PAR.response_field >= 0) ? 64 : 1;
+			int use_Nphi = ((PAR.response_field >= 0) || (PAR.response_field <= -2)) ? 64 : 1;
 			double Rmin_g = EQD.R(1), Rmax_g = EQD.R(EQD.NR);
 			double Zmin_g = EQD.Z(1), Zmax_g = EQD.Z(EQD.NZ);
 			double phimin_g = (use_Nphi > 1) ? 0.0 : PAR.phistart;

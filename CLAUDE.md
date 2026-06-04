@@ -147,7 +147,7 @@ make heatlaminar_gpu      # GPU-enabled heatlaminar_mpi
 
 GPU builds add `-DUSE_GPU` and link against `libcudart`. Source files involved:
 - `include/gpu_fields.hxx` — POD structs shared between host and device
-- `src/gpu/bfield_sampler.hxx/.cxx` — CPU-side grid sampling and netCDF reader
+- `src/gpu/bfield_sampler.hxx/.cxx` — CPU-side grid sampling (samples `getBfield()` onto a 3-D grid)
 - `src/gpu/fieldline_kernel.cuh/.cu` — CUDA kernels and host wrappers
 
 ### Runtime
@@ -155,13 +155,11 @@ GPU builds add `-DUSE_GPU` and link against `libcudart`. Source files involved:
 Add `-g` to use the GPU; omit it to use the normal CPU/MPI path:
 
 ```bash
-heatstructure_gpu -g _str.dat [tag]                    # GPU, EFIT-sampled grid
-heatstructure_gpu -g -N bfield.nc _str.dat [tag]       # GPU, user-supplied netCDF grid
+heatstructure_gpu -g _str.dat [tag]                    # GPU; samples the active field source
 mpirun -n 1 heatlaminar_gpu -g _lam.dat [tag]          # GPU laminar (single rank)
-mpirun -n 1 heatlaminar_gpu -g -N bfield.nc _lam.dat [tag]
 ```
 
-The `-N file.nc` option loads a user-provided 3-D B-field grid instead of sampling from the equilibrium backend. Expected netCDF layout: dimensions `nr, nphi, nz`; variables `R(nr)`, `phi(nphi)` [degrees], `Z(nz)`, `BR/Bphi/BZ(nr,nphi,nz)` [T], optional `psi(nr,nz)`.
+The GPU samples whatever field source `response_field` selects in the control file (EFIT, M3D-C1, XFIELD/XPAND, SIESTA, GPEC) onto a uniform 3-D `(R, phi, Z)` grid, then runs the RK4 kernel on that grid. To trace a **user-supplied 3-D field**, set `response_field = -3` and provide an `xpand.dat` ASCII grid file — the existing `XFIELD` reader loads it and the GPU samples it via `getBfield()` like any other source (this needs `VMEC = True` in `make.inc`, which compiles in the XFIELD/XPAND reader). `response_field = -1` (axisymmetric EFIT) uses a single phi plane; all other sources use a full 3-D grid.
 
 Key limitations:
 - Structure tool (`heatstructure_gpu -g`) bypasses the GPU path when `sigma != 0` (heat-flux weighting), falling back to the CPU automatically.

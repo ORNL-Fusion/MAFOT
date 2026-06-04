@@ -9,10 +9,6 @@
 #include <cstring>
 #include <cmath>
 
-#ifdef USE_NETCDF
-#include <netcdf.h>
-#endif
-
 // ---------------------------------------------------------------------------
 // Internal helper: allocate a zero-initialised FieldGrid3D
 // ---------------------------------------------------------------------------
@@ -91,84 +87,6 @@ FieldGrid3D* sample_bfield(EFIT& EQD, IO& PAR,
     printf("GPU: B-field sampling complete.\n");
     fflush(stdout);
     return g;
-}
-
-// ---------------------------------------------------------------------------
-// read_bfield_netcdf
-// ---------------------------------------------------------------------------
-FieldGrid3D* read_bfield_netcdf(const std::string& filename)
-{
-#ifndef USE_NETCDF
-    fprintf(stderr, "ERROR: MAFOT was not compiled with netCDF support (USE_NETCDF).\n");
-    fprintf(stderr, "       Rebuild with VMEC=True or add -DUSE_NETCDF to CFLAGS.\n");
-    return nullptr;
-#else
-    int ncid, retval;
-
-    if((retval = nc_open(filename.c_str(), NC_NOWRITE, &ncid)) != NC_NOERR) {
-        fprintf(stderr, "ERROR: cannot open netCDF file '%s': %s\n",
-                filename.c_str(), nc_strerror(retval));
-        return nullptr;
-    }
-
-    // --- Read dimension sizes ---
-    int nr_dimid, nphi_dimid, nz_dimid;
-    size_t NR, Nphi, NZ;
-
-    #define NC_CHK(call) do { if((retval=(call))!=NC_NOERR) { \
-        fprintf(stderr,"netCDF error: %s\n",nc_strerror(retval)); nc_close(ncid); return nullptr; } } while(0)
-
-    NC_CHK(nc_inq_dimid(ncid, "nr",   &nr_dimid));
-    NC_CHK(nc_inq_dimid(ncid, "nphi", &nphi_dimid));
-    NC_CHK(nc_inq_dimid(ncid, "nz",   &nz_dimid));
-    NC_CHK(nc_inq_dimlen(ncid, nr_dimid,   &NR));
-    NC_CHK(nc_inq_dimlen(ncid, nphi_dimid, &Nphi));
-    NC_CHK(nc_inq_dimlen(ncid, nz_dimid,   &NZ));
-
-    FieldGrid3D* g = alloc_grid((int)NR, (int)Nphi, (int)NZ);
-
-    // --- Read coordinate arrays ---
-    double *R_arr   = new double[NR];
-    double *phi_arr = new double[Nphi];
-    double *Z_arr   = new double[NZ];
-
-    int varid;
-    NC_CHK(nc_inq_varid(ncid, "R",   &varid)); NC_CHK(nc_get_var_double(ncid, varid, R_arr));
-    NC_CHK(nc_inq_varid(ncid, "phi", &varid)); NC_CHK(nc_get_var_double(ncid, varid, phi_arr));
-    NC_CHK(nc_inq_varid(ncid, "Z",   &varid)); NC_CHK(nc_get_var_double(ncid, varid, Z_arr));
-
-    g->Rmin   = R_arr[0];     g->Rmax   = R_arr[NR-1];
-    g->phimin = phi_arr[0];   g->phimax = phi_arr[Nphi-1];
-    g->Zmin   = Z_arr[0];     g->Zmax   = Z_arr[NZ-1];
-    g->dR   = (NR   > 1) ? (g->Rmax   - g->Rmin)   / (NR   - 1) : 0.0;
-    g->dphi = (Nphi > 1) ? (g->phimax - g->phimin)  / (Nphi - 1) : 0.0;
-    g->dZ   = (NZ   > 1) ? (g->Zmax   - g->Zmin)    / (NZ   - 1) : 0.0;
-
-    delete[] R_arr;
-    delete[] phi_arr;
-    delete[] Z_arr;
-
-    // --- Read B-field arrays ---
-    NC_CHK(nc_inq_varid(ncid, "BR",   &varid)); NC_CHK(nc_get_var_double(ncid, varid, g->BR));
-    NC_CHK(nc_inq_varid(ncid, "Bphi", &varid)); NC_CHK(nc_get_var_double(ncid, varid, g->Bphi));
-    NC_CHK(nc_inq_varid(ncid, "BZ",   &varid)); NC_CHK(nc_get_var_double(ncid, varid, g->BZ));
-
-    // --- Optional psi array ---
-    if(nc_inq_varid(ncid, "psi", &varid) == NC_NOERR) {
-        NC_CHK(nc_get_var_double(ncid, varid, g->psi_norm));
-    } else {
-        // Mark unavailable — laminar will skip psimin/psiav columns
-        long Npsi = (long)NR * NZ;
-        for(long k = 0; k < Npsi; k++) g->psi_norm[k] = -1.0;
-    }
-
-    nc_close(ncid);
-    #undef NC_CHK
-
-    printf("GPU: read B-field from '%s' (%zu x %zu x %zu grid).\n",
-           filename.c_str(), NR, Nphi, NZ);
-    return g;
-#endif // USE_NETCDF
 }
 
 // ---------------------------------------------------------------------------
