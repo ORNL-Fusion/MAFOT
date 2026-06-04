@@ -26,7 +26,7 @@ LDFLAGS =
 # ---- external Libraries ---- 
 BLITZLIBS = -L/Users/wingen/Documents/Eclipse/Lib/blitz/lib -lblitz
 FLIBS = -L/usr/local/gfortran/lib -lgfortran
-OMPLIBS = -L/usr/local/openmpi/lib -lmpi -lmpi_cxx
+OMPLIBS = -L/usr/local/openmpi/lib -lmpi
 M3DC1LIBS = 
 HDF5LIBS = 
 NETCDFLIBS = -L/opt/local/lib -lnetcdf

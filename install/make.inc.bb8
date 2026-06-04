@@ -29,7 +29,7 @@ DEFS = -Dm3dc1_newfio
 # ---- external Libraries ---- 
 BLITZLIBS = -L/home/shared/mafot/lib -lblitz
 FLIBS = -L/usr/lib64 -lgfortran -lpthread
-OMPLIBS = -L/usr/lib64/openmpi/lib -lmpi -lmpi_cxx
+OMPLIBS = -L/usr/lib64/openmpi/lib -lmpi
 M3DC1LIBS = -L/home/shared/m3dc1/fusion-io/lib -lfusionio -lm3dc1
 HDF5LIBS = -L/usr/lib64 -lz -Wl,-rpath,/usr/lib64 -lstdc++
 NETCDFLIBS = -L/usr/lib64/openmpi/lib -lnetcdf -lhdf5
