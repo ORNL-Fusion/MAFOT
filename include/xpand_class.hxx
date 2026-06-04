@@ -10,11 +10,7 @@
 // Include
 //--------
 #ifdef USE_MPI
-#ifdef USE_MPICH
-	#include <mpi.h>
-#else
-	#include <openmpi/ompi/mpi/cxx/mpicxx.h>
-#endif
+#include <mpi.h>
 #endif
 #include <la_string.hxx>
 #include <fstream>
@@ -652,7 +648,7 @@ return(*this);
 void BFIELDVC::init(VMEC woutin, LA_STRING mgrid_file)
 {
 #ifdef USE_MPI
-int mpi_rank = MPI::COMM_WORLD.Get_rank();
+int mpi_rank; MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 #else
 int mpi_rank = 0;
 #endif
@@ -933,8 +929,8 @@ for(j=1;j<=Nv;j++) V(j) = (j-1)*dv;
 
 #ifdef USE_MPI
 // Prepare parallel execution
-int mpi_rank = MPI::COMM_WORLD.Get_rank();
-int mpi_size = MPI::COMM_WORLD.Get_size();
+int mpi_rank; MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+int mpi_size; MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 int mpi_parts = Nu*Nv / mpi_size;
 int kstart = 1 + mpi_rank*mpi_parts;
 int kend = (mpi_rank + 1)*mpi_parts;
@@ -1001,29 +997,29 @@ for(k=kstart;k<=kend;k++)
 // send results to every node
 double *buffer;
 buffer = Rs.dataZero() + Rs.stride(firstDim)*istart + Rs.stride(secondDim)*jstart;
-MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, Rs.dataFirst(), mpi_parts, MPI::DOUBLE);
+MPI_Allgather(buffer, mpi_parts, MPI_DOUBLE, Rs.dataFirst(), mpi_parts, MPI_DOUBLE, MPI_COMM_WORLD);
 buffer = Zs.dataZero() + Zs.stride(firstDim)*istart + Zs.stride(secondDim)*jstart;
-MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, Zs.dataFirst(), mpi_parts, MPI::DOUBLE);
+MPI_Allgather(buffer, mpi_parts, MPI_DOUBLE, Zs.dataFirst(), mpi_parts, MPI_DOUBLE, MPI_COMM_WORLD);
 buffer = KR.dataZero() + KR.stride(firstDim)*istart + KR.stride(secondDim)*jstart;
-MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, KR.dataFirst(), mpi_parts, MPI::DOUBLE);
+MPI_Allgather(buffer, mpi_parts, MPI_DOUBLE, KR.dataFirst(), mpi_parts, MPI_DOUBLE, MPI_COMM_WORLD);
 buffer = Kp.dataZero() + Kp.stride(firstDim)*istart + Kp.stride(secondDim)*jstart;
-MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, Kp.dataFirst(), mpi_parts, MPI::DOUBLE);
+MPI_Allgather(buffer, mpi_parts, MPI_DOUBLE, Kp.dataFirst(), mpi_parts, MPI_DOUBLE, MPI_COMM_WORLD);
 buffer = KZ.dataZero() + KZ.stride(firstDim)*istart + KZ.stride(secondDim)*jstart;
-MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, KZ.dataFirst(), mpi_parts, MPI::DOUBLE);
+MPI_Allgather(buffer, mpi_parts, MPI_DOUBLE, KZ.dataFirst(), mpi_parts, MPI_DOUBLE, MPI_COMM_WORLD);
 buffer = nB.dataZero() + nB.stride(firstDim)*istart + nB.stride(secondDim)*jstart;
-MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, nB.dataFirst(), mpi_parts, MPI::DOUBLE);
+MPI_Allgather(buffer, mpi_parts, MPI_DOUBLE, nB.dataFirst(), mpi_parts, MPI_DOUBLE, MPI_COMM_WORLD);
 buffer = dRdu.dataZero() + dRdu.stride(firstDim)*istart + dRdu.stride(secondDim)*jstart;
-MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, dRdu.dataFirst(), mpi_parts, MPI::DOUBLE);
+MPI_Allgather(buffer, mpi_parts, MPI_DOUBLE, dRdu.dataFirst(), mpi_parts, MPI_DOUBLE, MPI_COMM_WORLD);
 buffer = dRdv.dataZero() + dRdv.stride(firstDim)*istart + dRdv.stride(secondDim)*jstart;
-MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, dRdv.dataFirst(), mpi_parts, MPI::DOUBLE);
+MPI_Allgather(buffer, mpi_parts, MPI_DOUBLE, dRdv.dataFirst(), mpi_parts, MPI_DOUBLE, MPI_COMM_WORLD);
 buffer = d2R.dataZero() + d2R.stride(firstDim)*istart + d2R.stride(secondDim)*jstart;
-MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, d2R.dataFirst(), mpi_parts, MPI::DOUBLE);
+MPI_Allgather(buffer, mpi_parts, MPI_DOUBLE, d2R.dataFirst(), mpi_parts, MPI_DOUBLE, MPI_COMM_WORLD);
 buffer = dZdu.dataZero() + dZdu.stride(firstDim)*istart + dZdu.stride(secondDim)*jstart;
-MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, dZdu.dataFirst(), mpi_parts, MPI::DOUBLE);
+MPI_Allgather(buffer, mpi_parts, MPI_DOUBLE, dZdu.dataFirst(), mpi_parts, MPI_DOUBLE, MPI_COMM_WORLD);
 buffer = dZdv.dataZero() + dZdv.stride(firstDim)*istart + dZdv.stride(secondDim)*jstart;
-MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, dZdv.dataFirst(), mpi_parts, MPI::DOUBLE);
+MPI_Allgather(buffer, mpi_parts, MPI_DOUBLE, dZdv.dataFirst(), mpi_parts, MPI_DOUBLE, MPI_COMM_WORLD);
 buffer = d2Z.dataZero() + d2Z.stride(firstDim)*istart + d2Z.stride(secondDim)*jstart;
-MPI::COMM_WORLD.Allgather(buffer, mpi_parts, MPI::DOUBLE, d2Z.dataFirst(), mpi_parts, MPI::DOUBLE);
+MPI_Allgather(buffer, mpi_parts, MPI_DOUBLE, d2Z.dataFirst(), mpi_parts, MPI_DOUBLE, MPI_COMM_WORLD);
 
 int origin;
 if((mpi_size*mpi_parts) < (Nu*Nv))
@@ -1035,29 +1031,29 @@ if((mpi_size*mpi_parts) < (Nu*Nv))
 	origin = mpi_size-1;
 
 	buffer = Rs.dataZero() + Rs.stride(firstDim)*istart + Rs.stride(secondDim)*jstart;
-	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	MPI_Bcast(buffer, mpi_parts, MPI_DOUBLE, origin, MPI_COMM_WORLD);
 	buffer = Zs.dataZero() + Zs.stride(firstDim)*istart + Zs.stride(secondDim)*jstart;
-	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	MPI_Bcast(buffer, mpi_parts, MPI_DOUBLE, origin, MPI_COMM_WORLD);
 	buffer = KR.dataZero() + KR.stride(firstDim)*istart + KR.stride(secondDim)*jstart;
-	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	MPI_Bcast(buffer, mpi_parts, MPI_DOUBLE, origin, MPI_COMM_WORLD);
 	buffer = Kp.dataZero() + Kp.stride(firstDim)*istart + Kp.stride(secondDim)*jstart;
-	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	MPI_Bcast(buffer, mpi_parts, MPI_DOUBLE, origin, MPI_COMM_WORLD);
 	buffer = KZ.dataZero() + KZ.stride(firstDim)*istart + KZ.stride(secondDim)*jstart;
-	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	MPI_Bcast(buffer, mpi_parts, MPI_DOUBLE, origin, MPI_COMM_WORLD);
 	buffer = nB.dataZero() + nB.stride(firstDim)*istart + nB.stride(secondDim)*jstart;
-	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	MPI_Bcast(buffer, mpi_parts, MPI_DOUBLE, origin, MPI_COMM_WORLD);
 	buffer = dRdu.dataZero() + dRdu.stride(firstDim)*istart + dRdu.stride(secondDim)*jstart;
-	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	MPI_Bcast(buffer, mpi_parts, MPI_DOUBLE, origin, MPI_COMM_WORLD);
 	buffer = dRdv.dataZero() + dRdv.stride(firstDim)*istart + dRdv.stride(secondDim)*jstart;
-	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	MPI_Bcast(buffer, mpi_parts, MPI_DOUBLE, origin, MPI_COMM_WORLD);
 	buffer = d2R.dataZero() + d2R.stride(firstDim)*istart + d2R.stride(secondDim)*jstart;
-	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	MPI_Bcast(buffer, mpi_parts, MPI_DOUBLE, origin, MPI_COMM_WORLD);
 	buffer = dZdu.dataZero() + dZdu.stride(firstDim)*istart + dZdu.stride(secondDim)*jstart;
-	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	MPI_Bcast(buffer, mpi_parts, MPI_DOUBLE, origin, MPI_COMM_WORLD);
 	buffer = dZdv.dataZero() + dZdv.stride(firstDim)*istart + dZdv.stride(secondDim)*jstart;
-	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	MPI_Bcast(buffer, mpi_parts, MPI_DOUBLE, origin, MPI_COMM_WORLD);
 	buffer = d2Z.dataZero() + d2Z.stride(firstDim)*istart + d2Z.stride(secondDim)*jstart;
-	MPI::COMM_WORLD.Bcast(buffer, mpi_parts, MPI::DOUBLE, origin);
+	MPI_Bcast(buffer, mpi_parts, MPI_DOUBLE, origin, MPI_COMM_WORLD);
 }
 #endif
 
@@ -1215,7 +1211,7 @@ b *= 1e-7*I;	// mu0/4pi * I
 int read_extcur(Array<double,1>& extcur, LA_STRING input_extension)
 {
 #ifdef USE_MPI
-int mpi_rank = MPI::COMM_WORLD.Get_rank();
+int mpi_rank; MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 #else
 int mpi_rank = 0;
 #endif

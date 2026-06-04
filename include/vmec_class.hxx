@@ -871,7 +871,7 @@ return(*this);
 void VMEC::read(LA_STRING filename)
 {
 #ifdef USE_MPI
-int mpi_rank = MPI::COMM_WORLD.Get_rank();
+int mpi_rank; MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 #else
 int mpi_rank = 0;
 #endif

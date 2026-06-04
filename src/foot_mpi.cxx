@@ -34,11 +34,7 @@
 
 // Include
 //--------
-#ifdef USE_MPICH
-	#include <mpi.h>
-#else
-	#include <openmpi/ompi/mpi/cxx/mpicxx.h>
-#endif
+#include <mpi.h>
 #include <mafot.hxx>
 #include <omp.h>
 #include <unistd.h>
@@ -57,9 +53,9 @@
 int main(int argc, char *argv[])
 {
 // MPI initialize
-MPI::Init(argc, argv);
-int mpi_rank = MPI::COMM_WORLD.Get_rank();
-int mpi_size = MPI::COMM_WORLD.Get_size();
+MPI_Init(&argc, &argv);
+int mpi_rank; MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+int mpi_size; MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
 // Variables
 int i,j;
@@ -72,7 +68,7 @@ vector<string> coeffs;
 int tag,sender;
 double tmin_slave,tmax_slave,dt;
 Array<double,1> send_t_limits(Range(1,2));
-MPI::Status status;
+MPI_Status status;
 
 // Use system time as seed(=idum) for random numbers
 double now = zeit();
@@ -138,7 +134,7 @@ case 'h':
 		cout << "                       use option -I to specify other filename" << endl;
 		cout << endl << "Current MAFOT version is: " << MAFOT_VERSION << endl;
 	}
-	MPI::Finalize();
+	MPI_Finalize();
 	return 0;
 case 'I':
 	islandfile = optarg;
@@ -361,7 +357,7 @@ if (use_collision) COL.init(TprofileFile, NprofileFile, f, zbar, PAR.Zq, PAR.Mas
 // Prepare particles
 PARTICLE FLT(EQD,PAR,COL,mpi_rank);
 
-MPI::COMM_WORLD.Barrier();	// Syncronize all Nodes
+MPI_Barrier(MPI_COMM_WORLD);	// Syncronize all Nodes
 
 // Master only (Node 0)
 //--------------------------------------------------------------------------------------------------
@@ -428,7 +424,7 @@ if(mpi_rank < 1)
 		#pragma omp section	//-------- Master Thread: controlles comunication ----------------------------------------------------------------------------------------------------------------------
 		{
 			//#pragma omp barrier	// Syncronize with Slave Thread
-			MPI::COMM_WORLD.Barrier();	// Master waits for Slaves
+			MPI_Barrier(MPI_COMM_WORLD);	// Master waits for Slaves
 
 			//ofs2 << "Target (0=vertical, 1=45�, 2=horizontal, 3=shelf): " << which_target_plate << endl;
 			ofs3 << "Start Tracer for " << N << " points ... " << endl;
@@ -447,14 +443,14 @@ if(mpi_rank < 1)
 					send_t_limits(1) = t_values((tag-1)*Nt_slave+1);	// tmin_slave
 					send_t_limits(2) = t_values(tag*Nt_slave);	// tmax_slave
 
-					MPI::COMM_WORLD.Send(send_t_limits.dataFirst(),2,MPI::DOUBLE,i,tag);
+					MPI_Send(send_t_limits.dataFirst(),2,MPI_DOUBLE,i,tag, MPI_COMM_WORLD);
 					workingNodes += 1;
 
 					ofs3 << "Send Package No.: " << tag << endl;
 				}
 				else	// more Nodes than Packages -> Send termination signal: tag = 0
 				{
-					MPI::COMM_WORLD.Send(send_t_limits.dataFirst(),0,MPI::DOUBLE,i,0);
+					MPI_Send(send_t_limits.dataFirst(),0,MPI_DOUBLE,i,0, MPI_COMM_WORLD);
 					ofs3 << "Send termination signal to Node: " << i << endl;
 				}
 			} // end for(i=1;i<mpi_size;i++)
@@ -463,9 +459,9 @@ if(mpi_rank < 1)
 			while(workingNodes > 0)	// workingNodes > 0: Slave still working -> MPI:Revc needed		workingNodes == 0: all Slaves recieved termination signal
 			{
 				// Recieve Result
-				MPI::COMM_WORLD.Recv(recieve.dataFirst(),N_variables*N_slave,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
-				sender = status.Get_source();
-				tag = status.Get_tag();
+				MPI_Recv(recieve.dataFirst(),N_variables*N_slave,MPI_DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+				sender = status.MPI_SOURCE;
+				tag = status.MPI_TAG;
 				ofs3 << "Recieve from Node: " << sender << " Package: " << tag << endl;
 
 				#pragma omp critical
@@ -490,12 +486,12 @@ if(mpi_rank < 1)
 					send_t_limits(1) = t_values((tag-1)*Nt_slave+1);	// tmin_slave
 					send_t_limits(2) = t_values(tag*Nt_slave);	// tmax_slave
 
-					MPI::COMM_WORLD.Send(send_t_limits.dataFirst(),2,MPI::DOUBLE,sender,tag);
+					MPI_Send(send_t_limits.dataFirst(),2,MPI_DOUBLE,sender,tag, MPI_COMM_WORLD);
 					ofs3 << "Send again to Node: " << sender << " Package No.: " << tag << endl;
 				}
 				else	// No Packages left -> Send termination signal: tag = 0
 				{
-					MPI::COMM_WORLD.Send(send_t_limits.dataFirst(),0,MPI::DOUBLE,sender,0);
+					MPI_Send(send_t_limits.dataFirst(),0,MPI_DOUBLE,sender,0, MPI_COMM_WORLD);
 					workingNodes -= 1;
 					ofs3 << "Send termination signal to Node: " << sender << endl;
 				}
@@ -606,7 +602,7 @@ if(mpi_rank > 0)
 	prepare_common_perturbations(EQD,PAR,mpi_rank,siestafile,xpandfile,islandfile);
 	prep_perturbation(EQD,PAR,mpi_rank);
 
-	MPI::COMM_WORLD.Barrier();	// Syncronize with Master
+	MPI_Barrier(MPI_COMM_WORLD);	// Syncronize with Master
 
 	ofs2 << "Target: " << PAR.which_target_plate << endl;
 
@@ -617,9 +613,9 @@ if(mpi_rank > 0)
 	while(1)	
 	{
 		// Recieve initial conditions to calculate
-		MPI::COMM_WORLD.Recv(send_t_limits.dataFirst(),2,MPI::DOUBLE,0,MPI_ANY_TAG,status);
+		MPI_Recv(send_t_limits.dataFirst(),2,MPI_DOUBLE,0,MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
-		tag = status.Get_tag();
+		tag = status.MPI_TAG;
 		ofs2 << endl;
 		ofs2 << "Node: " << mpi_rank << " works on Package: " << tag << endl;
 		if(tag == 0) break;	// Still work to do?  ->  tag = 0: NO, stop working
@@ -650,7 +646,7 @@ if(mpi_rank > 0)
 		}
 
 		// Send results to Master
-		MPI::COMM_WORLD.Send(results.dataFirst(),N_variables*N_slave,MPI::DOUBLE,0,tag);
+		MPI_Send(results.dataFirst(),N_variables*N_slave,MPI_DOUBLE,0,tag, MPI_COMM_WORLD);
 
 	}// end while
 } // end Slaves
@@ -669,7 +665,7 @@ if(PAR.response_field >= 0) M3D.unload();
 #endif
 
 // MPI finalize
-MPI::Finalize();
+MPI_Finalize();
 
 return 0; 
 } //end of main

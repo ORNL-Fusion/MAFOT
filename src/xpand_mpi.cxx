@@ -8,11 +8,7 @@
 
 // Include
 //--------
-#ifdef USE_MPICH
-	#include <mpi.h>
-#else
-	#include <openmpi/ompi/mpi/cxx/mpicxx.h>
-#endif
+#include <mpi.h>
 #include <omp.h>
 #include <unistd.h>
 #include <andi.hxx>
@@ -86,9 +82,9 @@ ofstream logfile;
 int main(int argc, char *argv[])
 {
 // MPI initialize
-MPI::Init(argc, argv);
-int mpi_rank = MPI::COMM_WORLD.Get_rank();
-int mpi_size = MPI::COMM_WORLD.Get_size();
+MPI_Init(&argc, &argv);
+int mpi_rank; MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+int mpi_size; MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
 // Variables
 int i,j, N, idx, k;
@@ -102,7 +98,7 @@ ofstream ofs3;
 int tag,sender;
 int Nmin_slave,Nmax_slave;
 Array<int,1> send_N_limits(Range(1,2));
-MPI::Status status;
+MPI_Status status;
 
 // adaptive integrator defaults
 double epsabs = 1e-6;
@@ -147,7 +143,7 @@ case 'h':
 		cout << "  mpirun -n 12 xpand_mpi -i 1500 -P ./here/my_points.dat wout.nc test" << endl;
 		cout << "  mpirun -n 12 xpand_mpi -r 1e-8 -S -M /home/shared/mgrid_d3d.nc wout.nc test2" << endl;
 	}
-	MPI::Finalize();
+	MPI_Finalize();
 	return 0;
 case 'P':
 	points_file = optarg;
@@ -245,7 +241,7 @@ int write_max = 0;
 int write_last = 0; //tag of last written data
 write_memory = 0;
 
-MPI::COMM_WORLD.Barrier();	// Syncronize all Nodes
+MPI_Barrier(MPI_COMM_WORLD);	// Syncronize all Nodes
 
 // Master only (Node 0)
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -324,14 +320,14 @@ if(mpi_rank < 1)
 					send_N_limits(1) = N_values((tag-1)*N_slave+1);	// Nmin_slave
 					send_N_limits(2) = N_values(tag*N_slave);	// Nmax_slave
 
-					MPI::COMM_WORLD.Send(send_N_limits.dataFirst(),2,MPI::INTEGER,i,tag);
+					MPI_Send(send_N_limits.dataFirst(),2,MPI_INT,i,tag, MPI_COMM_WORLD);
 					workingNodes += 1;
 
 					ofs3 << "Send Package No.: " << tag << endl;
 				}
 				else	// more Nodes than Packages -> Send termination signal: tag = 0
 				{
-					MPI::COMM_WORLD.Send(send_N_limits.dataFirst(),0,MPI::INTEGER,i,0);
+					MPI_Send(send_N_limits.dataFirst(),0,MPI_INT,i,0, MPI_COMM_WORLD);
 					ofs3 << "Send termination signal to Node: " << i << endl;
 				}
 			} // end for(i=1;i<mpi_size;i++)
@@ -340,9 +336,9 @@ if(mpi_rank < 1)
 			while(workingNodes > 0)	// workingNodes > 0: Slave still working -> MPI:Revc needed		workingNodes == 0: all Slaves recieved termination signal
 			{
 				// Recieve Result
-				MPI::COMM_WORLD.Recv(recieve.dataFirst(),N_transmit*N_slave,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
-				sender = status.Get_source();
-				tag = status.Get_tag();
+				MPI_Recv(recieve.dataFirst(),N_transmit*N_slave,MPI_DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+				sender = status.MPI_SOURCE;
+				tag = status.MPI_TAG;
 				ofs3 << "Recieve from Node: " << sender << " Package: " << tag << endl;
 
 				#pragma omp critical
@@ -370,12 +366,12 @@ if(mpi_rank < 1)
 					send_N_limits(1) = N_values((tag-1)*N_slave+1);	// Nmin_slave
 					send_N_limits(2) = N_values(tag*N_slave);	// Nmax_slave
 
-					MPI::COMM_WORLD.Send(send_N_limits.dataFirst(),2,MPI::INTEGER,sender,tag);
+					MPI_Send(send_N_limits.dataFirst(),2,MPI_INT,sender,tag, MPI_COMM_WORLD);
 					ofs3 << "Send again to Node: " << sender << " Package No.: " << tag << endl;
 				}
 				else	// No Packages left -> Send termination signal: tag = 0
 				{
-					MPI::COMM_WORLD.Send(send_N_limits.dataFirst(),0,MPI::INTEGER,sender,0);
+					MPI_Send(send_N_limits.dataFirst(),0,MPI_INT,sender,0, MPI_COMM_WORLD);
 					workingNodes -= 1;
 					ofs3 << "Send termination signal to Node: " << sender << endl;
 				}
@@ -556,9 +552,9 @@ if(mpi_rank > 0)
 	while(1)
 	{
 		// Recieve initial conditions to calculate
-		MPI::COMM_WORLD.Recv(send_N_limits.dataFirst(),2,MPI::INTEGER,0,MPI_ANY_TAG,status);
+		MPI_Recv(send_N_limits.dataFirst(),2,MPI_INT,0,MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
-		tag = status.Get_tag();
+		tag = status.MPI_TAG;
 		if(tag == 0) break;	// Still work to do?  ->  tag = 0: NO, stop working
 
 		Nmin_slave = send_N_limits(1);
@@ -620,7 +616,7 @@ if(mpi_rank > 0)
 		} // end for
 
 		// Send results to Master
-		MPI::COMM_WORLD.Send(results.dataFirst(),N_transmit*N_slave,MPI::DOUBLE,0,tag);
+		MPI_Send(results.dataFirst(),N_transmit*N_slave,MPI_DOUBLE,0,tag, MPI_COMM_WORLD);
 
 	}// end while
 } // end Slaves
@@ -634,7 +630,7 @@ if(mpi_rank < 1)
 }
 
 // MPI finalize
-MPI::Finalize();
+MPI_Finalize();
 
 return 0;
 }  //end of main
