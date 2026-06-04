@@ -1,8 +1,9 @@
 // CPU-side B-field pre-sampling for GPU field-line tracing.
 // Compiled by g++.  No CUDA headers required.
 
+#include <mafot.hxx>      // getBfield(), bndy[]  (must precede bfield_sampler.hxx:
+                          //   sets up <vector>/std + la_string before efit_class.hxx)
 #include <bfield_sampler.hxx>
-#include <mafot.hxx>      // getBfield(), bndy[]
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
