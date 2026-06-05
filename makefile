@@ -30,9 +30,10 @@ ifeq ($(GPU),True)
    # Static cudart: the binary carries the CUDA runtime, so deployment needs no
    # libcudart.so -- only the driver (libcuda.so) at runtime when -g is used.
    GPU_LIBS     = -L$(CUDA_PATH)/lib64 -lcudart_static -lpthread -lrt -ldl
-   GPU_SAMPLER  = $(OBJDIR)/bfield_sampler.o
+   # bfield_sampler is header-only (src/gpu/bfield_sampler.hxx) and compiles into
+   # structure.o / laminar_mpi.o; only the nvcc kernel is a separate object.
    GPU_KERNEL   = $(OBJDIR)/fieldline_kernel.o
-   GPU_OBJS     = $(GPU_SAMPLER) $(GPU_KERNEL)
+   GPU_OBJS     = $(GPU_KERNEL)
    NVCC        ?= $(CUDA_PATH)/bin/nvcc
    NVCCFLAGS   ?= -O3 -std=c++14
 else
@@ -392,10 +393,9 @@ heatlaminar_mpi : $(OBJDIR)/heat/laminar_mpi.o libla_string.a libtrip3d.a $(GPU_
 	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/heat/laminar_mpi.o $(GPU_OBJS) -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS) $(GPU_LIBS)
 
 
-# ---- HEAT GPU objects (built only when GPU=True; linked into the targets above) ----
-$(GPU_SAMPLER) : $(MAFOT_DIR)/src/gpu/bfield_sampler.cxx
-	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(GPU_INCLUDE) $(DEFINES) -I$(MAFOT_DIR)/src/gpu $< -o $@
-
+# ---- HEAT GPU object (built only when GPU=True; linked into the targets above) ----
+# The CPU-side sampler is header-only (bfield_sampler.hxx); only the CUDA kernel
+# is compiled separately, by nvcc.
 $(GPU_KERNEL) : $(MAFOT_DIR)/src/gpu/fieldline_kernel.cu
 	$(NVCC) -c $(NVCCFLAGS) -I$(MAFOT_DIR)/include -I$(MAFOT_DIR)/src/gpu $< -o $@
 

@@ -154,7 +154,7 @@ GPU builds add `-DUSE_GPU` and link `libcudart` **statically** (`-lcudart_static
 the runtime/deployment image needs no CUDA libraries — only the driver (`libcuda.so`,
 injected by `--gpus`) when `-g` is actually used. Source files involved:
 - `include/gpu_fields.hxx` — POD structs shared between host and device
-- `src/gpu/bfield_sampler.hxx/.cxx` — CPU-side grid sampling (samples `getBfield()` onto a 3-D grid)
+- `src/gpu/bfield_sampler.hxx` — CPU-side grid sampling (samples `getBfield()` onto a 3-D grid); header-only (inline), compiled into structure.o / laminar_mpi.o
 - `src/gpu/fieldline_kernel.cuh/.cu` — CUDA kernels and host wrappers
 
 ### Runtime
