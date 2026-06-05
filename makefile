@@ -27,7 +27,9 @@ endif
 ifeq ($(GPU),True)
    DEFINES     += -DUSE_GPU
    GPU_INCLUDE  = -I$(CUDA_PATH)/include -I$(MAFOT_DIR)/src/gpu
-   GPU_LIBS     = -L$(CUDA_PATH)/lib64 -lcudart
+   # Static cudart: the binary carries the CUDA runtime, so deployment needs no
+   # libcudart.so -- only the driver (libcuda.so) at runtime when -g is used.
+   GPU_LIBS     = -L$(CUDA_PATH)/lib64 -lcudart_static -lpthread -lrt -ldl
    GPU_SAMPLER  = $(OBJDIR)/bfield_sampler.o
    GPU_KERNEL   = $(OBJDIR)/fieldline_kernel.o
    GPU_OBJS     = $(GPU_SAMPLER) $(GPU_KERNEL)
@@ -379,26 +381,23 @@ tcabrstructure : $(OBJDIR)/tcabr/structure.o libla_string.a libtrip3d.a
 
 
 	# ---- HEAT Targets ----
-heatstructure : $(OBJDIR)/heat/structure.o libla_string.a libtrip3d.a
-	$(CXX) $(LDFLAGS) $(OBJDIR)/heat/structure.o -o $(BIN_DIR)/$@ $(LIBS)
+# One binary per tool. When GPU=True these link the CUDA objects (sampler +
+# kernel) and cudart, so the single binary does both: -g uses the GPU, omitting
+# -g runs the CPU path. When GPU=False, GPU_OBJS/GPU_LIBS are empty -> an
+# identical CPU-only binary that needs no CUDA toolchain to build.
+heatstructure : $(OBJDIR)/heat/structure.o libla_string.a libtrip3d.a $(GPU_OBJS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/heat/structure.o $(GPU_OBJS) -o $(BIN_DIR)/$@ $(LIBS) $(GPU_LIBS)
 
-heatlaminar_mpi : $(OBJDIR)/heat/laminar_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/heat/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+heatlaminar_mpi : $(OBJDIR)/heat/laminar_mpi.o libla_string.a libtrip3d.a $(GPU_OBJS)
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/heat/laminar_mpi.o $(GPU_OBJS) -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS) $(GPU_LIBS)
 
 
-# ---- HEAT GPU Targets (requires GPU=True in make.inc) ----
-# Compile the shared GPU objects (sampler + CUDA kernel)
+# ---- HEAT GPU objects (built only when GPU=True; linked into the targets above) ----
 $(GPU_SAMPLER) : $(MAFOT_DIR)/src/gpu/bfield_sampler.cxx
 	$(CXX) -c $(CFLAGS) $(OMPFLAGS) $(INCLUDE) $(GPU_INCLUDE) $(DEFINES) -I$(MAFOT_DIR)/src/gpu $< -o $@
 
 $(GPU_KERNEL) : $(MAFOT_DIR)/src/gpu/fieldline_kernel.cu
 	$(NVCC) -c $(NVCCFLAGS) -I$(MAFOT_DIR)/include -I$(MAFOT_DIR)/src/gpu $< -o $@
-
-heatstructure_gpu : $(OBJDIR)/heat/structure.o libla_string.a libtrip3d.a $(GPU_OBJS)
-	$(CXX) $(LDFLAGS) $(OBJDIR)/heat/structure.o $(GPU_OBJS) -o $(BIN_DIR)/$@ $(LIBS) $(GPU_LIBS)
-
-heatlaminar_gpu : $(OBJDIR)/heat/laminar_mpi.o libla_string.a libtrip3d.a $(GPU_OBJS)
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/heat/laminar_mpi.o $(GPU_OBJS) -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS) $(GPU_LIBS)
 
 
 # ---- Include Dependencies ----

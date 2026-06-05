@@ -137,33 +137,45 @@ In `make.inc` (or `install/make.inc.HEAT`):
 ```makefile
 GPU = True
 CUDA_PATH = /usr/local/cuda
-NVCCFLAGS = -O3 -std=c++14 -arch=sm_80   # sm_80=A100; sm_70=V100; sm_86=RTX30xx; sm_90=H100
+NVCCFLAGS = -O3 -std=c++14 -arch=sm_89   # sm_89=Ada (RTX 2000/40xx); sm_80=A100; sm_70=V100; sm_86=RTX30xx; sm_90=H100
 ```
 
 ```bash
-make heatstructure_gpu    # GPU-enabled heatstructure
-make heatlaminar_gpu      # GPU-enabled heatlaminar_mpi
+make heat    # GPU-enabled heatstructure + heatlaminar_mpi (one binary per tool)
 ```
 
-GPU builds add `-DUSE_GPU` and link against `libcudart`. Source files involved:
+There are **no separate `_gpu` binaries**: with `GPU=True`, GPU support is compiled
+directly into `heatstructure` and `heatlaminar_mpi`. The same binary runs on the GPU
+when given `-g` and on the CPU when `-g` is omitted. With `GPU=False`, the identical
+target names build CPU-only binaries that need no CUDA toolchain (and print an error
+if given `-g`).
+
+GPU builds add `-DUSE_GPU` and link `libcudart` **statically** (`-lcudart_static`), so
+the runtime/deployment image needs no CUDA libraries — only the driver (`libcuda.so`,
+injected by `--gpus`) when `-g` is actually used. Source files involved:
 - `include/gpu_fields.hxx` — POD structs shared between host and device
 - `src/gpu/bfield_sampler.hxx/.cxx` — CPU-side grid sampling (samples `getBfield()` onto a 3-D grid)
 - `src/gpu/fieldline_kernel.cuh/.cu` — CUDA kernels and host wrappers
 
 ### Runtime
 
-Add `-g` to use the GPU; omit it to use the normal CPU/MPI path:
+Add `-g` to use the GPU; omit it to use the normal CPU/MPI path (same binary):
 
 ```bash
-heatstructure_gpu -g _str.dat [tag]                    # GPU; samples the active field source
-mpirun -n 1 heatlaminar_gpu -g _lam.dat [tag]          # GPU laminar (single rank)
+heatstructure -g _str.dat [tag]                    # GPU; samples the active field source
+heatstructure _str.dat [tag]                       # CPU (no -g)
+mpirun -n 1 heatlaminar_mpi -g _lam.dat [tag]      # GPU laminar (single rank)
+mpirun -n N heatlaminar_mpi _lam.dat [tag]         # CPU laminar (no -g)
 ```
+
+If `-g` is given but no CUDA-capable GPU is present, the tool prints
+`ERROR: -g requires a CUDA-capable GPU, but none was found.` and exits.
 
 The GPU samples whatever field source `response_field` selects in the control file (EFIT, M3D-C1, XFIELD/XPAND, SIESTA, GPEC) onto a uniform 3-D `(R, phi, Z)` grid, then runs the RK4 kernel on that grid. To trace a **user-supplied 3-D field**, set `response_field = -3` and provide an `xpand.dat` ASCII grid file — the existing `XFIELD` reader loads it and the GPU samples it via `getBfield()` like any other source (this needs `VMEC = True` in `make.inc`, which compiles in the XFIELD/XPAND reader). `response_field = -1` (axisymmetric EFIT) uses a single phi plane; all other sources use a full 3-D grid.
 
 Key limitations:
-- Structure tool (`heatstructure_gpu -g`) bypasses the GPU path when `sigma != 0` (heat-flux weighting), falling back to the CPU automatically.
-- Laminar GPU mode (`heatlaminar_gpu -g`) runs entirely on MPI rank 0; passing `-n 1` is sufficient (other ranks exit immediately).
+- Structure tool (`heatstructure -g`) bypasses the GPU path when `sigma != 0` (heat-flux weighting), falling back to the CPU automatically.
+- Laminar GPU mode (`heatlaminar_mpi -g`) runs entirely on MPI rank 0; passing `-n 1` is sufficient (other ranks exit immediately).
 - GPU + M3DC1 works only on rank 0; if `prepare_common_perturbations` requires MPI coordination in your M3DC1 configuration, use CPU mode.
 
 ### Python GUI (`python/`)

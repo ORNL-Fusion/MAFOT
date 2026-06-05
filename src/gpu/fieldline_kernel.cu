@@ -27,6 +27,17 @@
     } while(0)
 
 // ---------------------------------------------------------------------------
+// Number of CUDA-capable devices (-1 if the CUDA runtime errors, e.g. no
+// driver). Lets the callers fail clearly when -g is given without a GPU.
+// ---------------------------------------------------------------------------
+int gpu_device_count(void)
+{
+    int n = 0;
+    if(cudaGetDeviceCount(&n) != cudaSuccess) return -1;
+    return n;
+}
+
+// ---------------------------------------------------------------------------
 // Device-side mirror of FieldGrid3D — holds device pointers.
 // One of these is copied into device constant memory before kernel launch.
 // ---------------------------------------------------------------------------

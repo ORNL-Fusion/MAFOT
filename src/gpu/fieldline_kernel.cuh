@@ -46,4 +46,11 @@ int gpu_trace_structure(const FieldlineInit* init,
                         const FieldGrid3D*   grid,
                         const GPUTraceParams& params);
 
+// ---------------------------------------------------------------------------
+// Number of CUDA-capable devices visible to the runtime, or -1 if the CUDA
+// runtime reports an error (e.g. no driver / no GPU). Used to fail clearly
+// when -g is requested on a host without a usable GPU.
+// ---------------------------------------------------------------------------
+int gpu_device_count(void);
+
 #endif // FIELDLINE_KERNEL_CUH

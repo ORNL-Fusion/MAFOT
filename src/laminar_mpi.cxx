@@ -419,6 +419,12 @@ if(gpu_flag)
 {
 	if(mpi_rank == 0)
 	{
+		if(gpu_device_count() <= 0)
+		{
+			cout << "ERROR: -g requires a CUDA-capable GPU, but none was found." << endl;
+			MPI_Finalize();
+			return -1;
+		}
 		prepare_common_perturbations(EQD,PAR,mpi_rank,siestafile,xpandfile,islandfile);
 		prep_perturbation(EQD,PAR,mpi_rank);
 

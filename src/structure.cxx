@@ -343,6 +343,10 @@ if(gpu_flag)
 		gpu_flag = false;
 		goto cpu_structure;
 	}
+	if(gpu_device_count() <= 0) {
+		cout << "ERROR: -g requires a CUDA-capable GPU, but none was found." << endl;
+		EXIT;
+	}
 	// --- Build or read B-field grid ---
 	// Sample getBfield() onto the grid; this honors response_field
 	// (EFIT / M3D-C1 / XFIELD-XPAND / SIESTA / GPEC). Only -1 (axisymmetric EFIT)
