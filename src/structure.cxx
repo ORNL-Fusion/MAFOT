@@ -393,6 +393,9 @@ if(gpu_flag)
 	gparams.MapDirection = PAR.MapDirection;
 	gparams.itt          = PAR.itt;
 	gparams.phistart     = PAR.phistart;
+	gparams.v_par        = PAR.v_par;
+	gparams.v_radial     = PAR.v_radial;
+	gparams.v_tor        = PAR.v_tor;
 
 	int gpu_err = gpu_trace_structure(finit, Npts, max_steps,
 	                                  res_bwd, res_fwd,

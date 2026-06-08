@@ -498,6 +498,9 @@ if(gpu_flag)
 		params.MapDirection = PAR.MapDirection;
 		params.itt          = PAR.itt;
 		params.phistart     = PAR.phistart;
+		params.v_par        = PAR.v_par;
+		params.v_radial     = PAR.v_radial;
+		params.v_tor        = PAR.v_tor;
 
 		LaminarResult* gpu_results = new LaminarResult[N];
 		if(gpu_trace_laminar(finit, gpu_results, N, grid, params) != 0)

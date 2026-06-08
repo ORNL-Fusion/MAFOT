@@ -94,6 +94,9 @@ struct GPUTraceParams
     int    MapDirection; // +1 forward, -1 backward, 0 both
     int    itt;          // max toroidal iterations (laminar) or max output steps (structure)
     double phistart;     // starting toroidal angle [degrees]
+    double v_par;        // prescribed parallel velocity [m/s] (drift mode; sets angle scale)
+    double v_radial;     // prescribed anomalous radial velocity [m/s]; 0 -> off (pure field line)
+    double v_tor;        // prescribed toroidal rotation velocity [m/s]; 0 -> off
 };
 
 #endif // GPU_FIELDS_HXX

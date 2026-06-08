@@ -60,6 +60,8 @@ struct DevGrid
 
     double bndy[4];
     int    simpleBndy;
+
+    double v_par, v_radial, v_tor;   // prescribed drift velocities [m/s]; v_radial=v_tor=0 -> pure field line
 };
 
 __constant__ DevGrid c_grid;   // constant memory copy
@@ -233,15 +235,28 @@ bool dgls(double R, double Z, double phi_deg,
     double Bphi = interp3D(c_grid.Bphi, R, phi_deg, Z);
 
     if(fabs(Bphi) < 1e-30) return false;
-    // dR/dphi = R*BR/Bphi is the field-line ODE for phi in RADIANS. This integrator
-    // advances phi in DEGREES (interp3D, output and boundary checks all use degrees),
-    // so scale by pi/180 to get the per-degree slope. The CPU does the equivalent by
-    // converting dpinit[deg]->rad before stepping (particle_class.hxx:399). Without
-    // this the poloidal step is 180/pi ~ 57x too large -> the field line wanders
-    // vertically as if Bphi were ~57x too weak.
+    // The field-line ODE (dR/dphi = R*BR/Bphi) is per-RADIAN, but this integrator advances phi in
+    // DEGREES (interp3D/output/boundary all use degrees), so scale by pi/180 for the per-degree
+    // slope (the CPU does this by converting dpinit[deg]->rad, particle_class.hxx).
     const double DEG2RAD = 0.017453292519943295;
-    dRdphi = R * BR / Bphi * DEG2RAD;
-    dZdphi = R * BZ / Bphi * DEG2RAD;
+    if(c_grid.v_radial != 0.0 || c_grid.v_tor != 0.0)
+    {
+        // Prescribed drift-velocity field v = v_par*b_hat + v_radial*r_hat + v_tor*phi_hat,
+        // reparametrized by phi. r_hat = (-BZ,0,BR)/Bp (poloidal flux-surface normal, matches
+        // HEAT fluxSurfNorms). v_radial=v_tor=0 reduces exactly to the field-line slope below.
+        double Bp   = sqrt(BR*BR + BZ*BZ);
+        double modB = sqrt(BR*BR + BZ*BZ + Bphi*Bphi);
+        double vR   = c_grid.v_par*BR/modB - c_grid.v_radial*BZ/Bp;
+        double vZ   = c_grid.v_par*BZ/modB + c_grid.v_radial*BR/Bp;
+        double vphi = c_grid.v_par*Bphi/modB + c_grid.v_tor;
+        dRdphi = R * vR / vphi * DEG2RAD;
+        dZdphi = R * vZ / vphi * DEG2RAD;
+    }
+    else
+    {
+        dRdphi = R * BR / Bphi * DEG2RAD;
+        dZdphi = R * BZ / Bphi * DEG2RAD;
+    }
     return true;
 }
 
@@ -432,7 +447,7 @@ void k_structure(const double* __restrict__ init_R,
 
 // Copy the FieldGrid3D data to device and build a DevGrid in constant memory.
 // Returns 0 on success.
-static int upload_grid(const FieldGrid3D* h,
+static int upload_grid(const FieldGrid3D* h, const GPUTraceParams& params,
                        double** d_BR, double** d_Bphi, double** d_BZ,
                        double** d_psi,
                        double** d_wall_R, double** d_wall_Z)
@@ -464,6 +479,7 @@ static int upload_grid(const FieldGrid3D* h,
     dg.Zmin   = h->Zmin;   dg.dZ   = h->dZ;
     for(int k = 0; k < 4; k++) dg.bndy[k] = h->bndy[k];
     dg.simpleBndy = h->simpleBndy;
+    dg.v_par = params.v_par; dg.v_radial = params.v_radial; dg.v_tor = params.v_tor;
 
     CUDA_CHECK(cudaMemcpyToSymbol(c_grid, &dg, sizeof(DevGrid)));
     return 0;
@@ -480,7 +496,7 @@ int gpu_trace_laminar(const FieldlineInit* init,
 {
     // --- Upload grid ---
     double *d_BR, *d_Bphi, *d_BZ, *d_psi, *d_wall_R, *d_wall_Z;
-    if(upload_grid(grid, &d_BR, &d_Bphi, &d_BZ, &d_psi, &d_wall_R, &d_wall_Z) != 0)
+    if(upload_grid(grid, params, &d_BR, &d_Bphi, &d_BZ, &d_psi, &d_wall_R, &d_wall_Z) != 0)
         return -1;
 
     // --- Upload initial conditions ---
@@ -566,7 +582,7 @@ int gpu_trace_structure(const FieldlineInit* init,
 {
     // --- Upload grid ---
     double *d_BR, *d_Bphi, *d_BZ, *d_psi, *d_wall_R, *d_wall_Z;
-    if(upload_grid(grid, &d_BR, &d_Bphi, &d_BZ, &d_psi, &d_wall_R, &d_wall_Z) != 0)
+    if(upload_grid(grid, params, &d_BR, &d_Bphi, &d_BZ, &d_psi, &d_wall_R, &d_wall_Z) != 0)
         return -1;
 
     // --- Upload initial conditions ---
