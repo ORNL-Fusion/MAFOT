@@ -102,7 +102,10 @@ double interp3D(const double* __restrict__ F,
         if(fphi >= c_grid.Nphi) fphi -= c_grid.Nphi;
     }
     int iphi = (int)fphi;
-    if(iphi >= c_grid.Nphi - 1) iphi = c_grid.Nphi - 2;
+    // Only clamp the upper edge for true 3-D grids. For Nphi==1 (axisymmetric),
+    // Nphi-2 == -1, which would index the wrong R-row (or out of bounds) and
+    // corrupt every B-field lookup -> field line crosses flux surfaces / diverges.
+    if(c_grid.Nphi > 1 && iphi >= c_grid.Nphi - 1) iphi = c_grid.Nphi - 2;
     double tphi = (c_grid.Nphi > 1) ? (fphi - iphi) : 0.0;
 
     // --- Z index ---
@@ -230,8 +233,15 @@ bool dgls(double R, double Z, double phi_deg,
     double Bphi = interp3D(c_grid.Bphi, R, phi_deg, Z);
 
     if(fabs(Bphi) < 1e-30) return false;
-    dRdphi = R * BR   / Bphi;
-    dZdphi = R * BZ   / Bphi;
+    // dR/dphi = R*BR/Bphi is the field-line ODE for phi in RADIANS. This integrator
+    // advances phi in DEGREES (interp3D, output and boundary checks all use degrees),
+    // so scale by pi/180 to get the per-degree slope. The CPU does the equivalent by
+    // converting dpinit[deg]->rad before stepping (particle_class.hxx:399). Without
+    // this the poloidal step is 180/pi ~ 57x too large -> the field line wanders
+    // vertically as if Bphi were ~57x too weak.
+    const double DEG2RAD = 0.017453292519943295;
+    dRdphi = R * BR / Bphi * DEG2RAD;
+    dZdphi = R * BZ / Bphi * DEG2RAD;
     return true;
 }
 
