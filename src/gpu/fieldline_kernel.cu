@@ -62,6 +62,9 @@ struct DevGrid
     int    simpleBndy;
 
     double v_par, v_radial, v_tor;   // prescribed drift velocities [m/s]; v_radial=v_tor=0 -> pure field line
+
+    int    sigma, Zq;                // relativistic guiding-center drift (sigma==0 -> off)
+    double GAMMA, eps0, Ix, R0;      // drift constants of motion (from host PARTICLE)
 };
 
 __constant__ DevGrid c_grid;   // constant memory copy
@@ -256,6 +259,17 @@ bool dgls(double R, double Z, double phi_deg,
     {
         dRdphi = R * BR / Bphi * DEG2RAD;
         dZdphi = R * BZ / Bphi * DEG2RAD;
+    }
+
+    // Relativistic guiding-center drift (grad-B + curvature), added to dZ/dphi.  Mirrors the
+    // sigma!=0 branch of PARTICLE::dgls with no E-field / no sheath (gamma == GAMMA).  GAMMA, eps0,
+    // Ix are constants of motion computed on the host PARTICLE.
+    if(c_grid.sigma != 0)
+    {
+        double Sarg = c_grid.eps0*(c_grid.GAMMA*c_grid.GAMMA - 1.0) - 2.0*c_grid.R0*c_grid.Ix/R;
+        if(Sarg < 0.0) return false;   // canonical-momentum constraint violated -> terminate line
+        double S = sqrt(Sarg);
+        dZdphi += -((double)c_grid.sigma/(double)c_grid.Zq) * (R*S + c_grid.R0*c_grid.Ix/S) * DEG2RAD;
     }
     return true;
 }
@@ -480,6 +494,8 @@ static int upload_grid(const FieldGrid3D* h, const GPUTraceParams& params,
     for(int k = 0; k < 4; k++) dg.bndy[k] = h->bndy[k];
     dg.simpleBndy = h->simpleBndy;
     dg.v_par = params.v_par; dg.v_radial = params.v_radial; dg.v_tor = params.v_tor;
+    dg.sigma = params.sigma; dg.Zq = params.Zq;
+    dg.GAMMA = params.GAMMA; dg.eps0 = params.eps0; dg.Ix = params.Ix; dg.R0 = params.R0;
 
     CUDA_CHECK(cudaMemcpyToSymbol(c_grid, &dg, sizeof(DevGrid)));
     return 0;

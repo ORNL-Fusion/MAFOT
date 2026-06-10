@@ -97,6 +97,15 @@ struct GPUTraceParams
     double v_par;        // prescribed parallel velocity [m/s] (drift mode; sets angle scale)
     double v_radial;     // prescribed anomalous radial velocity [m/s]; 0 -> off (pure field line)
     double v_tor;        // prescribed toroidal rotation velocity [m/s]; 0 -> off
+
+    // Relativistic guiding-center drift (MAFOT particle mode).  sigma==0 -> off.  The constants
+    // GAMMA/eps0/Ix are computed once on the host (PARTICLE) and replicate the CPU dgls drift.
+    int    sigma;        // +1 co-passing, -1 counter-passing, 0 field lines only
+    int    Zq;           // charge number (electrons -1, ions >=1)
+    double GAMMA;        // relativistic gamma factor
+    double eps0;         // normalized rest energy
+    double Ix;           // normalized canonical angular momentum
+    double R0;           // EFIT major radius R0 [m]
 };
 
 #endif // GPU_FIELDS_HXX

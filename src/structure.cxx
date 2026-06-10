@@ -338,8 +338,10 @@ ofs2 << "Start Tracer for " << PAR.N << " points ... " << endl;
 #ifdef USE_GPU
 if(gpu_flag)
 {
-	if(PAR.sigma != 0) {
-		cout << "WARNING: GPU path supports field lines only (sigma=0). Falling back to CPU." << endl;
+	if(EQD.hasEfield || PAR.use_sheath) {
+		// The GPU drift replicates the grad-B/curvature term only; E-field and sheath drift
+		// terms are not ported. Fall back to the CPU when either is active.
+		cout << "WARNING: GPU drift path does not support E-field/sheath terms. Falling back to CPU." << endl;
 		gpu_flag = false;
 		goto cpu_structure;
 	}
@@ -396,6 +398,12 @@ if(gpu_flag)
 	gparams.v_par        = PAR.v_par;
 	gparams.v_radial     = PAR.v_radial;
 	gparams.v_tor        = PAR.v_tor;
+	gparams.sigma        = PAR.sigma;
+	gparams.Zq           = PAR.Zq;
+	gparams.GAMMA        = FLT.get_GAMMA();
+	gparams.eps0         = FLT.get_eps0();
+	gparams.Ix           = FLT.get_Ix();
+	gparams.R0           = EQD.R0;
 
 	int gpu_err = gpu_trace_structure(finit, Npts, max_steps,
 	                                  res_bwd, res_fwd,

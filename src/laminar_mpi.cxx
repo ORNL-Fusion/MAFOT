@@ -501,6 +501,12 @@ if(gpu_flag)
 		params.v_par        = PAR.v_par;
 		params.v_radial     = PAR.v_radial;
 		params.v_tor        = PAR.v_tor;
+		params.sigma        = PAR.sigma;
+		params.Zq           = PAR.Zq;
+		params.GAMMA        = FLT.get_GAMMA();
+		params.eps0         = FLT.get_eps0();
+		params.Ix           = FLT.get_Ix();
+		params.R0           = EQD.R0;
 
 		LaminarResult* gpu_results = new LaminarResult[N];
 		if(gpu_trace_laminar(finit, gpu_results, N, grid, params) != 0)

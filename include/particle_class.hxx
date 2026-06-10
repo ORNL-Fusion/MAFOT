@@ -132,6 +132,12 @@ public:
 	void getRZ(double x, double y, double& r, double& z);
 	double get_dpsidLc_average(void);
 
+	// drift-orbit constants of motion (computed once in the constructor) -- exposed so the GPU
+	// path can replicate the relativistic guiding-center drift from PARTICLE::dgls.
+	double get_GAMMA() const { return GAMMA; }	// relativistic gamma factor
+	double get_eps0()  const { return eps0; }	// normalized rest energy
+	double get_Ix()    const { return Ix; }		// normalized canonical angular momentum
+
 }; //end of class
 
 //------------------------ End of Class -----------------------------------------------------------------------------------
