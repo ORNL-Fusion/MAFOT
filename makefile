@@ -191,6 +191,26 @@ clean :
 $(DIRS) :
 	mkdir -p $@
 
+.PHONY : test test_nanbu_collision test_nanbu_ensemble_diagnostics nanbu_0d_probe
+test : test_nanbu_collision test_nanbu_ensemble_diagnostics
+
+test_nanbu_collision : $(OBJDIR)/tests/nanbu_collision_tests
+	$<
+
+test_nanbu_ensemble_diagnostics :
+	PYTHONPYCACHEPREFIX=/private/tmp/mafot_pycache python3 -m unittest discover -s tests -p 'test_*.py'
+
+nanbu_0d_probe : $(OBJDIR)/tests/probe_nanbu_0d
+
+$(OBJDIR)/tests :
+	mkdir -p $@
+
+$(OBJDIR)/tests/nanbu_collision_tests : $(MAFOT_DIR)/tests/nanbu_collision_tests.cxx libla_string.a | $(OBJDIR)/tests
+	$(CXX) $(CFLAGS) -std=c++17 $(INCLUDE) $(DEFINES) -DTEST_DATA_DIR=\"$(MAFOT_DIR)/tests/data\" $< -o $@ -L$(LIB_DIR) -lla_string $(BLITZLIBS)
+
+$(OBJDIR)/tests/probe_nanbu_0d : $(MAFOT_DIR)/tests/nanbu_validation/probe_nanbu_0d.cxx libla_string.a | $(OBJDIR)/tests
+	$(CXX) $(CFLAGS) -std=c++17 $(INCLUDE) $(DEFINES) $< -o $@ -L$(LIB_DIR) -lla_string $(BLITZLIBS)
+
 
 # ---- Targets ----
 xpand_mpi : $(MAFOT_DIR)/src/xpand_mpi.cxx

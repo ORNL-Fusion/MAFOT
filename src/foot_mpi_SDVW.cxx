@@ -376,7 +376,7 @@ if(use_Tprofile)
 setCustomCurrentDensity(JprofileFile, mpi_rank);
 
 // Set starting parameters
-int N_variables = 11; // number of output variables per point
+int N_variables = 16; // number of output variables per point
 int Nt_slave = 1;
 int N = PAR.Nt*PAR.Nphi;
 int N_slave = PAR.Nphi*Nt_slave;
@@ -457,8 +457,9 @@ if(mpi_rank < 1)
 	// Output
 	ofstream out(filenameout);
 	out.precision(16);
-	vector<LA_STRING> var(11);
+	vector<LA_STRING> var(N_variables);
 	var[0] = "phi[rad]";  var[1] = "length t";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";  var[5] = "R [m]";  var[6] = "Z [m]";  var[7] = "Lc at psimin [km]";  var[8] = "B_R [T]";  var[9] = "B_Z [T]";  var[10] = "B_phi [T]";
+	var[11] = "Ekin[keV]"; var[12] = "t[s]"; var[13] = "tphi[s]"; var[14] = "mu"; var[15] = "sigma";
 	PAR.writeiodata(out,bndy,var);
 
 	// restart run, if necessary
@@ -608,18 +609,21 @@ if(mpi_rank < 1)
 				tmin_slave = t_values((tag-1)*Nt_slave+1);
 				tmax_slave = t_values(tag*Nt_slave);
 
-				ofs2 << "Start Tracer for " << N_slave << " points ... " << endl;
-				for(i=1;i<=N_slave;i++)
-				{
-					// Set and store initial condition
-					t = start_on_target(i,Nt_slave,PAR.Nphi,tmin_slave,tmax_slave,PAR.phimin,PAR.phimax,EQD,PAR,FLT);
-					results_all(tag,1,i) = FLT.phi/rTOd;	// phi in rad
-					results_all(tag,2,i) = t;
-					results_all(tag,6,i) = FLT.R;
-					results_all(tag,7,i) = FLT.Z;
-					//FLT.NstepsInSheath = 0;
+					ofs2 << "Start Tracer for " << N_slave << " points ... " << endl;
+					for(i=1;i<=N_slave;i++)
+					{
+						// Set and store initial condition
+						t = start_on_target(i,Nt_slave,PAR.Nphi,tmin_slave,tmax_slave,PAR.phimin,PAR.phimax,EQD,PAR,FLT);
+						const double target_phi = FLT.phi;
+						const double target_R = FLT.R;
+						const double target_Z = FLT.Z;
+						results_all(tag,1,i) = target_phi/rTOd;	// phi in rad
+						results_all(tag,2,i) = t;
+						results_all(tag,6,i) = target_R;
+						results_all(tag,7,i) = target_Z;
+						//FLT.NstepsInSheath = 0;
 
-					chk = FLT.connect(ntor,PAR.itt,PAR.MapDirection);
+						chk = FLT.connect(ntor,PAR.itt,PAR.MapDirection);
 
 					//Store results
 					results_all(tag,3,i) = ntor; //FLT.NstepsInSheath/4.0;
@@ -627,14 +631,19 @@ if(mpi_rank < 1)
 					results_all(tag,5,i) = FLT.psimin;
 					results_all(tag,8,i) = FLT.Lcmin;
 
-					// Get B-field at target
-					double B_R, B_Z, B_phi;
-					getBfield(FLT.R, FLT.Z, FLT.phi/rTOd, B_R, B_Z, B_phi, EQD, PAR);
+						// Get B-field at target
+						double B_R, B_Z, B_phi;
+						getBfield(target_R, target_Z, target_phi/rTOd, B_R, B_Z, B_phi, EQD, PAR);
 
-					results_all(tag, 9, i) = B_R;
-					results_all(tag, 10, i) = B_Z;
-					results_all(tag, 11, i) = B_phi;
-					if(i%100==0) ofs2 << "Trax: " << i << endl;
+						results_all(tag, 9, i) = B_R;
+						results_all(tag, 10, i) = B_Z;
+						results_all(tag, 11, i) = B_phi;
+						results_all(tag, 12, i) = FLT.Ekin;
+						results_all(tag, 13, i) = FLT.t;
+						results_all(tag, 14, i) = FLT.tphi;
+						results_all(tag, 15, i) = FLT.mu;
+						results_all(tag, 16, i) = FLT.sigma;
+						if(i%100==0) ofs2 << "Trax: " << i << endl;
 				} // end for
 
 				#pragma omp critical
@@ -693,31 +702,39 @@ if(mpi_rank > 0)
 		tmin_slave = send_t_limits(1);
 		tmax_slave = send_t_limits(2);
 
-		ofs2 << "Start Tracer for " << N_slave << " points ... " << endl;
-		for(i=1;i<=N_slave;i++)
-		{
-			// Set and store initial condition
-			t = start_on_target(i,Nt_slave,PAR.Nphi,tmin_slave,tmax_slave,PAR.phimin,PAR.phimax,EQD,PAR,FLT);
-			results(1,i) = FLT.phi/rTOd;	// phi in rad
-			results(2,i) = t;
-			results(6,i) = FLT.R;
-			results(7,i) = FLT.Z;
-			//FLT.NstepsInSheath = 0;
+			ofs2 << "Start Tracer for " << N_slave << " points ... " << endl;
+			for(i=1;i<=N_slave;i++)
+			{
+				// Set and store initial condition
+				t = start_on_target(i,Nt_slave,PAR.Nphi,tmin_slave,tmax_slave,PAR.phimin,PAR.phimax,EQD,PAR,FLT);
+				const double target_phi = FLT.phi;
+				const double target_R = FLT.R;
+				const double target_Z = FLT.Z;
+				results(1,i) = target_phi/rTOd;	// phi in rad
+				results(2,i) = t;
+				results(6,i) = target_R;
+				results(7,i) = target_Z;
+				//FLT.NstepsInSheath = 0;
 
-			chk = FLT.connect(ntor,PAR.itt,PAR.MapDirection);
+				chk = FLT.connect(ntor,PAR.itt,PAR.MapDirection);
 
 			results(3,i) = ntor; //FLT.NstepsInSheath/4.0;
 			results(4,i) = FLT.Lc/1000.0;
 			results(5,i) = FLT.psimin;
 			results(8,i) = FLT.Lcmin;
 
-			// Get B-field at target
-			double B_R, B_Z, B_phi;
-			getBfield(FLT.R, FLT.Z, FLT.phi/rTOd, B_R, B_Z, B_phi, EQD, PAR);
+				// Get B-field at target
+				double B_R, B_Z, B_phi;
+				getBfield(target_R, target_Z, target_phi/rTOd, B_R, B_Z, B_phi, EQD, PAR);
 
-			results(9, i) = B_R;
-			results(10, i) = B_Z;
-			results(11, i) = B_phi;
+				results(9, i) = B_R;
+				results(10, i) = B_Z;
+				results(11, i) = B_phi;
+				results(12, i) = FLT.Ekin;
+				results(13, i) = FLT.t;
+				results(14, i) = FLT.tphi;
+				results(15, i) = FLT.mu;
+				results(16, i) = FLT.sigma;
 
 			if(i%100==0) ofs2 << "Trax: " << i << endl;
 		}

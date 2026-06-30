@@ -1224,6 +1224,8 @@ Array<double,1> yout(nvar),dydx(nvar);
 double mfp;
 double prob;
 
+if (sigma != 0 && COLr.pdf_model == COLLISION::NANBU) COLr.updateAverageTimestep(y(2), true);
+
 //Take nstep steps
 for (k=1;k<=nstep;k++) 
 { 
@@ -1262,6 +1264,8 @@ for (k=1;k<=nstep;k++)
 		if(returnLastStep) y = yout;
 		return -1;
 	}
+
+	if (sigma != 0 && COLr.pdf_model == COLLISION::NANBU) COLr.updateAverageTimestep(yout(2));
 
 	// set additional Parameter or not
 	if(doNotUpdate)

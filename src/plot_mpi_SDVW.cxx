@@ -442,6 +442,8 @@ PARTICLE FLT(EQD,PAR,COL,mpi_rank);
 
 MPI::COMM_WORLD.Barrier();	// Syncronize all Nodes
 
+const int N_variables = 14;
+
 // Master only (Node 0)
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 if(mpi_rank < 1)
@@ -492,8 +494,9 @@ if(mpi_rank < 1)
 	// Output
 	ofstream out(filenameout);
 	out.precision(16);
-	vector<LA_STRING> var(7);
+	vector<LA_STRING> var(N_variables);
 	var[0] = "theta[rad]"; var[1] = "r[m]"; var[2] = "phi[deg]"; var[3] = "psi"; var[4] = "R[m]"; var[5] = "Z[m]"; var[6] = "Ekin[keV]";
+	var[7] = "particle_id"; var[8] = "output_step"; var[9] = "t[s]"; var[10] = "tphi[s]"; var[11] = "mu"; var[12] = "sigma"; var[13] = "Lc[m]";
 	if(PAR.response_field == -2) {var[0] = "u"; var[3] = "s";}
 	PAR.writeiodata(out,bndy,var);
 
@@ -506,8 +509,8 @@ if(mpi_rank < 1)
 	ofs3 << "Helicity = " << EQD.helicity << endl;
 
 	// Result array:	 Column Number,  Values
-	Array<double,2> results(Range(1,7),Range(1,N_slave*PAR.itt));
-	Array<double,2> recieve(Range(1,7),Range(1,N_slave*PAR.itt));
+	Array<double,2> results(Range(1,N_variables),Range(1,N_slave*PAR.itt));
+	Array<double,2> recieve(Range(1,N_variables),Range(1,N_slave*PAR.itt));
 	Array<double,2> slice;
 	tag = 1;	// first Package
 
@@ -587,7 +590,7 @@ if(mpi_rank < 1)
 			while(workingNodes > 0)	// workingNodes > 0: Slave still working -> MPI:Revc needed		workingNodes == 0: all Slaves recieved termination signal
 			{
 				// Recieve Result
-				MPI::COMM_WORLD.Recv(recieve.dataFirst(),7*N_slave*PAR.itt,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
+				MPI::COMM_WORLD.Recv(recieve.dataFirst(),N_variables*N_slave*PAR.itt,MPI::DOUBLE,MPI_ANY_SOURCE,MPI_ANY_TAG,status);
 				sender = status.Get_source();
 				tag = status.Get_tag();
 				ofs3 << "Recieve from Node: " << sender << " Package: " << tag << endl;
@@ -595,7 +598,15 @@ if(mpi_rank < 1)
 				// write results to file
 				#pragma omp critical
 				{
-					for(j=1;j<=N_slave*PAR.itt;j++)	if(recieve(4,j) > 0) out << recieve(1,j) << "\t" << recieve(2,j) << "\t" << recieve(3,j) << "\t" << recieve(4,j) << "\t" << recieve(5,j) << "\t" << recieve(6,j) << "\t" << recieve(7,j) << endl;
+					for(j=1;j<=N_slave*PAR.itt;j++)
+					{
+						if(recieve(4,j) > 0)
+						{
+							out << recieve(1,j);
+							for(int k=2;k<=N_variables;k++) out << "\t" << recieve(k,j);
+							out << endl;
+						}
+					}
 					recieve_packages += 1;
 					ofs3 << "------------------------------------ Progress: " << recieve_packages << " of " << NoOfPackages << " completed" <<  endl;
 				}
@@ -774,13 +785,28 @@ if(mpi_rank < 1)
 						results(5,(n-Nmin_slave)*PAR.itt + i) = FLT.R;
 						results(6,(n-Nmin_slave)*PAR.itt + i) = FLT.Z;
 					results(7,(n-Nmin_slave)*PAR.itt + i) = FLT.Ekin;
+					results(8,(n-Nmin_slave)*PAR.itt + i) = n;
+					results(9,(n-Nmin_slave)*PAR.itt + i) = i;
+					results(10,(n-Nmin_slave)*PAR.itt + i) = FLT.t;
+					results(11,(n-Nmin_slave)*PAR.itt + i) = FLT.tphi;
+					results(12,(n-Nmin_slave)*PAR.itt + i) = FLT.mu;
+					results(13,(n-Nmin_slave)*PAR.itt + i) = FLT.sigma;
+					results(14,(n-Nmin_slave)*PAR.itt + i) = FLT.Lc;
 				} // end for i
 				ofs2 << "Trax: " << n << "\t" << "Steps: " << i-1 << endl;
 			} // end for n
 
 			#pragma omp critical
 			{
-				for(j=1;j<=N_slave*PAR.itt;j++)	if(results(4,j) > 0) out << results(1,j) << "\t" << results(2,j) << "\t" << results(3,j) << "\t" << results(4,j) << "\t" << results(5,j) << "\t" << results(6,j) << "\t" << results(7,j) << endl;
+				for(j=1;j<=N_slave*PAR.itt;j++)
+				{
+					if(results(4,j) > 0)
+					{
+						out << results(1,j);
+						for(int k=2;k<=N_variables;k++) out << "\t" << results(k,j);
+						out << endl;
+					}
+				}
 					recieve_packages += 1;
 					ofs3 << "------------------------------------ Progress: " << recieve_packages << " of " << NoOfPackages << " completed" <<  endl;
 				}
@@ -808,7 +834,7 @@ if(mpi_rank > 0)
 	ofs2 << "MapDirection(0=both, 1=pos.phi, -1=neg.phi): " << PAR.MapDirection << endl;
 
 	// Result array for Slave
-	Array<double,2> results(Range(1,7),Range(1,N_slave*PAR.itt));
+	Array<double,2> results(Range(1,N_variables),Range(1,N_slave*PAR.itt));
 
 	// Start working...
 	while(1)
@@ -934,12 +960,21 @@ if(mpi_rank > 0)
 				results(2,(n-Nmin_slave)*PAR.itt + i) = FLT.get_r();
 				results(3,(n-Nmin_slave)*PAR.itt + i) = FLT.phi;
 				results(5,(n-Nmin_slave)*PAR.itt + i) = FLT.R;
-				results(6,(n-Nmin_slave)*PAR.itt + i) = FLT.Z;			results(7,(n-Nmin_slave)*PAR.itt + i) = FLT.Ekin;			} // end for i
+				results(6,(n-Nmin_slave)*PAR.itt + i) = FLT.Z;
+				results(7,(n-Nmin_slave)*PAR.itt + i) = FLT.Ekin;
+				results(8,(n-Nmin_slave)*PAR.itt + i) = n;
+				results(9,(n-Nmin_slave)*PAR.itt + i) = i;
+				results(10,(n-Nmin_slave)*PAR.itt + i) = FLT.t;
+				results(11,(n-Nmin_slave)*PAR.itt + i) = FLT.tphi;
+				results(12,(n-Nmin_slave)*PAR.itt + i) = FLT.mu;
+				results(13,(n-Nmin_slave)*PAR.itt + i) = FLT.sigma;
+				results(14,(n-Nmin_slave)*PAR.itt + i) = FLT.Lc;
+			} // end for i
 			ofs2 << "Trax: " << n << "\t" << "Steps: " << i-1 << endl;
 		} // end for n
 		
 		// Send results to Master
-		MPI::COMM_WORLD.Send(results.dataFirst(),7*N_slave*PAR.itt,MPI::DOUBLE,0,tag);
+		MPI::COMM_WORLD.Send(results.dataFirst(),N_variables*N_slave*PAR.itt,MPI::DOUBLE,0,tag);
 
 	}// end while
 } // end Slaves

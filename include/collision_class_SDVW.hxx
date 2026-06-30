@@ -6,6 +6,7 @@
 #include <array>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <andi.hxx>
 #include <la_string.hxx>
 #include <splines.hxx>
@@ -38,6 +39,7 @@ public:
 	             double J_R=0.0, double J_phi=0.0, double J_Z=0.0);  // displaces particle to model collision with velocity space scattering (can modify sigma)
 	void reset(double x, double Ekin);  // gets module ready for next package (Ekin in keV)
 	void initializeMFP(double x, double Ekin);  // initializes drawn_mfp with current particle position (called after particle is created)
+	void updateAverageTimestep(double t, bool initialize=false); // updates the shared Nanbu timestep average from orbit time
 	//bool isElectron(double x, double Ekin); // decide whether to treat bath as electron or ion using local mfp
 
 // initializer
@@ -68,6 +70,9 @@ private:
 	double particle_mass;  // stored for use in collide() method
 	double E0; // rest energy of this particle in keV (m c^2 / e / 1000)
 	double drawn_mfp;  // randomly drawn mean free path for next collision
+	double active_dt; // timestep currently used by Nanbu collisions
+	double average_dt; // running average timestep used by Nanbu collisions
+	long average_dt_count;
 	long seed;
 	// pdf_model moved to public section
 	mt19937 generator;
@@ -128,6 +133,9 @@ COLLISION::COLLISION()
 	sq2 = 0;
 	last_coll = 0;
 	last_t_coll = 0;
+	active_dt = 0;
+	average_dt = 0;
+	average_dt_count = 0;
 	seed = 0;
 	rnum = 0;
 	particle_mass = 0;
@@ -167,6 +175,9 @@ void COLLISION::init(LA_STRING filename_te, LA_STRING filename_ne, LA_STRING fil
 	use_me = true;
 	last_coll = 0;
 	last_t_coll = 0;
+	active_dt = 0;
+	average_dt = 0;
+	average_dt_count = 0;
 	this->Zq = Zq;
 
 	rho_coeff = rc;
@@ -301,6 +312,24 @@ void COLLISION::initializeMFP(double x, double Ekin)
 	}
 }
 
+//----------- updateAverageTimestep
+void COLLISION::updateAverageTimestep(double t, bool initialize)
+{
+	if(initialize)
+	{
+		last_t_coll = t;
+		if(average_dt > 0.0) active_dt = average_dt;
+		return;
+	}
+
+	double dt = t - last_t_coll;
+	last_t_coll = t;
+	if(dt <= 0.0) return;
+
+	average_dt_count++;
+	average_dt += (dt - average_dt)/double(average_dt_count);
+}
+
 //----------- Coulomb logarithm
 tuple<double, double> COLLISION::coulombLog(double T, double N, double p_hat, double pTe, double Zq) {
 	double lnA = 14.9 - 0.5 * log(N) + log(T);  // coulomb logarithm Wesson 4th ed.
@@ -397,9 +426,13 @@ bool COLLISION::occurs(double Lc, const double x, double& meanfreepath, double& 
 void COLLISION::collide(double& R, double& Z, double B_R, double B_phi, double B_Z, double& Ekin, double x, double Lc, double t, double& mu, int& sigma,
                         double J_R, double J_phi, double J_Z)
 {
-	const double dt = t - last_t_coll;  // elapsed time since last collision [s]
+	double dt = t - last_t_coll;  // elapsed time since last collision [s]
 	last_coll = Lc;
-	last_t_coll = t;
+	if (pdf_model == PDF_NANBU) {
+		if (active_dt > 0.0) dt = active_dt;
+		else last_t_coll = t;
+	}
+	else last_t_coll = t;
 	if (dt <= 0.0) return;  // should not happen, but guard PerezScatteringAngle against zero dt
 	uniform_real_distribution<double> U(-1.0,1.0); // Bath pitch angle isotropic in 3D, so uniform in cos(theta)
 	// Velocity space scattering using temperature profile and magnetic field orientation
@@ -536,8 +569,47 @@ void COLLISION::readProfile(LA_STRING file, int& N, Array<double, 2>& Data, Arra
 {
 	double d1, dn, dpsi;
 	Array <double, 1> Psi, Profile;
-	readfile(file, 2, Data);
-	N = Data.rows();
+	vector<pair<double, double>> rows;
+	ifstream in((const char*)file);
+	if(in.fail()==1) {cout << "Unable to open file " << file << endl; exit(0);}
+
+	string line;
+	bool extraColumnsWarned = false;
+	while(getline(in, line))
+	{
+		size_t first = line.find_first_not_of(" \t\r\n");
+		if(first == string::npos || line[first] == '#') continue;
+
+		istringstream iss(line);
+		vector<double> values;
+		double value;
+		while(iss >> value)
+		{
+			if(isnan(value))
+			{
+				cout << "profiles have nan" << endl;
+				exit(0);
+			}
+			values.push_back(value);
+		}
+		if(values.size() > 2 && !extraColumnsWarned)
+		{
+			cout << values.size() << " columns present, reading only the first two" << endl;
+			extraColumnsWarned = true;
+		}
+		if(values.size() >= 2) rows.push_back({values[0], values[1]});
+	}
+	in.close();
+
+	N = rows.size();
+	if(N < 2) {cout << "Profile file needs at least two data rows: " << file << endl; exit(0);}
+
+	Data.resize(Range(1,N), Range(1,2));
+	for(int i=1; i<=N; i++)
+	{
+		Data(i,1) = rows[i-1].first;
+		Data(i,2) = rows[i-1].second;
+	}
 	Psi.reference(Data(Range::all(), 1));
 	Profile.reference(Data(Range::all(), 2));
 
@@ -734,6 +806,11 @@ COLLISION::Vec3 COLLISION::CoM_pf(double chi, Vec3 p) // Taken from Perez et. al
 // m: mass of particle
 double COLLISION::draw_maxwell_juttner(double T, double m)
 {
+	if(!isfinite(T) || !isfinite(m) || T <= 0.0 || m <= 0.0)
+	{
+		cout << "Maxwell-Juttner sampler received invalid input" << endl;
+		exit(0);
+	}
 	double T_J = T * 1000 * e;  // convert keV to J
 
 	uniform_real_distribution<double> U(0.0,1.0);
@@ -743,25 +820,26 @@ double COLLISION::draw_maxwell_juttner(double T, double m)
 	double tt = T / E0m; // dimensionless temperature
 	double dY = 0.19095477386934673; // Y step size for interpolation in log-log space
 	double gamma1 = 0.0; // initialization for while loop, more than 0 for safety
-	double U2 = 0.0; // initialization for while loop
-	double pbath_norm = 0; // initialize normalized momentum
 	double Z = 0; // initialize Z for interpolation
+	const int max_attempts = 1000000;
 
 	if (tt < 0.1) {
 		// Non-relativistic Maxwellian: v^2 ~ Gamma(3/2, 2T/m)
 		double v2 = maxwell(generator);
 
-		while (v2 >= c*c) {
+		for(int attempt=0; v2 >= c*c && attempt<max_attempts; attempt++) {
 			v2 = maxwell(generator);
 		}
+		if(v2 >= c*c) {cout << "Maxwell-Juttner sampler failed" << endl; exit(0);}
 
 		const double beta2 = v2 / (c*c);
 
 		return sqrt(beta2 / (1.0 - beta2));
 	}
 
-	while (true) {
+	for(int attempt=0; attempt<max_attempts; attempt++) {
 		double X = log1p(-U(generator)) - 1/tt + log1p(1/tt+0.5/tt/tt);
+		if(!isfinite(X) || X >= 0.0) continue;
 
 		if (log(-X) < -26.0){
 			Z = log(-6*X)/3.0; // X -> 0^- limit
@@ -786,12 +864,13 @@ double COLLISION::draw_maxwell_juttner(double T, double m)
 		double Hp = -(u0*u0) / (2.0 + 2.0*u0 + u0*u0);
 
 		gamma1 = (u0 - (Hu - X) / Hp) * tt;
-		U2 = U(generator);
-		if (U2 < sqrt((1-1/gamma1)*(1+1/gamma1))) {
+		if(!isfinite(gamma1) || gamma1 <= 1.0) continue;
+		if (U(generator) < sqrt((1-1/gamma1)*(1+1/gamma1))) {
 			return sqrt((gamma1-1.0)*(gamma1+1.0));
 		}
-
 	}
+	cout << "Maxwell-Juttner sampler failed" << endl;
+	exit(0);
 }
 
 const std::array<double, 200> COLLISION::Ztable = {
