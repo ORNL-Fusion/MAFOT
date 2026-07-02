@@ -26,7 +26,7 @@ LDFLAGS =
 # ---- external Libraries ---- 
 BLITZLIBS = -L/home/wwj/lib64/blitz/lib -lblitz
 FLIBS = -L/usr/lib/gcc/x86_64-linux-gnu/5 -lgfortran -L/usr/lib/x86_64-linux-gnu -lpthread
-OMPLIBS = -L/usr/lib/openmpi/lib -lmpi -lmpi_cxx
+OMPLIBS = -L/usr/lib/openmpi/lib -lmpi
 M3DC1LIBS = -L/home/jjl/m3dc1/install/lib -lfusionio -lm3dc1
 HDF5LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/openmpi -lhdf5 -lz -Wl,-rpath,/usr/lib/x86_64-linux-gnu -lstdc++
 NETCDFLIBS = -L/usr/lib/x86_64-linux-gnu -lnetcdf

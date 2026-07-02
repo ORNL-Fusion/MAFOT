@@ -34,7 +34,7 @@ DEFS = -Dm3dc1_newfio
 # ---- external Libraries ----
 BLITZLIBS = -L/home/tom/source/MAFOT/blitz++/blitz-0.9/lib -lblitz
 FLIBS = -L/usr/lib/x86_64-linux-gnu -lgfortran
-OMPLIBS = -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi -lmpi_cxx
+OMPLIBS = -L/usr/lib/x86_64-linux-gnu/openmpi/lib -lmpi
 M3DC1LIBS = -L/opt/m3dc1/build/lib -lfusionio -lm3dc1
 HDF5LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/serial
 NETCDFLIBS = -L/usr/lib/x86_64-linux-gnu -lnetcdf
