@@ -174,7 +174,8 @@ If `-g` is given but no CUDA-capable GPU is present, the tool prints
 The GPU samples whatever field source `response_field` selects in the control file (EFIT, M3D-C1, XFIELD/XPAND, SIESTA, GPEC) onto a uniform 3-D `(R, phi, Z)` grid, then runs the RK4 kernel on that grid. To trace a **user-supplied 3-D field**, set `response_field = -3` and provide an `xpand.dat` ASCII grid file — the existing `XFIELD` reader loads it and the GPU samples it via `getBfield()` like any other source (this needs `VMEC = True` in `make.inc`, which compiles in the XFIELD/XPAND reader). `response_field = -1` (axisymmetric EFIT) uses a single phi plane; all other sources use a full 3-D grid.
 
 Key limitations:
-- Structure tool (`heatstructure -g`) bypasses the GPU path when `sigma != 0` (heat-flux weighting), falling back to the CPU automatically.
+- Relativistic guiding-center drifts (`sigma != 0`) and prescribed filament drift velocities (`v_par`/`v_radial`/`v_tor`, control-file entries 26-28) ARE ported to the GPU kernel. E-field and sheath drift terms are NOT: `heatstructure -g` falls back to the CPU automatically when they are active; `heatlaminar_mpi -g` exits with an error (no CPU fallback with a single rank).
+- GPU laminar start points support only regular R-Z grids or a `-P` points file (`create_flag` 3/6 psi-theta grids error out); the `-s`/`-l` spare-interior options are ignored on the GPU (interior points are fully traced instead of being assigned sentinel values).
 - Laminar GPU mode (`heatlaminar_mpi -g`) runs entirely on MPI rank 0; passing `-n 1` is sufficient (other ranks exit immediately).
 - GPU + M3DC1 works only on rank 0; if `prepare_common_perturbations` requires MPI coordination in your M3DC1 configuration, use CPU mode.
 

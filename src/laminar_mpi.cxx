@@ -425,6 +425,20 @@ if(gpu_flag)
 			MPI_Finalize();
 			return -1;
 		}
+		if(EQD.hasEfield || PAR.use_sheath)
+		{
+			// E-field/sheath drift terms are not ported to the GPU kernel; no CPU fallback with a single rank
+			cout << "ERROR: GPU drift path does not support E-field/sheath terms. Run without -g." << endl;
+			MPI_Finalize();
+			return -1;
+		}
+		if(!use_inputPointsFile && (PAR.create_flag == 3 || PAR.create_flag == 6))
+		{
+			// GPU start points are built as a regular R-Z grid only
+			cout << "ERROR: GPU laminar supports only R-Z grids or a points file (-P). Run without -g." << endl;
+			MPI_Finalize();
+			return -1;
+		}
 		prepare_common_perturbations(EQD,PAR,mpi_rank,siestafile,xpandfile,islandfile);
 		prep_perturbation(EQD,PAR,mpi_rank);
 
@@ -464,7 +478,7 @@ if(gpu_flag)
 			finit[ii].Z   = Zi;
 			finit[ii].phi = phi_i;
 			FLT.get_psi(Ri, Zi, psi_start[ii]);
-			theta_start[ii] = atan2(Zi - EQD.ZmAxis, Ri - EQD.RmAxis);
+			theta_start[ii] = polar_phi(Ri - EQD.RmAxis, Zi - EQD.ZmAxis);	// [0,2pi), matches the CPU path
 			int bchk = getBfield(Ri, Zi, phi_i/rTOd, B_R_start[ii], B_Z_start[ii], B_phi_start[ii], EQD, PAR);
 			if(bchk == -1) { B_R_start[ii] = 0; B_Z_start[ii] = 0; B_phi_start[ii] = 0; }
 		}
@@ -474,15 +488,16 @@ if(gpu_flag)
 		// is a single phi plane.
 		FieldGrid3D* grid = nullptr;
 		{
+			// Same sampling resolution as the structure tool (300x300 R-Z; g-files are 129x129+)
 			int use_Nphi = ((PAR.response_field >= 0) || (PAR.response_field <= -2)) ? 64 : 1;
 			double Rmin_g = EQD.R(1), Rmax_g = EQD.R(EQD.NR);
 			double Zmin_g = EQD.Z(1), Zmax_g = EQD.Z(EQD.NZ);
 			double phimin_g = (use_Nphi > 1) ? 0.0 : PAR.phistart;
 			double phimax_g = (use_Nphi > 1) ? 360.0 : PAR.phistart;
 			grid = sample_bfield(EQD, PAR,
-			                     64, Rmin_g, Rmax_g,
+			                     300, Rmin_g, Rmax_g,
 			                     use_Nphi, phimin_g, phimax_g,
-			                     64, Zmin_g, Zmax_g);
+			                     300, Zmin_g, Zmax_g);
 		}
 		fill_psi_grid(EQD, grid);
 		extract_wall(EQD, grid);

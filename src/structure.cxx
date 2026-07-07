@@ -411,36 +411,38 @@ if(gpu_flag)
 	                                  fgrid, gparams);
 	if(gpu_err != 0) { cout << "ERROR: GPU kernel failed." << endl; EXIT; }
 
-	// --- Write output (mirrors CPU ordering) ---
+	// --- Write output (mirrors CPU ordering; like the CPU, Lc accumulates from the
+	// backward trace through the start point into the forward trace) ---
 	const double rTOd_local = 57.2957795130823;
 	for(int ii=0; ii<Npts; ii++) {
+		int nb = (PAR.MapDirection <= 0) ? nsteps_bwd[ii] : 0;
+		double Lc_bwd_total = (nb > 0) ? res_bwd[(long)ii*max_steps + nb-1].Lc : 0.0;
 		// Backward path written in reverse
 		if(PAR.MapDirection <= 0) {
-			int nb = nsteps_bwd[ii];
-			double Lc_bwd_total = (nb > 0) ? res_bwd[(long)ii*max_steps + nb-1].Lc : 0.0;
 			for(int jj=nb-1; jj>=0; jj--) {
 				StructureStep& s = res_bwd[(long)ii*max_steps + jj];
-				double phi_out = angleInDeg ? fmod(360.0-s.phi,360.0) : s.phi/rTOd_local;
+				double phi_out = angleInDeg ? modulo(360.0-s.phi,360.0) : s.phi/rTOd_local;
 				out << s.R*cos(s.phi/rTOd_local) << "\t" << s.R*sin(s.phi/rTOd_local) << "\t"
 				    << s.Z << "\t" << s.R << "\t" << phi_out << "\t"
 				    << s.psi << "\t" << Lc_bwd_total-s.Lc << "\t" << s.dpsidLc << "\n";
 			}
 		}
-		// Start point
+		// Start point (Lc = backward total; dpsidLc = first backward step's, as on the CPU)
 		double R0=finit[ii].R, Z0=finit[ii].Z, phi0=finit[ii].phi;
 		double psi0, d1, d2; EQD.get_psi(R0,Z0,psi0,d1,d2);
-		double phi0_out = angleInDeg ? fmod(360.0-phi0,360.0) : phi0/rTOd_local;
+		double dpsidLc0 = (nb > 0) ? res_bwd[(long)ii*max_steps].dpsidLc : 0.0;
+		double phi0_out = angleInDeg ? modulo(360.0-phi0,360.0) : phi0/rTOd_local;
 		out << R0*cos(phi0/rTOd_local) << "\t" << R0*sin(phi0/rTOd_local) << "\t"
-		    << Z0 << "\t" << R0 << "\t" << phi0_out << "\t" << psi0 << "\t" << 0.0 << "\t" << 0.0 << "\n";
+		    << Z0 << "\t" << R0 << "\t" << phi0_out << "\t" << psi0 << "\t" << Lc_bwd_total << "\t" << dpsidLc0 << "\n";
 		// Forward path
 		if(PAR.MapDirection >= 0) {
 			int nf = nsteps_fwd[ii];
 			for(int jj=0; jj<nf; jj++) {
 				StructureStep& s = res_fwd[(long)ii*max_steps + jj];
-				double phi_out = angleInDeg ? fmod(360.0-s.phi,360.0) : s.phi/rTOd_local;
+				double phi_out = angleInDeg ? modulo(360.0-s.phi,360.0) : s.phi/rTOd_local;
 				out << s.R*cos(s.phi/rTOd_local) << "\t" << s.R*sin(s.phi/rTOd_local) << "\t"
 				    << s.Z << "\t" << s.R << "\t" << phi_out << "\t"
-				    << s.psi << "\t" << s.Lc << "\t" << s.dpsidLc << "\n";
+				    << s.psi << "\t" << Lc_bwd_total+s.Lc << "\t" << s.dpsidLc << "\n";
 			}
 		}
 	}
