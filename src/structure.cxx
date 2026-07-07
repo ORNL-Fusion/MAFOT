@@ -294,7 +294,7 @@ if(usePointfile)
 }
 else	// or construct initial points from straight line between (Rmin,Zmin) and (Rmax,Zmax) at constant phi angle
 {
-	initial.resize(Range(1,PAR.N),Range(1,2));	// secondIndex = 1: R	secondIndex = 2: Z
+	initial.resize(Range(1,PAR.N),Range(1,3));	// secondIndex = 1: R,  2: phi,  3: Z (same layout as the -P points file)
 
 	if(PAR.N>1) dN = 1.0/double(PAR.N-1);
 	else dN = 0;
