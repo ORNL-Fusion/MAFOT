@@ -7,7 +7,9 @@ LIB_DIR = /root/source/MAFOT/build/lib
 # ---- Support codes ----
 # True or False
 M3DC1 = True
-VMEC = True	# enables the XFIELD/XPAND 3-D field reader (response_field=-3); GPU samples it via getBfield. Also links netCDF.
+# VMEC=True enables the XFIELD/XPAND 3-D field reader (response_field=-3); also links netCDF.
+# No inline comment after the value: make keeps the whitespace and ifeq silently fails.
+VMEC = True
 SIESTA = False
 
 # ---- Compiler ----
