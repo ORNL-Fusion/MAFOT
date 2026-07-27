@@ -55,6 +55,7 @@ Version Notes:
 ----------------
 MAFOT 6.1 -- July 2026
 - GPU support added for HEAT specific binaries only for now.
+- matplotlib get_cmap deprecation fixed in d3dplot.py
 
 MAFOT 6.0 -- July 2026
 - OpenMPI 5.0 compatibility patch: All C++ bindings (deprecated in 5.0) removed and replaced with C bindings.
