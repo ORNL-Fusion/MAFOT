@@ -41,6 +41,13 @@
 #include <mafot.hxx>
 #include <omp.h>
 #include <unistd.h>
+#ifdef USE_GPU
+#include <gpu_fields.hxx>
+#include <bfield_sampler.hxx>
+#include <fieldline_kernel.cuh>
+#include <string>
+#include <cmath>
+#endif
 
 // Prototypes  
 //-----------
@@ -108,11 +115,14 @@ double zbar = 2;  // average over impurity ion charge states
 double rc = 1;
 double mc = 1;
 bool use_collision = false;
+#ifdef USE_GPU
+bool gpu_flag = false;
+#endif
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsl:W:A:P:X:V:S:I:E:T:i:cbB:")) != -1)
+while ((c = getopt(argc, argv, "hgsl:W:A:P:X:V:S:I:E:T:i:cbB:")) != -1)
 switch (c)
 {
 case 'h':
@@ -143,6 +153,8 @@ case 'h':
 		cout << "  -V            filename for VMEC; default, see below" << endl;
 		cout << "  -W            use separate 3D Wall-File; default is 2D wall from EFIT file" << endl;
 		cout << "  -X            filename for XPAND; default is None" << endl;
+		cout << "  -g            use GPU for field-line tracing (requires build with GPU=True);" << endl;
+		cout << "                samples the active field (EFIT / M3D-C1 / XFIELD / SIESTA / GPEC) set by response_field" << endl;
 		cout << endl << "Examples:" << endl;
 		cout << "  mpirun -n 4 dtlaminar_mpi _lam.dat blabla" << endl;
 		cout << "  mpirun -n 12 dtlaminar_mpi -s -l 0.7 _lam.dat skip_inside0.7" << endl;
@@ -225,6 +237,14 @@ case 'T':
 	TprofileFile = optarg;
 	use_Tprofile = true;
 	break;
+case 'g':
+#ifdef USE_GPU
+	gpu_flag = true;
+#else
+	if(mpi_rank < 1) cout << "ERROR: GPU support not compiled in. Rebuild with GPU=True in make.inc." << endl;
+	EXIT;
+#endif
+	break;
 case '?':
 	if(mpi_rank < 1)
 	{
@@ -249,7 +269,11 @@ basename = checkparfilename(basename);
 LA_STRING parfilename = "_" + basename + ".dat";
 
 // check if enough Nodes have been selected
+#ifdef USE_GPU
+if(mpi_size < 2 && mpi_rank < 1 && !gpu_flag) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
+#else
 if(mpi_size < 2 && mpi_rank < 1) {cout << "Too few Nodes selected. Please use more Nodes and restart." << endl; EXIT;}
+#endif
 
 // log file
 ofs2.open("log_" + LA_STRING(program_name) + praefix + "_Node" + LA_STRING(mpi_rank) + ".dat");
@@ -390,10 +414,170 @@ PARTICLE FLT(EQD,PAR,COL,mpi_rank);
 
 MPI_Barrier(MPI_COMM_WORLD);	// Syncronize all Nodes
 
+#ifdef USE_GPU
+if(gpu_flag)
+{
+	if(mpi_rank == 0)
+	{
+		if(gpu_device_count() <= 0)
+		{
+			cout << "ERROR: -g requires a CUDA-capable GPU, but none was found." << endl;
+			MPI_Finalize();
+			return -1;
+		}
+		prepare_common_perturbations(EQD,PAR,mpi_rank,siestafile,xpandfile,islandfile);
+		prep_perturbation(EQD,PAR,mpi_rank);
+
+		cout << "Using GPU mode (CUDA kernels)" << endl;
+		ofs2 << "Using GPU mode (CUDA kernels)" << endl;
+		cout << "GPU Laminar: tracing " << N << " field lines..." << endl;
+		ofs2 << "GPU Laminar: tracing " << N << " field lines..." << endl;
+
+		// Build initial conditions and collect start-point quantities
+		FieldlineInit* finit      = new FieldlineInit[N];
+		double* B_R_start   = new double[N];
+		double* B_Z_start   = new double[N];
+		double* B_phi_start = new double[N];
+		double* theta_start = new double[N];
+		double* psi_start   = new double[N];
+		double dR_g = (PAR.NR > 1) ? (PAR.Rmax - PAR.Rmin) / (PAR.NR - 1) : 0.0;
+		double dZ_g = (PAR.NZ > 1) ? (PAR.Zmax - PAR.Zmin) / (PAR.NZ - 1) : 0.0;
+
+		for(int ii = 0; ii < N; ii++)
+		{
+			double Ri, Zi, phi_i;
+			if(use_inputPointsFile)
+			{
+				Ri    = inputPoints(ii+1, 1);
+				phi_i = inputPoints(ii+1, 2);
+				Zi    = inputPoints(ii+1, 3);
+			}
+			else
+			{
+				int iR = ii % PAR.NR;
+				int iZ = ii / PAR.NR;
+				Ri    = PAR.Rmin + iR * dR_g;
+				Zi    = PAR.Zmin + iZ * dZ_g;
+				phi_i = PAR.phistart;
+			}
+			finit[ii].R   = Ri;
+			finit[ii].Z   = Zi;
+			finit[ii].phi = phi_i;
+			FLT.get_psi(Ri, Zi, psi_start[ii]);
+			theta_start[ii] = atan2(Zi - EQD.ZmAxis, Ri - EQD.RmAxis);
+			int bchk = getBfield(Ri, Zi, phi_i/rTOd, B_R_start[ii], B_Z_start[ii], B_phi_start[ii], EQD, PAR);
+			if(bchk == -1) { B_R_start[ii] = 0; B_Z_start[ii] = 0; B_phi_start[ii] = 0; }
+		}
+
+		// Build the B-field grid by sampling getBfield() (honors response_field:
+		// EFIT / M3D-C1 / XFIELD-XPAND / SIESTA / GPEC). Only -1 (axisymmetric EFIT)
+		// is a single phi plane.
+		FieldGrid3D* grid = nullptr;
+		{
+			int use_Nphi = ((PAR.response_field >= 0) || (PAR.response_field <= -2)) ? 64 : 1;
+			double Rmin_g = EQD.R(1), Rmax_g = EQD.R(EQD.NR);
+			double Zmin_g = EQD.Z(1), Zmax_g = EQD.Z(EQD.NZ);
+			double phimin_g = (use_Nphi > 1) ? 0.0 : PAR.phistart;
+			double phimax_g = (use_Nphi > 1) ? 360.0 : PAR.phistart;
+			grid = sample_bfield(EQD, PAR,
+			                     64, Rmin_g, Rmax_g,
+			                     use_Nphi, phimin_g, phimax_g,
+			                     64, Zmin_g, Zmax_g);
+		}
+		fill_psi_grid(EQD, grid);
+		extract_wall(EQD, grid);
+		grid->bndy[0] = bndy[0];  grid->bndy[1] = bndy[1];
+		grid->bndy[2] = bndy[2];  grid->bndy[3] = bndy[3];
+		grid->simpleBndy = simpleBndy;
+		grid->RmAxis = EQD.RmAxis;
+		grid->ZmAxis = EQD.ZmAxis;
+
+		GPUTraceParams params;
+		params.dpinit       = dpinit;
+		params.nstep        = 1;
+		params.MapDirection = PAR.MapDirection;
+		params.itt          = PAR.itt;
+		params.phistart     = PAR.phistart;
+		params.v_par        = PAR.v_par;
+		params.v_radial     = PAR.v_radial;
+		params.v_tor        = PAR.v_tor;
+		params.sigma        = PAR.sigma;
+		params.Zq           = PAR.Zq;
+		params.GAMMA        = FLT.get_GAMMA();
+		params.eps0         = FLT.get_eps0();
+		params.Ix           = FLT.get_Ix();
+		params.R0           = EQD.R0;
+
+		LaminarResult* gpu_results = new LaminarResult[N];
+		if(gpu_trace_laminar(finit, gpu_results, N, grid, params) != 0)
+		{
+			cout << "ERROR: GPU laminar tracer failed." << endl;
+			delete[] finit;  delete[] gpu_results;
+			delete[] B_R_start;  delete[] B_Z_start;  delete[] B_phi_start;
+			delete[] theta_start;  delete[] psi_start;
+			free_field_grid(grid);
+			MPI_Finalize();  return -1;
+		}
+
+		// Write output (same 11-column format as CPU path)
+		ofstream out(filenameout);
+		out.precision(16);
+		vector<LA_STRING> var(N_variables);
+		var[0] = "R[m]";  var[1] = "Z[m]";  var[2] = "N_toroidal";  var[3] = "connection length [km]";  var[4] = "psimin (penetration depth)";
+		var[5] = "psiav";  var[6] = "B_R";  var[7] = "B_Z";  var[8] = "B_phi";
+		var[9] = "theta";  var[10] = "psi";
+		if(use_inputPointsFile) var[9] = "phi";
+		PAR.writeiodata(out, bndy, var);
+
+		for(int ii = 0; ii < N; ii++)
+		{
+			double col10, col11;
+			if(use_inputPointsFile)
+			{
+				col10 = finit[ii].phi;
+				col11 = psi_start[ii];
+			}
+			else
+			{
+				col10 = theta_start[ii];
+				col11 = psi_start[ii];
+			}
+			out << finit[ii].R << "\t" << finit[ii].Z << "\t"
+			    << gpu_results[ii].ntor << "\t" << gpu_results[ii].Lc / 1000.0 << "\t"
+			    << gpu_results[ii].psimin << "\t" << gpu_results[ii].psiav << "\t"
+			    << B_R_start[ii] << "\t" << B_Z_start[ii] << "\t" << B_phi_start[ii] << "\t"
+			    << col10 << "\t" << col11 << endl;
+		}
+
+		delete[] finit;  delete[] gpu_results;
+		delete[] B_R_start;  delete[] B_Z_start;  delete[] B_phi_start;
+		delete[] theta_start;  delete[] psi_start;
+		free_field_grid(grid);
+
+		double now2 = zeit();
+		cout << "Program terminates normally (GPU), Time: " << now2 - now << " s" << endl;
+		ofs3 << "Program terminates normally (GPU), Time: " << now2 - now << " s" << endl;
+	}
+	MPI_Finalize();
+	return 0;
+}
+#endif
+
 // Master only (Node 0)
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 if(mpi_rank < 1)
 {
+	// Print execution mode (CPU path for non-GPU runs)
+	#ifdef USE_GPU
+	if(!gpu_flag) {
+		cout << "Using CPU mode (RK4 integration)" << endl;
+		ofs3 << "Using CPU mode (RK4 integration)" << endl;
+	}
+	#else
+	cout << "Using CPU mode (RK4 integration)" << endl;
+	ofs3 << "Using CPU mode (RK4 integration)" << endl;
+	#endif
+
 	// check for possible restart
 	vector<LA_STRING> mafotHead;
 	Array<double,2> mafotData;

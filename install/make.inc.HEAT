@@ -7,7 +7,7 @@ LIB_DIR = /root/source/MAFOT/build/lib
 # ---- Support codes ----
 # True or False
 M3DC1 = True
-VMEC = False
+VMEC = True	# enables the XFIELD/XPAND 3-D field reader (response_field=-3); GPU samples it via getBfield. Also links netCDF.
 SIESTA = False
 
 # ---- Compiler ----
@@ -43,3 +43,16 @@ NETCDFINCLUDE = -I/usr/include
 
 # ---- build GUI with python (optional) ----
 #PYINSTALLER = /Library/Frameworks/EPD64.framework/Versions/7.2/bin/pyinstaller
+
+# ---- GPU / CUDA support ----
+# GPU=True compiles CUDA support into heatstructure / heatlaminar_mpi (one binary
+# per tool). At runtime, -g uses the GPU and omitting -g runs the CPU path.
+# cudart is linked statically (see GPU_LIBS in makefile), so the runtime image
+# needs no CUDA libraries -- only the driver (libcuda.so, injected by --gpus)
+# when -g is actually used. Requires nvcc from the CUDA Toolkit at CUDA_PATH.
+# NVCCFLAGS arch: sm_89 = Ada (RTX 2000/40xx); sm_80 = Ampere (A100); sm_70 = Volta;
+# sm_86 = RTX 30xx; sm_90 = Hopper (H100). Use multiple -gencode for several GPUs.
+GPU = True
+CUDA_PATH = /usr/local/cuda
+NVCC = $(CUDA_PATH)/bin/nvcc
+NVCCFLAGS = -O3 -std=c++14 -arch=sm_89

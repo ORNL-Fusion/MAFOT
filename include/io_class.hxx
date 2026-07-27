@@ -72,6 +72,9 @@ public:
 	double sheath_width;						// distance from the wall which marks the beginning of the sheath, in m, default is 1 cm
 	double sheath_te;							// electron temperature at the entrance to the sheath at sheath_width distance from the wall, in eV, default is 20 eV
 	double sheath_sec;							// secondary emission coefficient in the sheath, default is 0.5
+	double v_par;								// prescribed parallel velocity [m/s] (drift mode; sets time/angle scale)
+	double v_radial;							// prescribed anomalous radial (cross-field) velocity [m/s]; 0 -> off
+	double v_tor;								// prescribed toroidal rotation velocity [m/s]; 0 -> off
 
 	parstruct* pv;								// parstruct array
 
@@ -102,6 +105,7 @@ IO::IO(EFIT& EQD): EQDr(EQD)										// Default
 	psize = 0;
 	pv = 0;
 	output_step_size = 360;
+	v_par = 0; v_radial = 0; v_tor = 0;
 	set_sheath();
 }
 IO::IO(EFIT& EQD, LA_STRING name, int size, int mpi_rank): EQDr(EQD)	// with readiodata
@@ -188,6 +192,11 @@ use_sheath = PAR.use_sheath;
 sheath_width = PAR.sheath_width;
 sheath_te = PAR.sheath_te;
 sheath_sec = PAR.sheath_sec;
+
+// Drift velocities (filament drift mode)
+v_par = PAR.v_par;
+v_radial = PAR.v_radial;
+v_tor = PAR.v_tor;
 
 // Parstruct array
 if(pv) delete[] pv;
@@ -357,6 +366,12 @@ Zq = int(vec[17]);
 Ekin = vec[18];
 lambda = vec[19];
 Mass = vec[20];
+
+// Drift velocities [m/s], appended at the end of the control file (vec[26..28]).
+// Absent (older/other-machine files) or 0 -> off (pure field line); see PARTICLE::dgls.
+v_par    = (vec.size() > 26) ? vec[26] : 0.0;
+v_radial = (vec.size() > 27) ? vec[27] : 0.0;
+v_tor    = (vec.size() > 28) ? vec[28] : 0.0;
 
 verschieb = vec[0];
 useTprofile = 0;

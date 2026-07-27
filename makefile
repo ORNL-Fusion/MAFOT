@@ -21,6 +21,28 @@ else
 endif
 
 
+# ---- GPU / CUDA setup ----
+# Set GPU=True in make.inc to compile CUDA-accelerated variants.
+# Requires nvcc and the CUDA Toolkit (CUDA_PATH in make.inc).
+ifeq ($(GPU),True)
+   DEFINES     += -DUSE_GPU
+   GPU_INCLUDE  = -I$(CUDA_PATH)/include -I$(MAFOT_DIR)/src/gpu
+   # Static cudart: the binary carries the CUDA runtime, so deployment needs no
+   # libcudart.so -- only the driver (libcuda.so) at runtime when -g is used.
+   GPU_LIBS     = -L$(CUDA_PATH)/lib64 -lcudart_static -lpthread -lrt -ldl
+   # bfield_sampler is header-only (src/gpu/bfield_sampler.hxx) and compiles into
+   # structure.o / laminar_mpi.o; only the nvcc kernel is a separate object.
+   GPU_KERNEL   = $(OBJDIR)/fieldline_kernel.o
+   GPU_OBJS     = $(GPU_KERNEL)
+   NVCC        ?= $(CUDA_PATH)/bin/nvcc
+   NVCCFLAGS   ?= -O3 -std=c++14
+else
+   GPU_INCLUDE  =
+   GPU_LIBS     =
+   GPU_OBJS     =
+endif
+
+
 # ---- Other Defines ----
 ifdef DEFS
    DEFINES += $(DEFS)
@@ -41,7 +63,7 @@ ifdef VMEC
 ifeq ($(VMEC),True)
    LIBS += $(NETCDFLIBS)
    INCLUDE += $(NETCDFINCLUDE)
-   DEFINES += -DUSE_XFIELD
+   DEFINES += -DUSE_XFIELD -DUSE_NETCDF
 endif
 endif
 
@@ -360,11 +382,22 @@ tcabrstructure : $(OBJDIR)/tcabr/structure.o libla_string.a libtrip3d.a
 
 
 	# ---- HEAT Targets ----
-heatstructure : $(OBJDIR)/heat/structure.o libla_string.a libtrip3d.a
-	$(CXX) $(LDFLAGS) $(OBJDIR)/heat/structure.o -o $(BIN_DIR)/$@ $(LIBS)
+# One binary per tool. When GPU=True these link the CUDA objects (sampler +
+# kernel) and cudart, so the single binary does both: -g uses the GPU, omitting
+# -g runs the CPU path. When GPU=False, GPU_OBJS/GPU_LIBS are empty -> an
+# identical CPU-only binary that needs no CUDA toolchain to build.
+heatstructure : $(OBJDIR)/heat/structure.o libla_string.a libtrip3d.a $(GPU_OBJS)
+	$(CXX) $(LDFLAGS) $(OBJDIR)/heat/structure.o $(GPU_OBJS) -o $(BIN_DIR)/$@ $(LIBS) $(GPU_LIBS)
 
-heatlaminar_mpi : $(OBJDIR)/heat/laminar_mpi.o libla_string.a libtrip3d.a
-	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/heat/laminar_mpi.o -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS)
+heatlaminar_mpi : $(OBJDIR)/heat/laminar_mpi.o libla_string.a libtrip3d.a $(GPU_OBJS)
+	$(CXX) -fopenmp $(LDFLAGS) $(OBJDIR)/heat/laminar_mpi.o $(GPU_OBJS) -o $(BIN_DIR)/$@ $(OMPLIBS) $(LIBS) $(GPU_LIBS)
+
+
+# ---- HEAT GPU object (built only when GPU=True; linked into the targets above) ----
+# The CPU-side sampler is header-only (bfield_sampler.hxx); only the CUDA kernel
+# is compiled separately, by nvcc.
+$(GPU_KERNEL) : $(MAFOT_DIR)/src/gpu/fieldline_kernel.cu
+	$(NVCC) -c $(NVCCFLAGS) -I$(MAFOT_DIR)/include -I$(MAFOT_DIR)/src/gpu $< -o $@
 
 
 # ---- Include Dependencies ----
@@ -417,7 +450,7 @@ $(MPIOBJS_TCABR) : $(OBJDIR)/tcabr/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DTCABR $< -o $@
 
 $(MPIOBJS_HEAT) : $(OBJDIR)/heat/%.o : $(MAFOT_DIR)/src/%.cxx
-	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DHEAT $< -o $@
+	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(GPU_INCLUDE) $(DEFINES) -DHEAT $< -o $@
 
 
 $(SEROBJS_D3D) : $(OBJDIR)/d3d/%.o : $(MAFOT_DIR)/src/%.cxx
@@ -442,6 +475,6 @@ $(SEROBJS_TCABR) : $(OBJDIR)/tcabr/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) -DCTCABR $< -o $@
 
 $(SEROBJS_HEAT) : $(OBJDIR)/heat/%.o : $(MAFOT_DIR)/src/%.cxx
-	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) -DHEAT $< -o $@
+	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(GPU_INCLUDE) $(DEFINES) -DHEAT $< -o $@
 
 

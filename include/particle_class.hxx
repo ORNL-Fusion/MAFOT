@@ -132,6 +132,12 @@ public:
 	void getRZ(double x, double y, double& r, double& z);
 	double get_dpsidLc_average(void);
 
+	// drift-orbit constants of motion (computed once in the constructor) -- exposed so the GPU
+	// path can replicate the relativistic guiding-center drift from PARTICLE::dgls.
+	double get_GAMMA() const { return GAMMA; }	// relativistic gamma factor
+	double get_eps0()  const { return eps0; }	// normalized rest energy
+	double get_Ix()    const { return Ix; }		// normalized canonical angular momentum
+
 }; //end of class
 
 //------------------------ End of Class -----------------------------------------------------------------------------------
@@ -1082,8 +1088,25 @@ double sheathEr,sheathEz;
 chk = getBfield(y(0),y(1),x,B_R,B_Z,B_phi,EQDr,PARr);
 if (chk == -1) return -1;
 
-dydx(0) = y(0)*B_R/B_phi;
-dydx(1) = y(0)*B_Z/B_phi;
+if(PARr.v_radial != 0 || PARr.v_tor != 0)
+{
+	// Prescribed drift-velocity field v = v_par*b_hat + v_radial*r_hat + v_tor*phi_hat,
+	// reparametrized by toroidal angle phi (the integration variable). r_hat = (-B_Z,0,B_R)/Bp
+	// is the poloidal flux-surface normal (matches HEAT fluxSurfNorms). v_radial=v_tor=0
+	// reduces exactly to R*B_R/B_phi (pure field line).
+	double Bp   = sqrt(B_R*B_R + B_Z*B_Z);
+	double modB = sqrt(B_R*B_R + B_Z*B_Z + B_phi*B_phi);
+	double vR   = PARr.v_par*B_R/modB - PARr.v_radial*B_Z/Bp;
+	double vZ   = PARr.v_par*B_Z/modB + PARr.v_radial*B_R/Bp;
+	double vphi = PARr.v_par*B_phi/modB + PARr.v_tor;
+	dydx(0) = y(0)*vR/vphi;
+	dydx(1) = y(0)*vZ/vphi;
+}
+else
+{
+	dydx(0) = y(0)*B_R/B_phi;
+	dydx(1) = y(0)*B_Z/B_phi;
+}
 
 if(sigma != 0)
 {
