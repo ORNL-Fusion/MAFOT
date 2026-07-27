@@ -8,10 +8,11 @@ MAFOT (MAnifold & FOotprint Tracer / MAgnetic Fieldlines Of Tokamaks) is a C++/F
 
 ## Developer and References
 
-Code Author and primary developer: Andreas Wingen
+Code Author and primary developer: Andreas Wingen   
 Email: wingen@fusion.gat.com
 
-To cite MAFOT please use:A. Wingen, T. E. Evans, and K. H. Spatschek, “High resolution numerical studies of separatrix splitting due to non-axisymmetric perturbation in DIII-D,” Nuclear Fusion 49, 55027, (2009), doi: 10.1088/0029-5515/49/5/055027.
+To cite MAFOT please use:   
+A. Wingen, T. E. Evans, and K. H. Spatschek, “High resolution numerical studies of separatrix splitting due to non-axisymmetric perturbation in DIII-D,” Nuclear Fusion 49, 55027, (2009), doi: 10.1088/0029-5515/49/5/055027.
 
 Some other references that use the MAFOT code: 
 - A. Wingen et al., Physics of Plasmas 16, 42504, (2009), doi: 10.1063/1.3099053.
@@ -398,7 +399,7 @@ MAFOT 3.5 -- Feb 2015
 MAFOT 3.41 -- Feb 2015
 - BUG fixes in M3DC1 multimode capability for all machines:
     Equilibrium only used from first modefile, not from all
-    <machine>sup.in file no longer required, if m3dc1sup.in is used
+    machinesup.in file no longer required, if m3dc1sup.in is used
     field eval fails are now properly handled
 
 GUI 1.15 -- Oct 2014
