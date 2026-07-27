@@ -48,11 +48,14 @@ or
 ------------------------------------------------------------------------------------
 Current Version:
 ----------------
-MAFOT 6.0
+MAFOT 6.1
 GUI 3.21
 
 Version Notes: 
 ----------------
+MAFOT 6.1 -- July 2026
+- GPU support added for HEAT specific binaries only for now.
+
 MAFOT 6.0 -- July 2026
 - OpenMPI 5.0 compatibility patch: All C++ bindings (deprecated in 5.0) removed and replaced with C bindings.
 - libmpi_cxx removed from all make files, as no longer needed.
