@@ -4,7 +4,7 @@ This file gives a brief overview of the MAFOT code and its history. It also prov
 
 ## What this is
 
-MAFOT (MAnifold & FOotprint Tracer / MAgnetic Fieldlines Of Tokamaks) is a C++/Fortran MPI+OpenMP code for tracing magnetic field lines and computing connection lengths, Poincaré maps, and divertor heat footprints in tokamak plasmas. It supports multiple machines (DIII-D, ITER, NSTX, MAST, C-Mod, TCABR, and a generic "any" machine), with a Python/Tkinter GUI frontend. The current branch (`HEATv4.1`) adds a HEAT target for use as a field-line tracing backend for the HEAT heat-flux analysis code.
+MAFOT (MAnifold & FOotprint Tracer / MAgnetic Fieldlines Of Tokamaks) is a C++/Fortran MPI+OpenMP code for tracing magnetic field lines and computing connection lengths, Poincaré maps, and divertor heat footprints in tokamak plasmas. It supports multiple machines (DIII-D, ITER, NSTX, MAST, C-Mod, TCABR, and a generic "any" machine), with a Python/Tkinter GUI frontend. The makefile adds a HEAT target for use as a field-line tracing backend for the HEAT heat-flux analysis code.
 
 ## Developer and References
 
@@ -392,14 +392,14 @@ MAFOT 3.51 -- May 2015
 - Bug fix for NSTX: M3DC1 settings now enabled
 
 MAFOT 3.5 -- Feb 2015
-- Include the support for external fields from xpand_mpi. This replaces Diagno.
+- Include the support for external fields from xpand_mpi. This replaces Diagno. 
   code looks for file "xpand.dat" ("diagno.dat" no longer recognized, 
   "xpand.dat" can come from the DIAGNO code)
 
 MAFOT 3.41 -- Feb 2015
 - BUG fixes in M3DC1 multimode capability for all machines:
-    Equilibrium only used from first modefile, not from all
-    machinesup.in file no longer required, if m3dc1sup.in is used
+    Equilibrium only used from first modefile, not from all. 
+    machinesup.in file no longer required, if m3dc1sup.in is used. 
     field eval fails are now properly handled
 
 GUI 1.15 -- Oct 2014
