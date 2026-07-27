@@ -24,7 +24,7 @@ LDFLAGS = -m32
 # ---- external Libraries ---- 
 BLITZLIBS = -L/home/wingen/lib/32/blitz/lib -lblitz
 FLIBS = -L/usr/lib -lgfortran
-OMPLIBS = -L/home/wingen/lib/32/openmpi/lib -lmpi -lmpi_cxx
+OMPLIBS = -L/home/wingen/lib/32/openmpi/lib -lmpi
 M3DC1LIBS = 
 HDF5LIBS = 
 
