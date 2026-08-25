@@ -80,7 +80,6 @@ MPI_Status status;
 
 // Use system time as seed(=idum) for random numbers
 double now = zeit();
-//long idum = long(now);
 
 // defaults
 int spare_interior = 0;					// 0: all points are calculated		1: inside psi = psi_interior_limit results are set to fixed values (code runs faster)
@@ -116,11 +115,12 @@ double zbar = 2;  // average over impurity ion charge states
 double rc = 1;
 double mc = 1;
 bool use_collision = false;
+long ensemble_seed = 1;
 
 // Command line input parsing
 int c;
 opterr = 0;
-while ((c = getopt(argc, argv, "hsl:W:C:D:MN:A:P:X:V:S:I:E:T:i:cbB:")) != -1)
+while ((c = getopt(argc, argv, "hsl:r:W:C:D:MN:A:P:X:V:S:I:E:T:i:cbB:")) != -1)
 switch (c)
 {
 case 'h':
@@ -136,6 +136,7 @@ case 'h':
 		cout << "  -h            show this help message and exit" << endl;
 		cout << "  -b            use simple boundary with default limits instead of g-file wall as limiter" << endl;
 		cout << "  -c            check if field line crosses wall during first step; only with 3D wall, default = No" << endl;
+		cout << "  -r            set random seed for ensemble averaging; default is 1" << endl;
 		cout << "  -i            change integrator step size; default is 1.0" << endl;
 		cout << "  -l            flux limit for spare interior, default = 0.85" << endl;
 		cout << "  -s            spare calculation of interior, default = No" << endl;
@@ -192,6 +193,9 @@ case 'B':
 	break;
 case 'c':
 	checkFistStep = true;
+	break;
+case 'r':
+	ensemble_seed = strtol(optarg, NULL, 10);
 	break;
 case 'i':
 	dpinit = atof(optarg);
@@ -294,7 +298,7 @@ if(use_turnmap) filenameout = "lam" + praefix + ".dat";
 // Read parameter file
 if(mpi_rank < 1) cout << "Read Parameterfile " << parfilename << endl;
 ofs2 << "Read Parameterfile " << parfilename << endl;
-IO PAR(EQD,parfilename,11,mpi_rank);
+IO PAR(EQD,parfilename,12,mpi_rank);
 
 // Read EFIT-data
 #ifdef USE_XFIELD
@@ -471,7 +475,8 @@ if(mpi_rank < 1)
 	PAR.pv[10].name = "Ekin";			PAR.pv[10].wert = PAR.Ekin;
 
 	if(PAR.create_flag == 2) {PAR.pv[1].name = "phi-grid"; PAR.pv[1].wert = PAR.Nphi; PAR.pv[2].name = "Swall-grid"; PAR.pv[2].wert = PAR.Nt; PAR.pv[3].name = "Smin"; PAR.pv[4].name = "Smax"; PAR.pv[5].name = "phimin"; PAR.pv[6].name = "phimax";}
-	if(PAR.create_flag == 3) {PAR.pv[1].name = "psi-grid"; PAR.pv[2].name = "theta-grid"; PAR.pv[3].name = "psimin"; PAR.pv[4].name = "psimax"; PAR.pv[5].name = "thetamin"; PAR.pv[6].name = "thetamax";}
+	if(PAR.create_flag == 3 || PAR.create_flag == 4) {PAR.pv[1].name = "psi-grid"; PAR.pv[2].name = "theta-grid"; PAR.pv[3].name = "psimin"; PAR.pv[4].name = "psimax"; PAR.pv[5].name = "thetamin"; PAR.pv[6].name = "thetamax";}
+	if(PAR.create_flag == 4) {PAR.pv[11].name = "Random seed"; PAR.pv[11].wert = ensemble_seed;}
 	if(PAR.create_flag == 6) {PAR.pv[1].name = "theta-grid"; PAR.pv[2].name = "phi-grid"; PAR.pv[3].name = "thetamin"; PAR.pv[4].name = "thetamax"; PAR.pv[5].name = "phimin"; PAR.pv[6].name = "phimax"; PAR.pv[7].name = "psi surface";}
 
 	// Output
@@ -497,7 +502,7 @@ if(mpi_rank < 1)
 	
 	if(!use_turnmap)  // only apply create_flag variants for laminar mode
 	{
-		if(PAR.create_flag == 3) {var[0] = "theta";  var[1] = "psi";  var[9] = "R[m]";  var[10] = "Z[m]";}
+		if(PAR.create_flag == 3 || PAR.create_flag == 4) {var[0] = "theta";  var[1] = "psi";  var[9] = "R[m]";  var[10] = "Z[m]";}
 		if(PAR.create_flag == 6) {var[0] = "phi";  var[1] = "theta";  var[9] = "R[m]";  var[10] = "Z[m]";}
 		if(PAR.response_field == -2) {var[0] = "u"; var[3] = "s";}
 		if(use_inputPointsFile) var[9] = "phi";
@@ -694,6 +699,17 @@ if(mpi_rank < 1)
 						xtmp = FLT.R;
 						ytmp = FLT.Z;
 #endif
+					}
+					else if(PAR.create_flag == 4)	// creates random points in psi-theta plane
+					{
+						const long point = long(tag-1) * N_slave + i;
+						long idum = (ensemble_seed + 104729L * point) % 2147483647L;	// 104729 is the 10000th prime number, 2147483647 is the largest signed 32-bit integer
+
+						FLT.create(idum, PAR.Rmin, PAR.Rmax, PAR.Zmin, PAR.Zmax, 2);
+						results_all(tag,1,i) = FLT.theta;
+						results_all(tag,2,i) = FLT.psi;
+						xtmp = FLT.R;
+						ytmp = FLT.Z;
 					}
 					else						// creates regular grid from R and Z
 					{
@@ -945,6 +961,17 @@ if(mpi_rank > 0)
 				ytmp = FLT.Z;
 #endif
 			}
+			else if(PAR.create_flag == 4)	// creates random points in psi-theta plane
+			{
+				const long point = long(tag-1) * N_slave + i;
+				long idum = (ensemble_seed + 104729L * point) % 2147483647L;	// 104729 is the 10000th prime number, 2147483647 is the largest signed 32-bit integer
+
+				FLT.create(idum, PAR.Rmin, PAR.Rmax, PAR.Zmin, PAR.Zmax, 2);
+				results(1,i) = FLT.theta;
+				results(2,i) = FLT.psi;
+				xtmp = FLT.R;
+				ytmp = FLT.Z;
+			}
 			else						// creates regular grid from R and Z
 			{
 				FLT.set(i,N_slave,PAR.Rmin,PAR.Rmax,Zmin_slave,Zmax_slave,NZ_slave);	// matlab requires R to vary first
@@ -1110,6 +1137,8 @@ if(mpi_rank < 1)
 {
 	cout << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 	ofs3 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
+
+	if(PAR.create_flag == 4) ofs3 << "Random seed: " << ensemble_seed << endl;
 }
 ofs2 << "Program terminates normally, Time: " << now2-now  << " s" << endl;
 
