@@ -298,7 +298,9 @@ if(use_turnmap) filenameout = "lam" + praefix + ".dat";
 // Read parameter file
 if(mpi_rank < 1) cout << "Read Parameterfile " << parfilename << endl;
 ofs2 << "Read Parameterfile " << parfilename << endl;
-IO PAR(EQD,parfilename,12,mpi_rank);
+
+IO PAR(EQD, parfilename, 0, mpi_rank);
+PAR.set_pv(PAR.create_flag == 4 ? 12 : 11);
 
 // Read EFIT-data
 #ifdef USE_XFIELD
@@ -424,6 +426,19 @@ if(use_inputPointsFile)
 
 int N_slave_use = N_slave;	// set to private in omp section, so needs to be reinitialized in there.
 
+Array<long,1> point_seeds(Range(1,N));
+
+if(PAR.create_flag == 4)
+{
+    long idum = ensemble_seed;
+
+    for(int point=1; point<=N; ++point)
+    {
+        point_seeds(point) = idum;
+        ran0(idum); // reserve psi draw
+        ran0(idum); // reserve theta draw
+    }
+}
 // Needed for storage of data while calculating
 Array<int,1> write_memory(Range(1,NoOfPackages)); //store which data is written to file (0: not calculated yet, 1: calculated, 2: written to file)
 int write_max = 0;
@@ -702,8 +717,8 @@ if(mpi_rank < 1)
 					}
 					else if(PAR.create_flag == 4)	// creates random points in psi-theta plane
 					{
-						const long point = long(tag-1) * N_slave + i;
-						long idum = (ensemble_seed + 104729L * point) % 2147483647L;	// 104729 is the 10000th prime number, 2147483647 is the largest signed 32-bit integer
+						const int point = (tag-1) * N_slave + i;
+						long idum = point_seeds(point);
 
 						FLT.create(idum, PAR.Rmin, PAR.Rmax, PAR.Zmin, PAR.Zmax, 2);
 						results_all(tag,1,i) = FLT.theta;
@@ -963,8 +978,8 @@ if(mpi_rank > 0)
 			}
 			else if(PAR.create_flag == 4)	// creates random points in psi-theta plane
 			{
-				const long point = long(tag-1) * N_slave + i;
-				long idum = (ensemble_seed + 104729L * point) % 2147483647L;	// 104729 is the 10000th prime number, 2147483647 is the largest signed 32-bit integer
+				const int point = (tag-1) * N_slave + i;
+				long idum = point_seeds(point);
 
 				FLT.create(idum, PAR.Rmin, PAR.Rmax, PAR.Zmin, PAR.Zmax, 2);
 				results(1,i) = FLT.theta;
