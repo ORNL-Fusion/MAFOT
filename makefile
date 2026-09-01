@@ -7,6 +7,7 @@ include ./make.inc
 # ---- set directories ----
 OBJDIR := $(MAFOT_DIR)/release
 DIRS = $(OBJDIR)/d3d $(OBJDIR)/iter $(OBJDIR)/nstx $(OBJDIR)/mast $(OBJDIR)/cmod $(OBJDIR)/tcabr $(OBJDIR)/anym $(OBJDIR)/heat $(LIB_DIR) $(BIN_DIR)
+PYTHON ?= $(MAFOT_DIR)/.venv/bin/python
 
 
 # ---- M3DC1 setup ----
@@ -15,8 +16,10 @@ DIRS = $(OBJDIR)/d3d $(OBJDIR)/iter $(OBJDIR)/nstx $(OBJDIR)/mast $(OBJDIR)/cmod
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
   OSDEFS :=
+  MAFOT_CPP_BRIDGE_LIB := $(LIB_DIR)/libmafot_cpp_bridge.dylib
 else
   OSDEFS := -Dlinux
+  MAFOT_CPP_BRIDGE_LIB := $(LIB_DIR)/libmafot_cpp_bridge.so
 endif
 
 ifeq ($(M3DC1),True)
@@ -120,7 +123,7 @@ FOBJS := $(addprefix $(OBJDIR)/, $(FOBJS))
 all : $(DIRS) d3d iter nstx mast any tcabr gui xpand d3dplot 
 
 .PHONY : d3d
-d3d : $(DIRS) dtplot dtfix dtman dtiter dtlaminar_mpi dtfoot_mpi dtplot_mpi SDVW_dtplot_mpi SDVW_dtfoot_mpi dtstructure dtlcfs dttrace
+d3d : $(DIRS) dtplot dtfix dtman dtiter dtlaminar_mpi dtfoot_mpi dtplot_mpi SDVW_dtplot_mpi SDVW_dtfoot_mpi dtstructure dtlcfs dttrace mafot_cpp_bridge
 
 .PHONY : iter
 iter : $(DIRS) iterplot iterfix iterman iterlaminar_mpi iterfoot_mpi iterplot_mpi iterstructure
@@ -184,6 +187,15 @@ libtrip3d.a : $(DIRS) $(FOBJS)
 
 libla_string.a : $(DIRS) $(OBJS)
 	$(ARCH) $(LIB_DIR)/$@ $(OBJS)
+
+.PHONY : mafot_cpp_bridge test_mafot_map
+mafot_cpp_bridge : $(MAFOT_CPP_BRIDGE_LIB)
+
+test_mafot_map : mafot_cpp_bridge
+	MPLCONFIGDIR=/tmp/mafot_matplotlib PYTHONPATH=$(MAFOT_DIR)/python $(PYTHON) $(MAFOT_DIR)/tests/test_mafot_map.py
+
+$(MAFOT_CPP_BRIDGE_LIB) : $(MAFOT_DIR)/src/libmafot/mafot_cpp_bridge.cxx libla_string.a libtrip3d.a | $(DIRS)
+	$(LDD) $(CFLAGS) $(INCLUDE) $(DEFINES) -DD3D $< -o $@ $(LIBS)
 
 clean :
 	rm -rf $(OBJDIR)
