@@ -29,7 +29,7 @@ DEFS = -Dm3dc1_newfio -DUSE_MPICH
 # ---- external Libraries ---- 
 BLITZLIBS = -L/fusion/projects/codes/mafot/lib/blitz/lib -lblitz
 FLIBS = -lgfortran 
-OMPLIBS = -L${MPICH_DIR}/lib -lmpi -lmpicxx
+OMPLIBS = -L${MPICH_DIR}/lib -lmpi
 M3DC1LIBS = -L/fusion/projects/codes/mafot/fusionio/lib -lfusionio -lm3dc1
 HDF5LIBS = -L${HDF5_DIR}/lib -lhdf5 -lz -Wl,-rpath,${HDF5_DIR}/lib -lstdc++
 NETCDFLIBS = -L${NETCDF_DIR}/lib -lnetcdf
