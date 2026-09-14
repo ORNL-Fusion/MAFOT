@@ -147,7 +147,7 @@ case 'g':
 	gpu_flag = true;
 #else
 	cout << "ERROR: GPU support not compiled in. Rebuild with GPU=True in make.inc." << endl;
-	EXIT;
+	exit(1);
 #endif
 	break;
 case 'c':
@@ -345,9 +345,11 @@ if(gpu_flag)
 		gpu_flag = false;
 		goto cpu_structure;
 	}
+	// GPU failures exit non-zero (EXIT is exit(0)) so a caller can tell a failed
+	// trace from a finished one: the output file already holds its header by now.
 	if(gpu_device_count() <= 0) {
 		cout << "ERROR: -g requires a CUDA-capable GPU, but none was found." << endl;
-		EXIT;
+		exit(1);
 	}
 	// --- Build or read B-field grid ---
 	// Sample getBfield() onto the grid; this honors response_field
@@ -367,7 +369,7 @@ if(gpu_flag)
 		                      gpu_Nphi, gpu_phimin, gpu_phimax,
 		                      gpu_NZ, gpu_Zmin, gpu_Zmax);
 	}
-	if(!fgrid) { cout << "ERROR: failed to build GPU field grid." << endl; EXIT; }
+	if(!fgrid) { cout << "ERROR: failed to build GPU field grid." << endl; exit(1); }
 	fill_psi_grid(EQD, fgrid);
 	extract_wall(EQD, fgrid);
 	for(int k=0;k<4;k++) fgrid->bndy[k] = bndy[k];
@@ -409,7 +411,7 @@ if(gpu_flag)
 	                                  res_bwd, res_fwd,
 	                                  nsteps_bwd, nsteps_fwd,
 	                                  fgrid, gparams);
-	if(gpu_err != 0) { cout << "ERROR: GPU kernel failed." << endl; EXIT; }
+	if(gpu_err != 0) { cout << "ERROR: GPU kernel failed." << endl; exit(1); }
 
 	// --- Write output (mirrors CPU ordering; like the CPU, Lc accumulates from the
 	// backward trace through the start point into the forward trace) ---

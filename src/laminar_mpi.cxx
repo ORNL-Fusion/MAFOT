@@ -242,7 +242,7 @@ case 'g':
 	gpu_flag = true;
 #else
 	if(mpi_rank < 1) cout << "ERROR: GPU support not compiled in. Rebuild with GPU=True in make.inc." << endl;
-	EXIT;
+	MPI_Abort(MPI_COMM_WORLD, 1);	// non-zero, unlike EXIT, so the caller sees the failure
 #endif
 	break;
 case '?':
