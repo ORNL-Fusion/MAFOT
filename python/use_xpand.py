@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 import sys,os
 import numpy as np
 #import h5py
@@ -34,7 +34,7 @@ class chk_inside_class:
 		theta = self.W.__get_theta__(Rs, Zs, None, self.Raxis, self.Zaxis)
 		
 		# make theta periodic & monotonic
-		idx = np.where(np.abs(np.diff(theta)) > 5)[0]	# locate 2pi jump in theta
+		idx = int(np.where(np.abs(np.diff(theta)) > 5)[0])	# locate 2pi jump in theta
 		theta[idx + 1 ::] += 2*np.pi				# make theta increase monotonically
 		if (theta[0] > 0):
 			theta = np.append(theta - 2*np.pi, theta[1:idx + 3])
@@ -148,7 +148,7 @@ class xpand_class:
 			self.phi = phi
 			self.Z = Z
 	
-		for k in xrange(self.Np):
+		for k in range(self.Np):
 			r, z = self.R[k,:,:].flatten(), self.Z[k,:,:].flatten()
 			chk_inside = chk_inside_class(self.W, self.phi[k,0,0])
 			inside = chk_inside(r,z)
@@ -170,8 +170,8 @@ class xpand_class:
 		
 		if (index == None):
 			index = []
-			for i in xrange(Ny):
-				for j in xrange(Nx):
+			for i in range(Ny):
+				for j in range(Nx):
 					A = np.array([])
 					for m,n in LIST:
 						if inside(i+m,j+n): A = np.append(A,B[i+m,j+n])			
@@ -182,7 +182,7 @@ class xpand_class:
 			for i,j in index:
 				A = np.array([])
 				for m,n in LIST:
-					for k in xrange(1,4):
+					for k in range(1,4):
 						if good(i+k*m,j+k*n):
 							if inside(i+k*m,j+k*n): A = np.append(A,B[i+k*m,j+k*n])
 							break;
@@ -191,8 +191,8 @@ class xpand_class:
 # 		if (index == None):
 # 			index = []
 # 
-# 			for i in xrange(Ny):
-# 				for j in xrange(Nx):
+# 			for i in range(Ny):
+# 				for j in range(Nx):
 # 					# bottom bndy
 # 					if (i == 0) & (j > 0) & (j < Nx-1):
 # 						A = array([B[i+1,j], B[i+1,j+1], B[i+1,j-1], B[i,j+1], B[i,j-1]])
@@ -257,13 +257,13 @@ class xpand_class:
 # 				B[i,j] = mean(A)
 # 			
 
-		if not quiet: print 'Found:', len(index), 'Points'
+		if not quiet: print('Found:', len(index), 'Points')
 		return B, index
 
 			
 	def heal_all(self, eps = 1, quiet = False):
 		"fix bad grid points for all fields and all angles; see self.heal()"
-		for k in xrange(self.Np):
+		for k in range(self.Np):
 			self.heal(k, eps, quiet)
 
 
@@ -275,7 +275,7 @@ class xpand_class:
 		"""
 		_,index = self._heal_spots(self.Bphi[k,:,:], eps = eps, index_only = True)
 		if len(index) > 0:
-			if not quiet: print 'k =', k, '\t Angle =', self.phi[k,0,0], ' \t',
+			if not quiet: print('k =', k, '\t Angle =', self.phi[k,0,0])
 			self.BR[k,:,:],_ = self._heal_spots(self.BR[k,:,:], index = index)
 			self.Bphi[k,:,:],_ = self._heal_spots(self.Bphi[k,:,:], index = index, quiet = quiet)
 			self.BZ[k,:,:],_ = self._heal_spots(self.BZ[k,:,:], index = index)
@@ -292,13 +292,13 @@ class xpand_class:
 			f.write("# NR = " + str(self.NR) + "\n")
 			f.write("# Np = " + str(self.Np) + "\n")
 			f.write("# NZ = " + str(self.NZ) + "\n")
-			for i in xrange(N): 
+			for i in range(N): 
 				f.write(str(R[i]) + "\t" + str(phi[i]) + "\t" + str(Z[i]) + "\n")
 	
 
 	def view_all(self, spots = True, eps = 1, Bmod_only = True, quiet = True):
 		"shows contour plots for all angles; see self.view()"
-		for k in xrange(self.Np):
+		for k in range(self.Np):
 			self.view(k, spots, eps, Bmod_only)
 
 
@@ -423,7 +423,7 @@ class xpand_class:
 				f.write('# NR \t Nphi \t NZ\n')
 				f.write('# ' + str(self.NR) + '\t' + str(self.Np) + '\t' + str(self.NZ) + '\n')
 				f.write('# R[m]               \t phi[rad]             \t Z[m]                 \t BR[T]                \t Bphi[T]              \t BZ[T]              \t Pres[Pa]\n')
-				for i in xrange(len(R)): 
+				for i in range(len(R)): 
 					f.write(format(R[i],fmt) + "\t" + format(v[i],fmt) + "\t" + format(Z[i],fmt) + "\t" + format(BR[i],fmt) + "\t" + format(Bphi[i],fmt) + "\t" + format(BZ[i],fmt) + "\t" + format(Pressure[i],fmt) + "\n")
 				
 	
@@ -449,7 +449,7 @@ class xpand_class:
 			self.NZ = int(round((NRNZ * NPNZ / float(NRNP))**0.5))
 			self.NR = NRNZ/self.NZ
 			self.Np = NPNZ/self.NZ
-			print 'NR =', self.NR, ', Nphi =', self.Np, ', NZ =', self.NZ
+			print('NR =', self.NR, ', Nphi =', self.Np, ', NZ =', self.NZ)
 
 			R = data[:,0].reshape(self.Np, self.NZ, self.NR)
 			v = data[:,1].reshape(self.Np, self.NZ, self.NR)
@@ -475,7 +475,7 @@ class xpand_class:
 		self.pmax = self.phi.max()
 		
 		self.inside_all = []
-		for k in xrange(self.Np):
+		for k in range(self.Np):
 			r, p, z = self.R[k,:,:].flatten(), self.phi[k,0,0], self.Z[k,:,:].flatten()	
 			chk_inside = chk_inside_class(self.W, p)
 			inside = chk_inside(r,z)
@@ -511,7 +511,7 @@ class xpand_class:
 		if fullGrid:
 			from scipy.interpolate import griddata
 			divB = np.zeros(self.R.shape)
-			for k in xrange(self.Np):
+			for k in range(self.Np):
 				divB[k,:,:] = griddata((Rh[k,:,:].flatten(), Zh[k,:,:].flatten()), divh[k,:,:].flatten(), (self.R[0,:,:], self.Z[0,:,:]), method='linear', fill_value = 0)
 			return divB
 		return Rh, Zh, divh
@@ -538,7 +538,7 @@ class xpand_class:
 		"""
 		# read mgrid and set grid
 		if mgrid is None: mgrid = self.W.data['mgrid_file']
-		print 'Read MGRID file:', mgrid
+		print('Read MGRID file:', mgrid)
 		data = openNETCDF(mgrid)
 		R = np.linspace(data['rmin'], data['rmax'], data['ir'])
 		Z = np.linspace(data['zmin'], data['zmax'], data['jz'])
@@ -547,11 +547,11 @@ class xpand_class:
 	
 		# all fields from the coils
 		if (self.W.data['nextcur'] == 0) & (extcur is None): 
-			print 'Fixed Boundary detected. Please provide extcur --> abort'
+			print('Fixed Boundary detected. Please provide extcur --> abort')
 			return
 		if extcur is None: extcur = self.W.data['extcur']
 		BRmgrid, Bphimgrid, BZmgrid = 0, 0, 0
-		for i in xrange(len(extcur)):
+		for i in range(len(extcur)):
 			BRmgrid += extcur[i] * data['br_'+format(i+1,'03d')]
 			Bphimgrid += extcur[i] * data['bp_'+format(i+1,'03d')]
 			BZmgrid += extcur[i] * data['bz_'+format(i+1,'03d')]
@@ -561,7 +561,7 @@ class xpand_class:
 		self.Bphivac_func = []
 		self.BZvac_func = []
 		
-		for i in xrange(data['kp']):
+		for i in range(data['kp']):
 			self.BRvac_func.append(interp.RectBivariateSpline(R, Z, BRmgrid[i,:,:].T))
 			self.Bphivac_func.append(interp.RectBivariateSpline(R, Z, Bphimgrid[i,:,:].T))
 			self.BZvac_func.append(interp.RectBivariateSpline(R, Z, BZmgrid[i,:,:].T))
@@ -594,7 +594,7 @@ class xpand_class:
 	def vacuumB(self):
 		"""Computes vacuum B-field for the entire grid"""
 		BRvac, Bpvac, BZvac = np.zeros(self.R.shape), np.zeros(self.R.shape), np.zeros(self.R.shape)
-		for k in xrange(self.Np):
+		for k in range(self.Np):
 			br, bp, bz = self.get_vacuumB(self.R[k,:,:].flatten(),self.phi[k,0,0],self.Z[k,:,:].flatten())
 			BRvac[k,:,:] = br.reshape(self.NZ, self.NR)
 			Bpvac[k,:,:] = bp.reshape(self.NZ, self.NR)
@@ -621,7 +621,7 @@ def openNETCDF(Filename):
 					DATA[n] = ''.join(data.variables[n][:]).strip()
 				else:														# 2-D
 					DATA[n] = []
-					for i in xrange(data.variables[n].shape[0]):
+					for i in range(data.variables[n].shape[0]):
 						DATA[n].append(''.join(data.variables[n][i,:]).strip())
 		else:																# single variable
 			if(data.variables[n].dtype == 'float'):							# float
@@ -632,7 +632,7 @@ def openNETCDF(Filename):
 				try: DATA[n] = ''.join(data.variables[n][:])	# at fixed bndy: mgrid_mode exists but is masked -> error
 				except: DATA[n] = data.variables[n][:]
 			else:															# unknown
-				print 'unknown datatype in variable:', n
+				print('unknown datatype in variable:', n)
 				DATA[n] = data.variables[n][:]
 	return DATA
 
@@ -644,9 +644,9 @@ def main(wout, Rmin = 1, Rmax = 2.4, NR = 2, Zmin = -1.5, Zmax = 1.5,
 	xpand = xpand_class(wout, Rmin, Rmax, NR, Zmin, Zmax, NZ, pmin, pmax, Np)
 
 	if file is None: 
-		print 'Grid: R =',format(Rmin,' .3f'),' ->',format(Rmax,' .3f'),'\t   NR =',NR
-		print '    phi =',format(pmin,' .3f'),' ->',format(pmax,' .3f'),'\t Nphi =',Np
-		print '      Z =',format(Zmin,' .3f'),' ->',format(Zmax,' .3f'),'\t   NZ =',NZ
+		print('Grid: R =',format(Rmin,' .3f'),' ->',format(Rmax,' .3f'),'\t   NR =',NR)
+		print('    phi =',format(pmin,' .3f'),' ->',format(pmax,' .3f'),'\t Nphi =',Np)
+		print('      Z =',format(Zmin,' .3f'),' ->',format(Zmax,' .3f'),'\t   NZ =',NZ)
 		xpand.write_points()	# To write points.dat file for xpand run
 	else: 
 		xpand.load(file)	# To start, read results:
@@ -657,7 +657,7 @@ def main(wout, Rmin = 1, Rmax = 2.4, NR = 2, Zmin = -1.5, Zmax = 1.5,
 		if angle is None: heal = True
 		else:
 			heal = False
-			print 'Showing B-field for angle:', angle
+			print('Showing B-field for angle:', angle)
 			k = int((angle%360)*xpand.Np/360.0)
 			xpand.view(k, eps = 1)
 			plt.show()
@@ -691,43 +691,43 @@ if __name__ == '__main__':
 																 "angle="])
 	for o, a in opts:
 		if o in ("-h", "--help"):
-			print "usage: use_xpand.py [-h] [-r Rgrid] [-z Zgrid] [-p Phigrid]"
-			print "                  [-f FILE] [-a ANGLE]"
-			print "                  wout-file"
-			print ""
-			print "Create Xpand points file and/or post-process Xpand output."
-			print "If -f file is given, grid is set by file data,"
-			print "and all possible damaged grid points are corrected."
-			print "If -f file is not given, points.dat file is created."
-			print "If -a angle is given, no correction action is done"
-			print ""
-			print "positional arguments:"
-			print "  wout-file             file name or (full or rel.) pathname of VMEC wout"
-			print ""
-			print "optional arguments:"
-			print "  -h, --help            show this help message and exit"
-			print "  -r, --Rgrid <Arg>     Set grid parameters for R. <Arg> = "
-			print "                        Rmin,Rmax,NR (no spaces)"
-			print "                        Defaults: 1,2.4,128"
-			print "                        If -f file is given, grid is set by file data."
-			print "  -z, --Zgrid <Arg>     Set grid parameters for Z. <Arg> = "
-			print "                        Zmin,Zmax,NZ (no spaces)"
-			print "                        Defaults: -1.5,1-5,128"
-			print "  -p, --phigrid <Arg>   Set grid parameters for toroidal angle phi. <Arg> = "
-			print "                        phimin,phimax,Nphi (no spaces)"
-			print "                        Keywords: pi and 2pi are possible for phimin and phimax"
-			print "                        Defaults: 0,2pi,1"
-			print "  -f, --file <Arg>      Filename of Xpand output to load."
-			print "                        If no angle is given, default action is to heal"
-			print "                        all possible damaged grid points."
-			print "                        Healed grid is returned in <file>_heald.dat"
-			print "                        If no file is given, points file is created."
-			print "  -a, --angle <Arg>     View results of Xpand at toroidal angle in degrees."
-			print "                        No healing action is done"
-			print ""
-			print "Examples: use_xpand.py -p 0,2pi,48 wout.nc"
-			print "          use_xpand.py -f xpand_result.dat wout.nc"
-			print "          use_xpand.py -f xpand_result.dat -a 10 wout.nc"
+			print("usage: use_xpand.py [-h] [-r Rgrid] [-z Zgrid] [-p Phigrid]")
+			print("                  [-f FILE] [-a ANGLE]")
+			print("                  wout-file")
+			print("")
+			print("Create Xpand points file and/or post-process Xpand output.")
+			print("If -f file is given, grid is set by file data,")
+			print("and all possible damaged grid points are corrected.")
+			print("If -f file is not given, points.dat file is created.")
+			print("If -a angle is given, no correction action is done")
+			print("")
+			print("positional arguments:")
+			print("  wout-file             file name or (full or rel.) pathname of VMEC wout")
+			print("")
+			print("optional arguments:")
+			print("  -h, --help            show this help message and exit")
+			print("  -r, --Rgrid <Arg>     Set grid parameters for R. <Arg> = ")
+			print("                        Rmin,Rmax,NR (no spaces)")
+			print("                        Defaults: 1,2.4,128")
+			print("                        If -f file is given, grid is set by file data.")
+			print("  -z, --Zgrid <Arg>     Set grid parameters for Z. <Arg> = ")
+			print("                        Zmin,Zmax,NZ (no spaces)")
+			print("                        Defaults: -1.5,1-5,128")
+			print("  -p, --phigrid <Arg>   Set grid parameters for toroidal angle phi. <Arg> = ")
+			print("                        phimin,phimax,Nphi (no spaces)")
+			print("                        Keywords: pi and 2pi are possible for phimin and phimax")
+			print("                        Defaults: 0,2pi,1")
+			print("  -f, --file <Arg>      Filename of Xpand output to load.")
+			print("                        If no angle is given, default action is to heal")
+			print("                        all possible damaged grid points.")
+			print("                        Healed grid is returned in <file>_heald.dat")
+			print("                        If no file is given, points file is created.")
+			print("  -a, --angle <Arg>     View results of Xpand at toroidal angle in degrees.")
+			print("                        No healing action is done")
+			print("")
+			print("Examples: use_xpand.py -p 0,2pi,48 wout.nc")
+			print("          use_xpand.py -f xpand_result.dat wout.nc")
+			print("          use_xpand.py -f xpand_result.dat -a 10 wout.nc")
 			sys.exit()
 		elif o in ("-r", "--Rgrid"):
 			grid = a.split(',')
