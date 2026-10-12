@@ -147,7 +147,7 @@ case 'g':
 	gpu_flag = true;
 #else
 	cout << "ERROR: GPU support not compiled in. Rebuild with GPU=True in make.inc." << endl;
-	EXIT;
+	exit(1);
 #endif
 	break;
 case 'c':
@@ -294,7 +294,7 @@ if(usePointfile)
 }
 else	// or construct initial points from straight line between (Rmin,Zmin) and (Rmax,Zmax) at constant phi angle
 {
-	initial.resize(Range(1,PAR.N),Range(1,2));	// secondIndex = 1: R	secondIndex = 2: Z
+	initial.resize(Range(1,PAR.N),Range(1,3));	// secondIndex = 1: R,  2: phi,  3: Z (same layout as the -P points file)
 
 	if(PAR.N>1) dN = 1.0/double(PAR.N-1);
 	else dN = 0;
@@ -345,9 +345,11 @@ if(gpu_flag)
 		gpu_flag = false;
 		goto cpu_structure;
 	}
+	// GPU failures exit non-zero (EXIT is exit(0)) so a caller can tell a failed
+	// trace from a finished one: the output file already holds its header by now.
 	if(gpu_device_count() <= 0) {
 		cout << "ERROR: -g requires a CUDA-capable GPU, but none was found." << endl;
-		EXIT;
+		exit(1);
 	}
 	// --- Build or read B-field grid ---
 	// Sample getBfield() onto the grid; this honors response_field
@@ -367,7 +369,7 @@ if(gpu_flag)
 		                      gpu_Nphi, gpu_phimin, gpu_phimax,
 		                      gpu_NZ, gpu_Zmin, gpu_Zmax);
 	}
-	if(!fgrid) { cout << "ERROR: failed to build GPU field grid." << endl; EXIT; }
+	if(!fgrid) { cout << "ERROR: failed to build GPU field grid." << endl; exit(1); }
 	fill_psi_grid(EQD, fgrid);
 	extract_wall(EQD, fgrid);
 	for(int k=0;k<4;k++) fgrid->bndy[k] = bndy[k];
@@ -409,38 +411,40 @@ if(gpu_flag)
 	                                  res_bwd, res_fwd,
 	                                  nsteps_bwd, nsteps_fwd,
 	                                  fgrid, gparams);
-	if(gpu_err != 0) { cout << "ERROR: GPU kernel failed." << endl; EXIT; }
+	if(gpu_err != 0) { cout << "ERROR: GPU kernel failed." << endl; exit(1); }
 
-	// --- Write output (mirrors CPU ordering) ---
+	// --- Write output (mirrors CPU ordering; like the CPU, Lc accumulates from the
+	// backward trace through the start point into the forward trace) ---
 	const double rTOd_local = 57.2957795130823;
 	for(int ii=0; ii<Npts; ii++) {
+		int nb = (PAR.MapDirection <= 0) ? nsteps_bwd[ii] : 0;
+		double Lc_bwd_total = (nb > 0) ? res_bwd[(long)ii*max_steps + nb-1].Lc : 0.0;
 		// Backward path written in reverse
 		if(PAR.MapDirection <= 0) {
-			int nb = nsteps_bwd[ii];
-			double Lc_bwd_total = (nb > 0) ? res_bwd[(long)ii*max_steps + nb-1].Lc : 0.0;
 			for(int jj=nb-1; jj>=0; jj--) {
 				StructureStep& s = res_bwd[(long)ii*max_steps + jj];
-				double phi_out = angleInDeg ? fmod(360.0-s.phi,360.0) : s.phi/rTOd_local;
+				double phi_out = angleInDeg ? modulo(360.0-s.phi,360.0) : s.phi/rTOd_local;
 				out << s.R*cos(s.phi/rTOd_local) << "\t" << s.R*sin(s.phi/rTOd_local) << "\t"
 				    << s.Z << "\t" << s.R << "\t" << phi_out << "\t"
 				    << s.psi << "\t" << Lc_bwd_total-s.Lc << "\t" << s.dpsidLc << "\n";
 			}
 		}
-		// Start point
+		// Start point (Lc = backward total; dpsidLc = first backward step's, as on the CPU)
 		double R0=finit[ii].R, Z0=finit[ii].Z, phi0=finit[ii].phi;
 		double psi0, d1, d2; EQD.get_psi(R0,Z0,psi0,d1,d2);
-		double phi0_out = angleInDeg ? fmod(360.0-phi0,360.0) : phi0/rTOd_local;
+		double dpsidLc0 = (nb > 0) ? res_bwd[(long)ii*max_steps].dpsidLc : 0.0;
+		double phi0_out = angleInDeg ? modulo(360.0-phi0,360.0) : phi0/rTOd_local;
 		out << R0*cos(phi0/rTOd_local) << "\t" << R0*sin(phi0/rTOd_local) << "\t"
-		    << Z0 << "\t" << R0 << "\t" << phi0_out << "\t" << psi0 << "\t" << 0.0 << "\t" << 0.0 << "\n";
+		    << Z0 << "\t" << R0 << "\t" << phi0_out << "\t" << psi0 << "\t" << Lc_bwd_total << "\t" << dpsidLc0 << "\n";
 		// Forward path
 		if(PAR.MapDirection >= 0) {
 			int nf = nsteps_fwd[ii];
 			for(int jj=0; jj<nf; jj++) {
 				StructureStep& s = res_fwd[(long)ii*max_steps + jj];
-				double phi_out = angleInDeg ? fmod(360.0-s.phi,360.0) : s.phi/rTOd_local;
+				double phi_out = angleInDeg ? modulo(360.0-s.phi,360.0) : s.phi/rTOd_local;
 				out << s.R*cos(s.phi/rTOd_local) << "\t" << s.R*sin(s.phi/rTOd_local) << "\t"
 				    << s.Z << "\t" << s.R << "\t" << phi_out << "\t"
-				    << s.psi << "\t" << s.Lc << "\t" << s.dpsidLc << "\n";
+				    << s.psi << "\t" << Lc_bwd_total+s.Lc << "\t" << s.dpsidLc << "\n";
 			}
 		}
 	}

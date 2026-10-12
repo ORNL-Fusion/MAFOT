@@ -25,7 +25,9 @@ endif
 # Set GPU=True in make.inc to compile CUDA-accelerated variants.
 # Requires nvcc and the CUDA Toolkit (CUDA_PATH in make.inc).
 ifeq ($(GPU),True)
-   DEFINES     += -DUSE_GPU
+   # GPU support is HEAT-only: -DUSE_GPU goes in the HEAT object rules, not the
+   # global DEFINES (other machines don't get GPU_INCLUDE or the CUDA objects)
+   GPU_DEFINE   = -DUSE_GPU
    GPU_INCLUDE  = -I$(CUDA_PATH)/include -I$(MAFOT_DIR)/src/gpu
    # Static cudart: the binary carries the CUDA runtime, so deployment needs no
    # libcudart.so -- only the driver (libcuda.so) at runtime when -g is used.
@@ -37,6 +39,7 @@ ifeq ($(GPU),True)
    NVCC        ?= $(CUDA_PATH)/bin/nvcc
    NVCCFLAGS   ?= -O3 -std=c++14
 else
+   GPU_DEFINE   =
    GPU_INCLUDE  =
    GPU_LIBS     =
    GPU_OBJS     =
@@ -450,7 +453,7 @@ $(MPIOBJS_TCABR) : $(OBJDIR)/tcabr/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(DEFINES) -DTCABR $< -o $@
 
 $(MPIOBJS_HEAT) : $(OBJDIR)/heat/%.o : $(MAFOT_DIR)/src/%.cxx
-	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(GPU_INCLUDE) $(DEFINES) -DHEAT $< -o $@
+	$(CXX) -c $(CFLAGS) -MMD $(OMPFLAGS) $(INCLUDE) $(OMPINCLUDE) $(GPU_INCLUDE) $(DEFINES) $(GPU_DEFINE) -DHEAT $< -o $@
 
 
 $(SEROBJS_D3D) : $(OBJDIR)/d3d/%.o : $(MAFOT_DIR)/src/%.cxx
@@ -475,6 +478,6 @@ $(SEROBJS_TCABR) : $(OBJDIR)/tcabr/%.o : $(MAFOT_DIR)/src/%.cxx
 	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(DEFINES) -DCTCABR $< -o $@
 
 $(SEROBJS_HEAT) : $(OBJDIR)/heat/%.o : $(MAFOT_DIR)/src/%.cxx
-	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(GPU_INCLUDE) $(DEFINES) -DHEAT $< -o $@
+	$(CXX) -c $(CFLAGS) -MMD $(INCLUDE) $(GPU_INCLUDE) $(DEFINES) $(GPU_DEFINE) -DHEAT $< -o $@
 
 

@@ -158,8 +158,21 @@ In `make.inc` (or `install/make.inc.HEAT`):
 ```makefile
 GPU = True
 CUDA_PATH = /usr/local/cuda
-NVCCFLAGS = -O3 -std=c++14 -arch=sm_89   # sm_89=Ada (RTX 2000/40xx); sm_80=A100; sm_70=V100; sm_86=RTX30xx; sm_90=H100
+# one -gencode per GPU architecture the binary must run on, plus a PTX entry for newer ones
+NVCCFLAGS = -O3 -std=c++14 \
+            -gencode arch=compute_80,code=sm_80 \
+            -gencode arch=compute_86,code=sm_86 \
+            -gencode arch=compute_89,code=sm_89 \
+            -gencode arch=compute_90,code=sm_90 \
+            -gencode arch=compute_90,code=compute_90
 ```
+
+The binary carries machine code only for the listed `sm_XY` targets. A GPU that is not
+listed and is *older* than the PTX entry fails at the first kernel launch with
+`no kernel image is available for execution on the device`; heatstructure then exits 1
+leaving an output file with only its header. Add a `-gencode` line for any new GPU rather
+than switching to a single `-arch=`. `sm_86` covers the A10G (AWS g5); `sm_89` the L4/L40S
+(AWS g6/g6e) and RTX Ada workstations.
 
 ```bash
 make heat    # GPU-enabled heatstructure + heatlaminar_mpi (one binary per tool)
